@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "next": "^14.2.25",
+    "next": "^15.5.14",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
@@ -20,8 +20,8 @@
     "@types/node": "^22.13.13",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.25",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "^15.5.14",
     "jsdom": "^26.0.0",
     "typescript": "^5.8.2",
     "vitest": "^3.0.9"
