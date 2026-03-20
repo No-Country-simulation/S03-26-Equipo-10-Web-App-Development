@@ -7,7 +7,7 @@ export interface AuthenticatedUser {
   email: string;
   tenantId: string;
   tenantName: string;
-  roles: RoleCode[];
+  roles: readonly RoleCode[];
   isActive: boolean;
 }
 
@@ -15,9 +15,10 @@ export interface JwtPayload {
   sub: string;
   email: string;
   tenantId: string;
-  roles: RoleCode[];
+  roles: readonly RoleCode[];
 }
 
 export interface RequestWithUser extends Request {
   user: AuthenticatedUser;
 }
+

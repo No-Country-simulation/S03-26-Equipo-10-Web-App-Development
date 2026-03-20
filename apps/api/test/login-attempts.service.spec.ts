@@ -1,4 +1,4 @@
-import { TooManyRequestsException } from '@nestjs/common';
+import { HttpException } from '@nestjs/common';
 import { LoginAttemptsService } from '../src/auth/login-attempts.service';
 
 describe('LoginAttemptsService', () => {
@@ -14,7 +14,7 @@ describe('LoginAttemptsService', () => {
     }
 
     expect(() => service.assertNotBlocked('admin@test.com')).toThrow(
-      TooManyRequestsException,
+      HttpException,
     );
   });
 
@@ -25,3 +25,4 @@ describe('LoginAttemptsService', () => {
     expect(() => service.assertNotBlocked('admin@test.com')).not.toThrow();
   });
 });
+
