@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsInt, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateTestimonialDto {
   @IsString()
@@ -6,22 +6,13 @@ export class CreateTestimonialDto {
   @MaxLength(120)
   authorName!: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  authorRole?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  company?: string;
-
   @IsString()
   @MinLength(10)
   @MaxLength(1000)
   content!: string;
 
-  @IsOptional()
-  @IsEnum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
-  status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating!: number;
 }

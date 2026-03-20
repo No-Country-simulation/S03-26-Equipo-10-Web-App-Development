@@ -1,50 +1,75 @@
-import { Injectable } from '@nestjs/common';
-import { TestimonialStatus } from '@prisma/client';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthUser } from '../auth/auth.types';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { CreateTestimonialDto } from './dto/create-testimonial.dto';
-import { UpdateTestimonialStatusDto } from './dto/update-testimonial-status.dto';
 
 @Injectable()
 export class TestimonialsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll() {
-    return this.prisma.testimonial.findMany({
-      orderBy: { createdAt: 'desc' },
+  async findAll(currentUser: AuthenticatedUser) {
+    const testimonials = await this.prisma.testimonial.findMany({
+      where: {
+        tenantId: currentUser.tenantId,
+      },
+      include: {
+        status: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
+
+    return {
+      items: testimonials.map(testimonial => ({
+        id: testimonial.id,
+        authorName: testimonial.authorName,
+        content: testimonial.content,
+        rating: testimonial.rating,
+        status: testimonial.status.code,
+        score: Number(testimonial.score),
+        createdAt: testimonial.createdAt,
+        publishedAt: testimonial.publishedAt,
+      })),
+      meta: {
+        total: testimonials.length,
+        page: 1,
+        limit: testimonials.length,
+      },
+    };
   }
 
-  findPublished() {
-    return this.prisma.testimonial.findMany({
-      where: { status: TestimonialStatus.PUBLISHED },
-      orderBy: { publishedAt: 'desc' },
+  async create(dto: CreateTestimonialDto, currentUser: AuthenticatedUser) {
+    const draftStatus = await this.prisma.testimonialStatus.findUnique({
+      where: { code: 'draft' },
     });
-  }
 
-  create(dto: CreateTestimonialDto, user?: AuthUser) {
-    const status = dto.status ?? 'DRAFT';
+    if (!draftStatus) {
+      throw new InternalServerErrorException('Draft status is missing');
+    }
 
-    return this.prisma.testimonial.create({
+    const testimonial = await this.prisma.testimonial.create({
       data: {
+        tenantId: currentUser.tenantId,
         authorName: dto.authorName,
-        authorRole: dto.authorRole,
-        company: dto.company,
         content: dto.content,
-        status,
-        publishedAt: status === 'PUBLISHED' ? new Date() : null,
-        createdById: user?.id,
+        rating: dto.rating,
+        statusId: draftStatus.id,
+      },
+      include: {
+        status: true,
       },
     });
-  }
 
-  updateStatus(id: string, dto: UpdateTestimonialStatusDto) {
-    return this.prisma.testimonial.update({
-      where: { id },
-      data: {
-        status: dto.status,
-        publishedAt: dto.status === 'PUBLISHED' ? new Date() : null,
-      },
-    });
+    return {
+      id: testimonial.id,
+      authorName: testimonial.authorName,
+      content: testimonial.content,
+      rating: testimonial.rating,
+      status: testimonial.status.code,
+      score: Number(testimonial.score),
+      createdAt: testimonial.createdAt,
+      publishedAt: testimonial.publishedAt,
+    };
   }
 }

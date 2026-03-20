@@ -1,5 +1,5 @@
-import { Test } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -18,7 +18,7 @@ describe('Health endpoint', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api');
+    app.setGlobalPrefix('api/v1');
     await app.init();
   });
 
@@ -27,7 +27,7 @@ describe('Health endpoint', () => {
   });
 
   it('returns api health status', async () => {
-    const response = await request(app.getHttpServer()).get('/api/health');
+    const response = await request(app.getHttpServer()).get('/api/v1/health');
 
     expect(response.status).toBe(200);
     expect(response.body).toMatchObject({

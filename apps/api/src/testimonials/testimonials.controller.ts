@@ -1,52 +1,25 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import type { Request } from 'express';
-import { AdminGuard } from '../auth/guards/admin.guard';
-import { RequestWithUser } from '../auth/auth.types';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { AuthenticatedUser } from '../auth/auth.types';
 import { CreateTestimonialDto } from './dto/create-testimonial.dto';
-import { UpdateTestimonialStatusDto } from './dto/update-testimonial-status.dto';
 import { TestimonialsService } from './testimonials.service';
 
 @Controller('testimonials')
+@UseGuards(JwtAuthGuard)
 export class TestimonialsController {
   constructor(private readonly testimonialsService: TestimonialsService) {}
 
   @Get()
-  findAll() {
-    return this.testimonialsService.findAll();
+  findAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.testimonialsService.findAll(user);
   }
 
-  @Get('published')
-  findPublished() {
-    return this.testimonialsService.findPublished();
-  }
-
-  @UseGuards(AdminGuard)
   @Post()
   create(
     @Body() dto: CreateTestimonialDto,
-    @Req() request: Request,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.testimonialsService.create(
-      dto,
-      (request as RequestWithUser).user,
-    );
-  }
-
-  @UseGuards(AdminGuard)
-  @Patch(':id/status')
-  updateStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateTestimonialStatusDto,
-  ) {
-    return this.testimonialsService.updateStatus(id, dto);
+    return this.testimonialsService.create(dto, user);
   }
 }

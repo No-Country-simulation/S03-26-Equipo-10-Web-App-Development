@@ -3,7 +3,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'testimonial-cms',
-  description: 'Scaffolding inicial para gestionar testimonios.',
+  description: 'Flujo mínimo de autenticación y gestión de usuarios para Testimonial CMS.',
 };
 
 export default function RootLayout({
