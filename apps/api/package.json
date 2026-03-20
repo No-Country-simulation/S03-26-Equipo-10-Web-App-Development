@@ -9,9 +9,10 @@
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "test": "jest --runInBand",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:migrate:dev": "prisma migrate dev"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.17",
@@ -22,15 +23,16 @@
     "@prisma/client": "^6.5.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "dotenv": "^16.4.7",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
-    "@swc/core": "^1.13.20",
-    "@swc/jest": "^0.2.39",
     "@nestjs/cli": "^11.0.16",
     "@nestjs/schematics": "^11.0.9",
     "@nestjs/testing": "^11.1.17",
+    "@swc/core": "^1.13.20",
+    "@swc/jest": "^0.2.39",
     "@types/express": "^5.0.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.13.13",
@@ -46,8 +48,5 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.2"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
   }
 }

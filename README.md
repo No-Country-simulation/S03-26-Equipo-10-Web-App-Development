@@ -95,3 +95,11 @@ npm run dev
 - `npm run lint`
 - `npm run test`
 - `npm run format`
+
+
+## Prisma y troubleshooting
+
+- `npm run db:migrate --workspace @testimonial-cms/api` aplica migraciones existentes en modo no interactivo.
+- `npm run db:migrate:dev --workspace @testimonial-cms/api` se usa cuando queres crear una migracion nueva en desarrollo.
+- Si cambia `POSTGRES_PASSWORD` despues de que Postgres inicializo su volumen, la contraseña interna del usuario `postgres` no cambia sola.
+- En ese caso, recrea la base con `docker compose down -v` y luego `docker compose up -d postgres`, o actualiza la contraseña del rol dentro de Postgres para que coincida con `DATABASE_URL`.

@@ -1,5 +1,19 @@
+import { config as loadEnv } from 'dotenv';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { randomBytes, scryptSync } from 'node:crypto';
+
+const envCandidates = [
+  resolve(__dirname, '../../.env'),
+  resolve(__dirname, '../.env'),
+];
+
+for (const envPath of envCandidates) {
+  if (existsSync(envPath)) {
+    loadEnv({ path: envPath, override: false });
+  }
+}
 
 const prisma = new PrismaClient();
 
@@ -10,6 +24,12 @@ function hashPassword(password: string): string {
 }
 
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error(
+      'DATABASE_URL is missing. Copy .env.example to .env or apps/api/.env before running db:seed.',
+    );
+  }
+
   const adminRole = await prisma.role.upsert({
     where: { code: 'admin' },
     update: { description: 'Tenant administrator' },
