@@ -4,6 +4,13 @@ import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { randomBytes, scryptSync } from 'node:crypto';
 
+const DEMO_TENANT_NAME = 'Demo Tenant';
+const DEMO_ADMIN_EMAIL = 'admin@demo.com';
+const DEMO_ADMIN_PASSWORD = 'Admin123!';
+const DEMO_EDITOR_EMAIL = 'editor@demo.com';
+const DEMO_EDITOR_PASSWORD = 'Editor123!';
+const DEMO_TESTIMONIAL_AUTHOR = 'Camila Diaz';
+
 const envCandidates = [
   resolve(__dirname, '../../.env'),
   resolve(__dirname, '../.env'),
@@ -11,7 +18,7 @@ const envCandidates = [
 
 for (const envPath of envCandidates) {
   if (existsSync(envPath)) {
-    loadEnv({ path: envPath, override: false });
+    loadEnv({ path: envPath, override: false, quiet: true });
   }
 }
 
@@ -67,37 +74,37 @@ async function main() {
   }
 
   const tenant = await prisma.tenant.upsert({
-    where: { name: 'Demo Tenant' },
+    where: { name: DEMO_TENANT_NAME },
     update: {},
-    create: { name: 'Demo Tenant' },
+    create: { name: DEMO_TENANT_NAME },
   });
 
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@demo.com' },
+    where: { email: DEMO_ADMIN_EMAIL },
     update: {
       tenantId: tenant.id,
       isActive: true,
-      passwordHash: hashPassword('Admin123!'),
+      passwordHash: hashPassword(DEMO_ADMIN_PASSWORD),
     },
     create: {
       tenantId: tenant.id,
-      email: 'admin@demo.com',
-      passwordHash: hashPassword('Admin123!'),
+      email: DEMO_ADMIN_EMAIL,
+      passwordHash: hashPassword(DEMO_ADMIN_PASSWORD),
       isActive: true,
     },
   });
 
   const editor = await prisma.user.upsert({
-    where: { email: 'editor@demo.com' },
+    where: { email: DEMO_EDITOR_EMAIL },
     update: {
       tenantId: tenant.id,
       isActive: true,
-      passwordHash: hashPassword('Editor123!'),
+      passwordHash: hashPassword(DEMO_EDITOR_PASSWORD),
     },
     create: {
       tenantId: tenant.id,
-      email: 'editor@demo.com',
-      passwordHash: hashPassword('Editor123!'),
+      email: DEMO_EDITOR_EMAIL,
+      passwordHash: hashPassword(DEMO_EDITOR_PASSWORD),
       isActive: true,
     },
   });
@@ -135,14 +142,14 @@ async function main() {
   });
 
   const testimonial = await prisma.testimonial.findFirst({
-    where: { tenantId: tenant.id, authorName: 'Camila Diaz' },
+    where: { tenantId: tenant.id, authorName: DEMO_TESTIMONIAL_AUTHOR },
   });
 
   if (!testimonial) {
     await prisma.testimonial.create({
       data: {
         tenantId: tenant.id,
-        authorName: 'Camila Diaz',
+        authorName: DEMO_TESTIMONIAL_AUTHOR,
         content: 'Excelente soporte, simple de integrar y muy util para ventas.',
         rating: 5,
         statusId: publishedStatus.id,
@@ -151,6 +158,13 @@ async function main() {
       },
     });
   }
+
+  console.log('Seed completado.');
+  console.log(`Tenant demo: ${DEMO_TENANT_NAME}`);
+  console.log(`Admin demo: ${DEMO_ADMIN_EMAIL} / ${DEMO_ADMIN_PASSWORD}`);
+  console.log(`Editor demo: ${DEMO_EDITOR_EMAIL} / ${DEMO_EDITOR_PASSWORD}`);
+  console.log(`Testimonio demo: ${DEMO_TESTIMONIAL_AUTHOR}`);
+  console.log(`Estados cargados: ${statuses.join(', ')}`);
 }
 
 main()
