@@ -1,0 +1,7 @@
+/* Purpose: Define the future shared design tokens layer outside the legacy global stylesheet. */
+/* Responsibilities: Define future shared styling concerns without leaking page-specific rules. */
+/* Inputs: Design tokens, theme variables and accessibility requirements. */
+/* Outputs: Stable CSS layers and shared visual primitives. */
+/* Dependencies: Tailwind, design tokens and the documented design system. */
+/* Implementation notes: Replace this placeholder when the design system tokens are migrated out of globals.css. */
+/* Naming and boundaries: Keep this file focused on cross-cutting style primitives. */

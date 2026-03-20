@@ -1,0 +1,6 @@
+{
+  "name": "@testimonial-cms/application",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Shared application-level contracts, DTOs and events for future extraction."
+}
