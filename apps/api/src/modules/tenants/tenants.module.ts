@@ -1,13 +1,10 @@
 import { Module } from '@nestjs/common';
+import { TenantsService } from './application/services/tenants.service';
+import { TenantsController } from './presentation/controllers/tenants.controller';
 
-/**
- * Purpose: Compose the future clean-architecture tenants module.
- * Responsibilities: Compose the future providers, controllers and infrastructure bindings for this module.
- * Inputs: Provider declarations, controller declarations and module imports.
- * Outputs: A NestJS module boundary ready for incremental migration.
- * Dependencies: NestJS decorators and the future internals of this module.
- * Implementation notes: Keep this module intentionally empty until the new architecture is wired into the runtime.
- * Naming and boundaries: Respect the clean architecture boundary represented by this folder.
- */
-@Module({})
+@Module({
+  controllers: [TenantsController],
+  providers: [TenantsService],
+  exports: [TenantsService],
+})
 export class TenantsModule {}

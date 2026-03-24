@@ -1,13 +1,10 @@
 import { Module } from '@nestjs/common';
+import { HealthRuntimeService } from './application/services/health-runtime.service';
+import { HealthController } from './presentation/controllers/health.controller';
 
-/**
- * Purpose: Compose the future clean-architecture health module.
- * Responsibilities: Compose the future providers, controllers and infrastructure bindings for this module.
- * Inputs: Provider declarations, controller declarations and module imports.
- * Outputs: A NestJS module boundary ready for incremental migration.
- * Dependencies: NestJS decorators and the future internals of this module.
- * Implementation notes: Keep this module intentionally empty until the new architecture is wired into the runtime.
- * Naming and boundaries: Respect the clean architecture boundary represented by this folder.
- */
-@Module({})
+@Module({
+  providers: [HealthRuntimeService],
+  controllers: [HealthController],
+  exports: [HealthRuntimeService],
+})
 export class HealthModule {}

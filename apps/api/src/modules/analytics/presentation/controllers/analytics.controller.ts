@@ -1,9 +1,26 @@
-/**
- * Purpose: Define the future HTTP controller for the analytics module.
- * Responsibilities: Receive transport input, delegate to use cases and return transport-safe responses.
- * Inputs: To be defined during implementation.
- * Outputs: To be defined during implementation.
- * Dependencies: To be defined during implementation.
- * Implementation notes: Implement this file when the module migrates from the legacy runtime to the new architecture.
- * Naming and boundaries: Keep the file within its architectural layer and avoid leaking infrastructure or framework concerns.
- */
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { CurrentTenantId } from '../../../../common/decorators/current-tenant.decorator';
+import { Roles } from '../../../../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../common/guards/roles.guard';
+import { AnalyticsService } from '../../application/services/analytics.service';
+
+@Controller('analytics')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'editor')
+export class AnalyticsController {
+  constructor(private readonly analyticsService: AnalyticsService) {}
+
+  @Get('dashboard')
+  dashboard(@CurrentTenantId() tenantId: string) {
+    return this.analyticsService.dashboard(tenantId);
+  }
+
+  @Get('testimonials/:testimonial_id')
+  testimonialMetrics(
+    @CurrentTenantId() tenantId: string,
+    @Param('testimonial_id') testimonialId: string,
+  ) {
+    return this.analyticsService.testimonialMetrics(tenantId, testimonialId);
+  }
+}

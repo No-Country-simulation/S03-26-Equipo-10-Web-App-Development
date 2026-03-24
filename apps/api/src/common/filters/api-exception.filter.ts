@@ -29,6 +29,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
         details: this.resolveDetails(payload),
         timestamp: new Date().toISOString(),
         path: request.url,
+        requestId: request.requestContext?.requestId,
       },
     });
   }

@@ -1,13 +1,23 @@
 import { Module } from '@nestjs/common';
+import { HttpResilienceService } from '../../infrastructure/external/http-resilience.service';
+import { LoggerService } from '../../infrastructure/logging/logger.service';
+import { OutboxProcessor } from '../../infrastructure/outbox/outbox.processor';
+import { OutboxService } from '../../infrastructure/outbox/outbox.service';
+import { WebhooksService } from './application/services/webhooks.service';
+import { WebhookOutboxHandler, WebhooksBootstrapService } from './application/services/webhook-outbox-handler.service';
+import { WebhooksController } from './presentation/controllers/webhooks.controller';
 
-/**
- * Purpose: Compose the future clean-architecture webhooks module.
- * Responsibilities: Compose the future providers, controllers and infrastructure bindings for this module.
- * Inputs: Provider declarations, controller declarations and module imports.
- * Outputs: A NestJS module boundary ready for incremental migration.
- * Dependencies: NestJS decorators and the future internals of this module.
- * Implementation notes: Keep this module intentionally empty until the new architecture is wired into the runtime.
- * Naming and boundaries: Respect the clean architecture boundary represented by this folder.
- */
-@Module({})
+@Module({
+  controllers: [WebhooksController],
+  providers: [
+    HttpResilienceService,
+    LoggerService,
+    OutboxService,
+    OutboxProcessor,
+    WebhooksService,
+    WebhookOutboxHandler,
+    WebhooksBootstrapService,
+  ],
+  exports: [WebhooksService],
+})
 export class WebhooksModule {}

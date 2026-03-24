@@ -1,9 +1,26 @@
-/**
- * Purpose: Provide the future structured logging service boundary for the API.
- * Responsibilities: Define logging concerns, contextual enrichment and transport orchestration.
- * Inputs: To be defined during implementation.
- * Outputs: To be defined during implementation.
- * Dependencies: To be defined during implementation.
- * Implementation notes: Implement this file when the module migrates from the legacy runtime to the new architecture.
- * Naming and boundaries: Keep the file within its architectural layer and avoid leaking infrastructure or framework concerns.
- */
+import { Injectable, Logger } from '@nestjs/common';
+
+@Injectable()
+export class LoggerService {
+  private readonly logger = new Logger('testimonial-cms-api');
+
+  info(message: string, context?: Record<string, unknown>): void {
+    this.logger.log(this.format(message, context));
+  }
+
+  warn(message: string, context?: Record<string, unknown>): void {
+    this.logger.warn(this.format(message, context));
+  }
+
+  error(message: string, context?: Record<string, unknown>): void {
+    this.logger.error(this.format(message, context));
+  }
+
+  private format(message: string, context?: Record<string, unknown>): string {
+    if (!context) {
+      return message;
+    }
+
+    return `${message} ${JSON.stringify(context)}`;
+  }
+}

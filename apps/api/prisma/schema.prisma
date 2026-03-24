@@ -8,12 +8,22 @@ datasource db {
 }
 
 model Tenant {
-  id        String        @id @default(uuid()) @db.Uuid
-  name      String        @unique
-  isActive  Boolean       @default(true) @map("is_active")
-  createdAt DateTime      @default(now()) @map("created_at")
-  users     User[]
-  testimonials Testimonial[]
+  id                 String              @id @default(uuid()) @db.Uuid
+  name               String              @unique
+  isActive           Boolean             @default(true) @map("is_active")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  users              User[]
+  testimonials       Testimonial[]
+  categories         Category[]
+  tags               Tag[]
+  webhooks           Webhook[]
+  apiKeys            ApiKey[]
+  tenantFeatureFlags TenantFeatureFlag[]
+  analyticsEvents    AnalyticsEvent[]
+  outboxEvents       OutboxEvent[]
+  idempotencyKeys    IdempotencyKey[]
+  auditLogs          AuditLog[]
 
   @@map("tenants")
 }
@@ -48,15 +58,18 @@ model RolePermission {
 }
 
 model User {
-  id           String         @id @default(uuid()) @db.Uuid
-  tenantId     String         @map("tenant_id") @db.Uuid
-  email        String         @unique
-  passwordHash String         @map("password_hash")
-  isActive     Boolean        @default(true) @map("is_active")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  tenant       Tenant         @relation(fields: [tenantId], references: [id])
-  roles        UserRole[]
-  refreshTokens RefreshToken[]
+  id                  String         @id @default(uuid()) @db.Uuid
+  tenantId            String         @map("tenant_id") @db.Uuid
+  email               String         @unique
+  passwordHash        String         @map("password_hash")
+  isActive            Boolean        @default(true) @map("is_active")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  tenant              Tenant         @relation(fields: [tenantId], references: [id])
+  roles               UserRole[]
+  refreshTokens       RefreshToken[]
+  testimonialsCreated Testimonial[]  @relation("testimonial_created_by")
+  auditLogs           AuditLog[]
 
   @@index([tenantId], map: "idx_users_tenant")
   @@map("users")
@@ -78,8 +91,11 @@ model RefreshToken {
   tokenHash String   @map("token_hash")
   expiresAt DateTime @map("expires_at")
   revoked   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
   user      User     @relation(fields: [userId], references: [id])
 
+  @@index([userId], map: "idx_refresh_tokens_user")
   @@map("refresh_tokens")
 }
 
@@ -91,19 +107,227 @@ model TestimonialStatus {
   @@map("testimonial_status")
 }
 
+model Category {
+  id        String        @id @default(uuid()) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  name      String
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  testimonials Testimonial[]
+
+  @@unique([tenantId, name], map: "uq_category")
+  @@index([tenantId], map: "idx_categories_tenant")
+  @@map("categories")
+}
+
+model Tag {
+  id        String           @id @default(uuid()) @db.Uuid
+  tenantId  String           @map("tenant_id") @db.Uuid
+  name      String
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  tenant    Tenant           @relation(fields: [tenantId], references: [id])
+  testimonials TestimonialTag[]
+
+  @@unique([tenantId, name], map: "uq_tag")
+  @@index([tenantId], map: "idx_tags_tenant")
+  @@map("tags")
+}
+
 model Testimonial {
-  id          String            @id @default(uuid()) @db.Uuid
-  tenantId    String            @map("tenant_id") @db.Uuid
-  content     String
-  authorName  String            @map("author_name")
-  rating      Int
-  statusId    Int               @map("status_id")
-  score       Decimal           @default(0) @db.Decimal(10, 4)
-  createdAt   DateTime          @default(now()) @map("created_at")
-  publishedAt DateTime?         @map("published_at")
-  tenant      Tenant            @relation(fields: [tenantId], references: [id])
-  status      TestimonialStatus @relation(fields: [statusId], references: [id])
+  id              String            @id @default(uuid()) @db.Uuid
+  tenantId        String            @map("tenant_id") @db.Uuid
+  content         String
+  authorName      String            @map("author_name")
+  rating          Int
+  statusId        Int               @map("status_id")
+  categoryId      String?           @map("category_id") @db.Uuid
+  createdById     String?           @map("created_by_id") @db.Uuid
+  moderationNotes String?           @map("moderation_notes")
+  score           Decimal           @default(0) @db.Decimal(10, 4)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  publishedAt     DateTime?         @map("published_at")
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  status          TestimonialStatus @relation(fields: [statusId], references: [id])
+  category        Category?         @relation(fields: [categoryId], references: [id])
+  createdBy       User?             @relation("testimonial_created_by", fields: [createdById], references: [id])
+  tags            TestimonialTag[]
+  analyticsEvents AnalyticsEvent[]
 
   @@index([tenantId, statusId], map: "idx_testimonials_tenant_status")
+  @@index([score(sort: Desc)], map: "idx_testimonials_score")
+  @@index([tenantId, categoryId], map: "idx_testimonials_category")
   @@map("testimonials")
+}
+
+model TestimonialTag {
+  testimonialId String      @map("testimonial_id") @db.Uuid
+  tagId         String      @map("tag_id") @db.Uuid
+  testimonial   Testimonial @relation(fields: [testimonialId], references: [id])
+  tag           Tag         @relation(fields: [tagId], references: [id])
+
+  @@id([testimonialId, tagId])
+  @@map("testimonial_tags")
+}
+
+model AnalyticsEventType {
+  id     Int              @id @default(autoincrement())
+  code   String           @unique
+  events AnalyticsEvent[]
+
+  @@map("analytics_event_types")
+}
+
+model AnalyticsEvent {
+  id            BigInt             @id @default(autoincrement())
+  tenantId      String             @map("tenant_id") @db.Uuid
+  testimonialId String             @map("testimonial_id") @db.Uuid
+  eventTypeId   Int                @map("event_type_id")
+  source        String             @default("public")
+  ipHash        String?            @map("ip_hash")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  testimonial   Testimonial        @relation(fields: [testimonialId], references: [id])
+  eventType     AnalyticsEventType @relation(fields: [eventTypeId], references: [id])
+
+  @@index([testimonialId], map: "idx_analytics_testimonial")
+  @@index([tenantId, createdAt], map: "idx_analytics_tenant_time")
+  @@map("analytics_events")
+}
+
+model WebhookEvent {
+  id       Int       @id @default(autoincrement())
+  code     String    @unique
+  webhooks Webhook[]
+
+  @@map("webhook_events")
+}
+
+model Webhook {
+  id         String            @id @default(uuid()) @db.Uuid
+  tenantId   String            @map("tenant_id") @db.Uuid
+  url        String
+  eventId    Int               @map("event_id")
+  isActive   Boolean           @default(true) @map("is_active")
+  secret     String?
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+  tenant     Tenant            @relation(fields: [tenantId], references: [id])
+  event      WebhookEvent      @relation(fields: [eventId], references: [id])
+  deliveries WebhookDelivery[]
+
+  @@index([tenantId], map: "idx_webhooks_tenant")
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id           String      @id @default(uuid()) @db.Uuid
+  webhookId    String      @map("webhook_id") @db.Uuid
+  outboxEventId String?    @map("outbox_event_id") @db.Uuid
+  status       String
+  attempts     Int         @default(0)
+  responseCode Int?        @map("response_code")
+  responseBody String?     @map("response_body")
+  errorMessage String?     @map("error_message")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  webhook      Webhook     @relation(fields: [webhookId], references: [id])
+  outboxEvent  OutboxEvent? @relation(fields: [outboxEventId], references: [id])
+
+  @@index([webhookId], map: "idx_webhook_deliveries_webhook")
+  @@index([outboxEventId], map: "idx_webhook_deliveries_outbox")
+  @@map("webhook_deliveries")
+}
+
+model FeatureFlag {
+  id          String              @id @default(uuid()) @db.Uuid
+  name        String              @unique
+  description String?
+  tenants     TenantFeatureFlag[]
+
+  @@map("feature_flags")
+}
+
+model TenantFeatureFlag {
+  tenantId      String      @map("tenant_id") @db.Uuid
+  featureFlagId String      @map("feature_flag_id") @db.Uuid
+  enabled       Boolean     @default(true)
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  featureFlag   FeatureFlag @relation(fields: [featureFlagId], references: [id])
+
+  @@id([tenantId, featureFlagId])
+  @@map("tenant_feature_flags")
+}
+
+model ApiKey {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  name       String
+  keyHash    String   @map("key_hash")
+  isActive   Boolean  @default(true) @map("is_active")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId], map: "idx_api_keys_tenant")
+  @@index([keyHash], map: "idx_api_keys_hash")
+  @@map("api_keys")
+}
+
+model OutboxEvent {
+  id          String            @id @default(uuid()) @db.Uuid
+  tenantId    String            @map("tenant_id") @db.Uuid
+  eventType   String            @map("event_type")
+  payload     Json
+  status      String            @default("pending")
+  attempts    Int               @default(0)
+  lastError   String?           @map("last_error")
+  nextRetryAt DateTime?         @map("next_retry_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  processedAt DateTime?         @map("processed_at")
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  deliveries  WebhookDelivery[]
+
+  @@index([status], map: "idx_outbox_status")
+  @@index([tenantId], map: "idx_outbox_tenant")
+  @@map("outbox_events")
+}
+
+model IdempotencyKey {
+  id           String   @id @default(uuid()) @db.Uuid
+  key          String
+  tenantId     String   @map("tenant_id") @db.Uuid
+  method       String
+  path         String
+  statusCode   Int      @map("status_code")
+  responseBody Json     @map("response_body")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([key, tenantId, method, path], map: "uq_idempotency_key")
+  @@index([tenantId], map: "idx_idempotency_tenant")
+  @@map("idempotency_keys")
+}
+
+model AuditLog {
+  id           BigInt   @id @default(autoincrement())
+  tenantId     String?  @map("tenant_id") @db.Uuid
+  userId       String?  @map("user_id") @db.Uuid
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  user         User?    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt], map: "idx_audit_logs_tenant_time")
+  @@index([userId, createdAt], map: "idx_audit_logs_user_time")
+  @@map("audit_logs")
 }

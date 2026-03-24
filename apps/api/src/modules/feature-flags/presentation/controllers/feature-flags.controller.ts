@@ -1,9 +1,28 @@
-/**
- * Purpose: Define the future HTTP controller for the feature-flags module.
- * Responsibilities: Receive transport input, delegate to use cases and return transport-safe responses.
- * Inputs: To be defined during implementation.
- * Outputs: To be defined during implementation.
- * Dependencies: To be defined during implementation.
- * Implementation notes: Implement this file when the module migrates from the legacy runtime to the new architecture.
- * Naming and boundaries: Keep the file within its architectural layer and avoid leaking infrastructure or framework concerns.
- */
+import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { CurrentTenantId } from '../../../../common/decorators/current-tenant.decorator';
+import { Roles } from '../../../../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../common/guards/roles.guard';
+import { UpdateFeatureFlagDto } from '../../application/dto/update-feature-flag.dto';
+import { FeatureFlagsService } from '../../application/services/feature-flags.service';
+
+@Controller('feature-flags')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
+export class FeatureFlagsController {
+  constructor(private readonly featureFlagsService: FeatureFlagsService) {}
+
+  @Get()
+  list(@CurrentTenantId() tenantId: string) {
+    return this.featureFlagsService.list(tenantId);
+  }
+
+  @Patch(':flag_name')
+  set(
+    @CurrentTenantId() tenantId: string,
+    @Param('flag_name') flagName: string,
+    @Body() dto: UpdateFeatureFlagDto,
+  ) {
+    return this.featureFlagsService.set(tenantId, flagName, dto.enabled);
+  }
+}

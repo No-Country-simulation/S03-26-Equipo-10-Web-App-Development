@@ -1,9 +1,27 @@
-/**
- * Purpose: Define the future HTTP controller for the tenants module.
- * Responsibilities: Receive transport input, delegate to use cases and return transport-safe responses.
- * Inputs: To be defined during implementation.
- * Outputs: To be defined during implementation.
- * Dependencies: To be defined during implementation.
- * Implementation notes: Implement this file when the module migrates from the legacy runtime to the new architecture.
- * Naming and boundaries: Keep the file within its architectural layer and avoid leaking infrastructure or framework concerns.
- */
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { CurrentTenantId } from '../../../../common/decorators/current-tenant.decorator';
+import { Roles } from '../../../../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../common/guards/roles.guard';
+import { UpdateTenantDto } from '../../application/dto/update-tenant.dto';
+import { TenantsService } from '../../application/services/tenants.service';
+
+@Controller('tenants')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class TenantsController {
+  constructor(private readonly tenantsService: TenantsService) {}
+
+  @Get('me')
+  getMe(@CurrentTenantId() tenantId: string) {
+    return this.tenantsService.getMe(tenantId);
+  }
+
+  @Patch('me')
+  @Roles('admin')
+  updateMe(
+    @CurrentTenantId() tenantId: string,
+    @Body() dto: UpdateTenantDto,
+  ) {
+    return this.tenantsService.updateMe(tenantId, dto);
+  }
+}

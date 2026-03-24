@@ -6,12 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  AuthenticatedUser,
-  JwtPayload,
-  RequestWithUser,
-  RoleCode,
-} from '../../auth/auth.types';
+import type { ApiRequest, JwtPayload, RoleCode } from '../interfaces/auth-context.interface';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -21,7 +16,7 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<RequestWithUser>();
+    const request = context.switchToHttp().getRequest<ApiRequest>();
     const authorization = request.header('authorization');
 
     if (!authorization?.startsWith('Bearer ')) {
@@ -62,7 +57,7 @@ export class JwtAuthGuard implements CanActivate {
       tenantName: user.tenant.name,
       roles: user.roles.map(entry => entry.role.code as RoleCode),
       isActive: user.isActive,
-    } satisfies AuthenticatedUser;
+    };
 
     return true;
   }
