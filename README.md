@@ -2,15 +2,42 @@
 
 Monorepo para un CMS de testimonios con `Next.js` en frontend/admin, `NestJS` en backend y `Postgres + Prisma` como base de datos.
 
-## Estructura
+## Arquitectura
+
+El backend implementa **Clean Architecture** (Hexagonal / Onion) estricta. Cada módulo NestJS separa sus responsabilidades en capas con inversión de dependencias:
 
 ```text
-apps/
-  api/   -> API REST con NestJS + Prisma
-  web/   -> Frontend de prueba para registro, login y dashboard admin
-docs/    -> documentación funcional, técnica y de dominio
-init.sql -> modelo de datos de referencia del proyecto
+apps/api/src/
+├── common/                → Decorators, guards, interceptors, hashing (global)
+├── prisma/                → PrismaService + PrismaModule (global)
+├── infrastructure/        → Outbox, cache, logging, HTTP resilience (shared)
+└── modules/
+    ├── testimonials/       → 11 use cases, 3 repos, entity con state machine
+    ├── auth/               → 5 use cases, JWT adapter, login attempts
+    ├── users/              → IUserRepository + PasswordService
+    ├── analytics/          → IAnalyticsRepository
+    ├── feature-flags/      → IFeatureFlagRepository
+    ├── webhooks/           → IWebhookRepository + HTTP dispatch
+    ├── tenants/            → ITenantRepository
+    ├── api-keys/           → IApiKeyRepository
+    ├── health/             → Healthcheck endpoints
+    └── docs/               → Swagger documentation
+
+docs/                      → Documentación funcional, técnica y de dominio
+  └── technical/ARCHITECTURE.md → Guía completa de arquitectura
 ```
+
+Cada módulo sigue la estructura:
+```
+modules/{nombre}/
+├── domain/            → Entidades + interfaces de repositorio (ports)
+├── application/       → Use cases, DTOs, mappers, ports externos
+├── infrastructure/    → Adaptadores Prisma, JWT, etc. (implementaciones)
+├── presentation/      → Controllers HTTP
+└── {nombre}.module.ts → DI wiring: { provide: SYMBOL, useClass: Adapter }
+```
+
+> 📖 Documentación arquitectónica completa: [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md)
 
 ## Requisitos
 

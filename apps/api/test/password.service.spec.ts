@@ -1,4 +1,4 @@
-import { PasswordService } from '../src/auth/password.service';
+import { PasswordService } from '../src/common/hashing/password.service';
 
 describe('PasswordService', () => {
   const service = new PasswordService();
