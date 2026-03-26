@@ -8,7 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { IDEMPOTENT_KEY } from '../decorators/idempotent.decorator';
-import type { ApiRequest } from '../interfaces/auth-context.interface';
+import type { ApiRequest } from '../../../application/interfaces/auth-context.interface';
 import { IdempotencyService } from '../services/idempotency.service';
 
 @Injectable()

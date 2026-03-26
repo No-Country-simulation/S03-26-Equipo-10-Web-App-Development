@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { LoggerService } from '../logging/logger.service';
+import { LoggerService } from '../../external-services/logging/logger.service';
 import { OutboxService } from './outbox.service';
 
 export interface OutboxHandler {

@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { OutboxProcessor, type OutboxHandler } from '../../infrastructure/outbox/outbox.processor';
+import { OutboxProcessor, type OutboxHandler } from '../../infrastructure/database/services/outbox.processor';
 import { DispatchOutboxEventUseCase } from '../use-cases/dispatch-outbox-event.use-case';
 
 @Injectable()

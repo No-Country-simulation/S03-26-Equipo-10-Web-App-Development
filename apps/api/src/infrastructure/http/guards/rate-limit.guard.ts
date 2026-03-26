@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RATE_LIMIT_KEY, type RateLimitConfig } from '../decorators/rate-limit.decorator';
-import type { ApiRequest } from '../interfaces/auth-context.interface';
+import type { ApiRequest } from '../../../application/interfaces/auth-context.interface';
 import { RateLimitService } from '../services/rate-limit.service';
 
 @Injectable()

@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import type { ApiRequest } from '../interfaces/auth-context.interface';
+import type { ApiRequest } from '../../../application/interfaces/auth-context.interface';
 
 @Injectable()
 export class AdminGuard implements CanActivate {

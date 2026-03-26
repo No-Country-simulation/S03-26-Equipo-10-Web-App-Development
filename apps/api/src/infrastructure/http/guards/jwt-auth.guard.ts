@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma/prisma.service';
-import type { ApiRequest, JwtPayload, RoleCode } from '../interfaces/auth-context.interface';
+import type { ApiRequest, JwtPayload, RoleCode } from '../../../application/interfaces/auth-context.interface';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {

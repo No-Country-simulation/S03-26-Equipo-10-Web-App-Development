@@ -15,8 +15,11 @@ import { WebhookOutboxHandler, WebhooksBootstrapService } from '../../../applica
 import { HttpResilienceService } from '../../external-services/http-resilience/http-resilience.service';
 import { LoggerService } from '../../external-services/logging/logger.service';
 import { OutboxProcessor } from '../../database/services/outbox.processor';
+import { OutboxService } from '../../database/services/outbox.service';
+import { PrismaModule } from '../../database/prisma/prisma.module';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [WebhooksController],
   providers: [
     { provide: WEBHOOK_REPOSITORY, useClass: PrismaWebhookRepository },
@@ -24,6 +27,7 @@ import { OutboxProcessor } from '../../database/services/outbox.processor';
     HttpResilienceService,
     LoggerService,
     OutboxProcessor,
+    OutboxService,
     ListWebhooksUseCase,
     CreateWebhookUseCase,
     UpdateWebhookUseCase,

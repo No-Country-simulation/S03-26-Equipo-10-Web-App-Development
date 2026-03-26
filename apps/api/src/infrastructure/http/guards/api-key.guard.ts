@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../../database/prisma/prisma.service';
-import type { ApiRequest } from '../interfaces/auth-context.interface';
+import type { ApiRequest } from '../../../application/interfaces/auth-context.interface';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
