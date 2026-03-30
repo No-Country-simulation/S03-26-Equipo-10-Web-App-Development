@@ -1,14 +1,14 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { TAG_REPOSITORY, ITagRepository } from '../repositories/tag.repository';
-import { TESTIMONIAL_REPOSITORY, ITestimonialRepository } from '../repositories/testimonial.repository';
+import { TagRepository } from '../repositories/tag.repository';
+import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CreateTagDto, UpdateTagDto } from '../dto/testimonials.dto';
 import { PrismaService } from '../../database/prisma.service';
 
 @Injectable()
 export class TagsService {
   constructor(
-    @Inject(TAG_REPOSITORY) private readonly tagRepo: ITagRepository,
-    @Inject(TESTIMONIAL_REPOSITORY) private readonly testimonialRepo: ITestimonialRepository,
+    private readonly tagRepo: TagRepository,
+    private readonly testimonialRepo: TestimonialRepository,
     private readonly prisma: PrismaService,
   ) {}
 

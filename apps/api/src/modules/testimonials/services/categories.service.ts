@@ -1,11 +1,11 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { CATEGORY_REPOSITORY, ICategoryRepository } from '../repositories/category.repository';
+import { CategoryRepository } from '../repositories/category.repository';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/testimonials.dto';
 
 @Injectable()
 export class CategoriesService {
   constructor(
-    @Inject(CATEGORY_REPOSITORY) private readonly categoryRepo: ICategoryRepository,
+    private readonly categoryRepo: CategoryRepository,
   ) {}
 
   async list(tenantId: string) {

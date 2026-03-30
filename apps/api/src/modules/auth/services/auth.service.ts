@@ -1,6 +1,6 @@
 import { UnauthorizedException, ConflictException, Injectable, Inject } from "@nestjs/common";
-import { AUTH_REPOSITORY, IAuthRepository } from "../repositories/auth.repository";
-import { TOKEN_SERVICE, ITokenService } from "../interfaces/token.port";
+import { AuthRepository } from "../repositories/auth.repository";
+import { JwtTokenService } from "./jwt-token.service";
 import { PasswordService } from "../../shared/hashing/password.service";
 import { LoginAttemptsService } from "./login-attempts.service";
 import { LoginDto } from "../dto/login.dto";
@@ -160,6 +160,6 @@ export class AuthService {
         };
     }
 
-    constructor(@Inject(AUTH_REPOSITORY) private readonly authRepo: IAuthRepository, @Inject(TOKEN_SERVICE) private readonly tokenService: ITokenService, private readonly passwordService: PasswordService, private readonly loginAttempts: LoginAttemptsService) {
+    constructor(private readonly authRepo: AuthRepository, private readonly tokenService: JwtTokenService, private readonly passwordService: PasswordService, private readonly loginAttempts: LoginAttemptsService) {
     }
 }

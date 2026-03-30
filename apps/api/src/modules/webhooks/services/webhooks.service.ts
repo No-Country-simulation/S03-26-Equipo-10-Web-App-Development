@@ -1,7 +1,7 @@
 import { NotFoundException, Injectable, Inject } from "@nestjs/common";
-import { WEBHOOK_REPOSITORY, IWebhookRepository } from "../repositories/webhook.repository";
+import { WebhookRepository } from "../repositories/webhook.repository";
 import { CreateWebhookDto, UpdateWebhookDto } from "../dto/webhook.dto";
-import { WEBHOOK_DISPATCHER, IWebhookDispatcher } from "../interfaces/webhook-dispatcher.port";
+import { HttpWebhookDispatcher } from "./http-webhook-dispatcher";
 
 @Injectable()
 export class WebhooksService {
@@ -97,6 +97,6 @@ export class WebhooksService {
         });
     }
 
-    constructor(@Inject(WEBHOOK_REPOSITORY) private readonly webhookRepo: IWebhookRepository, @Inject(WEBHOOK_DISPATCHER) private readonly dispatcher: IWebhookDispatcher) {
+    constructor(private readonly webhookRepo: WebhookRepository, private readonly dispatcher: HttpWebhookDispatcher) {
     }
 }

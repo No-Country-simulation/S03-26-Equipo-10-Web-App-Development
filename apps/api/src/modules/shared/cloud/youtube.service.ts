@@ -8,7 +8,7 @@ interface YouTubeMetadata {
 }
 
 @Injectable()
-export class YouTubeAdapter {
+export class YoutubeService {
   constructor(private readonly http: HttpResilienceService) {}
 
   async getVideoMetadata(url: string): Promise<YouTubeMetadata | null> {

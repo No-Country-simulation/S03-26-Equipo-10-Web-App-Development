@@ -1,5 +1,5 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { FEATURE_FLAG_REPOSITORY, IFeatureFlagRepository } from "../repositories/feature-flag.repository";
+import { FeatureFlagRepository } from "../repositories/feature-flag.repository";
 
 @Injectable()
 export class FeatureFlagsService {
@@ -15,6 +15,6 @@ export class FeatureFlagsService {
         return this.featureFlagRepo.setFlag(tenantId, flagName, enabled);
     }
 
-    constructor(@Inject(FEATURE_FLAG_REPOSITORY) private readonly featureFlagRepo: IFeatureFlagRepository) {
+    constructor(private readonly featureFlagRepo: FeatureFlagRepository) {
     }
 }

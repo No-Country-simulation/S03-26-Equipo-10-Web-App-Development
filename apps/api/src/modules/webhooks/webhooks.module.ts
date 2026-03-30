@@ -9,15 +9,13 @@ import { HttpWebhookDispatcher } from './services/http-webhook-dispatcher';
 import { HttpResilienceService } from './services/http-resilience.service';
 import { LoggerService } from './services/logger.service';
 
-import { WEBHOOK_REPOSITORY } from './repositories/webhook.repository';
-import { PrismaWebhookRepository } from './repositories/prisma-webhook.repository';
-import { WEBHOOK_DISPATCHER } from './interfaces/webhook-dispatcher.port';
+import { WebhookRepository } from './repositories/webhook.repository';
 
 @Module({
   controllers: [WebhooksController],
   providers: [
-    { provide: WEBHOOK_REPOSITORY, useClass: PrismaWebhookRepository },
-    { provide: WEBHOOK_DISPATCHER, useClass: HttpWebhookDispatcher },
+    WebhookRepository,
+    HttpWebhookDispatcher,
     HttpResilienceService,
     LoggerService,
     OutboxService,
@@ -26,6 +24,8 @@ import { WEBHOOK_DISPATCHER } from './interfaces/webhook-dispatcher.port';
     WebhooksBootstrapService,
     WebhooksService,
   ],
-  exports: [WebhookOutboxHandler, WebhooksService, OutboxService],
+  exports: [WebhookOutboxHandler, WebhooksService, OutboxService, WebhookRepository, HttpWebhookDispatcher],
 })
 export class WebhooksModule {}
+
+

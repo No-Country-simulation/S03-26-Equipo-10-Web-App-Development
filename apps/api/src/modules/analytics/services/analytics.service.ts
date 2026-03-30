@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
-import { WEBHOOK_REPOSITORY, IWebhookRepository } from "../../webhooks/repositories/webhook.repository";
-import { WEBHOOK_DISPATCHER, IWebhookDispatcher } from "../../webhooks/interfaces/webhook-dispatcher.port";
-import { ANALYTICS_REPOSITORY, IAnalyticsRepository } from "../repositories/analytics-event.repository";
+import { WebhookRepository } from "../../webhooks/repositories/webhook.repository";
+import { HttpWebhookDispatcher } from "../../webhooks/services/http-webhook-dispatcher";
+import { AnalyticsRepository } from '../repositories/analytics.repository';
 
 @Injectable()
 export class AnalyticsService {
@@ -50,6 +50,6 @@ export class AnalyticsService {
         return this.analyticsRepo.getTestimonialMetrics(tenantId, testimonialId);
     }
 
-    constructor(@Inject(WEBHOOK_REPOSITORY) private readonly webhookRepo: IWebhookRepository, @Inject(WEBHOOK_DISPATCHER) private readonly dispatcher: IWebhookDispatcher, @Inject(ANALYTICS_REPOSITORY) private readonly analyticsRepo: IAnalyticsRepository) {
+    constructor(private readonly webhookRepo: WebhookRepository, private readonly dispatcher: HttpWebhookDispatcher, private readonly analyticsRepo: AnalyticsRepository) {
     }
 }

@@ -1,11 +1,12 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { PasswordService } from '../src/modules/shared/hashing/password.service';
 import { LoginAttemptsService } from '../src/modules/auth/services/login-attempts.service';
-import { LoginUseCase } from '../src/modules/auth/services/auth.service';
-import type { IAuthRepository, UserWithAuth } from '../src/modules/auth/repositories/auth.repository';
-import type { ITokenService } from '../src/modules/auth/interfaces/token.port';
+import { AuthService } from '../src/modules/auth/services/auth.service';
+import { AuthRepository } from '../src/modules/auth/repositories/auth.repository';
+import { JwtTokenService } from '../src/modules/auth/services/jwt-token.service';
+import type { UserWithAuth } from '../src/modules/auth/repositories/auth.repository';
 
-function createMockAuthRepo(): jest.Mocked<IAuthRepository> {
+function createMockAuthRepo(): jest.Mocked<AuthRepository> {
   return {
     findUserByEmail: jest.fn(),
     findUserById: jest.fn(),
@@ -15,16 +16,16 @@ function createMockAuthRepo(): jest.Mocked<IAuthRepository> {
     revokeRefreshToken: jest.fn(),
     revokeRefreshTokenByHash: jest.fn(),
     ensureCatalogs: jest.fn(),
-  };
+  } as unknown as jest.Mocked<AuthRepository>;
 }
 
-function createMockTokenService(): jest.Mocked<ITokenService> {
+function createMockTokenService(): jest.Mocked<JwtTokenService> {
   return {
     signAccessToken: jest.fn().mockResolvedValue('access-token'),
     generateRefreshToken: jest.fn().mockReturnValue('refresh-token-hex'),
     hashToken: jest.fn().mockReturnValue('hashed-token'),
     getRefreshExpiresAt: jest.fn().mockReturnValue(new Date('2026-04-01')),
-  };
+  } as unknown as jest.Mocked<JwtTokenService>;
 }
 
 function createTestUser(overrides?: Partial<UserWithAuth>): UserWithAuth {
@@ -42,26 +43,26 @@ function createTestUser(overrides?: Partial<UserWithAuth>): UserWithAuth {
   };
 }
 
-describe('LoginUseCase', () => {
-  let authRepo: jest.Mocked<IAuthRepository>;
-  let tokenService: jest.Mocked<ITokenService>;
+describe('AuthService', () => {
+  let authRepo: jest.Mocked<AuthRepository>;
+  let tokenService: jest.Mocked<JwtTokenService>;
   let passwordService: PasswordService;
   let loginAttempts: LoginAttemptsService;
-  let useCase: LoginUseCase;
+  let useCase: AuthService;
 
   beforeEach(() => {
     authRepo = createMockAuthRepo();
     tokenService = createMockTokenService();
     passwordService = new PasswordService();
     loginAttempts = new LoginAttemptsService();
-    useCase = new LoginUseCase(authRepo, tokenService, passwordService, loginAttempts);
+    useCase = new AuthService(authRepo, tokenService, passwordService, loginAttempts);
   });
 
   it('returns tokens for valid credentials', async () => {
     const hash = await passwordService.hashPassword('Admin123!');
     authRepo.findUserByEmail.mockResolvedValue(createTestUser({ passwordHash: hash }));
 
-    const result = await useCase.execute({
+    const result = await useCase.login({
       email: 'admin@acme.com',
       password: 'Admin123!',
     });
@@ -76,7 +77,7 @@ describe('LoginUseCase', () => {
     authRepo.findUserByEmail.mockResolvedValue(createTestUser({ passwordHash: hash }));
 
     await expect(
-      useCase.execute({ email: 'admin@acme.com', password: 'Wrong123!' }),
+      useCase.login({ email: 'admin@acme.com', password: 'Wrong123!' }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
@@ -84,7 +85,7 @@ describe('LoginUseCase', () => {
     authRepo.findUserByEmail.mockResolvedValue(null);
 
     await expect(
-      useCase.execute({ email: 'nobody@acme.com', password: 'Admin123!' }),
+      useCase.login({ email: 'nobody@acme.com', password: 'Admin123!' }),
     ).rejects.toThrow(UnauthorizedException);
   });
 
@@ -93,7 +94,7 @@ describe('LoginUseCase', () => {
     authRepo.findUserByEmail.mockResolvedValue(createTestUser({ passwordHash: hash, isActive: false }));
 
     await expect(
-      useCase.execute({ email: 'admin@acme.com', password: 'Admin123!' }),
+      useCase.login({ email: 'admin@acme.com', password: 'Admin123!' }),
     ).rejects.toThrow(UnauthorizedException);
   });
 });

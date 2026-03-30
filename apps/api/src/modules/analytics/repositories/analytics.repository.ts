@@ -1,9 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { IAnalyticsRepository, DashboardData, TestimonialMetrics } from './analytics-event.repository';
+export interface DashboardData {
+  total: number;
+  published: number;
+  avgScore: number;
+  avgRating: number;
+  byStatus: Array<{ status: string; count: number }>;
+}
 
+export interface TestimonialMetrics {
+  views: number;
+  likes: number;
+}
 @Injectable()
-export class PrismaAnalyticsRepository implements IAnalyticsRepository {
+export class AnalyticsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async getDashboard(tenantId: string): Promise<DashboardData> {

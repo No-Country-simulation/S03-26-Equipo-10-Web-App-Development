@@ -1,15 +1,9 @@
 import { Module } from '@nestjs/common';
-import { OutboxService } from '../webhooks/services/outbox.service';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 
-import { TESTIMONIAL_REPOSITORY } from './repositories/testimonial.repository';
-import { TAG_REPOSITORY } from './repositories/tag.repository';
-import { CATEGORY_REPOSITORY } from './repositories/category.repository';
-import { OUTBOX_PORT } from '../webhooks/interfaces/outbox.port';
-
-import { PrismaTestimonialRepository } from './repositories/prisma-testimonial.repository';
-import { PrismaTagRepository } from './repositories/prisma-tag.repository';
-import { PrismaCategoryRepository } from './repositories/prisma-category.repository';
-import { OutboxAdapter } from '../webhooks/services/outbox.adapter';
+import { CategoryRepository } from './repositories/category.repository';
+import { TestimonialRepository } from './repositories/testimonial.repository';
+import { TagRepository } from './repositories/tag.repository';
 
 import { TestimonialsService } from './services/testimonials.service';
 import { TagsService } from './services/tags.service';
@@ -22,6 +16,7 @@ import { CategoriesController } from './controllers/categories.controller';
 import { PublicTestimonialsController } from './controllers/public-testimonials.controller';
 
 @Module({
+  imports: [WebhooksModule],
   controllers: [
     TestimonialsController,
     TagsController,
@@ -29,11 +24,9 @@ import { PublicTestimonialsController } from './controllers/public-testimonials.
     PublicTestimonialsController,
   ],
   providers: [
-    { provide: TESTIMONIAL_REPOSITORY, useClass: PrismaTestimonialRepository },
-    { provide: TAG_REPOSITORY, useClass: PrismaTagRepository },
-    { provide: CATEGORY_REPOSITORY, useClass: PrismaCategoryRepository },
-    { provide: OUTBOX_PORT, useClass: OutboxAdapter },
-    OutboxService,
+    TestimonialRepository,
+    TagRepository,
+    CategoryRepository,
     TestimonialsService,
     TagsService,
     CategoriesService,
@@ -42,3 +35,5 @@ import { PublicTestimonialsController } from './controllers/public-testimonials.
   exports: [TestimonialsService],
 })
 export class TestimonialsModule {}
+
+

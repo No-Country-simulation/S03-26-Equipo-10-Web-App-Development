@@ -7,7 +7,7 @@ interface CloudinaryUploadResult {
 }
 
 @Injectable()
-export class CloudinaryAdapter {
+export class CloudinaryService {
   constructor(private readonly http: HttpResilienceService) {}
 
   async uploadImage(base64Data: string): Promise<CloudinaryUploadResult> {

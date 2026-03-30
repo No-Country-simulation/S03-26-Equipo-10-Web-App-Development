@@ -1,12 +1,12 @@
 import { NotFoundException, ConflictException, Injectable, Inject } from "@nestjs/common";
-import { TESTIMONIAL_REPOSITORY, ITestimonialRepository } from "../repositories/testimonial.repository";
+import { TestimonialRepository } from "../repositories/testimonial.repository";
 import { TestimonialMapper } from "../mappers/testimonial.mapper";
 import { randomUUID } from "node:crypto";
 import { Testimonial } from "../entities/testimonial.model";
-import { CATEGORY_REPOSITORY, ICategoryRepository } from "../repositories/category.repository";
-import { OUTBOX_PORT, IOutboxPort } from "../../webhooks/interfaces/outbox.port";
+import { CategoryRepository } from "../repositories/category.repository";
+import { OutboxService } from "../../webhooks/services/outbox.service";
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto } from "../dto/testimonials.dto";
-import { ANALYTICS_REPOSITORY, IAnalyticsRepository } from "../../analytics/repositories/analytics-event.repository";
+import { AnalyticsRepository } from "../../analytics/repositories/analytics.repository";
 
 @Injectable()
 export class TestimonialsService {
@@ -44,7 +44,7 @@ export class TestimonialsService {
 
         await this.repo.save(entity);
 
-        await this.outbox.emit({
+        await this.outbox.createEvent({
           tenantId,
           eventType: 'testimonial.created',
           payload: { testimonialId: entity.id, authorName: entity.authorName },
@@ -117,7 +117,7 @@ export class TestimonialsService {
 
         await this.repo.save(entity);
 
-        await this.outbox.emit({
+        await this.outbox.createEvent({
           tenantId,
           eventType: 'testimonial.published',
           payload: {
@@ -190,6 +190,6 @@ export class TestimonialsService {
         return this.mapper.toFullView(entity);
     }
 
-    constructor(@Inject(TESTIMONIAL_REPOSITORY) private readonly repo: ITestimonialRepository, private readonly mapper: TestimonialMapper, @Inject(CATEGORY_REPOSITORY) private readonly categoryRepo: ICategoryRepository, @Inject(OUTBOX_PORT) private readonly outbox: IOutboxPort, @Inject(ANALYTICS_REPOSITORY) private readonly analyticsRepo: IAnalyticsRepository) {
+    constructor(private readonly repo: TestimonialRepository, private readonly mapper: TestimonialMapper, private readonly categoryRepo: CategoryRepository, private readonly outbox: OutboxService, private readonly analyticsRepo: AnalyticsRepository) {
     }
 }

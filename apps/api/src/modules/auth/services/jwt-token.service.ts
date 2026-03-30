@@ -2,10 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'node:crypto';
 import { PasswordService } from '../../shared/hashing/password.service';
-import { ITokenService, TokenPayload } from '../interfaces/token.port';
+export interface TokenPayload {
+  sub: string;
+  email: string;
+  tenantId: string;
+  roles: string[];
+}
 
 @Injectable()
-export class JwtTokenService implements ITokenService {
+export class JwtTokenService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly passwordService: PasswordService,

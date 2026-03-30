@@ -1,10 +1,10 @@
-import { WebhookUrl } from '../../shared/value-objects/webhook-url.vo';
+
 
 export class Webhook {
   private constructor(
     private readonly id: string,
     private readonly tenantId: string,
-    private url: WebhookUrl,
+    private url: string,
     private eventCode: string,
     private secret: string | null,
     private isActive: boolean,
@@ -19,11 +19,10 @@ export class Webhook {
     secret: string | null,
     isActive = true,
   ): Webhook {
-    const urlVO = WebhookUrl.create(rawUrl);
     return new Webhook(
       id,
       tenantId,
-      urlVO,
+      rawUrl,
       eventCode,
       secret,
       isActive,
@@ -32,11 +31,11 @@ export class Webhook {
   }
 
   public updateUrl(rawUrl: string): void {
-    this.url = WebhookUrl.create(rawUrl);
+    this.url = rawUrl;
   }
 
   public getUrl(): string {
-    return this.url.getValue();
+    return this.url;
   }
 
   public toggleActive(isActive: boolean): void {

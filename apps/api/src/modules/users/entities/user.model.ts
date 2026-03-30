@@ -1,10 +1,10 @@
-import { Email } from '../../shared/value-objects/email.vo';
+
 
 export class User {
   private constructor(
     private readonly id: string,
     private readonly tenantId: string,
-    private email: Email,
+    private email: string,
     private passwordHash: string | null,
     private roles: string[],
     private isActive: boolean,
@@ -20,11 +20,10 @@ export class User {
     roles: string[] = ['editor'],
     isActive = true,
   ): User {
-    const emailVO = Email.create(rawEmail);
     return new User(
       id,
       tenantId,
-      emailVO,
+      rawEmail,
       passwordHash,
       roles,
       isActive,
@@ -34,7 +33,7 @@ export class User {
   }
 
   public updateEmail(rawEmail: string): void {
-    this.email = Email.create(rawEmail);
+    this.email = rawEmail;
     this.markUpdated();
   }
 
@@ -60,6 +59,6 @@ export class User {
   }
 
   public getEmail(): string {
-    return this.email.getValue();
+    return this.email;
   }
 }

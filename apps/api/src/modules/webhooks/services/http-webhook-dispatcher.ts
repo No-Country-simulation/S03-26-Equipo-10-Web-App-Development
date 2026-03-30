@@ -1,16 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { createHmac } from 'node:crypto';
-import { IWebhookDispatcher } from '../interfaces/webhook-dispatcher.port';
+
 import { HttpResilienceService } from './http-resilience.service';
 import { LoggerService } from './logger.service';
-import { WEBHOOK_REPOSITORY, IWebhookRepository } from '../repositories/webhook.repository';
+import { WebhookRepository } from '../repositories/webhook.repository';
 
 @Injectable()
-export class HttpWebhookDispatcher implements IWebhookDispatcher {
+export class HttpWebhookDispatcher {
   constructor(
     private readonly http: HttpResilienceService,
     private readonly logger: LoggerService,
-    @Inject(WEBHOOK_REPOSITORY) private readonly webhookRepo: IWebhookRepository,
+    private readonly webhookRepo: WebhookRepository,
   ) {}
 
   async dispatch(

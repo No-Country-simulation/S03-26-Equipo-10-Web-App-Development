@@ -1,0 +1,62 @@
+FAIL test/health.spec.ts
+  ÔùÅ Health endpoint ÔÇ║ returns api health status
+
+    Nest can't resolve dependencies of the AnalyticsService (?, HttpWebhookDispatcher, AnalyticsRepository). Please make sure that the argument WebhookRepository at index [0] is available in the AnalyticsModule module.
+
+    Potential solutions:
+    - Is AnalyticsModule a valid NestJS module?
+    - If WebhookRepository is a provider, is it part of the current AnalyticsModule?
+    - If WebhookRepository is exported from a separate @Module, is that module imported within AnalyticsModule?
+      @Module({
+        imports: [ /* the Module containing WebhookRepository */ ]
+      })
+
+    For more common dependency resolution issues, see: https://docs.nestjs.com/faq/common-errors
+
+       9 |
+      10 |   beforeAll(async () => {
+    > 11 |     const moduleRef = await Test.createTestingModule({
+         |                       ^
+      12 |       imports: [AppModule],
+      13 |     })
+      14 |       .overrideProvider(PrismaService)
+
+      at TestingInjector.lookupComponentInParentModules (../../node_modules/@nestjs/core/injector/injector.js:290:19)
+      at TestingInjector.resolveComponentWrapper (../../node_modules/@nestjs/testing/testing-injector.js:19:45)
+      at resolveParam (../../node_modules/@nestjs/core/injector/injector.js:140:38)
+          at async Promise.all (index 0)
+      at TestingInjector.resolveConstructorParams (../../node_modules/@nestjs/core/injector/injector.js:169:27)
+      at TestingInjector.loadInstance (../../node_modules/@nestjs/core/injector/injector.js:75:13)
+      at TestingInjector.loadProvider (../../node_modules/@nestjs/core/injector/injector.js:103:9)
+      at ../../node_modules/@nestjs/core/injector/instance-loader.js:56:13
+          at async Promise.all (index 4)
+      at TestingInstanceLoader.createInstancesOfProviders (../../node_modules/@nestjs/core/injector/instance-loader.js:55:9)
+      at ../../node_modules/@nestjs/core/injector/instance-loader.js:40:13
+          at async Promise.all (index 18)
+      at TestingInstanceLoader.createInstances (../../node_modules/@nestjs/core/injector/instance-loader.js:39:9)
+      at TestingInstanceLoader.createInstancesOfDependencies (../../node_modules/@nestjs/core/injector/instance-loader.js:22:13)
+      at TestingInstanceLoader.createInstancesOfDependencies (../../node_modules/@nestjs/testing/testing-instance-loader.js:9:9)
+      at TestingModuleBuilder.createInstancesOfDependencies (../../node_modules/@nestjs/testing/testing-module.builder.js:118:9)
+      at TestingModuleBuilder.compile (../../node_modules/@nestjs/testing/testing-module.builder.js:74:9)
+      at Object.<anonymous> (test/health.spec.ts:11:23)
+
+
+  ÔùÅ Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'close')
+
+      24 |
+      25 |   afterAll(async () => {
+    > 26 |     await app.close();
+         |               ^
+      27 |   });
+      28 |
+      29 |   it('returns api health status', async () => {
+
+      at Object.close (test/health.spec.ts:26:15)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        4.464 s, estimated 5 s
+Ran all test suites matching test/health.spec.ts.

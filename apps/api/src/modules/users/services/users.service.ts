@@ -1,5 +1,5 @@
 import { ConflictException, NotFoundException, Injectable, Inject } from "@nestjs/common";
-import { USER_REPOSITORY, IUserRepository } from "../repositories/user.repository";
+import { UserRepository } from "../repositories/user.repository";
 import { PasswordService } from "../../shared/hashing/password.service";
 import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
 
@@ -58,6 +58,6 @@ export class UsersService {
         });
     }
 
-    constructor(@Inject(USER_REPOSITORY) private readonly userRepo: IUserRepository, private readonly passwordService: PasswordService) {
+    constructor(private readonly userRepo: UserRepository, private readonly passwordService: PasswordService) {
     }
 }

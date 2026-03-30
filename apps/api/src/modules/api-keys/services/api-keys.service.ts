@@ -1,6 +1,6 @@
 import { NotFoundException, Injectable, Inject } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
-import { API_KEY_REPOSITORY, IApiKeyRepository } from "../repositories/api-key.repository";
+import { ApiKeyRepository } from "../repositories/api-key.repository";
 import { CreateApiKeyDto, RotateApiKeyDto } from "../dto/api-key.dto";
 
 @Injectable()
@@ -40,6 +40,6 @@ export class ApiKeysService {
         return { ...result, apiKey: rawApiKey };
     }
 
-    constructor(@Inject(API_KEY_REPOSITORY) private readonly apiKeyRepo: IApiKeyRepository) {
+    constructor(private readonly apiKeyRepo: ApiKeyRepository) {
     }
 }

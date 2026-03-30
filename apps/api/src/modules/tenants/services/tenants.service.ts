@@ -1,5 +1,5 @@
 import { NotFoundException, ConflictException, Injectable, Inject } from "@nestjs/common";
-import { TENANT_REPOSITORY, ITenantRepository } from "../repositories/tenant.repository";
+import { TenantRepository } from "../repositories/tenant.repository";
 import { UpdateTenantDto } from "../dto/update-tenant.dto";
 
 @Injectable()
@@ -23,6 +23,6 @@ export class TenantsService {
         return this.tenantRepo.update(tenantId, dto.name);
     }
 
-    constructor(@Inject(TENANT_REPOSITORY) private readonly tenantRepo: ITenantRepository) {
+    constructor(private readonly tenantRepo: TenantRepository) {
     }
 }
