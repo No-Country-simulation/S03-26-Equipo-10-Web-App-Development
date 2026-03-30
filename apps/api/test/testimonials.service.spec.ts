@@ -1,4 +1,4 @@
-import { Testimonial } from '../src/core/entities/testimonial.entity';
+import { Testimonial } from '../src/modules/testimonials/entities/testimonial.model';
 
 describe('Testimonial Entity', () => {
   it('creates a draft testimonial', () => {
@@ -109,3 +109,4 @@ describe('Testimonial Entity', () => {
     ).toThrow('Rating must be between 1 and 5');
   });
 });
+

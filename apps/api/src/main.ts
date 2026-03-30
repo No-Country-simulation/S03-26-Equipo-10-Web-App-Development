@@ -1,11 +1,11 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NextFunction, Request, Response } from 'express';
-import { AppModule } from './infrastructure/http/app.module';
-import { ApiExceptionFilter } from './infrastructure/http/filters/api-exception.filter';
-import { ApiResponseInterceptor } from './infrastructure/http/interceptors/api-response.interceptor';
-import { IdempotencyInterceptor } from './infrastructure/http/interceptors/idempotency.interceptor';
-import { RequestContextMiddleware } from './infrastructure/http/middleware/request-context.middleware';
+import { AppModule } from './app.module';
+import { ApiExceptionFilter } from './common/filters/api-exception.filter';
+import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
+import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

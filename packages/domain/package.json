@@ -1,6 +1,0 @@
-{
-  "name": "@testimonial-cms/domain",
-  "private": true,
-  "version": "0.1.0",
-  "description": "Shared domain contracts and conceptual boundaries for future extraction."
-}

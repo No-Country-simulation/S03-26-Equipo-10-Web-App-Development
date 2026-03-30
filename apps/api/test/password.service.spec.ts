@@ -1,4 +1,4 @@
-import { PasswordService } from '../src/common/hashing/password.service';
+import { PasswordService } from '../src/modules/shared/hashing/password.service';
 
 describe('PasswordService', () => {
   const service = new PasswordService();
@@ -15,3 +15,4 @@ describe('PasswordService', () => {
     expect(service.hashOpaqueToken('abc')).not.toBe(service.hashOpaqueToken('xyz'));
   });
 });
+

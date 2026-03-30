@@ -1,9 +1,9 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { PasswordService } from '../src/common/hashing/password.service';
-import { LoginAttemptsService } from '../src/application/services/login-attempts.service';
-import { LoginUseCase } from '../src/application/use-cases/login.use-case';
-import type { IAuthRepository, UserWithAuth } from '../src/core/repositories/auth.repository';
-import type { ITokenService } from '../src/application/ports/token.port';
+import { PasswordService } from '../src/modules/shared/hashing/password.service';
+import { LoginAttemptsService } from '../src/modules/auth/services/login-attempts.service';
+import { LoginUseCase } from '../src/modules/auth/services/auth.service';
+import type { IAuthRepository, UserWithAuth } from '../src/modules/auth/repositories/auth.repository';
+import type { ITokenService } from '../src/modules/auth/interfaces/token.port';
 
 function createMockAuthRepo(): jest.Mocked<IAuthRepository> {
   return {
@@ -97,3 +97,4 @@ describe('LoginUseCase', () => {
     ).rejects.toThrow(UnauthorizedException);
   });
 });
+

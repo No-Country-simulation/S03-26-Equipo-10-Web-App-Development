@@ -1,5 +1,5 @@
 import { HttpException } from '@nestjs/common';
-import { LoginAttemptsService } from '../src/application/services/login-attempts.service';
+import { LoginAttemptsService } from '../src/modules/auth/services/login-attempts.service';
 
 describe('LoginAttemptsService', () => {
   let service: LoginAttemptsService;
@@ -25,3 +25,4 @@ describe('LoginAttemptsService', () => {
     expect(() => service.assertNotBlocked('admin@test.com')).not.toThrow();
   });
 });
+

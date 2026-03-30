@@ -1,6 +1,0 @@
-{
-  "name": "@testimonial-cms/infrastructure",
-  "private": true,
-  "version": "0.1.0",
-  "description": "Shared infrastructure adapters and technical contracts for future extraction."
-}
