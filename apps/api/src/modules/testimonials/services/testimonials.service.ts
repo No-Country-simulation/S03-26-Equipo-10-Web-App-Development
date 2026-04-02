@@ -1,17 +1,17 @@
 import { NotFoundException, ConflictException, Injectable } from '@nestjs/common';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
-import { OutboxService } from '../../webhooks/services/outbox.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AnalyticsRepository } from '../../analytics/repositories/analytics.repository';
 import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
-import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto } from '../dto/testimonials.dto';
+import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto } from '../dto/testimonial.dto';
 
 @Injectable()
 export class TestimonialsService {
   constructor(
     private readonly repo: TestimonialRepository,
     private readonly categoryRepo: CategoryRepository,
-    private readonly outbox: OutboxService,
+    private readonly eventEmitter: EventEmitter2,
     private readonly analyticsRepo: AnalyticsRepository,
   ) {}
 
@@ -36,7 +36,7 @@ export class TestimonialsService {
       categoryId: dto.categoryId,
     });
 
-    await this.outbox.createEvent({
+    this.eventEmitter.emit('testimonial.created', {
       tenantId,
       eventType: 'testimonial.created',
       payload: { testimonialId: testimonial.id, authorName: testimonial.authorName },
@@ -161,7 +161,7 @@ export class TestimonialsService {
     this.assertTransition(testimonial.status, 'published');
     const updated = await this.repo.updateStatus(testimonialId, 'published', { publishedAt: new Date() });
 
-    await this.outbox.createEvent({
+    this.eventEmitter.emit('testimonial.published', {
       tenantId,
       eventType: 'testimonial.published',
       payload: {

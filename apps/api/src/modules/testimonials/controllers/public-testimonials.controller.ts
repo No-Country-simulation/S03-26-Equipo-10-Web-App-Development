@@ -4,7 +4,7 @@ import { CurrentTenantId } from '../../../common/decorators/current-tenant.decor
 import { RateLimit } from '../../../common/decorators/rate-limit.decorator';
 import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
 import { RateLimitGuard } from '../../../common/guards/rate-limit.guard';
-import { PublicTestimonialsQueryDto } from '../dto/testimonials.dto';
+import { PublicTestimonialsQueryDto } from '../dto/testimonial.dto';
 
 @Controller('public/testimonials')
 @UseGuards(ApiKeyGuard, RateLimitGuard)

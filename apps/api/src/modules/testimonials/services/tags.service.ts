@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TagRepository } from '../repositories/tag.repository';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
-import { CreateTagDto, UpdateTagDto } from '../dto/testimonials.dto';
+import { CreateTagDto, UpdateTagDto } from '../dto/tag.dto';
 
 @Injectable()
 export class TagsService {

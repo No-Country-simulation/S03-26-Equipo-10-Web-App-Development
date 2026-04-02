@@ -1,15 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-
-export interface UserView {
-  id: string;
-  tenantId: string;
-  email: string;
-  isActive: boolean;
-  roles: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { UserView } from '../entities/user.model';
 
 @Injectable()
 export class UserRepository {

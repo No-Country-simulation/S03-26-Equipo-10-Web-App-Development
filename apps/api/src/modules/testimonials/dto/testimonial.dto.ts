@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, IsIn } from 'class-validator';
 
 export class CreateTestimonialDto {
   @IsString()
@@ -74,32 +74,4 @@ export class PublicTestimonialsQueryDto {
 
   @IsOptional()
   limit?: number;
-}
-
-export class CreateTagDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(80)
-  name!: string;
-}
-
-export class UpdateTagDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(80)
-  name!: string;
-}
-
-export class CreateCategoryDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(80)
-  name!: string;
-}
-
-export class UpdateCategoryDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(80)
-  name!: string;
 }

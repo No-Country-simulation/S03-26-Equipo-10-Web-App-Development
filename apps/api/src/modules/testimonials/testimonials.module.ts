@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { WebhooksModule } from '../webhooks/webhooks.module';
-
 import { CategoryRepository } from './repositories/category.repository';
 import { TestimonialRepository } from './repositories/testimonial.repository';
 import { TagRepository } from './repositories/tag.repository';
@@ -15,7 +13,6 @@ import { CategoriesController } from './controllers/categories.controller';
 import { PublicTestimonialsController } from './controllers/public-testimonials.controller';
 
 @Module({
-  imports: [WebhooksModule],
   controllers: [
     TestimonialsController,
     TagsController,

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { CommonModule } from './common/common.module';
 import { HashingModule } from './modules/shared/hashing/hashing.module';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
@@ -21,6 +22,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
       isGlobal: true,
       envFilePath: ['.env', '../../../.env'],
     }),
+    EventEmitterModule.forRoot(),
     PrismaModule,
     HashingModule,
     CommonModule,

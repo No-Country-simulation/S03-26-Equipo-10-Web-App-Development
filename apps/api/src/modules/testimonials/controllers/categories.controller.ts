@@ -3,7 +3,7 @@ import { CurrentTenantId } from '../../../common/decorators/current-tenant.decor
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
-import { CreateCategoryDto, UpdateCategoryDto } from '../dto/testimonials.dto';
+import { CreateCategoryDto, UpdateCategoryDto } from '../dto/category.dto';
 import { CategoriesService } from '../services/categories.service';
 
 @Controller('categories')

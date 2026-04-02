@@ -8,6 +8,7 @@ import { OutboxProcessor } from './services/outbox.processor';
 import { HttpWebhookDispatcher } from './services/http-webhook-dispatcher';
 import { HttpResilienceService } from './services/http-resilience.service';
 import { LoggerService } from './services/logger.service';
+import { WebhookEventsListener } from './services/webhook-events.listener';
 
 import { WebhookRepository } from './repositories/webhook.repository';
 
@@ -23,6 +24,7 @@ import { WebhookRepository } from './repositories/webhook.repository';
     WebhookOutboxHandler,
     WebhooksBootstrapService,
     WebhooksService,
+    WebhookEventsListener,
   ],
   exports: [WebhookOutboxHandler, WebhooksService, OutboxService, WebhookRepository, HttpWebhookDispatcher],
 })

@@ -20,7 +20,7 @@ import {
   CreateTestimonialDto,
   ModerateTestimonialDto,
   UpdateTestimonialDto,
-} from '../dto/testimonials.dto';
+} from '../dto/testimonial.dto';
 import { TagsService } from '../services/tags.service';
 
 @Controller('testimonials')

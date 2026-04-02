@@ -3,7 +3,7 @@ import { CurrentTenantId } from '../../../common/decorators/current-tenant.decor
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
-import { CreateTagDto, UpdateTagDto } from '../dto/testimonials.dto';
+import { CreateTagDto, UpdateTagDto } from '../dto/tag.dto';
 import { TagsService } from '../services/tags.service';
 
 @Controller('tags')
