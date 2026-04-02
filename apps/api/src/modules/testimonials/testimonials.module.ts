@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
+import { WebhooksModule } from '../webhooks/webhooks.module';
 import { CategoryRepository } from './repositories/category.repository';
 import { TestimonialRepository } from './repositories/testimonial.repository';
 import { TagRepository } from './repositories/tag.repository';
@@ -19,7 +20,7 @@ import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { ScoringService } from './services/scoring.service';
 
 @Module({
-  imports: [AnalyticsModule, FeatureFlagsModule],
+  imports: [AnalyticsModule, FeatureFlagsModule, WebhooksModule],
   controllers: [
     TestimonialsController,
     TagsController,

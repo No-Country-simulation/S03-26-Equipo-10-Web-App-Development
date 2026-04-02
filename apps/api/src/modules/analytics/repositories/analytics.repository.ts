@@ -11,6 +11,7 @@ export interface DashboardData {
 export interface TestimonialMetrics {
   views: number;
   likes: number;
+  clicks: number;
 }
 @Injectable()
 export class AnalyticsRepository {
@@ -69,16 +70,19 @@ export class AnalyticsRepository {
   }
 
   async getTestimonialMetrics(tenantId: string, testimonialId: string): Promise<TestimonialMetrics> {
-    const [views, likes] = await Promise.all([
+    const [views, likes, clicks] = await Promise.all([
       this.prisma.analyticsEvent.count({
         where: { tenantId, testimonialId, eventType: { code: 'view' } },
       }),
       this.prisma.analyticsEvent.count({
         where: { tenantId, testimonialId, eventType: { code: 'like' } },
       }),
+      this.prisma.analyticsEvent.count({
+        where: { tenantId, testimonialId, eventType: { code: 'click' } },
+      }),
     ]);
 
-    return { views, likes };
+    return { views, likes, clicks };
   }
 
   async getEngagementCounts(testimonialIds: string[]): Promise<Map<string, { views: number; clicks: number }>> {
