@@ -3,8 +3,8 @@ export type TestimonialStatus = 'draft' | 'pending' | 'approved' | 'published' |
 export const VALID_TRANSITIONS: Record<TestimonialStatus, TestimonialStatus[]> = {
   draft: ['pending'],
   pending: ['approved', 'rejected'],
-  approved: ['published'],
-  published: [],
+  approved: ['published', 'rejected'],
+  published: ['rejected'],
   rejected: [],
 };
 

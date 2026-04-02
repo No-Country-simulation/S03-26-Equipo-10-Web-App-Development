@@ -6,8 +6,8 @@ describe('VALID_TRANSITIONS', () => {
   it('defines correct transitions for each status', () => {
     expect(VALID_TRANSITIONS.draft).toEqual(['pending']);
     expect(VALID_TRANSITIONS.pending).toEqual(['approved', 'rejected']);
-    expect(VALID_TRANSITIONS.approved).toEqual(['published']);
-    expect(VALID_TRANSITIONS.published).toEqual([]);
+    expect(VALID_TRANSITIONS.approved).toEqual(['published', 'rejected']);
+    expect(VALID_TRANSITIONS.published).toEqual(['rejected']);
     expect(VALID_TRANSITIONS.rejected).toEqual([]);
   });
 });
@@ -49,12 +49,20 @@ describe('TestimonialsService', () => {
     findById: jest.fn(),
   };
 
-  const mockOutbox = {
-    createEvent: jest.fn(),
+  const mockEventEmitter = {
+    emit: jest.fn(),
   };
 
   const mockAnalyticsRepo = {
     getTestimonialMetrics: jest.fn(),
+  };
+
+  const mockCloudinaryService = {
+    uploadImage: jest.fn(),
+  };
+
+  const mockYoutubeService = {
+    getVideoMetadata: jest.fn(),
   };
 
   let service: TestimonialsService;
@@ -64,8 +72,10 @@ describe('TestimonialsService', () => {
     service = new TestimonialsService(
       mockRepo as any,
       mockCategoryRepo as any,
-      mockOutbox as any,
+      mockEventEmitter as any,
       mockAnalyticsRepo as any,
+      mockCloudinaryService as any,
+      mockYoutubeService as any,
     );
   });
 
