@@ -1,112 +1,160 @@
-import { Testimonial } from '../src/modules/testimonials/entities/testimonial.model';
+import { ConflictException, NotFoundException } from '@nestjs/common';
+import { TestimonialsService } from '../src/modules/testimonials/services/testimonials.service';
+import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../src/modules/testimonials/entities/testimonial.model';
 
-describe('Testimonial Entity', () => {
-  it('creates a draft testimonial', () => {
-    const entity = Testimonial.create({
-      id: 'test-1',
-      tenantId: 'tenant-1',
-      createdById: 'user-1',
+describe('VALID_TRANSITIONS', () => {
+  it('defines correct transitions for each status', () => {
+    expect(VALID_TRANSITIONS.draft).toEqual(['pending']);
+    expect(VALID_TRANSITIONS.pending).toEqual(['approved', 'rejected']);
+    expect(VALID_TRANSITIONS.approved).toEqual(['published']);
+    expect(VALID_TRANSITIONS.published).toEqual([]);
+    expect(VALID_TRANSITIONS.rejected).toEqual([]);
+  });
+});
+
+describe('TestimonialsService', () => {
+  const makeView = (overrides: Partial<TestimonialView> = {}): TestimonialView => ({
+    id: 'test-1',
+    tenantId: 'tenant-1',
+    createdById: 'user-1',
+    authorName: 'John',
+    content: 'Great product, highly recommend it!',
+    rating: 5,
+    status: 'draft',
+    score: 0,
+    categoryId: null,
+    moderationNotes: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: null,
+    ...overrides,
+  });
+
+  const mockRepo = {
+    findById: jest.fn(),
+    create: jest.fn(),
+    updateFields: jest.fn(),
+    updateStatus: jest.fn(),
+    remove: jest.fn(),
+    findByTenant: jest.fn(),
+    findPublished: jest.fn(),
+    findPublishedById: jest.fn(),
+  };
+
+  const mockCategoryRepo = {
+    findById: jest.fn(),
+  };
+
+  const mockOutbox = {
+    createEvent: jest.fn(),
+  };
+
+  const mockAnalyticsRepo = {
+    getTestimonialMetrics: jest.fn(),
+  };
+
+  let service: TestimonialsService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    service = new TestimonialsService(
+      mockRepo as any,
+      mockCategoryRepo as any,
+      mockOutbox as any,
+      mockAnalyticsRepo as any,
+    );
+  });
+
+  it('creates a draft testimonial', async () => {
+    const created = makeView();
+    mockRepo.create.mockResolvedValue(created);
+
+    const result = await service.createTestimonial('tenant-1', 'user-1', {
       authorName: 'John',
-      content: 'Great product, highly recommend it for everyone!',
+      content: 'Great product, highly recommend it!',
       rating: 5,
     });
 
-    expect(entity.id).toBe('test-1');
-    expect(entity.status).toBe('draft');
-    expect(entity.score).toBe(0);
-  });
-
-  it('follows the correct state machine: draft → pending → approved → published', () => {
-    const entity = Testimonial.create({
-      id: 'test-2',
+    expect(result.status).toBe('draft');
+    expect(result.score).toBe(0);
+    expect(mockRepo.create).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: 'tenant-1',
       createdById: 'user-1',
-      authorName: 'Jane',
-      content: 'Absolutely fantastic experience overall!',
-      rating: 4,
-    });
-
-    entity.submit();
-    expect(entity.status).toBe('pending');
-
-    entity.approve();
-    expect(entity.status).toBe('approved');
-
-    entity.publish();
-    expect(entity.status).toBe('published');
-    expect(entity.publishedAt).toBeInstanceOf(Date);
-  });
-
-  it('rejects invalid state transitions', () => {
-    const entity = Testimonial.create({
-      id: 'test-3',
-      tenantId: 'tenant-1',
-      createdById: 'user-1',
-      authorName: 'Bob',
-      content: 'Cannot skip states, must follow the machine.',
-      rating: 3,
-    });
-
-    expect(() => entity.approve()).toThrow('Invalid status transition');
-    expect(() => entity.publish()).toThrow('Invalid status transition');
-  });
-
-  it('allows rejection from pending', () => {
-    const entity = Testimonial.create({
-      id: 'test-4',
-      tenantId: 'tenant-1',
-      createdById: 'user-1',
-      authorName: 'Carol',
-      content: 'This will be rejected, unfortunately.',
-      rating: 2,
-    });
-
-    entity.submit();
-    entity.reject('Not appropriate for display');
-
-    expect(entity.status).toBe('rejected');
-    expect(entity.moderationNotes).toBe('Not appropriate for display');
-  });
-
-  it('prevents editing published testimonials', () => {
-    const entity = Testimonial.create({
-      id: 'test-5',
-      tenantId: 'tenant-1',
-      createdById: 'user-1',
-      authorName: 'Dave',
-      content: 'This is published, no more editing allowed.',
       rating: 5,
-    });
-
-    entity.submit();
-    entity.approve();
-    entity.publish();
-
-    expect(() => entity.update({ authorName: 'Changed' })).toThrow('Published testimonials cannot be edited');
+    }));
   });
 
-  it('validates rating bounds', () => {
-    expect(() =>
-      Testimonial.create({
-        id: 'test-6',
-        tenantId: 'tenant-1',
-        createdById: 'user-1',
+  it('follows the correct state machine: draft → pending → approved → published', async () => {
+    const draft = makeView({ status: 'draft' });
+    const pending = makeView({ status: 'pending' });
+    const approved = makeView({ status: 'approved' });
+    const published = makeView({ status: 'published', publishedAt: new Date() });
+
+    mockRepo.findById.mockResolvedValueOnce(draft);
+    mockRepo.updateStatus.mockResolvedValueOnce(pending);
+    const submitResult = await service.submitTestimonial('tenant-1', 'test-1');
+    expect(submitResult.status).toBe('pending');
+
+    mockRepo.findById.mockResolvedValueOnce(pending);
+    mockRepo.updateStatus.mockResolvedValueOnce(approved);
+    const approveResult = await service.approveTestimonial('tenant-1', 'test-1');
+    expect(approveResult.status).toBe('approved');
+
+    mockRepo.findById.mockResolvedValueOnce(approved);
+    mockRepo.updateStatus.mockResolvedValueOnce(published);
+    const publishResult = await service.publishTestimonial('tenant-1', 'test-1');
+    expect(publishResult.status).toBe('published');
+  });
+
+  it('rejects invalid state transitions', async () => {
+    const draft = makeView({ status: 'draft' });
+
+    mockRepo.findById.mockResolvedValue(draft);
+    await expect(service.approveTestimonial('tenant-1', 'test-1')).rejects.toThrow(ConflictException);
+    await expect(service.publishTestimonial('tenant-1', 'test-1')).rejects.toThrow(ConflictException);
+  });
+
+  it('allows rejection from pending', async () => {
+    const pending = makeView({ status: 'pending' });
+    const rejected = makeView({ status: 'rejected', moderationNotes: 'Not appropriate' });
+
+    mockRepo.findById.mockResolvedValue(pending);
+    mockRepo.updateStatus.mockResolvedValue(rejected);
+
+    const result = await service.rejectTestimonial('tenant-1', 'test-1', 'Not appropriate');
+    expect(result.status).toBe('rejected');
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith('test-1', 'rejected', { moderationNotes: 'Not appropriate' });
+  });
+
+  it('prevents editing published testimonials', async () => {
+    const published = makeView({ status: 'published' });
+    mockRepo.findById.mockResolvedValue(published);
+
+    await expect(
+      service.updateTestimonial('tenant-1', 'test-1', { authorName: 'Changed' }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('validates rating bounds on create', async () => {
+    await expect(
+      service.createTestimonial('tenant-1', 'user-1', {
         authorName: 'Eve',
         content: 'Invalid rating test content here.',
         rating: 0,
       }),
-    ).toThrow('Rating must be between 1 and 5');
+    ).rejects.toThrow(ConflictException);
 
-    expect(() =>
-      Testimonial.create({
-        id: 'test-7',
-        tenantId: 'tenant-1',
-        createdById: 'user-1',
+    await expect(
+      service.createTestimonial('tenant-1', 'user-1', {
         authorName: 'Eve',
         content: 'Invalid rating test content here.',
         rating: 6,
       }),
-    ).toThrow('Rating must be between 1 and 5');
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('throws NotFoundException when testimonial not found', async () => {
+    mockRepo.findById.mockResolvedValue(null);
+    await expect(service.getTestimonial('tenant-1', 'nonexistent')).rejects.toThrow(NotFoundException);
   });
 });
-

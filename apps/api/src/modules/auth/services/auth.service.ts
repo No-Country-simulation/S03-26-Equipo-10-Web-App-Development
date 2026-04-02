@@ -1,4 +1,4 @@
-import { UnauthorizedException, ConflictException, Injectable, Inject } from "@nestjs/common";
+import { UnauthorizedException, ConflictException, Injectable } from "@nestjs/common";
 import { AuthRepository } from "../repositories/auth.repository";
 import { JwtTokenService } from "./jwt-token.service";
 import { PasswordService } from "../../shared/hashing/password.service";

@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { Testimonial, TestimonialStatus } from '../entities/testimonial.model';
-
-
+import { TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
 
 export interface PublishedFilters {
   q?: string;
@@ -22,67 +20,106 @@ export interface PaginatedResult<T> {
 export class TestimonialRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findById(tenantId: string, id: string): Promise<Testimonial | null> {
+  async findById(tenantId: string, id: string): Promise<TestimonialView | null> {
     const row = await this.prisma.testimonial.findFirst({
       where: { id, tenantId },
       include: { status: true },
     });
 
-    return row ? this.toDomain(row) : null;
+    return row ? this.toView(row) : null;
   }
 
-  async save(entity: Testimonial): Promise<void> {
-    const statusId = await this.resolveStatusId(entity.status);
+  async create(data: {
+    tenantId: string;
+    createdById: string | null;
+    authorName: string;
+    content: string;
+    rating: number;
+    categoryId?: string | null;
+  }): Promise<TestimonialView> {
+    const statusId = await this.resolveStatusId('draft');
 
-    await this.prisma.testimonial.upsert({
-      where: { id: entity.id },
-      update: {
-        authorName: entity.authorName,
-        content: entity.content,
-        rating: entity.rating,
+    const created = await this.prisma.testimonial.create({
+      data: {
+        tenantId: data.tenantId,
+        createdById: data.createdById,
+        authorName: data.authorName,
+        content: data.content,
+        rating: data.rating,
         statusId,
-        score: entity.score,
-        categoryId: entity.categoryId,
-        moderationNotes: entity.moderationNotes,
-        publishedAt: entity.publishedAt,
-        updatedAt: entity.updatedAt,
+        score: 0,
+        categoryId: data.categoryId ?? null,
       },
-      create: {
-        id: entity.id,
-        tenantId: entity.tenantId,
-        createdById: entity.createdById,
-        authorName: entity.authorName,
-        content: entity.content,
-        rating: entity.rating,
-        statusId,
-        score: entity.score,
-        categoryId: entity.categoryId,
-        moderationNotes: entity.moderationNotes,
-        createdAt: entity.createdAt,
-        updatedAt: entity.updatedAt,
-        publishedAt: entity.publishedAt,
-      },
+      include: { status: true },
     });
+
+    return this.toView(created);
+  }
+
+  async updateFields(
+    tenantId: string,
+    id: string,
+    data: {
+      authorName?: string;
+      content?: string;
+      rating?: number;
+      categoryId?: string | null;
+    },
+  ): Promise<TestimonialView> {
+    const updated = await this.prisma.testimonial.update({
+      where: { id },
+      data: {
+        ...(data.authorName !== undefined && { authorName: data.authorName }),
+        ...(data.content !== undefined && { content: data.content }),
+        ...(data.rating !== undefined && { rating: data.rating }),
+        ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
+        updatedAt: new Date(),
+      },
+      include: { status: true },
+    });
+
+    return this.toView(updated);
+  }
+
+  async updateStatus(
+    id: string,
+    status: TestimonialStatus,
+    extra?: { moderationNotes?: string | null; publishedAt?: Date | null },
+  ): Promise<TestimonialView> {
+    const statusId = await this.resolveStatusId(status);
+
+    const updated = await this.prisma.testimonial.update({
+      where: { id },
+      data: {
+        statusId,
+        updatedAt: new Date(),
+        ...(extra?.moderationNotes !== undefined && { moderationNotes: extra.moderationNotes }),
+        ...(extra?.publishedAt !== undefined && { publishedAt: extra.publishedAt }),
+      },
+      include: { status: true },
+    });
+
+    return this.toView(updated);
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
     await this.prisma.testimonial.deleteMany({ where: { id, tenantId } });
   }
 
-  async findByTenant(tenantId: string): Promise<Testimonial[]> {
+  async findByTenant(tenantId: string): Promise<TestimonialView[]> {
     const rows = await this.prisma.testimonial.findMany({
       where: { tenantId },
       include: { status: true },
       orderBy: { createdAt: 'desc' },
     });
 
-    return rows.map(row => this.toDomain(row));
+    return rows.map(row => this.toView(row));
   }
 
   async findPublished(
     tenantId: string,
     filters: PublishedFilters,
-  ): Promise<PaginatedResult<Testimonial>> {
+  ): Promise<PaginatedResult<TestimonialView>> {
     const publishedStatusId = await this.resolveStatusId('published');
     const skip = (filters.page - 1) * filters.limit;
 
@@ -116,7 +153,7 @@ export class TestimonialRepository {
     ]);
 
     return {
-      items: rows.map(row => this.toDomain(row)),
+      items: rows.map(row => this.toView(row)),
       total,
     };
   }
@@ -124,17 +161,17 @@ export class TestimonialRepository {
   async findPublishedById(
     tenantId: string,
     id: string,
-  ): Promise<Testimonial | null> {
+  ): Promise<TestimonialView | null> {
     const publishedStatusId = await this.resolveStatusId('published');
     const row = await this.prisma.testimonial.findFirst({
       where: { id, tenantId, statusId: publishedStatusId },
       include: { status: true },
     });
 
-    return row ? this.toDomain(row) : null;
+    return row ? this.toView(row) : null;
   }
 
-  async resolveStatusId(code: TestimonialStatus): Promise<number> {
+  private async resolveStatusId(code: TestimonialStatus): Promise<number> {
     const status = await this.prisma.testimonialStatus.findUnique({
       where: { code },
     });
@@ -144,7 +181,7 @@ export class TestimonialRepository {
     return status.id;
   }
 
-  private toDomain(row: {
+  private toView(row: {
     id: string;
     tenantId: string;
     createdById: string | null;
@@ -158,21 +195,21 @@ export class TestimonialRepository {
     createdAt: Date;
     updatedAt: Date;
     publishedAt: Date | null;
-  }): Testimonial {
-    return Testimonial.reconstitute({
+  }): TestimonialView {
+    return {
       id: row.id,
       tenantId: row.tenantId,
       createdById: row.createdById,
       authorName: row.authorName,
       content: row.content,
       rating: row.rating,
-      statusCode: row.status.code as TestimonialStatus,
+      status: row.status.code as TestimonialStatus,
       score: Number(row.score),
       categoryId: row.categoryId,
       moderationNotes: row.moderationNotes,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       publishedAt: row.publishedAt,
-    });
+    };
   }
 }

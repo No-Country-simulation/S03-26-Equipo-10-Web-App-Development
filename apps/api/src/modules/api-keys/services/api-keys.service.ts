@@ -1,4 +1,4 @@
-import { NotFoundException, Injectable, Inject } from "@nestjs/common";
+import { NotFoundException, Injectable } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
 import { ApiKeyRepository } from "../repositories/api-key.repository";
 import { CreateApiKeyDto, RotateApiKeyDto } from "../dto/api-key.dto";

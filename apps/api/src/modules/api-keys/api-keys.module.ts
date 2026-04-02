@@ -13,6 +13,6 @@ import { ApiKeyRepository } from './repositories/api-key.repository';
   ],
   exports: [ApiKeysService],
 })
-export class ApiKeysModule {}
+export class ApiKeysModule { }
 
 

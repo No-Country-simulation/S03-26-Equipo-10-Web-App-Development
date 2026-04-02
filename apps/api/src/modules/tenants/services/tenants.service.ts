@@ -1,4 +1,4 @@
-import { NotFoundException, ConflictException, Injectable, Inject } from "@nestjs/common";
+import { NotFoundException, ConflictException, Injectable } from "@nestjs/common";
 import { TenantRepository } from "../repositories/tenant.repository";
 import { UpdateTenantDto } from "../dto/update-tenant.dto";
 

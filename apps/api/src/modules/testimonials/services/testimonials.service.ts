@@ -1,195 +1,183 @@
-import { NotFoundException, ConflictException, Injectable, Inject } from "@nestjs/common";
-import { TestimonialRepository } from "../repositories/testimonial.repository";
-import { TestimonialMapper } from "../mappers/testimonial.mapper";
-import { randomUUID } from "node:crypto";
-import { Testimonial } from "../entities/testimonial.model";
-import { CategoryRepository } from "../repositories/category.repository";
-import { OutboxService } from "../../webhooks/services/outbox.service";
-import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto } from "../dto/testimonials.dto";
-import { AnalyticsRepository } from "../../analytics/repositories/analytics.repository";
+import { NotFoundException, ConflictException, Injectable } from '@nestjs/common';
+import { TestimonialRepository } from '../repositories/testimonial.repository';
+import { CategoryRepository } from '../repositories/category.repository';
+import { OutboxService } from '../../webhooks/services/outbox.service';
+import { AnalyticsRepository } from '../../analytics/repositories/analytics.repository';
+import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
+import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto } from '../dto/testimonials.dto';
 
 @Injectable()
 export class TestimonialsService {
-    async approveTestimonial(tenantId: string, testimonialId: string) {
-        const entity = await this.repo.findById(tenantId, testimonialId);
-        if (!entity) throw new NotFoundException('Testimonial not found');
+  constructor(
+    private readonly repo: TestimonialRepository,
+    private readonly categoryRepo: CategoryRepository,
+    private readonly outbox: OutboxService,
+    private readonly analyticsRepo: AnalyticsRepository,
+  ) {}
 
-        try {
-          entity.approve();
-        } catch {
-          throw new ConflictException('Invalid status transition');
-        }
-
-        await this.repo.save(entity);
-        return this.mapper.toFullView(entity);
+  async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
+    if (dto.rating < 1 || dto.rating > 5) {
+      throw new ConflictException('Rating must be between 1 and 5');
     }
 
-    async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
-        if (dto.categoryId) {
-          const category = await this.categoryRepo.findById(tenantId, dto.categoryId);
-          if (!category) {
-            throw new Error('Category not found');
-          }
-        }
-
-        const entity = Testimonial.create({
-          id: randomUUID(),
-          tenantId,
-          createdById: creatorUserId,
-          authorName: dto.authorName,
-          content: dto.content,
-          rating: dto.rating,
-          categoryId: dto.categoryId,
-        });
-
-        await this.repo.save(entity);
-
-        await this.outbox.createEvent({
-          tenantId,
-          eventType: 'testimonial.created',
-          payload: { testimonialId: entity.id, authorName: entity.authorName },
-        });
-
-        return this.mapper.toFullView(entity);
+    if (dto.categoryId) {
+      const category = await this.categoryRepo.findById(tenantId, dto.categoryId);
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
     }
 
-    async getPublicTestimonial(tenantId: string, testimonialId: string) {
-        const entity = await this.repo.findPublishedById(tenantId, testimonialId);
-        if (!entity) throw new NotFoundException('Testimonial not found');
-        return this.mapper.toFullView(entity);
+    const testimonial = await this.repo.create({
+      tenantId,
+      createdById: creatorUserId,
+      authorName: dto.authorName,
+      content: dto.content,
+      rating: dto.rating,
+      categoryId: dto.categoryId,
+    });
+
+    await this.outbox.createEvent({
+      tenantId,
+      eventType: 'testimonial.created',
+      payload: { testimonialId: testimonial.id, authorName: testimonial.authorName },
+    });
+
+    return testimonial;
+  }
+
+  async getTestimonial(tenantId: string, testimonialId: string) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    return testimonial;
+  }
+
+  async getPublicTestimonial(tenantId: string, testimonialId: string) {
+    const testimonial = await this.repo.findPublishedById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    return testimonial;
+  }
+
+  async getTestimonialMetrics(tenantId: string, testimonialId: string) {
+    return this.analyticsRepo.getTestimonialMetrics(tenantId, testimonialId);
+  }
+
+  async listTestimonials(tenantId: string) {
+    const items = await this.repo.findByTenant(tenantId);
+
+    return {
+      items,
+      meta: {
+        total: items.length,
+        page: 1,
+        limit: items.length,
+      },
+    };
+  }
+
+  async listPublicTestimonials(tenantId: string, query: PublicTestimonialsQueryDto) {
+    const page = Math.max(1, Number(query.page ?? 1));
+    const limit = Math.min(100, Math.max(1, Number(query.limit ?? 20)));
+
+    const result = await this.repo.findPublished(tenantId, {
+      q: query.q,
+      tag: query.tag,
+      category: query.category,
+      sort: query.sort,
+      page,
+      limit,
+    });
+
+    return {
+      items: result.items,
+      meta: {
+        total: result.total,
+        page,
+        limit,
+      },
+    };
+  }
+
+  async updateTestimonial(tenantId: string, testimonialId: string, dto: UpdateTestimonialDto) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+
+    if (testimonial.status === 'published') {
+      throw new ConflictException('Published testimonial cannot be edited');
     }
 
-    async getTestimonialMetrics(tenantId: string, testimonialId: string) {
-        return this.analyticsRepo.getTestimonialMetrics(tenantId, testimonialId);
+    if (dto.rating !== undefined && (dto.rating < 1 || dto.rating > 5)) {
+      throw new ConflictException('Rating must be between 1 and 5');
     }
 
-    async getTestimonial(tenantId: string, testimonialId: string) {
-        const entity = await this.repo.findById(tenantId, testimonialId);
-        if (!entity) throw new NotFoundException('Testimonial not found');
-        return this.mapper.toFullView(entity);
+    if (dto.categoryId) {
+      const category = await this.categoryRepo.findById(tenantId, dto.categoryId);
+      if (!category) throw new NotFoundException('Category not found');
     }
 
-    async listPublicTestimonials(tenantId: string, query: PublicTestimonialsQueryDto) {
-        const page = Math.max(1, Number(query.page ?? 1));
-        const limit = Math.min(100, Math.max(1, Number(query.limit ?? 20)));
+    return this.repo.updateFields(tenantId, testimonialId, {
+      authorName: dto.authorName,
+      content: dto.content,
+      rating: dto.rating,
+      categoryId: dto.categoryId,
+    });
+  }
 
-        const result = await this.repo.findPublished(tenantId, {
-          q: query.q,
-          tag: query.tag,
-          category: query.category,
-          sort: query.sort,
-          page,
-          limit,
-        });
+  async removeTestimonial(tenantId: string, testimonialId: string) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
 
-        return {
-          items: await Promise.all(result.items.map((e: any) => this.mapper.toFullView(e))),
-          meta: {
-            total: result.total,
-            page,
-            limit,
-          },
-        };
+    await this.repo.remove(tenantId, testimonialId);
+    return { id: testimonialId, deleted: true };
+  }
+
+  async submitTestimonial(tenantId: string, testimonialId: string) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+
+    this.assertTransition(testimonial.status, 'pending');
+    return this.repo.updateStatus(testimonialId, 'pending');
+  }
+
+  async approveTestimonial(tenantId: string, testimonialId: string) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+
+    this.assertTransition(testimonial.status, 'approved');
+    return this.repo.updateStatus(testimonialId, 'approved');
+  }
+
+  async rejectTestimonial(tenantId: string, testimonialId: string, reason: string) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+
+    this.assertTransition(testimonial.status, 'rejected');
+    return this.repo.updateStatus(testimonialId, 'rejected', { moderationNotes: reason || null });
+  }
+
+  async publishTestimonial(tenantId: string, testimonialId: string) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+
+    this.assertTransition(testimonial.status, 'published');
+    const updated = await this.repo.updateStatus(testimonialId, 'published', { publishedAt: new Date() });
+
+    await this.outbox.createEvent({
+      tenantId,
+      eventType: 'testimonial.published',
+      payload: {
+        testimonialId: updated.id,
+        authorName: updated.authorName,
+        score: updated.score,
+      },
+    });
+
+    return updated;
+  }
+
+  private assertTransition(from: TestimonialStatus, to: TestimonialStatus): void {
+    const allowed = VALID_TRANSITIONS[from];
+    if (!allowed.includes(to)) {
+      throw new ConflictException(`Invalid status transition: ${from} → ${to}`);
     }
-
-    async listTestimonials(tenantId: string) {
-        const entities = await this.repo.findByTenant(tenantId);
-
-        return {
-          items: await Promise.all(entities.map((e: any) => this.mapper.toFullView(e))),
-          meta: {
-            total: entities.length,
-            page: 1,
-            limit: entities.length,
-          },
-        };
-    }
-
-    async publishTestimonial(tenantId: string, testimonialId: string) {
-        const entity = await this.repo.findById(tenantId, testimonialId);
-        if (!entity) throw new NotFoundException('Testimonial not found');
-
-        try {
-          entity.publish();
-        } catch {
-          throw new ConflictException('Invalid status transition');
-        }
-
-        await this.repo.save(entity);
-
-        await this.outbox.createEvent({
-          tenantId,
-          eventType: 'testimonial.published',
-          payload: {
-            testimonialId: entity.id,
-            authorName: entity.authorName,
-            score: entity.score,
-          },
-        });
-
-        return this.mapper.toFullView(entity);
-    }
-
-    async rejectTestimonial(tenantId: string, testimonialId: string, reason: string) {
-        const entity = await this.repo.findById(tenantId, testimonialId);
-        if (!entity) throw new NotFoundException('Testimonial not found');
-
-        try {
-          entity.reject(reason);
-        } catch {
-          throw new ConflictException('Invalid status transition');
-        }
-
-        await this.repo.save(entity);
-        return this.mapper.toFullView(entity);
-    }
-
-    async removeTestimonial(tenantId: string, testimonialId: string) {
-        const entity = await this.repo.findById(tenantId, testimonialId);
-        if (!entity) throw new NotFoundException('Testimonial not found');
-
-        await this.repo.remove(tenantId, testimonialId);
-        return { id: testimonialId, deleted: true };
-    }
-
-    async submitTestimonial(tenantId: string, testimonialId: string) {
-        const entity = await this.repo.findById(tenantId, testimonialId);
-        if (!entity) throw new NotFoundException('Testimonial not found');
-
-        try {
-          entity.submit();
-        } catch {
-          throw new ConflictException('Invalid status transition');
-        }
-
-        await this.repo.save(entity);
-        return this.mapper.toFullView(entity);
-    }
-
-    async updateTestimonial(tenantId: string, testimonialId: string, dto: UpdateTestimonialDto) {
-        const entity = await this.repo.findById(tenantId, testimonialId);
-        if (!entity) throw new NotFoundException('Testimonial not found');
-
-        if (dto.categoryId) {
-          const category = await this.categoryRepo.findById(tenantId, dto.categoryId);
-          if (!category) throw new NotFoundException('Category not found');
-        }
-
-        try {
-          entity.update({
-            authorName: dto.authorName,
-            content: dto.content,
-            rating: dto.rating,
-            categoryId: dto.categoryId,
-          });
-        } catch {
-          throw new ConflictException('Published testimonial cannot be edited');
-        }
-
-        await this.repo.save(entity);
-        return this.mapper.toFullView(entity);
-    }
-
-    constructor(private readonly repo: TestimonialRepository, private readonly mapper: TestimonialMapper, private readonly categoryRepo: CategoryRepository, private readonly outbox: OutboxService, private readonly analyticsRepo: AnalyticsRepository) {
-    }
+  }
 }

@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CategoryRepository } from '../repositories/category.repository';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/testimonials.dto';
 

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { createHmac } from 'node:crypto';
 
 import { HttpResilienceService } from './http-resilience.service';

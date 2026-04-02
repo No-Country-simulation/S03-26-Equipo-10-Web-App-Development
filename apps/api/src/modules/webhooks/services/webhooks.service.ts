@@ -1,4 +1,4 @@
-import { NotFoundException, Injectable, Inject } from "@nestjs/common";
+import { NotFoundException, Injectable } from "@nestjs/common";
 import { WebhookRepository } from "../repositories/webhook.repository";
 import { CreateWebhookDto, UpdateWebhookDto } from "../dto/webhook.dto";
 import { HttpWebhookDispatcher } from "./http-webhook-dispatcher";

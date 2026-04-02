@@ -27,7 +27,7 @@ export interface ApiKeyRotateResult {
 
 @Injectable()
 export class ApiKeyRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async findByTenant(tenantId: string): Promise<ApiKeyView[]> {
     const keys = await this.prisma.apiKey.findMany({

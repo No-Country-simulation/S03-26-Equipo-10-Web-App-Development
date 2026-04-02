@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { WebhookRepository } from "../../webhooks/repositories/webhook.repository";
 import { HttpWebhookDispatcher } from "../../webhooks/services/http-webhook-dispatcher";
 import { AnalyticsRepository } from '../repositories/analytics.repository';
