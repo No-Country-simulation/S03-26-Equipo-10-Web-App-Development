@@ -11,7 +11,7 @@ import { FeatureFlagRepository } from './repositories/feature-flag.repository';
     FeatureFlagRepository,
     FeatureFlagsService,
   ],
-  exports: [FeatureFlagsService],
+  exports: [FeatureFlagsService, FeatureFlagRepository],
 })
 export class FeatureFlagsModule {}
 

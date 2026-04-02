@@ -6,8 +6,12 @@ import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
 import { RateLimitGuard } from '../../../common/guards/rate-limit.guard';
 import { PublicTestimonialsQueryDto } from '../dto/testimonial.dto';
 
+import { FeatureFlagGuard } from '../../../common/guards/feature-flag.guard';
+import { RequireFeature } from '../../../common/decorators/feature-flag.decorator';
+
 @Controller('public/testimonials')
-@UseGuards(ApiKeyGuard, RateLimitGuard)
+@UseGuards(ApiKeyGuard, RateLimitGuard, FeatureFlagGuard)
+@RequireFeature('testimonials')
 @RateLimit({ limit: 120, windowSeconds: 60, scope: 'ip-api-key' })
 export class PublicTestimonialsController {
   constructor(private readonly testimonialsService: TestimonialsService) {}

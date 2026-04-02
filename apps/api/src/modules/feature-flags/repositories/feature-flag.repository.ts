@@ -35,6 +35,18 @@ export class FeatureFlagRepository {
     }));
   }
 
+  async isEnabled(tenantId: string, flagName: string): Promise<boolean> {
+    const flag = await this.prisma.featureFlag.findUnique({
+      where: { name: flagName },
+      include: {
+        tenants: { where: { tenantId } },
+      },
+    });
+
+    if (!flag) return false;
+    return flag.tenants[0]?.enabled ?? false;
+  }
+
   async setFlag(tenantId: string, flagName: string, enabled: boolean): Promise<FeatureFlagSetResult> {
     const flag = await this.prisma.featureFlag.findUnique({ where: { name: flagName } });
     if (!flag) throw new NotFoundException('Feature flag not found');

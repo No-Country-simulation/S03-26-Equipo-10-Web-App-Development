@@ -15,10 +15,11 @@ import { PublicTestimonialsController } from './controllers/public-testimonials.
 import { CloudinaryService } from '../shared/cloud/cloudinary.service';
 import { YoutubeService } from '../shared/cloud/youtube.service';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { ScoringService } from './services/scoring.service';
 
 @Module({
-  imports: [AnalyticsModule],
+  imports: [AnalyticsModule, FeatureFlagsModule],
   controllers: [
     TestimonialsController,
     TagsController,

@@ -25,8 +25,12 @@ import {
 } from '../dto/testimonial.dto';
 import { TagsService } from '../services/tags.service';
 
+import { FeatureFlagGuard } from '../../../common/guards/feature-flag.guard';
+import { RequireFeature } from '../../../common/decorators/feature-flag.decorator';
+
 @Controller('testimonials')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
+@RequireFeature('testimonials')
 @Roles('admin', 'editor')
 export class TestimonialsController {
   constructor(
