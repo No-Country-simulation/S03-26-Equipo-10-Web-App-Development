@@ -9,7 +9,7 @@ import { UpdateTenantDto } from '../dto/update-tenant.dto';
 @Controller('tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TenantsController {
-  constructor(private readonly tenantsService: TenantsService) {}
+  constructor(private readonly tenantsService: TenantsService) { }
 
   @Get('me')
   getMe(@CurrentTenantId() tenantId: string) {
