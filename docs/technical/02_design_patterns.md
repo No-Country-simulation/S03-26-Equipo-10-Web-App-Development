@@ -71,7 +71,7 @@ classDiagram
 **Implementación en Testimonial CMS**:
 
 ```typescript
-// src/domain/testimonials/factories/testimonial.factory.ts
+// apps/api/src/modules/testimonials/services/factories/testimonial.factory.ts
 
 export interface Testimonial {
   id: string;
@@ -192,7 +192,7 @@ export class TestimonialService {
 - ❌ Si solo hay un tipo de testimonio.
 - ❌ Cuando la creación es trivial.
 
-**Enlace al código**: [`src/domain/testimonials/factories/testimonial.factory.ts`](../../src/domain/testimonials/factories/testimonial.factory.ts)
+**Enlace al código**: [`apps/api/src/modules/testimonials/services/factories/testimonial.factory.ts`](../../apps/api/src/modules/testimonials/services/factories/testimonial.factory.ts)
 
 ---
 
@@ -236,7 +236,7 @@ classDiagram
 **Implementación en Testimonial CMS**:
 
 ```typescript
-// src/domain/testimonials/builders/testimonial-report.builder.ts
+// apps/api/src/modules/testimonials/services/builders/testimonial-report.builder.ts
 
 export interface TestimonialReport {
   header: {
@@ -375,7 +375,7 @@ const report = director.buildFullReport('Acme Inc', 'March YYYY', stats, topTest
 **Cuándo evitar**:
 - ❌ Para objetos simples con pocos campos.
 
-**Enlace al código**: [`src/domain/testimonials/builders/testimonial-report.builder.ts`](../../src/domain/testimonials/builders/testimonial-report.builder.ts)
+**Enlace al código**: [`apps/api/src/modules/testimonials/services/builders/testimonial-report.builder.ts`](../../apps/api/src/modules/testimonials/services/builders/testimonial-report.builder.ts)
 
 ---
 
@@ -398,7 +398,7 @@ classDiagram
 **Implementación en Testimonial CMS** (Logger):
 
 ```typescript
-// src/infrastructure/logging/logger.ts
+// apps/api/src/common/logging/logger.ts
 
 export enum LogLevel {
   DEBUG = 0,
@@ -462,7 +462,7 @@ logger.info('Testimonial created', { id: '123' });
 - ❌ Para objetos con estado mutable compartido (puede causar efectos laterales no deseados).
 - ❌ En aplicaciones que requieren alta testabilidad (preferir inyección de dependencias).
 
-**Enlace al código**: [`src/infrastructure/logging/logger.ts`](../../src/infrastructure/logging/logger.ts)
+**Enlace al código**: [`apps/api/src/common/logging/logger.ts`](../../apps/api/src/common/logging/logger.ts)
 
 ---
 
@@ -502,7 +502,7 @@ classDiagram
 **Implementación en Testimonial CMS** (Integración con YouTube):
 
 ```typescript
-// src/infrastructure/external/adapters/youtube.adapter.ts
+// apps/api/src/common/adapters/youtube.adapter.ts
 
 // Target interface (lo que espera nuestro sistema)
 export interface VideoProvider {
@@ -569,7 +569,7 @@ export class TestimonialService {
 - ❌ Cuando la API externa ya coincide con la interfaz esperada.
 - ❌ Si solo se usa un proveedor y no se anticipan cambios.
 
-**Enlace al código**: [`src/infrastructure/external/adapters/youtube.adapter.ts`](../../src/infrastructure/external/adapters/youtube.adapter.ts)
+**Enlace al código**: [`apps/api/src/common/adapters/youtube.adapter.ts`](../../apps/api/src/common/adapters/youtube.adapter.ts)
 
 ---
 
@@ -615,7 +615,7 @@ classDiagram
 **Implementación en Testimonial CMS** (Caché y Logging sobre el servicio de testimonios):
 
 ```typescript
-// src/domain/testimonials/services/testimonial.service.ts (interfaz)
+// apps/api/src/modules/testimonials/services/testimonial.service.ts (interfaz)
 
 export interface TestimonialService {
   getTestimonials(tenantId: string, filters: any): Promise<Testimonial[]>;
@@ -747,7 +747,7 @@ export const testimonialService = loggedService;
 - ❌ Si la funcionalidad puede ser heredada limpiamente.
 - ❌ Cuando el número de decoradores crece demasiado y complica la lectura.
 
-**Enlace al código**: [`src/domain/testimonials/decorators/testimonial-service.decorator.ts`](../../src/domain/testimonials/decorators/testimonial-service.decorator.ts)
+**Enlace al código**: [`apps/api/src/modules/testimonials/decorators/testimonial-service.decorator.ts`](../../apps/api/src/modules/testimonials/decorators/testimonial-service.decorator.ts)
 
 ---
 
@@ -793,129 +793,62 @@ classDiagram
 **Implementación en Testimonial CMS** (Prisma):
 
 ```typescript
-// src/infrastructure/repositories/testimonial.repository.ts
+```typescript
+// apps/api/src/modules/testimonials/repositories/testimonial.repository.ts
 
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { Testimonial } from '../../domain/testimonials/entities/testimonial.entity';
-import { TestimonialMapper } from './mappers/testimonial.mapper';
-
-export interface TestimonialRepository {
-  findById(id: string): Promise<Testimonial | null>;
-  findByTenant(tenantId: string, filters?: any): Promise<Testimonial[]>;
-  save(testimonial: Testimonial): Promise<Testimonial>;
-  update(id: string, data: Partial<Testimonial>): Promise<Testimonial>;
-  delete(id: string): Promise<void>;
-  countByStatus(tenantId: string, status: string): Promise<number>;
-}
+import { PrismaService } from '../../../common/prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { TestimonialView } from '../entities/testimonial.model';
 
 @Injectable()
-export class PrismaTestimonialRepository implements TestimonialRepository {
-  constructor(private prisma: PrismaService) {}
+export class TestimonialRepository {
+  constructor(private readonly prisma: PrismaService) {}
 
-  async findById(id: string): Promise<Testimonial | null> {
-    const record = await this.prisma.testimonial.findUnique({
+  async findById(id: string): Promise<TestimonialView | null> {
+    return this.prisma.testimonial.findUnique({
       where: { id },
-      include: { tags: true, categories: true }
+      include: { tags: true, category: true }
     });
-    return record ? TestimonialMapper.toDomain(record) : null;
   }
 
-  async findByTenant(tenantId: string, filters?: any): Promise<Testimonial[]> {
+  async findByTenant(tenantId: string, filters?: any): Promise<TestimonialView[]> {
     const where: any = { tenantId };
-    if (filters?.status) where.status = filters.status;
-    if (filters?.tagIds) where.tags = { some: { id: { in: filters.tagIds } } };
-
-    const records = await this.prisma.testimonial.findMany({
+    if (filters?.status) where.statusId = filters.status;
+    
+    return this.prisma.testimonial.findMany({
       where,
-      include: { tags: true, categories: true },
+      include: { tags: true, category: true },
       orderBy: { createdAt: 'desc' }
     });
-    return records.map(TestimonialMapper.toDomain);
   }
 
-  async save(testimonial: Testimonial): Promise<Testimonial> {
-    const data = TestimonialMapper.toPersistence(testimonial);
-    const created = await this.prisma.testimonial.create({ data });
-    return TestimonialMapper.toDomain(created);
+  async create(data: Prisma.TestimonialCreateInput): Promise<TestimonialView> {
+    return this.prisma.testimonial.create({ data });
   }
 
-  async update(id: string, data: Partial<Testimonial>): Promise<Testimonial> {
-    const updateData = TestimonialMapper.toPersistencePartial(data);
-    const updated = await this.prisma.testimonial.update({
+  async update(id: string, data: Prisma.TestimonialUpdateInput): Promise<TestimonialView> {
+    return this.prisma.testimonial.update({
       where: { id },
-      data: updateData
+      data
     });
-    return TestimonialMapper.toDomain(updated);
   }
 
   async delete(id: string): Promise<void> {
     await this.prisma.testimonial.delete({ where: { id } });
   }
-
-  async countByStatus(tenantId: string, status: string): Promise<number> {
-    return this.prisma.testimonial.count({
-      where: { tenantId, status }
-    });
-  }
-}
-
-// Mapper (separado)
-export class TestimonialMapper {
-  static toDomain(record: any): Testimonial {
-    return {
-      id: record.id,
-      tenantId: record.tenantId,
-      content: record.content,
-      authorName: record.authorName,
-      rating: record.rating,
-      status: record.status,
-      score: record.score,
-      createdAt: record.createdAt,
-      publishedAt: record.publishedAt,
-      tags: record.tags?.map(t => t.name) || [],
-      categories: record.categories?.map(c => c.name) || []
-    };
-  }
-
-  static toPersistence(domain: Testimonial): any {
-    return {
-      id: domain.id,
-      tenantId: domain.tenantId,
-      content: domain.content,
-      authorName: domain.authorName,
-      rating: domain.rating,
-      status: domain.status,
-      score: domain.score,
-      createdAt: domain.createdAt,
-      publishedAt: domain.publishedAt
-      // Nota: las relaciones many-to-many se manejan aparte
-    };
-  }
-
-  static toPersistencePartial(data: Partial<Testimonial>): any {
-    const result: any = {};
-    if (data.content !== undefined) result.content = data.content;
-    if (data.authorName !== undefined) result.authorName = data.authorName;
-    if (data.rating !== undefined) result.rating = data.rating;
-    if (data.status !== undefined) result.status = data.status;
-    if (data.score !== undefined) result.score = data.score;
-    if (data.publishedAt !== undefined) result.publishedAt = data.publishedAt;
-    return result;
-  }
 }
 ```
 
 **Cuándo usar**:
-- ✅ Para aislar el dominio de los detalles de persistencia.
-- ✅ Para facilitar el testing (mock repositories).
-- ✅ Cuando se usa un ORM y se quiere una capa de abstracción adicional.
+- ✅ Para recolectar operaciones de base de datos complejas fuera de los Servicios.
+- ✅ Cuando la Lógica de Base de datos (Prisma) ensucia excesivamente otras capas.
 
 **Cuándo evitar**:
-- ❌ Si el ORM ya proporciona una interfaz limpia y no se necesita abstracción adicional.
-- ❌ En proyectos muy simples con pocas entidades.
+- ❌ Sobre-complicando con Capas de Interfaces o Mappers si se utiliza Prisma que ya tipifica automáticamente.
+- ❌ En proyectos simples con una sola tabla.
 
-**Enlace al código**: [`src/infrastructure/repositories/testimonial.repository.ts`](../../src/infrastructure/repositories/testimonial.repository.ts)
+**Enlace al código**: [`apps/api/src/modules/testimonials/repositories/testimonial.repository.ts`](../../apps/api/src/modules/testimonials/repositories/testimonial.repository.ts)
 
 ---
 
@@ -970,7 +903,7 @@ classDiagram
 **Implementación en Testimonial CMS** (Eventos de testimonio):
 
 ```typescript
-// src/domain/testimonials/events/testimonial-events.ts
+// apps/api/src/modules/testimonials/events/testimonial-events.ts
 
 export interface TestimonialEvent {
   type: string;
@@ -1091,7 +1024,7 @@ export class TestimonialService {
 - ❌ Si solo hay un observador y la relación es simple.
 - ❌ Cuando la notificación debe ser síncrona y crítica (el observador podría fallar y bloquear la operación).
 
-**Enlace al código**: [`src/domain/testimonials/events/testimonial-events.ts`](../../src/domain/testimonials/events/testimonial-events.ts)
+**Enlace al código**: [`apps/api/src/modules/testimonials/events/testimonial-events.ts`](../../apps/api/src/modules/testimonials/events/testimonial-events.ts)
 
 ---
 
@@ -1135,7 +1068,7 @@ classDiagram
 **Implementación en Testimonial CMS** (Scoring de testimonios):
 
 ```typescript
-// src/domain/testimonials/strategies/scoring.strategy.ts
+// apps/api/src/modules/testimonials/services/strategies/scoring.strategy.ts
 
 export interface ScoringStrategy {
   calculate(testimonial: Testimonial, events: AnalyticsEvent[]): number;
@@ -1232,7 +1165,7 @@ export class ScoringService {
 - ❌ Si solo hay un algoritmo.
 - ❌ Cuando los algoritmos son muy simples y no justifican la abstracción.
 
-**Enlace al código**: [`src/domain/testimonials/strategies/scoring.strategy.ts`](../../src/domain/testimonials/strategies/scoring.strategy.ts)
+**Enlace al código**: [`apps/api/src/modules/testimonials/services/strategies/scoring.strategy.ts`](../../apps/api/src/modules/testimonials/services/strategies/scoring.strategy.ts)
 
 ---
 
@@ -1265,7 +1198,7 @@ sequenceDiagram
 **Implementación en Testimonial CMS**:
 
 ```typescript
-// src/infrastructure/idempotency/idempotency.middleware.ts
+// apps/api/src/common/idempotency/idempotency.middleware.ts
 
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
@@ -1337,7 +1270,7 @@ export class AppModule {
 - ❌ En operaciones de solo lectura.
 - ❌ Cuando la idempotencia ya está garantizada por el diseño (ej. PUT).
 
-**Enlace al código**: [`src/infrastructure/idempotency/idempotency.middleware.ts`](../../src/infrastructure/idempotency/idempotency.middleware.ts)
+**Enlace al código**: [`apps/api/src/common/idempotency/idempotency.middleware.ts`](../../apps/api/src/common/idempotency/idempotency.middleware.ts)
 
 ---
 
@@ -1378,7 +1311,7 @@ sequenceDiagram
 **Implementación en Testimonial CMS**:
 
 ```typescript
-// src/infrastructure/outbox/outbox.service.ts
+// apps/api/src/modules/webhooks/services/outbox.service.ts
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1502,7 +1435,7 @@ export class TestimonialService {
 - ❌ Si no se necesita fiabilidad en la publicación de eventos.
 - ❌ Para eventos internos que pueden ser síncronos.
 
-**Enlace al código**: [`src/infrastructure/outbox/outbox.service.ts`](../../src/infrastructure/outbox/outbox.service.ts)
+**Enlace al código**: [`apps/api/src/modules/webhooks/services/outbox.service.ts`](../../apps/api/src/modules/webhooks/services/outbox.service.ts)
 
 ---
 
@@ -1535,7 +1468,7 @@ classDiagram
 **Implementación en Testimonial CMS**:
 
 ```typescript
-// src/infrastructure/feature-flags/feature-flag.service.ts
+// apps/api/src/modules/feature-flags/services/feature-flag.service.ts
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1626,7 +1559,7 @@ export class FeatureFlagController {
 - ❌ Si las funcionalidades son estáticas y no necesitan control en tiempo de ejecución.
 - ❌ Cuando el overhead de consultar flags afecta el rendimiento (mitigar con caché).
 
-**Enlace al código**: [`src/infrastructure/feature-flags/feature-flag.service.ts`](../../src/infrastructure/feature-flags/feature-flag.service.ts)
+**Enlace al código**: [`apps/api/src/modules/feature-flags/services/feature-flag.service.ts`](../../apps/api/src/modules/feature-flags/services/feature-flag.service.ts)
 
 ---
 
@@ -1668,7 +1601,7 @@ classDiagram
 **Implementación en Testimonial CMS** (simplificada, usando transacciones de Prisma):
 
 ```typescript
-// src/infrastructure/unit-of-work/unit-of-work.ts
+// apps/api/src/common/database/unit-of-work/unit-of-work.ts
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -1748,7 +1681,7 @@ export class TestimonialService {
 **Cuándo evitar**:
 - ❌ Si el ORM ya proporciona transacciones simples y no se necesita una capa adicional.
 
-**Enlace al código**: [`src/infrastructure/unit-of-work/unit-of-work.ts`](../../src/infrastructure/unit-of-work/unit-of-work.ts)
+**Enlace al código**: [`apps/api/src/common/database/unit-of-work/unit-of-work.ts`](../../apps/api/src/common/database/unit-of-work/unit-of-work.ts)
 
 ---
 

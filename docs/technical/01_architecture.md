@@ -56,7 +56,7 @@ flowchart TD
 | Atributo | Valor |
 |----------|-------|
 | **Nombre del Sistema** | Testimonial CMS |
-| **Tipo de Arquitectura** | Modular monolito con clara separación de capas (Clean Architecture) desplegado como servicios independientes (preparado para microservicios futuros) |
+| **Tipo de Arquitectura** | Modular monolito con Arquitectura N-Tier (Capas estándar de NestJS) enfocada en simplicidad pragmática asíncrona, preparado para microservicios futuros |
 | **Patrón de Comunicación** | REST síncrono + eventos asíncronos mediante outbox pattern y colas (BullMQ + Redis) |
 | **Usuarios Concurrentes Esperados** | 200+ (pico) / 50+ (promedio) por tenant |
 | **Transacciones por Segundo (TPS)** | 50+ lectura / 10+ escritura |
@@ -200,68 +200,62 @@ flowchart TD
 
 ## 4. Patrones Arquitectónicos Aplicados
 
-### 4.1. Patrón: Clean Architecture / Capas
+### 4.1. Arquitectura por Capas (N-Tier) de NestJS
 
-**Propósito**: Separar la lógica de negocio de los detalles de infraestructura (frameworks, bases de datos, APIs externas) para lograr mantenibilidad, testabilidad y evolución independiente.
+**Propósito**: Organizar el código pragmáticamente reduciendo abstracciones teóricas innecesarias. Todas las divisiones giran en base a dominios (Módulos de NestJS) que contienen el flujo transversal: `Controllers -> Services -> Repositories`.
 
-**Implementación** (NestJS con módulos):
+**Implementación** (NestJS en `apps/api/src/modules/`):
 
 ```typescript
-// Estructura de un módulo
+// Estructura de un módulo (Ej. testimonials)
 modules/
  └── testimonials/
-      ├── domain/               // Entidades, value objects, interfaces de repositorio
-      │    ├── testimonial.entity.ts
-      │    └── testimonial.repository.interface.ts
-      ├── application/          // Casos de uso, DTOs, servicios de aplicación
-      │    ├── create-testimonial.use-case.ts
-      │    └── publish-testimonial.use-case.ts
-      ├── infrastructure/       // Implementaciones concretas (repositorios, servicios externos)
-      │    ├── prisma-testimonial.repository.ts
-      │    └── cloudinary.service.ts
-      └── presentation/         // Controladores, DTOs de entrada/salida
-           └── testimonial.controller.ts
+      ├── controllers/         // Expone la capa HTTP hacia el exterior (REST)
+      │    └── testimonials.controller.ts
+      ├── services/            // Contiene la lógica de negocio pura
+      │    └── testimonials.service.ts
+      ├── repositories/        // Concentra las interacciones con la base de datos (Prisma)
+      │    └── testimonial.repository.ts
+      ├── dto/                 // Data Transfer Objects de entrada y salida
+      │    └── testimonial.dto.ts
+      └── entities/            // Declaración de Tipados anémicos y Vistas
+           └── testimonial.model.ts
 ```
 
 **Beneficios**:
-- ✅ La lógica de negocio no depende de NestJS, Express, Prisma, etc.
-- ✅ Los casos de uso pueden testearse fácilmente con mocks.
-- ✅ Cambiar de ORM o base de datos solo afecta la capa de infraestructura.
+- ✅ Flujo estándar y altamente asimilado por cualquier profesional de la comunidad NestJS.
+- ✅ Elimina la disonancia cognitiva limitando los archivos excesivos y las sobre-capas sin función.
+- ✅ Rapidez en el desarrollo para mantener al equipo focalizado en entregar valor de negocio.
 
 **Trade-offs**:
-- ⚠️ Mayor número de archivos y boilerplate inicial.
-- ⚠️ Curva de aprendizaje para el equipo.
+- ⚠️ Cierto acoplamiento sutil permitido intencionalmente a herramientas nativas o a librerías principales de persistencia (como Prisma). No existe una coraza radical entre modelos.
 
-### 4.2. Patrón: Repository
+### 4.2. Patrón: Repository Concreto
 
-**Propósito**: Abstraer el acceso a datos, permitiendo cambiar la fuente de datos sin afectar la lógica de negocio.
+**Propósito**: Abstraer el acceso a la base de datos limitando la repetitividad de consultas y unificando el esquema Prisma de forma predecible sin interfaces genéricas tipo OOP (`IRepository`).
 
 ```typescript
-// Interfaz en dominio
-export interface ITestimonialRepository {
-  findById(id: string): Promise<Testimonial | null>;
-  save(testimonial: Testimonial): Promise<void>;
-  findByTenant(tenantId: string, filters: any): Promise<Testimonial[]>;
-}
-
-// Implementación con Prisma en infraestructura
+// Implementación directa en módulo
 @Injectable()
-export class PrismaTestimonialRepository implements ITestimonialRepository {
-  constructor(private prisma: PrismaService) {}
+export class TestimonialsRepository {
+  constructor(private readonly prisma: PrismaService) {}
 
-  async findById(id: string): Promise<Testimonial | null> {
-    const data = await this.prisma.testimonial.findUnique({ where: { id } });
-    return data ? this.toDomain(data) : null;
+  async findById(id: string): Promise<TestimonialView | null> {
+    return this.prisma.testimonial.findUnique({ where: { id } });
   }
 
-  // ... otros métodos
+  async create(data: Prisma.TestimonialCreateInput): Promise<TestimonialView> {
+    return this.prisma.testimonial.create({ data });
+  }
+
+  // ... otros métodos específicos al negocio
 }
 ```
 
 **Beneficios**:
-- ✅ Desacoplamiento.
-- ✅ Fácil de mockear en pruebas.
-- ✅ Permite cambiar la implementación (por ejemplo, a MongoDB) sin modificar casos de uso.
+- ✅ Velocidad al desarrollar funciones nativas inyectando directamente PrismaService.
+- ✅ Simplifica la instrumentación del "Inversion Of Control (IoC)".
+- ✅ Provee una capa clara en donde aglomerar "Queries complejas" aislandolas de los controladores y del negocio puro.
 
 ### 4.3. Patrón: Outbox (Transactional Outbox)
 
@@ -356,7 +350,7 @@ async createTestimonial(@Body() dto: CreateTestimonialDto, @Headers('Idempotency
     if (existing) return existing.response;
   }
 
-  const result = await this.testimonialUseCase.create(dto);
+  const result = await this.testimonialsService.create(dto);
 
   if (key) {
     await this.idempotencyService.save(key, result);
@@ -663,10 +657,7 @@ testimonial-cms/
 │   └── worker/                            # Worker de procesamiento asíncrono
 │       ├── src/
 │       └── package.json
-├── packages/                              # Código compartido entre backend y worker
-│   ├── domain/                            # Entidades, interfaces de repositorio
-│   ├── application/                        # Casos de uso (si se reutilizan)
-│   └── infrastructure/                      # Implementaciones de servicios externos
+├── packages/                              # (Legacy/Vácío) Código compartido entre backend y worker
 ├── frontend/                               # Aplicación Next.js
 │   ├── app/
 │   ├── components/
