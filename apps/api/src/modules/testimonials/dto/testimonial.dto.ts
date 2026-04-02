@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength, IsIn } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, IsUrl, Max, MaxLength, Min, MinLength, IsIn } from 'class-validator';
 
 export class CreateTestimonialDto {
   @IsString()
@@ -74,4 +74,15 @@ export class PublicTestimonialsQueryDto {
 
   @IsOptional()
   limit?: number;
+}
+
+export class UploadImageDto {
+  @IsString()
+  imageBase64!: string;
+}
+
+export class AttachVideoDto {
+  @IsString()
+  @IsUrl()
+  videoUrl!: string;
 }

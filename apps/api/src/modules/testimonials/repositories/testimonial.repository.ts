@@ -102,6 +102,30 @@ export class TestimonialRepository {
     return this.toView(updated);
   }
 
+  async updateMedia(
+    id: string,
+    data: {
+      imageUrl?: string | null;
+      videoUrl?: string | null;
+      videoTitle?: string | null;
+      videoThumbnailUrl?: string | null;
+    },
+  ): Promise<TestimonialView> {
+    const updated = await this.prisma.testimonial.update({
+      where: { id },
+      data: {
+        ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
+        ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),
+        ...(data.videoTitle !== undefined && { videoTitle: data.videoTitle }),
+        ...(data.videoThumbnailUrl !== undefined && { videoThumbnailUrl: data.videoThumbnailUrl }),
+        updatedAt: new Date(),
+      },
+      include: { status: true },
+    });
+
+    return this.toView(updated);
+  }
+
   async remove(tenantId: string, id: string): Promise<void> {
     await this.prisma.testimonial.deleteMany({ where: { id, tenantId } });
   }

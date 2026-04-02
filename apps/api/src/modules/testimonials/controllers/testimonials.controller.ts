@@ -17,9 +17,11 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../../common/interfaces/auth-context.interface';
 import {
+  AttachVideoDto,
   CreateTestimonialDto,
   ModerateTestimonialDto,
   UpdateTestimonialDto,
+  UploadImageDto,
 } from '../dto/testimonial.dto';
 import { TagsService } from '../services/tags.service';
 
@@ -105,6 +107,24 @@ export class TestimonialsController {
     @Param('testimonial_id') testimonialId: string,
   ) {
     return this.testimonialsService.publishTestimonial(tenantId, testimonialId);
+  }
+
+  @Post(':testimonial_id/image')
+  uploadImage(
+    @CurrentTenantId() tenantId: string,
+    @Param('testimonial_id') testimonialId: string,
+    @Body() dto: UploadImageDto,
+  ) {
+    return this.testimonialsService.uploadImage(tenantId, testimonialId, dto.imageBase64);
+  }
+
+  @Post(':testimonial_id/video')
+  attachVideo(
+    @CurrentTenantId() tenantId: string,
+    @Param('testimonial_id') testimonialId: string,
+    @Body() dto: AttachVideoDto,
+  ) {
+    return this.testimonialsService.attachVideo(tenantId, testimonialId, dto.videoUrl);
   }
 
   @Post(':testimonial_id/tags/:tag_id')

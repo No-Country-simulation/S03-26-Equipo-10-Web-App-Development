@@ -1,8 +1,10 @@
-import { NotFoundException, ConflictException, Injectable } from '@nestjs/common';
+import { NotFoundException, ConflictException, BadRequestException, Injectable } from '@nestjs/common';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AnalyticsRepository } from '../../analytics/repositories/analytics.repository';
+import { CloudinaryService } from '../../shared/cloud/cloudinary.service';
+import { YoutubeService } from '../../shared/cloud/youtube.service';
 import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto } from '../dto/testimonial.dto';
 
@@ -13,6 +15,8 @@ export class TestimonialsService {
     private readonly categoryRepo: CategoryRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly analyticsRepo: AnalyticsRepository,
+    private readonly cloudinaryService: CloudinaryService,
+    private readonly youtubeService: YoutubeService,
   ) {}
 
   async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
@@ -119,6 +123,38 @@ export class TestimonialsService {
       content: dto.content,
       rating: dto.rating,
       categoryId: dto.categoryId,
+    });
+  }
+
+  async uploadImage(tenantId: string, testimonialId: string, imageBase64: string) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (testimonial.status === 'published') {
+      throw new ConflictException('Cannot modify media of a published testimonial');
+    }
+
+    const result = await this.cloudinaryService.uploadImage(imageBase64);
+    return this.repo.updateMedia(testimonialId, { imageUrl: result.secureUrl });
+  }
+
+  async attachVideo(tenantId: string, testimonialId: string, videoUrl: string) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId);
+    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (testimonial.status === 'published') {
+      throw new ConflictException('Cannot modify media of a published testimonial');
+    }
+
+    const youtubePattern = /(?:youtube\.com|youtu\.be)/;
+    if (!youtubePattern.test(videoUrl)) {
+      throw new BadRequestException('Only YouTube URLs are supported');
+    }
+
+    const metadata = await this.youtubeService.getVideoMetadata(videoUrl);
+
+    return this.repo.updateMedia(testimonialId, {
+      videoUrl,
+      videoTitle: metadata?.title ?? null,
+      videoThumbnailUrl: metadata?.thumbnailUrl ?? null,
     });
   }
 
