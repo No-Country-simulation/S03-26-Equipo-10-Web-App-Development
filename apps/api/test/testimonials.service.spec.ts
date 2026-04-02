@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { TestimonialsService } from '../src/modules/testimonials/services/testimonials.service';
 import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../src/modules/testimonials/entities/testimonial.model';
 
@@ -145,7 +145,7 @@ describe('TestimonialsService', () => {
     mockRepo.findById.mockResolvedValue(published);
 
     await expect(
-      service.updateTestimonial('tenant-1', 'test-1', { authorName: 'Changed' }),
+      service.updateTestimonial('tenant-1', 'test-1', { userId: 'user-1', roles: ['admin'] }, { authorName: 'Changed' }),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -170,5 +170,28 @@ describe('TestimonialsService', () => {
   it('throws NotFoundException when testimonial not found', async () => {
     mockRepo.findById.mockResolvedValue(null);
     await expect(service.getTestimonial('tenant-1', 'nonexistent')).rejects.toThrow(NotFoundException);
+  });
+
+  it('enforces ownership for editors on edit and delete', async () => {
+    const testimonial = makeView({ createdById: 'other-user', status: 'pending' });
+    mockRepo.findById.mockResolvedValue(testimonial);
+
+    const admin = { userId: 'admin-user', roles: ['admin'] };
+    const ownerEditor = { userId: 'other-user', roles: ['editor'] };
+    const otherEditor = { userId: 'unauthorized-user', roles: ['editor'] };
+
+    // Other editor should fail
+    await expect(service.updateTestimonial('tenant-1', 'test-1', otherEditor, { content: 'x' })).rejects.toThrow(ForbiddenException);
+    await expect(service.removeTestimonial('tenant-1', 'test-1', otherEditor)).rejects.toThrow(ForbiddenException);
+
+    // Admin should succeed
+    mockRepo.updateFields.mockResolvedValue({ ...testimonial, content: 'x' });
+    mockRepo.remove.mockResolvedValue(undefined);
+    await expect(service.updateTestimonial('tenant-1', 'test-1', admin, { content: 'x' })).resolves.toBeDefined();
+    await expect(service.removeTestimonial('tenant-1', 'test-1', admin)).resolves.toEqual({ id: 'test-1', deleted: true });
+
+    // Owner editor should succeed
+    await expect(service.updateTestimonial('tenant-1', 'test-1', ownerEditor, { content: 'x' })).resolves.toBeDefined();
+    await expect(service.removeTestimonial('tenant-1', 'test-1', ownerEditor)).resolves.toEqual({ id: 'test-1', deleted: true });
   });
 });

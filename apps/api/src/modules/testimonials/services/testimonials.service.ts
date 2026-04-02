@@ -1,4 +1,4 @@
-import { NotFoundException, ConflictException, BadRequestException, Injectable } from '@nestjs/common';
+import { NotFoundException, ConflictException, ForbiddenException, BadRequestException, Injectable } from '@nestjs/common';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -101,12 +101,16 @@ export class TestimonialsService {
     };
   }
 
-  async updateTestimonial(tenantId: string, testimonialId: string, dto: UpdateTestimonialDto) {
+  async updateTestimonial(tenantId: string, testimonialId: string, user: { userId: string; roles: string[] }, dto: UpdateTestimonialDto) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundException('Testimonial not found');
 
     if (testimonial.status === 'published') {
       throw new ConflictException('Published testimonial cannot be edited');
+    }
+
+    if (!user.roles.includes('admin') && user.roles.includes('editor') && testimonial.createdById !== user.userId) {
+      throw new ForbiddenException('Editors can only edit their own testimonials');
     }
 
     if (dto.rating !== undefined && (dto.rating < 1 || dto.rating > 5)) {
@@ -158,9 +162,13 @@ export class TestimonialsService {
     });
   }
 
-  async removeTestimonial(tenantId: string, testimonialId: string) {
+  async removeTestimonial(tenantId: string, testimonialId: string, user: { userId: string; roles: string[] }) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundException('Testimonial not found');
+
+    if (!user.roles.includes('admin') && user.roles.includes('editor') && testimonial.createdById !== user.userId) {
+      throw new ForbiddenException('Editors can only delete their own testimonials');
+    }
 
     await this.repo.remove(tenantId, testimonialId);
     return { id: testimonialId, deleted: true };

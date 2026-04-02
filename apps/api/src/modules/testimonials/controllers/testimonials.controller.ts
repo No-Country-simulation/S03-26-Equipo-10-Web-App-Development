@@ -65,18 +65,19 @@ export class TestimonialsController {
   update(
     @CurrentTenantId() tenantId: string,
     @Param('testimonial_id') testimonialId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdateTestimonialDto,
   ) {
-    return this.testimonialsService.updateTestimonial(tenantId, testimonialId, dto);
+    return this.testimonialsService.updateTestimonial(tenantId, testimonialId, user, dto);
   }
 
   @Delete(':testimonial_id')
-  @Roles('admin')
   remove(
     @CurrentTenantId() tenantId: string,
     @Param('testimonial_id') testimonialId: string,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.testimonialsService.removeTestimonial(tenantId, testimonialId);
+    return this.testimonialsService.removeTestimonial(tenantId, testimonialId, user);
   }
 
   @Post(':testimonial_id/submit')
