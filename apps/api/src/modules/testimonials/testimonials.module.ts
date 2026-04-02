@@ -12,7 +12,13 @@ import { TagsController } from './controllers/tags.controller';
 import { CategoriesController } from './controllers/categories.controller';
 import { PublicTestimonialsController } from './controllers/public-testimonials.controller';
 
+import { CloudinaryService } from '../shared/cloud/cloudinary.service';
+import { YoutubeService } from '../shared/cloud/youtube.service';
+import { AnalyticsModule } from '../analytics/analytics.module';
+import { ScoringService } from './services/scoring.service';
+
 @Module({
+  imports: [AnalyticsModule],
   controllers: [
     TestimonialsController,
     TagsController,
@@ -26,6 +32,9 @@ import { PublicTestimonialsController } from './controllers/public-testimonials.
     TestimonialsService,
     TagsService,
     CategoriesService,
+    ScoringService,
+    CloudinaryService,
+    YoutubeService,
   ],
   exports: [TestimonialsService],
 })

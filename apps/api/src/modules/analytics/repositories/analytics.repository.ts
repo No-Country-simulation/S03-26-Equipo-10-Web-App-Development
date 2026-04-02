@@ -80,4 +80,33 @@ export class AnalyticsRepository {
 
     return { views, likes };
   }
+
+  async getEngagementCounts(testimonialIds: string[]): Promise<Map<string, { views: number; clicks: number }>> {
+    const result = new Map<string, { views: number; clicks: number }>();
+    if (!testimonialIds.length) return result;
+
+    for (const id of testimonialIds) {
+      result.set(id, { views: 0, clicks: 0 });
+    }
+
+    const counts = await this.prisma.analyticsEvent.groupBy({
+      by: ['testimonialId', 'eventTypeId'],
+      where: { testimonialId: { in: testimonialIds } },
+      _count: true,
+    });
+
+    const eventTypes = await this.prisma.analyticsEventType.findMany();
+    const typeMap = new Map(eventTypes.map(t => [t.id, t.code]));
+
+    for (const count of counts) {
+      const code = typeMap.get(count.eventTypeId);
+      const metrics = result.get(count.testimonialId);
+      if (metrics) {
+        if (code === 'view') metrics.views += count._count;
+        if (code === 'click') metrics.clicks += count._count;
+      }
+    }
+
+    return result;
+  }
 }

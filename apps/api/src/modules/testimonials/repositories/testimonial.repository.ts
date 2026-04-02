@@ -195,6 +195,28 @@ export class TestimonialRepository {
     return row ? this.toView(row) : null;
   }
 
+  async findAllPublishedForScoring(): Promise<Array<{ id: string; rating: number; publishedAt: Date | null }>> {
+    const publishedStatusId = await this.resolveStatusId('published');
+    return this.prisma.testimonial.findMany({
+      where: { statusId: publishedStatusId },
+      select: { id: true, rating: true, publishedAt: true },
+    });
+  }
+
+  async updateScores(updates: { id: string; score: number }[]): Promise<void> {
+    if (updates.length === 0) return;
+
+    // Use a transaction since Prisma doesn't have a native upsert/updateMany with distinct values per row
+    await this.prisma.$transaction(
+      updates.map(({ id, score }) =>
+        this.prisma.testimonial.update({
+          where: { id },
+          data: { score },
+        }),
+      ),
+    );
+  }
+
   private async resolveStatusId(code: TestimonialStatus): Promise<number> {
     const status = await this.prisma.testimonialStatus.findUnique({
       where: { code },

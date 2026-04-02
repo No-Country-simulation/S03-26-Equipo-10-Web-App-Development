@@ -14,7 +14,7 @@ import { AnalyticsRepository } from './repositories/analytics.repository';
     AnalyticsRepository,
     AnalyticsService,
   ],
-  exports: [AnalyticsService],
+  exports: [AnalyticsService, AnalyticsRepository],
 })
 export class AnalyticsModule {}
 
