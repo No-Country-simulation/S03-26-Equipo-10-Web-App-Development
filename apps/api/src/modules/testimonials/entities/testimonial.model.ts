@@ -19,6 +19,10 @@ export interface TestimonialView {
   score: number;
   categoryId: string | null;
   moderationNotes: string | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  videoTitle: string | null;
+  videoThumbnailUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
   publishedAt: Date | null;

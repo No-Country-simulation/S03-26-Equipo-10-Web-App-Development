@@ -145,6 +145,10 @@ model Testimonial {
   categoryId      String?           @map("category_id") @db.Uuid
   createdById     String?           @map("created_by_id") @db.Uuid
   moderationNotes String?           @map("moderation_notes")
+  imageUrl          String?           @map("image_url")
+  videoUrl          String?           @map("video_url")
+  videoTitle        String?           @map("video_title")
+  videoThumbnailUrl String?           @map("video_thumbnail_url")
   score           Decimal           @default(0) @db.Decimal(10, 4)
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")

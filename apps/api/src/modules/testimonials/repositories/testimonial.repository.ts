@@ -192,6 +192,10 @@ export class TestimonialRepository {
     score: number | { toString(): string };
     categoryId: string | null;
     moderationNotes: string | null;
+    imageUrl: string | null;
+    videoUrl: string | null;
+    videoTitle: string | null;
+    videoThumbnailUrl: string | null;
     createdAt: Date;
     updatedAt: Date;
     publishedAt: Date | null;
@@ -207,6 +211,10 @@ export class TestimonialRepository {
       score: Number(row.score),
       categoryId: row.categoryId,
       moderationNotes: row.moderationNotes,
+      imageUrl: row.imageUrl,
+      videoUrl: row.videoUrl,
+      videoTitle: row.videoTitle,
+      videoThumbnailUrl: row.videoThumbnailUrl,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       publishedAt: row.publishedAt,
