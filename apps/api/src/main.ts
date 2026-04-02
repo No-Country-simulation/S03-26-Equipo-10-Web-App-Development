@@ -6,6 +6,7 @@ import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -34,6 +35,16 @@ async function bootstrap() {
     new ApiResponseInterceptor(),
     app.get(IdempotencyInterceptor),
   );
+
+  const config = new DocumentBuilder()
+    .setTitle('Testimonials CMS API')
+    .setDescription('The API description for the Testimonials CMS')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
   const port = Number(process.env.PORT ?? 4000);
   await app.listen(port);
