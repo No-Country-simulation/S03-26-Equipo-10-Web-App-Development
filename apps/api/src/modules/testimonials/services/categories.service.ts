@@ -16,6 +16,12 @@ export class CategoriesService {
     };
   }
 
+  async getCategory(tenantId: string, categoryId: string) {
+    const category = await this.categoryRepo.findById(tenantId, categoryId);
+    if (!category) throw new NotFoundException('Category not found');
+    return category;
+  }
+
   async create(tenantId: string, dto: CreateCategoryDto) {
     return this.categoryRepo.create(tenantId, dto.name);
   }

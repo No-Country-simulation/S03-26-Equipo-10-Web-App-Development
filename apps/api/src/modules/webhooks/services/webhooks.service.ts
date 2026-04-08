@@ -71,6 +71,12 @@ export class WebhooksService {
         };
     }
 
+    async getWebhook(tenantId: string, webhookId: string) {
+        const webhook = await this.webhookRepo.findById(tenantId, webhookId);
+        if (!webhook) throw new NotFoundException('Webhook not found');
+        return webhook;
+    }
+
     async testWebhook(tenantId: string, webhookId: string) {
         const webhook = await this.webhookRepo.findById(tenantId, webhookId);
         if (!webhook) throw new NotFoundException('Webhook not found');

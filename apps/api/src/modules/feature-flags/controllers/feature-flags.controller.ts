@@ -17,6 +17,14 @@ export class FeatureFlagsController {
     return this.featureFlagsService.listFeatureFlags(tenantId);
   }
 
+  @Get(':flag_name')
+  getOne(
+    @CurrentTenantId() tenantId: string,
+    @Param('flag_name') flagName: string,
+  ) {
+    return this.featureFlagsService.getFeatureFlag(tenantId, flagName);
+  }
+
   @Patch(':flag_name')
   set(
     @CurrentTenantId() tenantId: string,

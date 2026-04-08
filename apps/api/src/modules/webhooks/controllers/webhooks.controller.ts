@@ -27,6 +27,14 @@ export class WebhooksController {
     return this.webhooksService.listWebhooks(tenantId);
   }
 
+  @Get(':webhook_id')
+  getOne(
+    @CurrentTenantId() tenantId: string,
+    @Param('webhook_id') webhookId: string,
+  ) {
+    return this.webhooksService.getWebhook(tenantId, webhookId);
+  }
+
   @Post()
   create(
     @CurrentTenantId() tenantId: string,

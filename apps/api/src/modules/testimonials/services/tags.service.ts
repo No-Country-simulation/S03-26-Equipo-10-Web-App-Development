@@ -18,6 +18,12 @@ export class TagsService {
     };
   }
 
+  async getTag(tenantId: string, tagId: string) {
+    const tag = await this.tagRepo.findById(tenantId, tagId);
+    if (!tag) throw new NotFoundException('Tag not found');
+    return tag;
+  }
+
   async create(tenantId: string, dto: CreateTagDto) {
     return this.tagRepo.create(tenantId, dto.name);
   }

@@ -17,6 +17,14 @@ export class CategoriesController {
     return this.categoriesService.list(tenantId);
   }
 
+  @Get(':category_id')
+  getOne(
+    @CurrentTenantId() tenantId: string,
+    @Param('category_id') categoryId: string,
+  ) {
+    return this.categoriesService.getCategory(tenantId, categoryId);
+  }
+
   @Post()
   create(
     @CurrentTenantId() tenantId: string,

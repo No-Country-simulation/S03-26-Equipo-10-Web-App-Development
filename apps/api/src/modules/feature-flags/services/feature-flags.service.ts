@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { FeatureFlagRepository } from "../repositories/feature-flag.repository";
 
 @Injectable()
@@ -9,6 +9,14 @@ export class FeatureFlagsService {
           items: flags,
           meta: { total: flags.length, page: 1, limit: flags.length },
         };
+    }
+
+    async getFeatureFlag(tenantId: string, flagName: string) {
+        const flag = await this.featureFlagRepo.findByName(tenantId, flagName);
+        if (!flag) {
+            throw new NotFoundException(`Feature flag '${flagName}' not found`);
+        }
+        return flag;
     }
 
     async setFeatureFlag(tenantId: string, flagName: string, enabled: boolean) {

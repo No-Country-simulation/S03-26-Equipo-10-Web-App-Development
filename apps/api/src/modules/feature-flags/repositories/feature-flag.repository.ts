@@ -36,6 +36,22 @@ export class FeatureFlagRepository implements IFeatureFlagEvaluator {
     }));
   }
 
+  async findByName(tenantId: string, flagName: string): Promise<FeatureFlagView | null> {
+    const flag = await this.prisma.featureFlag.findUnique({
+      where: { name: flagName },
+      include: {
+        tenants: { where: { tenantId } },
+      },
+    });
+    if (!flag) return null;
+    return {
+      id: flag.id,
+      name: flag.name,
+      description: flag.description,
+      enabled: flag.tenants[0]?.enabled ?? false,
+    };
+  }
+
   async isEnabled(tenantId: string, flagName: string): Promise<boolean> {
     const flag = await this.prisma.featureFlag.findUnique({
       where: { name: flagName },

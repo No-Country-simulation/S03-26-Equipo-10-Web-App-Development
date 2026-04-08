@@ -17,6 +17,14 @@ export class TagsController {
     return this.tagsService.list(tenantId);
   }
 
+  @Get(':tag_id')
+  getOne(
+    @CurrentTenantId() tenantId: string,
+    @Param('tag_id') tagId: string,
+  ) {
+    return this.tagsService.getTag(tenantId, tagId);
+  }
+
   @Post()
   create(
     @CurrentTenantId() tenantId: string,

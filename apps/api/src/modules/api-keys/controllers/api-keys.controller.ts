@@ -17,6 +17,14 @@ export class ApiKeysController {
     return this.apiKeysService.listApiKeys(tenantId);
   }
 
+  @Get(':api_key_id')
+  getOne(
+    @CurrentTenantId() tenantId: string,
+    @Param('api_key_id') apiKeyId: string,
+  ) {
+    return this.apiKeysService.getApiKey(tenantId, apiKeyId);
+  }
+
   @Post()
   create(
     @CurrentTenantId() tenantId: string,

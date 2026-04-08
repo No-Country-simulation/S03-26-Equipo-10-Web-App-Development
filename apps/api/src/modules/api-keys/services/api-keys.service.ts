@@ -21,6 +21,12 @@ export class ApiKeysService {
         };
     }
 
+    async getApiKey(tenantId: string, apiKeyId: string) {
+        const key = await this.apiKeyRepo.findById(tenantId, apiKeyId);
+        if (!key) throw new NotFoundException('API key not found');
+        return key;
+    }
+
     async revokeApiKey(tenantId: string, apiKeyId: string) {
         const current = await this.apiKeyRepo.findById(tenantId, apiKeyId);
         if (!current) throw new NotFoundException('API key not found');
