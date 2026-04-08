@@ -6,14 +6,14 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { REQUIRE_FEATURE_KEY } from '../decorators/feature-flag.decorator';
-import { FeatureFlagRepository } from '../../modules/feature-flags/repositories/feature-flag.repository';
+import { IFeatureFlagEvaluator } from '../interfaces/feature-flag-evaluator.interface';
 import type { ApiRequest } from '../interfaces/auth-context.interface';
 
 @Injectable()
 export class FeatureFlagGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly featureFlagRepo: FeatureFlagRepository,
+    private readonly featureFlagEvaluator: IFeatureFlagEvaluator,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -35,7 +35,7 @@ export class FeatureFlagGuard implements CanActivate {
       throw new ForbiddenException('Tenant ID is required for feature flag evaluation');
     }
 
-    const isEnabled = await this.featureFlagRepo.isEnabled(tenantId, requiredFeature);
+    const isEnabled = await this.featureFlagEvaluator.isEnabled(tenantId, requiredFeature);
 
     if (!isEnabled) {
       throw new ForbiddenException(`Feature '${requiredFeature}' is disabled for this tenant`);

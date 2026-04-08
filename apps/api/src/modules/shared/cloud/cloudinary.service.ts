@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { HttpResilienceService } from '../../webhooks/services/http-resilience.service';
+import type { AppConfig } from '../../../config/app.config';
 
 interface CloudinaryUploadResult {
   secureUrl: string;
@@ -8,10 +10,17 @@ interface CloudinaryUploadResult {
 
 @Injectable()
 export class CloudinaryService {
-  constructor(private readonly http: HttpResilienceService) {}
+  private readonly cloudinaryConfig: AppConfig['cloudinary'];
+
+  constructor(
+    private readonly http: HttpResilienceService,
+    private readonly configService: ConfigService,
+  ) {
+    this.cloudinaryConfig = this.configService.get<AppConfig>('app')!.cloudinary;
+  }
 
   async uploadImage(base64Data: string): Promise<CloudinaryUploadResult> {
-    if (!process.env.CLOUDINARY_UPLOAD_URL) {
+    if (!this.cloudinaryConfig.uploadUrl) {
       return {
         secureUrl: 'https://res.cloudinary.com/local-dev/image/upload/demo-placeholder.png',
         publicId: 'local-dev-placeholder',
@@ -20,11 +29,11 @@ export class CloudinaryService {
 
     const payload = {
       file: base64Data,
-      upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET,
+      upload_preset: this.cloudinaryConfig.uploadPreset,
     };
 
     const response = await this.http.request<{ secure_url: string; public_id: string }>(
-      process.env.CLOUDINARY_UPLOAD_URL,
+      this.cloudinaryConfig.uploadUrl,
       {
         method: 'POST',
         headers: {

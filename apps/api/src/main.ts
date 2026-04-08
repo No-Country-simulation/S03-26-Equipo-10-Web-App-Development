@@ -1,18 +1,23 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { ConfigService } from '@nestjs/config';
 import { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
 import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import type { AppConfig } from './config/app.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+  const appConfig = configService.get<AppConfig>('app')!;
 
   app.enableCors({
-    origin: ['http://localhost:3000'],
+    origin: [appConfig.corsOrigin],
     credentials: true,
   });
 
@@ -32,6 +37,7 @@ async function bootstrap() {
 
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalInterceptors(
+    new LoggingInterceptor(),
     new ApiResponseInterceptor(),
     app.get(IdempotencyInterceptor),
   );
@@ -46,8 +52,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = Number(process.env.PORT ?? 4000);
-  await app.listen(port);
+  await app.listen(appConfig.port);
 }
 
 void bootstrap();

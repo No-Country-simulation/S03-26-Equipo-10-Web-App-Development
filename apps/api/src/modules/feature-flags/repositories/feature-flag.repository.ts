@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { IFeatureFlagEvaluator } from '../../../common/interfaces/feature-flag-evaluator.interface';
 
 export interface FeatureFlagView {
   id: string;
@@ -16,7 +17,7 @@ export interface FeatureFlagSetResult {
 }
 
 @Injectable()
-export class FeatureFlagRepository {
+export class FeatureFlagRepository implements IFeatureFlagEvaluator {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(tenantId: string): Promise<FeatureFlagView[]> {

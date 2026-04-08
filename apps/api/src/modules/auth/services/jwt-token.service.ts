@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'node:crypto';
 import { PasswordService } from '../../shared/hashing/password.service';
+import type { AppConfig } from '../../../config/app.config';
+
 export interface TokenPayload {
   sub: string;
   email: string;
@@ -11,15 +14,20 @@ export interface TokenPayload {
 
 @Injectable()
 export class JwtTokenService {
+  private readonly jwtConfig: AppConfig['jwt'];
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly passwordService: PasswordService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.jwtConfig = this.configService.get<AppConfig>('app')!.jwt;
+  }
 
   async signAccessToken(payload: TokenPayload): Promise<string> {
     return this.jwtService.signAsync(payload, {
-      secret: process.env.JWT_SECRET,
-      expiresIn: this.parseDurationSeconds(process.env.JWT_ACCESS_EXPIRES_IN ?? '15m'),
+      secret: this.jwtConfig.secret,
+      expiresIn: this.parseDurationSeconds(this.jwtConfig.accessExpiresIn),
     });
   }
 
@@ -32,7 +40,7 @@ export class JwtTokenService {
   }
 
   getRefreshExpiresAt(): Date {
-    const ms = this.parseDurationMs(process.env.JWT_REFRESH_EXPIRES_IN ?? '7d');
+    const ms = this.parseDurationMs(this.jwtConfig.refreshExpiresIn);
     return new Date(Date.now() + ms);
   }
 

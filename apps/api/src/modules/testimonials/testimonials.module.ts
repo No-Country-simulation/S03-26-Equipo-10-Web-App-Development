@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { CategoryRepository } from './repositories/category.repository';
 import { TestimonialRepository } from './repositories/testimonial.repository';
@@ -13,14 +13,13 @@ import { TagsController } from './controllers/tags.controller';
 import { CategoriesController } from './controllers/categories.controller';
 import { PublicTestimonialsController } from './controllers/public-testimonials.controller';
 
-import { CloudinaryService } from '../shared/cloud/cloudinary.service';
-import { YoutubeService } from '../shared/cloud/youtube.service';
+import { CloudModule } from '../shared/cloud/cloud.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { ScoringService } from './services/scoring.service';
 
 @Module({
-  imports: [AnalyticsModule, FeatureFlagsModule, WebhooksModule],
+  imports: [AnalyticsModule, FeatureFlagsModule, WebhooksModule, CloudModule],
   controllers: [
     TestimonialsController,
     TagsController,
@@ -35,8 +34,6 @@ import { ScoringService } from './services/scoring.service';
     TagsService,
     CategoriesService,
     ScoringService,
-    CloudinaryService,
-    YoutubeService,
   ],
   exports: [TestimonialsService],
 })

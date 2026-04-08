@@ -4,8 +4,10 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../modules/database/prisma.service';
+import type { AppConfig } from '../../config/app.config';
 import type { ApiRequest, JwtPayload, RoleCode } from '../interfaces/auth-context.interface';
 
 @Injectable()
@@ -13,6 +15,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -28,7 +31,7 @@ export class JwtAuthGuard implements CanActivate {
     let payload: JwtPayload;
     try {
       payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: process.env.JWT_SECRET,
+        secret: this.configService.get<AppConfig>('app')!.jwt.secret,
       });
     } catch {
       throw new UnauthorizedException('Invalid access token');

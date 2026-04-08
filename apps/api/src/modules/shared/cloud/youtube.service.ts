@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { HttpResilienceService } from '../../webhooks/services/http-resilience.service';
+import type { AppConfig } from '../../../config/app.config';
 
 interface YouTubeMetadata {
   title: string;
@@ -9,15 +11,22 @@ interface YouTubeMetadata {
 
 @Injectable()
 export class YoutubeService {
-  constructor(private readonly http: HttpResilienceService) {}
+  private readonly youtubeApiKey: string;
+
+  constructor(
+    private readonly http: HttpResilienceService,
+    private readonly configService: ConfigService,
+  ) {
+    this.youtubeApiKey = this.configService.get<AppConfig>('app')!.youtube.apiKey;
+  }
 
   async getVideoMetadata(url: string): Promise<YouTubeMetadata | null> {
     const videoId = this.extractVideoId(url);
-    if (!videoId || !process.env.YOUTUBE_API_KEY) {
+    if (!videoId || !this.youtubeApiKey) {
       return null;
     }
 
-    const endpoint = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails&key=${process.env.YOUTUBE_API_KEY}`;
+    const endpoint = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails&key=${this.youtubeApiKey}`;
 
     const response = await this.http.request<{ items: Array<{ snippet: { title: string; thumbnails: { high?: { url: string }; default?: { url: string } } }; contentDetails: { duration: string } }> }>(
       endpoint,

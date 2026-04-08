@@ -8,6 +8,13 @@ import { RegisterAdminDto } from "../dto/register-admin.dto";
 
 @Injectable()
 export class AuthService {
+    constructor(
+        private readonly authRepo: AuthRepository, 
+        private readonly tokenService: JwtTokenService, 
+        private readonly passwordService: PasswordService, 
+        private readonly loginAttempts: LoginAttemptsService
+    ) {}
+
     async login(dto: LoginDto) {
         this.loginAttempts.assertNotBlocked(dto.email);
 
@@ -158,8 +165,5 @@ export class AuthService {
             refreshToken,
           },
         };
-    }
-
-    constructor(private readonly authRepo: AuthRepository, private readonly tokenService: JwtTokenService, private readonly passwordService: PasswordService, private readonly loginAttempts: LoginAttemptsService) {
     }
 }
