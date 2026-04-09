@@ -66,6 +66,7 @@ model User {
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")
   tenant              Tenant         @relation(fields: [tenantId], references: [id])
+  profile             UserProfile?
   roles               UserRole[]
   refreshTokens       RefreshToken[]
   testimonialsCreated Testimonial[]  @relation("testimonial_created_by")
@@ -97,6 +98,20 @@ model RefreshToken {
 
   @@index([userId], map: "idx_refresh_tokens_user")
   @@map("refresh_tokens")
+}
+
+model UserProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  avatarUrl String?  @map("avatar_url")
+  bio       String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
 }
 
 model TestimonialStatus {
