@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { LoginForm } from '../../../components/login-form';
-import { requestApi, SessionPayload } from '../../../lib/api';
-import { saveSession } from '../../../lib/session-store';
+import { LoginForm } from '@/components/login-form';
+import { requestApi, SessionPayload } from '@/lib/api';
+import { saveSession } from '@/lib/session-store';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -19,23 +20,21 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <section
-      className="card"
-      style={{
-        padding: '2rem',
-        maxWidth: '560px',
-        margin: '2rem auto 0',
-        display: 'grid',
-        gap: '1rem',
-      }}
-    >
-      <div className="eyebrow">Login</div>
-      <h1 style={{ margin: 0 }}>Entrar al dashboard</h1>
-      <p className="notice">
-        Podés usar las credenciales del seed (`admin@demo.com` / `Admin123!`) o las
-        que generes al registrar un tenant nuevo.
-      </p>
-      <LoginForm onSubmit={handleLogin} />
-    </section>
+    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="bg-primary/20 text-primary px-2 py-0.5 rounded-sm text-xs font-bold uppercase tracking-wider">Login</span>
+          </div>
+          <CardTitle className="text-2xl">Entrar al dashboard</CardTitle>
+          <CardDescription>
+            Podés usar las credenciales del seed (`admin@demo.com` / `Admin123!`) o las que generes al registrar un tenant nuevo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LoginForm onSubmit={handleLogin} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
