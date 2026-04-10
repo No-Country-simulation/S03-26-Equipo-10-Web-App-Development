@@ -41,19 +41,21 @@ export function RegisterAdminForm({ onSubmit }: RegisterAdminFormProps) {
   }
 
   return (
-    <form className="grid gap-4" onSubmit={handleSubmit}>
+    <form className="grid gap-6" onSubmit={handleSubmit}>
       <div className="grid gap-2">
-        <Label htmlFor="tenantName">Tenant</Label>
+        <Label htmlFor="tenantName" className="font-body text-xs font-bold uppercase tracking-widest text-foreground">Nombre del Tenant</Label>
         <Input
           id="tenantName"
           name="tenantName"
           value={tenantName}
           onChange={event => setTenantName(event.target.value)}
           required
+          className="h-12 border-foreground/20 bg-transparent font-body text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
+          placeholder="Mi Empresa"
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="email">Email admin</Label>
+        <Label htmlFor="email" className="font-body text-xs font-bold uppercase tracking-widest text-foreground">Email Administrativo</Label>
         <Input
           id="email"
           autoComplete="email"
@@ -62,10 +64,12 @@ export function RegisterAdminForm({ onSubmit }: RegisterAdminFormProps) {
           value={email}
           onChange={event => setEmail(event.target.value)}
           required
+          className="h-12 border-foreground/20 bg-transparent font-body text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
+          placeholder="admin@empresa.com"
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password" className="font-body text-xs font-bold uppercase tracking-widest text-foreground">Contraseña</Label>
         <Input
           id="password"
           autoComplete="new-password"
@@ -74,6 +78,8 @@ export function RegisterAdminForm({ onSubmit }: RegisterAdminFormProps) {
           value={password}
           onChange={event => setPassword(event.target.value)}
           required
+          className="h-12 border-foreground/20 bg-transparent font-body text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
+          placeholder="••••••••"
         />
       </div>
       {error && (
@@ -82,8 +88,12 @@ export function RegisterAdminForm({ onSubmit }: RegisterAdminFormProps) {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Creando...' : 'Crear tenant y admin'}
+      <Button 
+        type="submit" 
+        className="mt-2 h-12 w-full bg-primary font-body text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90" 
+        disabled={loading}
+      >
+        {loading ? 'Creando...' : 'Crear Tenant y Admin'}
       </Button>
     </form>
   );

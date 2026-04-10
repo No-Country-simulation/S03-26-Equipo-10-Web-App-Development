@@ -36,9 +36,9 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
   }
 
   return (
-    <form className="grid gap-4" onSubmit={handleSubmit}>
+    <form className="grid gap-6" onSubmit={handleSubmit}>
       <div className="grid gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className="font-body text-xs font-bold uppercase tracking-widest text-foreground">Email</Label>
         <Input
           id="email"
           autoComplete="email"
@@ -47,10 +47,12 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           value={email}
           onChange={event => setEmail(event.target.value)}
           required
+          className="h-12 border-foreground/20 bg-transparent font-body text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
+          placeholder="tu@empresa.com"
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password" className="font-body text-xs font-bold uppercase tracking-widest text-foreground">Contraseña</Label>
         <Input
           id="password"
           autoComplete="current-password"
@@ -59,6 +61,8 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           value={password}
           onChange={event => setPassword(event.target.value)}
           required
+          className="h-12 border-foreground/20 bg-transparent font-body text-sm placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
+          placeholder="••••••••"
         />
       </div>
       {error && (
@@ -67,8 +71,12 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? 'Ingresando...' : 'Iniciar sesión'}
+      <Button 
+        type="submit" 
+        className="mt-2 h-12 w-full bg-primary font-body text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90" 
+        disabled={loading}
+      >
+        {loading ? 'Ingresando...' : 'Iniciar Sesión'}
       </Button>
     </form>
   );

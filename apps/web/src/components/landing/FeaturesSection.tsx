@@ -23,7 +23,7 @@ const features = [
   },
   {
     icon: Users,
-    title: "Multi‑tenant",
+    title: "Multi-tenant",
     description: "Ideal para agencias o empresas con múltiples marcas, todo aislado y seguro.",
   },
   {
@@ -35,24 +35,27 @@ const features = [
 
 export const FeaturesSection = () => {
   return (
-    <section className="bg-section-alt py-20">
+    <section className="py-32">
       <div className="container">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-heading text-3xl font-semibold text-foreground md:text-4xl">
-            Características destacadas
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Herramientas potentes para gestionar y maximizar el valor de tus testimonios.
+        <div className="mb-20 flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b border-foreground/10 pb-16">
+          <div className="max-w-2xl">
+            <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">Características</span>
+            <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl">
+              Herramientas que <br />
+              <strong className="font-body font-bold not-italic">marcan diferencia.</strong>
+            </h2>
+          </div>
+          <p className="max-w-xs font-body text-sm text-muted-foreground uppercase tracking-widest font-medium">
+            Potencia cada aspecto de tu prueba social.
           </p>
         </div>
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        
+        <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
-            <div key={f.title} className="rounded-lg border bg-card p-6 shadow-soft transition-shadow hover:shadow-soft-lg">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <f.icon className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="mt-4 font-heading text-base font-semibold text-foreground">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.description}</p>
+            <div key={f.title} className="group bg-background p-10 transition-colors hover:bg-card">
+              <f.icon className="mb-6 h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
+              <h3 className="font-body text-base font-bold uppercase tracking-wider text-foreground">{f.title}</h3>
+              <p className="mt-3 font-body text-sm leading-relaxed text-muted-foreground">{f.description}</p>
             </div>
           ))}
         </div>

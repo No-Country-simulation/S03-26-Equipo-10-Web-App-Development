@@ -1,6 +1,6 @@
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const plans = [
   {
@@ -9,8 +9,8 @@ const plans = [
     period: "/mes",
     description: "Para emprendedores y sitios web pequeños.",
     features: ["1 sitio web", "100 testimonios", "Widget básico", "API limitada", "Soporte por email"],
-    cta: "Elegir plan",
-    popular: false,
+    cta: "Elegir Plan",
+    featured: false,
   },
   {
     name: "Profesional",
@@ -18,60 +18,81 @@ const plans = [
     period: "/mes",
     description: "Para equipos de marketing en crecimiento.",
     features: ["3 sitios web", "Testimonios ilimitados", "Analítica avanzada", "Webhooks", "Widget personalizable", "Soporte prioritario"],
-    cta: "Elegir plan",
-    popular: true,
+    cta: "Elegir Plan",
+    featured: true,
   },
   {
     name: "Empresa",
-    price: "Personalizado",
+    price: "Custom",
     period: "",
     description: "Para agencias y grandes organizaciones.",
-    features: ["Multi‑tenant", "Integraciones a medida", "SLA garantizado", "Soporte dedicado", "API sin límites", "Onboarding personalizado"],
+    features: ["Multi-tenant", "Integraciones a medida", "SLA garantizado", "Soporte dedicado", "API sin límites", "Onboarding personalizado"],
     cta: "Contactar",
-    popular: false,
+    featured: false,
   },
 ];
 
 export const PricingSection = () => {
   return (
-    <section id="precios" className="bg-section-alt py-20">
+    <section id="precios" className="bg-section-alt py-32">
       <div className="container">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-heading text-3xl font-semibold text-foreground md:text-4xl">
-            Planes y precios
-          </h2>
-          <p className="mt-4 text-muted-foreground">
-            Elige el plan que mejor se adapte a tus necesidades. Sin contratos, cancela cuando quieras.
+        <div className="mb-20 flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b border-foreground/10 pb-16">
+          <div className="max-w-2xl">
+            <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">Precios</span>
+            <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl">
+              Inversión <br />
+              <strong className="font-body font-bold not-italic">transparente.</strong>
+            </h2>
+          </div>
+          <p className="max-w-xs font-body text-sm text-muted-foreground uppercase tracking-widest font-medium">
+            Sin contratos. Cancela cuando quieras.
           </p>
         </div>
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
+
+        <div className="grid gap-4 md:grid-cols-3">
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`relative flex flex-col rounded-lg border bg-card p-6 shadow-soft transition-shadow hover:shadow-soft-lg ${
-                plan.popular ? "border-primary ring-2 ring-primary/20" : ""
-              }`}
-            >
-              {plan.popular && (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  Más popular
-                </Badge>
+              className={cn(
+                "group relative flex flex-col justify-between p-10 transition-transform duration-300 hover:-translate-y-2",
+                plan.featured
+                  ? "bg-primary text-primary-foreground"
+                  : "border bg-card text-card-foreground"
               )}
-              <h3 className="font-heading text-xl font-semibold text-foreground">{plan.name}</h3>
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="font-heading text-4xl font-bold text-foreground">{plan.price}</span>
-                {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
+            >
+              {plan.featured && (
+                <div className="absolute -top-px left-0 right-0 h-1 bg-primary-foreground/30" />
+              )}
+              
+              <div>
+                <h3 className="font-body text-sm font-bold uppercase tracking-widest">{plan.name}</h3>
+                <div className="mt-6 flex items-baseline gap-1">
+                  <span className="font-caption text-5xl font-light italic">{plan.price}</span>
+                  {plan.period && <span className="font-body text-sm opacity-60">{plan.period}</span>}
+                </div>
+                <p className="mt-3 font-body text-sm opacity-70">{plan.description}</p>
+                
+                <ul className="mt-10 space-y-4">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-3 font-body text-sm">
+                      <Check className={cn(
+                        "mt-0.5 h-4 w-4 shrink-0",
+                        plan.featured ? "text-primary-foreground" : "text-primary"
+                      )} />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-              <ul className="mt-6 flex-1 space-y-3">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-foreground">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Button className="mt-8 w-full" variant={plan.popular ? "default" : "outline"}>
+              
+              <Button 
+                className={cn(
+                  "mt-12 w-full h-12 font-body text-xs uppercase tracking-wider",
+                  plan.featured 
+                    ? "bg-primary-foreground text-primary hover:bg-primary-foreground/90" 
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
                 {plan.cta}
               </Button>
             </div>

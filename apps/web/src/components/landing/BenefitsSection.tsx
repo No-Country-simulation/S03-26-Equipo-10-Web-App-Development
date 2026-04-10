@@ -1,46 +1,52 @@
-import { Database, ShieldCheck, Globe, ArrowRight } from "lucide-react";
+import { Database, ShieldCheck, Globe } from "lucide-react";
 
 const benefits = [
   {
     icon: Database,
-    title: "Centraliza tus testimonios",
+    title: "Centraliza",
     description: "Olvídate de correos y archivos sueltos. Todo en un solo panel organizado y accesible.",
   },
   {
     icon: ShieldCheck,
-    title: "Moderación inteligente",
-    description: "Aprueba o rechaza testimonios antes de publicarlos. Mantén el control total.",
+    title: "Modera",
+    description: "Aprueba o rechaza testimonios antes de publicarlos. Mantén el control total sobre tu marca.",
   },
   {
     icon: Globe,
-    title: "Distribuye en cualquier lugar",
-    description: "API, widget embebible y webhooks para integrar con tu web en minutos.",
+    title: "Distribuye",
+    description: "API, widget embebible y webhooks para integrar con tu web en minutos, sin código.",
   },
 ];
 
 export const BenefitsSection = () => {
   return (
-    <section id="producto" className="bg-section-alt py-20">
+    <section id="producto" className="py-32">
       <div className="container">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-heading text-3xl font-semibold text-foreground md:text-4xl">
-            Todo lo que necesitas para gestionar testimonios
+        <div className="mb-20 max-w-3xl">
+          <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">Producto</span>
+          <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl">
+            Todo lo que necesitas,<br />
+            <strong className="font-body font-bold not-italic">nada que no.</strong>
           </h2>
-          <p className="mt-4 text-muted-foreground">
-            Una plataforma diseñada para equipos de marketing y producto que buscan maximizar la prueba social.
-          </p>
         </div>
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {benefits.map((b) => (
-            <div key={b.title} className="group rounded-lg border bg-card p-6 shadow-soft transition-shadow hover:shadow-soft-lg">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
-                <b.icon className="h-5 w-5 text-primary" />
+        
+        <div className="grid gap-0 border-t md:grid-cols-3">
+          {benefits.map((b, index) => (
+            <div 
+              key={b.title} 
+              className="group flex flex-col justify-between border-b p-10 transition-colors hover:bg-card md:border-b-0 md:border-r last:md:border-r-0"
+            >
+              <div>
+                <div className="mb-8 flex items-center gap-4">
+                  <span className="font-caption text-5xl font-bold italic text-primary/20">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <b.icon className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="font-body text-xl font-bold uppercase tracking-wider text-foreground">{b.title}</h3>
+                <p className="mt-4 font-body text-sm leading-relaxed text-muted-foreground">{b.description}</p>
               </div>
-              <h3 className="mt-4 font-heading text-lg font-semibold text-foreground">{b.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{b.description}</p>
-              <a href="#" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80">
-                Saber más <ArrowRight className="h-3.5 w-3.5" />
-              </a>
+              <div className="mt-8 h-px w-12 bg-primary transition-all duration-500 group-hover:w-full" />
             </div>
           ))}
         </div>
