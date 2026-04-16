@@ -4,6 +4,8 @@ import { PrismaService } from '../../database/prisma.service';
 export interface TenantView {
   id: string;
   name: string;
+  publicSlug: string | null;
+  isPublicFormEnabled: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -20,21 +22,25 @@ export class TenantRepository {
     return {
       id: tenant.id,
       name: tenant.name,
+      publicSlug: tenant.publicSlug,
+      isPublicFormEnabled: tenant.isPublicFormEnabled,
       isActive: tenant.isActive,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
     };
   }
 
-  async update(tenantId: string, name: string): Promise<TenantView> {
+  async update(tenantId: string, data: { name?: string; publicSlug?: string | null; isPublicFormEnabled?: boolean }): Promise<TenantView> {
     const tenant = await this.prisma.tenant.update({
       where: { id: tenantId },
-      data: { name },
+      data,
     });
 
     return {
       id: tenant.id,
       name: tenant.name,
+      publicSlug: tenant.publicSlug,
+      isPublicFormEnabled: tenant.isPublicFormEnabled,
       isActive: tenant.isActive,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
@@ -46,5 +52,27 @@ export class TenantRepository {
       where: { name, NOT: { id: excludeTenantId } },
     });
     return !!existing;
+  }
+
+  async slugExists(publicSlug: string, excludeTenantId: string): Promise<boolean> {
+    const existing = await this.prisma.tenant.findFirst({
+      where: { publicSlug, NOT: { id: excludeTenantId } },
+    });
+    return !!existing;
+  }
+
+  async findByPublicSlug(publicSlug: string): Promise<TenantView | null> {
+    const tenant = await this.prisma.tenant.findUnique({ where: { publicSlug } });
+    if (!tenant) return null;
+
+    return {
+      id: tenant.id,
+      name: tenant.name,
+      publicSlug: tenant.publicSlug,
+      isPublicFormEnabled: tenant.isPublicFormEnabled,
+      isActive: tenant.isActive,
+      createdAt: tenant.createdAt,
+      updatedAt: tenant.updatedAt,
+    };
   }
 }

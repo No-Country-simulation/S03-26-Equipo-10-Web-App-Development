@@ -16,6 +16,8 @@ interface FeatureFlag {
 interface TenantInfo {
   id: string;
   name: string;
+  publicSlug: string | null;
+  isPublicFormEnabled: boolean;
   isActive: boolean;
   createdAt: string;
 }
@@ -25,6 +27,8 @@ export default function SettingsPage() {
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
   const [loading, setLoading] = useState(true);
+  const [slugInput, setSlugInput] = useState('');
+  const [isSavingSlug, setIsSavingSlug] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -35,6 +39,7 @@ export default function SettingsPage() {
       ]);
       setTenant(tenantRes.data);
       setFlags(flagsRes.data);
+      setSlugInput(tenantRes.data.publicSlug ?? '');
     } catch { /* handled */ } finally {
       setLoading(false);
     }
@@ -52,6 +57,37 @@ export default function SettingsPage() {
       </div>
     );
   }
+
+  async function handleTogglePublicForm() {
+    if (!tenant) return;
+    try {
+      const data = await fetchApi<TenantInfo>(`/tenants/me`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isPublicFormEnabled: !tenant.isPublicFormEnabled }),
+      });
+      setTenant({ ...tenant, isPublicFormEnabled: data.data.isPublicFormEnabled });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function handleSaveSlug() {
+    if (!tenant) return;
+    setIsSavingSlug(true);
+    try {
+      const data = await fetchApi<TenantInfo>(`/tenants/me`, {
+        method: 'PATCH',
+        body: JSON.stringify({ publicSlug: slugInput || null }),
+      });
+      setTenant({ ...tenant, publicSlug: data.data.publicSlug });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSavingSlug(false);
+    }
+  }
+
+  const publicLink = typeof window !== 'undefined' ? `${window.location.origin}/p/${tenant?.publicSlug}` : '';
 
   return (
     <>
@@ -86,9 +122,86 @@ export default function SettingsPage() {
                   </span>
                 </p>
               </div>
-              <div className="border p-6">
+              <div className="border p-6 sm:col-span-3">
                 <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Creado</span>
                 <p className="mt-2 font-body text-sm text-foreground">{tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '—'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Formulario Público */}
+          <div>
+            <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
+              Formulario Público Temporal
+            </h2>
+            <div className="border p-6 shadow-sm">
+              <div className="flex items-center justify-between border-b pb-4 mb-4">
+                <div>
+                  <h3 className="font-body text-sm font-medium text-foreground">Habilitar Recepción Externa</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Permite que tus clientes envíen testimonios usando un link público (sin sesión).</p>
+                </div>
+                <div 
+                  className="cursor-pointer"
+                  onClick={() => void handleTogglePublicForm()}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={cn('font-body text-[10px] font-bold uppercase tracking-wider', tenant?.isPublicFormEnabled ? 'text-primary' : 'text-muted-foreground')}>
+                      {tenant?.isPublicFormEnabled ? 'Habilitado' : 'Cerrado'}
+                    </span>
+                    {tenant?.isPublicFormEnabled ? (
+                      <ToggleRight className="h-8 w-8 text-primary" />
+                    ) : (
+                      <ToggleLeft className="h-8 w-8 text-muted-foreground/40" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4">
+                <div>
+                  <label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">Slug Público Personalizado</label>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 max-w-sm flex">
+                      <span className="inline-flex items-center px-3 border border-r-0 bg-muted/20 text-muted-foreground text-sm font-body">/p/</span>
+                      <input 
+                        type="text" 
+                        value={slugInput}
+                        onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                        className="flex-1 w-full border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="tu-empresa"
+                      />
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => void handleSaveSlug()}
+                      disabled={isSavingSlug || slugInput === (tenant?.publicSlug ?? '')}
+                      className="font-body text-xs"
+                    >
+                      {isSavingSlug ? 'Guardando...' : 'Guardar Slug'}
+                    </Button>
+                  </div>
+                </div>
+                
+                {tenant?.publicSlug && (
+                  <div className="mt-2 bg-muted/10 p-4 border flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground font-body">Tu enlace público es:</p>
+                      <a href={publicLink} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline mt-1 block">
+                        {publicLink}
+                      </a>
+                    </div>
+                    <Button 
+                      variant="default" 
+                      onClick={() => {
+                        void navigator.clipboard.writeText(publicLink);
+                        alert('Enlace copiado al portapapeles');
+                      }}
+                      className="font-body text-xs"
+                    >
+                      Copiar Enlace
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

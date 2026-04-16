@@ -1,4 +1,5 @@
 import { NotFoundException, ConflictException, ForbiddenException, BadRequestException, Injectable } from '@nestjs/common';
+import { TenantsService } from '../../tenants/services/tenants.service';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -6,13 +7,14 @@ import { AnalyticsRepository } from '../../analytics/repositories/analytics.repo
 import { CloudinaryService } from '../../shared/cloud/cloudinary.service';
 import { YoutubeService } from '../../shared/cloud/youtube.service';
 import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
-import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto } from '../dto/testimonial.dto';
+import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
 
 @Injectable()
 export class TestimonialsService {
   constructor(
     private readonly repo: TestimonialRepository,
     private readonly categoryRepo: CategoryRepository,
+    private readonly tenantsService: TenantsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly analyticsRepo: AnalyticsRepository,
     private readonly cloudinaryService: CloudinaryService,
@@ -59,6 +61,42 @@ export class TestimonialsService {
     const testimonial = await this.repo.findPublishedById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundException('Testimonial not found');
     return testimonial;
+  }
+
+  async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
+    const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
+    
+    if (!tenant.isPublicFormEnabled) {
+      throw new ForbiddenException('This form is currently closed');
+    }
+
+    const testimonial = await this.repo.create({
+      tenantId: tenant.id,
+      createdById: null, // Anonymous submission
+      authorName: dto.authorName,
+      content: dto.content,
+      rating: dto.rating,
+      categoryId: null, // Public submissions don't assign categories by default
+    });
+
+    this.eventEmitter.emit('testimonial.created', {
+      tenantId: tenant.id,
+      eventType: 'testimonial.created',
+      payload: { testimonialId: testimonial.id, authorName: testimonial.authorName, source: 'public_form' },
+    });
+
+    // Submissions already go to 'draft'. Since this needs to go to pending, 
+    // we should transition it right after creation, or modify repo.create.
+    // Given the previous workflow, create starts at 'draft', let's transition it:
+    return this.repo.updateStatus(testimonial.id, 'pending');
+  }
+
+  async getPublicFormInfo(slug: string) {
+    const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
+    return {
+      name: tenant.name,
+      isPublicFormEnabled: tenant.isPublicFormEnabled,
+    };
   }
 
   async getTestimonialMetrics(tenantId: string, testimonialId: string) {
