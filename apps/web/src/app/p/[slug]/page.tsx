@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { ShieldAlert, Star, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { API_URL } from '@/constants';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
 interface FormInfo {
   name: string;

@@ -34,7 +34,7 @@ export default function SettingsPage() {
     setLoading(true);
     try {
       const [tenantRes, flagsRes] = await Promise.all([
-        fetchApi<TenantInfo>(`/tenants/${session?.user.tenantId}`),
+        fetchApi<TenantInfo>(`/tenants/me`),
         fetchApi<FeatureFlag[]>('/feature-flags'),
       ]);
       setTenant(tenantRes.data);
