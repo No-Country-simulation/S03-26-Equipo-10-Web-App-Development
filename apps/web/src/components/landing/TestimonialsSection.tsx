@@ -66,7 +66,7 @@ export const TestimonialsSection = () => {
               </div>
               
               <blockquote className="font-caption text-2xl italic leading-relaxed md:text-3xl lg:text-4xl">
-                "{t.quote}"
+                &quot;{t.quote}&quot;
               </blockquote>
               
               <div className="mt-12 flex items-center justify-between border-t border-current/20 pt-6">

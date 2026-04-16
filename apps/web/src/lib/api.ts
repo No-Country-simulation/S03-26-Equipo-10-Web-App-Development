@@ -42,6 +42,10 @@ export interface TestimonialRecord {
   score: number;
   createdAt: string;
   publishedAt?: string | null;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  videoTitle?: string | null;
+  videoThumbnailUrl?: string | null;
 }
 
 export class ApiError extends Error {

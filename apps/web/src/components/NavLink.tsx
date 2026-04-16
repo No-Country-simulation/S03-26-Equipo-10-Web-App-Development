@@ -3,7 +3,7 @@ import { usePathname } from "next/navigation";
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
-interface NavLinkCompatProps extends Omit<LinkProps, "className" | "to"> {
+interface NavLinkCompatProps extends Omit<LinkProps, "className" | "to" | "href"> {
   className?: string;
   activeClassName?: string;
   pendingClassName?: string;
