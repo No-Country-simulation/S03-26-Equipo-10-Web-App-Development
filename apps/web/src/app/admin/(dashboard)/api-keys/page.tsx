@@ -33,8 +33,8 @@ export default function ApiKeysPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetchApi<{ items: ApiKeyView[] }>('/api-keys');
-      setApiKeys(res.data.items);
+      const res = await fetchApi<ApiKeyView[]>('/api-keys');
+      setApiKeys(res.data || []);
     } catch { /* handled */ } finally {
       setLoading(false);
     }

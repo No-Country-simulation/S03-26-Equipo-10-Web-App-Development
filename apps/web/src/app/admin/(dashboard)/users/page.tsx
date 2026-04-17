@@ -29,8 +29,8 @@ export default function UsersPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetchApi<{ items: UserView[] }>('/users');
-      setUsers(res.data.items);
+      const res = await fetchApi<UserView[]>('/users');
+      setUsers(res.data || []);
     } catch { /* handled */ } finally {
       setLoading(false);
     }

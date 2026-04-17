@@ -29,8 +29,8 @@ export default function WebhooksPage() {
   async function load() {
     setLoading(true);
     try {
-      const res = await fetchApi<{ items: WebhookView[] }>('/webhooks');
-      setWebhooks(res.data.items);
+      const res = await fetchApi<WebhookView[]>('/webhooks');
+      setWebhooks(res.data || []);
     } catch { /* handled */ } finally {
       setLoading(false);
     }
