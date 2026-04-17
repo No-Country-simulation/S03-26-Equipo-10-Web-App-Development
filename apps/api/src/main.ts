@@ -1,7 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Request, Response, json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
@@ -20,6 +20,9 @@ async function bootstrap() {
     origin: [appConfig.corsOrigin],
     credentials: true,
   });
+
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   const requestContext = new RequestContextMiddleware();
   app.use((req: Request, res: Response, next: NextFunction) =>

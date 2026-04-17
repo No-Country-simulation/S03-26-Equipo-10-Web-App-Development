@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Youtube, Image as ImageIcon, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { useEffect } from 'react';
 
 interface TestimonialSheetProps {
   testimonial: TestimonialRecord | null;
@@ -34,8 +35,35 @@ export function TestimonialSheet({
   const [videoUrl, setVideoUrl] = useState('');
   const [loadingVideo, setLoadingVideo] = useState(false);
   const [loadingImage, setLoadingImage] = useState(false);
-  
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setRejectMode(false);
+      setRejectReason('');
+    }
+  }, [open, testimonial]);
+
   if (!testimonial) return null;
+
+  async function handleStatusChange(action: string, body?: any) {
+    if (!testimonial) return;
+    setStatusLoading(true);
+    try {
+      await fetchApi(`/testimonials/${testimonial.id}/${action}`, {
+        method: 'POST',
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      onUpdated();
+      setRejectMode(false);
+    } catch (err: any) {
+      alert(`Error con la acción ${action}: ${err.message}`);
+    } finally {
+      setStatusLoading(false);
+    }
+  }
 
   async function handleVideoSubmit() {
     if (!videoUrl.trim() || !testimonial) return;
@@ -188,6 +216,51 @@ export function TestimonialSheet({
               Archivos bloqueados por estar publicado.
             </p>
           )}
+
+          {/* Moderation Controls */}
+          <div className="flex flex-col gap-4 border p-4 bg-muted/10 mt-2">
+            <h3 className="font-body text-sm font-bold flex items-center gap-2 uppercase tracking-widest text-foreground">
+              Acciones de Estado
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {testimonial.status === 'draft' && (
+                <Button size="sm" onClick={() => void handleStatusChange('submit')} disabled={statusLoading}>Enviar a revisión</Button>
+              )}
+              {testimonial.status === 'pending' && (
+                <>
+                  <Button size="sm" variant="default" onClick={() => void handleStatusChange('approve')} disabled={statusLoading}>Aprobar</Button>
+                  <Button size="sm" variant="destructive" onClick={() => setRejectMode(!rejectMode)} disabled={statusLoading}>Rechazar</Button>
+                </>
+              )}
+              {testimonial.status === 'approved' && (
+                <Button size="sm" onClick={() => void handleStatusChange('publish')} disabled={statusLoading} className="bg-green-600 hover:bg-green-700">Publicar</Button>
+              )}
+              {testimonial.status === 'published' && (
+                <Button size="sm" variant="destructive" onClick={() => setRejectMode(!rejectMode)} disabled={statusLoading}>Ocultar (Rechazar)</Button>
+              )}
+            </div>
+            
+            {rejectMode && (
+              <div className="grid gap-2 mt-2 pt-4 border-t">
+                <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-destructive">Motivos del rechazo</Label>
+                <textarea 
+                  className="w-full border p-2 bg-[#F5F2EA]/20 font-body text-sm focus:outline-none focus:ring-1 focus:ring-destructive resize-none mt-1 min-h-[80px]"
+                  placeholder="Escribe la razón (Opcional)"
+                  value={rejectReason}
+                  onChange={e => setRejectReason(e.target.value)}
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button size="sm" variant="ghost" onClick={() => setRejectMode(false)}>Cancelar</Button>
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    onClick={() => void handleStatusChange('reject', { reason: rejectReason })}
+                    disabled={statusLoading}
+                  >Confirmar Rechazo</Button>
+                </div>
+              </div>
+            )}
+          </div>
 
         </div>
       </SheetContent>

@@ -102,4 +102,13 @@ export class SubmitPublicTestimonialDto {
   @Min(1)
   @Max(5)
   rating!: number;
+
+  @IsOptional()
+  @IsString()
+  imageBase64?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsUrl()
+  videoUrl?: string;
 }

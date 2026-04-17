@@ -27,6 +27,8 @@ export default function PublicCapturePage() {
   const [rating, setRating] = useState(5);
   const [content, setContent] = useState('');
   const [authorName, setAuthorName] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [imageBase64, setImageBase64] = useState('');
 
   useEffect(() => {
     async function loadInfo() {
@@ -53,7 +55,13 @@ export default function PublicCapturePage() {
       const res = await fetch(`${API_URL}/public/testimonials/${slug}/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating, content, authorName }),
+        body: JSON.stringify({ 
+          rating, 
+          content, 
+          authorName,
+          videoUrl: videoUrl.trim() || undefined,
+          imageBase64: imageBase64 || undefined
+        }),
       });
 
       if (!res.ok) {
@@ -165,6 +173,35 @@ export default function PublicCapturePage() {
               placeholder="Ej. Juan Pérez"
               className="w-full border p-4 bg-[#F5F2EA]/20 font-body text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="font-body text-[10px] uppercase font-bold tracking-widest block text-muted-foreground mb-2">Foto (Opcional)</label>
+              <input
+                type="file"
+                accept="image/png, image/jpeg, image/webp"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return setImageBase64('');
+                  const reader = new FileReader();
+                  reader.onloadend = () => setImageBase64(reader.result as string);
+                  reader.readAsDataURL(file);
+                }}
+                className="w-full border p-4 bg-[#F5F2EA]/20 font-body text-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+              />
+            </div>
+
+            <div>
+              <label className="font-body text-[10px] uppercase font-bold tracking-widest block text-muted-foreground mb-2">Video de YouTube (Opcional)</label>
+              <input
+                type="text"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="https://youtu.be/..."
+                className="w-full border p-4 bg-[#F5F2EA]/20 font-body text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
           </div>
 
           <Button type="submit" disabled={submitting} className="w-full py-6 mt-4 font-body text-sm uppercase tracking-widest bg-[#0A0A0A] hover:bg-primary transition-colors text-white">

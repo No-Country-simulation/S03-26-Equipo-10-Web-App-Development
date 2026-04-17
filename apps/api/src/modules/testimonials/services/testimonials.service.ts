@@ -85,6 +85,14 @@ export class TestimonialsService {
       payload: { testimonialId: testimonial.id, authorName: testimonial.authorName, source: 'public_form' },
     });
 
+    if (dto.imageBase64) {
+      await this.uploadImage(tenant.id, testimonial.id, dto.imageBase64);
+    }
+
+    if (dto.videoUrl) {
+      await this.attachVideo(tenant.id, testimonial.id, dto.videoUrl);
+    }
+
     // Submissions already go to 'draft'. Since this needs to go to pending, 
     // we should transition it right after creation, or modify repo.create.
     // Given the previous workflow, create starts at 'draft', let's transition it:
