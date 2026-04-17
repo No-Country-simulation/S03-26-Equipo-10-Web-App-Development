@@ -46,8 +46,6 @@ async function ensureCatalogs() {
 
   await prisma.role.upsert({ where: { code: 'admin' }, update: { description: 'Tenant administrator' }, create: { code: 'admin', description: 'Tenant administrator' } });
   await prisma.role.upsert({ where: { code: 'editor' }, update: { description: 'Tenant editor' }, create: { code: 'editor', description: 'Tenant editor' } });
-  await prisma.role.upsert({ where: { code: 'user' }, update: { description: 'Regular User' }, create: { code: 'user', description: 'Regular User' } });
-
   for (const permission of permissions) {
     await prisma.permission.upsert({
       where: { code: permission.code },
@@ -99,7 +97,6 @@ async function main() {
 
   const adminRole = await prisma.role.findUniqueOrThrow({ where: { code: 'admin' } });
   const editorRole = await prisma.role.findUniqueOrThrow({ where: { code: 'editor' } });
-  const userRole = await prisma.role.findUniqueOrThrow({ where: { code: 'user' } });
 
   const admin = await prisma.user.upsert({
     where: { email: DEMO_ADMIN_EMAIL },
@@ -164,9 +161,9 @@ async function main() {
     });
 
     await prisma.userRole.upsert({
-      where: { userId_roleId: { userId: user.id, roleId: userRole.id } },
+      where: { userId_roleId: { userId: user.id, roleId: editorRole.id } },
       update: {},
-      create: { userId: user.id, roleId: userRole.id },
+      create: { userId: user.id, roleId: editorRole.id },
     });
     
     fakeUsers.push(user);
