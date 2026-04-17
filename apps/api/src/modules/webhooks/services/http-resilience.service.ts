@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import axios, { AxiosError } from 'axios';
 
 export interface RetryOptions {
   timeoutMs?: number;
@@ -33,22 +34,16 @@ export class HttpResilienceService {
 
     while (attempt <= retries) {
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        const response = await fetch(url, {
-          ...init,
-          signal: controller.signal,
+        const response = await axios({
+          url,
+          method: (init.method as string) ?? 'GET',
+          headers: init.headers as Record<string, string>,
+          data: init.body,
+          timeout: timeoutMs,
         });
 
-        clearTimeout(timer);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
         this.resetCircuit(options.circuitKey);
-        return (await response.json()) as T;
+        return response.data as T;
       } catch (error) {
         lastError = error;
         attempt += 1;
@@ -83,28 +78,18 @@ export class HttpResilienceService {
 
     while (attempt <= retries) {
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        const response = await fetch(url, {
-          method: 'POST',
-          body,
+        const response = await axios.post(url, body, {
           headers,
-          signal: controller.signal,
+          timeout: timeoutMs,
+          // Accept any status code < 500, let the caller decide what's success
+          validateStatus: (status) => status < 500,
         });
-
-        clearTimeout(timer);
-        const responseText = await response.text();
-
-        if (response.status >= 500) {
-          throw new Error(`HTTP ${response.status}`);
-        }
 
         this.resetCircuit(options.circuitKey);
 
         return {
           status: response.status,
-          body: responseText,
+          body: typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
         };
       } catch (error) {
         lastError = error;
@@ -112,7 +97,8 @@ export class HttpResilienceService {
 
         if (attempt > retries) {
           this.markFailure(options.circuitKey);
-          throw error;
+          const axiosErr = error as AxiosError;
+          throw new Error(axiosErr.message ?? 'Unexpected delivery error');
         }
 
         await this.sleep(baseDelayMs * attempt + Math.floor(Math.random() * 100));
