@@ -8,10 +8,13 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE tenants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
+  public_slug TEXT,
+  is_public_form_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMP NOT NULL DEFAULT now(),
 
-  CONSTRAINT uq_tenants_name UNIQUE (name)
+  CONSTRAINT uq_tenants_name UNIQUE (name),
+  CONSTRAINT uq_tenants_public_slug UNIQUE (public_slug)
 );
 
 
@@ -55,6 +58,20 @@ CREATE TABLE users (
   CONSTRAINT uq_users_email UNIQUE (email)
 );
 
+CREATE TABLE user_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  avatar_url TEXT,
+  bio TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now(),
+
+  CONSTRAINT fk_up_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT uq_user_profiles_user_id UNIQUE (user_id)
+);
+
 CREATE TABLE user_roles (
   user_id UUID NOT NULL,
   role_id SMALLINT NOT NULL,
@@ -96,6 +113,10 @@ CREATE TABLE testimonials (
   author_name TEXT NOT NULL,
   rating INT NOT NULL,
   status_id SMALLINT NOT NULL,
+  image_url TEXT,
+  video_url TEXT,
+  video_title TEXT,
+  video_thumbnail_url TEXT,
   score NUMERIC(10,4) DEFAULT 0,
   created_at TIMESTAMP DEFAULT now(),
   published_at TIMESTAMP,
