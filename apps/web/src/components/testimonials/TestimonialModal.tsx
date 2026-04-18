@@ -142,6 +142,8 @@ export function TestimonialModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-0 overflow-hidden border-0 bg-background rounded-none shadow-2xl">
+        <DialogTitle className="sr-only">Testimonio de {testimonial.authorName}</DialogTitle>
+        <DialogDescription className="sr-only">Detalle, moderación y multimedia del testimonio</DialogDescription>
         <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
           
           {/* Left Column: Visual & Content (Neo-Editorial) */}

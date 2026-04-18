@@ -32,7 +32,7 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
       try {
         return await requestApi<T>(path, {
           ...init,
-          headers: { ...authHeaders(), ...(init.headers ?? {}) },
+          headers: { ...authHeaders(), ...(init.headers ?? {}) } as Record<string, string>,
         });
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {

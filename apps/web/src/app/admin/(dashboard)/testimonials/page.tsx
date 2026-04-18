@@ -1,24 +1,24 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { TestimonialRecord } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, Search } from 'lucide-react';
 import { TestimonialModal } from '@/components/testimonials/TestimonialModal';
+import { CreateTestimonialModal } from '@/components/testimonials/CreateTestimonialModal';
 
 export default function TestimonialsPage() {
   const { session, fetchApi } = useSession();
   const [testimonials, setTestimonials] = useState<TestimonialRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [showForm, setShowForm] = useState(false);
   const [selectedTestimonial, setSelectedTestimonial] = useState<TestimonialRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -32,21 +32,6 @@ export default function TestimonialsPage() {
 
   useEffect(() => { if (session) void load(); }, [session]);
 
-  async function handleCreate(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    await fetchApi('/testimonials', {
-      method: 'POST',
-      body: JSON.stringify({
-        authorName: fd.get('authorName'),
-        content: fd.get('content'),
-        rating: Number(fd.get('rating')),
-      }),
-    });
-    setShowForm(false);
-    void load();
-  }
-
   const filtered = testimonials.filter(
     (t) =>
       t.authorName.toLowerCase().includes(search.toLowerCase()) ||
@@ -55,9 +40,9 @@ export default function TestimonialsPage() {
 
   return (
     <>
-      <DashboardHeader title="Testimonios" description="Gestión y moderación de testimonios del tenant.">
+      <DashboardHeader title="Testimonios" description="Gestiona y modera las opiniones de tus clientes.">
         <Button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setCreateOpen(true)}
           className="h-10 bg-primary px-6 font-body text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="mr-2 h-4 w-4" /> Nuevo
@@ -70,28 +55,6 @@ export default function TestimonialsPage() {
           <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
         </Button>
       </DashboardHeader>
-
-      {showForm && (
-        <form onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-4">
-          <div className="grid gap-2">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Autor</Label>
-            <Input name="authorName" required className="h-10 bg-transparent" placeholder="Nombre del autor" />
-          </div>
-          <div className="grid gap-2 sm:col-span-2">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Contenido</Label>
-            <Input name="content" required className="h-10 bg-transparent" placeholder="Contenido del testimonio" />
-          </div>
-          <div className="grid gap-2">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Rating (1-5)</Label>
-            <div className="flex gap-2">
-              <Input name="rating" type="number" min={1} max={5} defaultValue={5} required className="h-10 w-20 bg-transparent" />
-              <Button type="submit" className="h-10 flex-1 bg-primary font-body text-xs uppercase tracking-wider text-primary-foreground">
-                Crear
-              </Button>
-            </div>
-          </div>
-        </form>
-      )}
 
       {/* Search */}
       <div className="relative mb-6">
@@ -167,6 +130,12 @@ export default function TestimonialsPage() {
           </table>
         </div>
       )}
+
+      <CreateTestimonialModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={() => void load()}
+      />
 
       <TestimonialModal 
         testimonial={selectedTestimonial}
