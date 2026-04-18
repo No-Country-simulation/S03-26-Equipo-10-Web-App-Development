@@ -6,12 +6,15 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { TestimonialRecord, TenantUser } from '@/lib/api';
 import { MessageSquareQuote, Users, Clock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TestimonialModal } from '@/components/testimonials/TestimonialModal';
 
 export default function AdminOverviewPage() {
   const { session, fetchApi, isAdmin } = useSession();
   const [testimonials, setTestimonials] = useState<TestimonialRecord[]>([]);
   const [users, setUsers] = useState<TenantUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTestimonial, setSelectedTestimonial] = useState<TestimonialRecord | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -119,7 +122,14 @@ export default function AdminOverviewPage() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {testimonials.slice(0, 6).map((t) => (
-                  <div key={t.id} className="border bg-card p-6 transition-colors hover:bg-card/80">
+                  <button 
+                    key={t.id} 
+                    onClick={() => {
+                      setSelectedTestimonial(t);
+                      setModalOpen(true);
+                    }}
+                    className="border bg-card p-6 transition-all hover:bg-muted/30 text-left hover:scale-[1.02] duration-300"
+                  >
                     <div className="mb-3 flex items-center justify-between">
                       <span className="font-body text-sm font-bold uppercase tracking-wider text-foreground">
                         {t.authorName}
@@ -152,13 +162,26 @@ export default function AdminOverviewPage() {
                         </svg>
                       ))}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
           </div>
         </>
       )}
+
+      <TestimonialModal 
+        testimonial={selectedTestimonial}
+        open={modalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) setTimeout(() => setSelectedTestimonial(null), 300);
+        }}
+        onUpdated={() => {
+          // Trigger a silent reload or just let it be since we don't have a specific load() bound here
+          // We could reload by window.location.reload() but let's just leave it or fetch again
+        }}
+      />
     </>
   );
 }

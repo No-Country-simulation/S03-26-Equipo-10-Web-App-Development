@@ -9,34 +9,34 @@ export const HeroSection = () => {
       <div className="container relative z-10 grid gap-12 lg:grid-cols-[1fr,400px] xl:grid-cols-[1fr,500px]">
         
         {/* Left Column: Massive Editorial Typography */}
-        <div className="flex flex-col justify-center animate-in fade-in slide-in-from-bottom duration-1000">
-          <div className="flex items-center gap-4 mb-8">
+        <article className="flex flex-col justify-center animate-fade-in-up stagger-1">
+          <header className="flex items-center gap-4 mb-8">
             <span className="h-px w-12 bg-primary"></span>
             <span className="font-body text-sm font-bold uppercase tracking-widest text-primary">Testimonial CMS</span>
-          </div>
+          </header>
           
-          <h1 className="font-caption text-6xl font-normal leading-[1.1] tracking-tight text-foreground md:text-8xl lg:text-[7rem]">
+          <h1 className="font-caption text-6xl font-normal leading-[1.1] tracking-tight text-foreground md:text-8xl lg:text-[7rem] text-balance">
             Voces que<br />
             <em className="text-primary italic">convierten.</em>
           </h1>
           
-          <p className="mt-8 max-w-xl font-body text-lg font-light leading-relaxed text-muted-foreground md:text-xl">
-            Gestiona, modera y despliega testimonios de forma sencilla. Olvida las plantillas genéricas: construye autoridad con una estética que inspira confianza.
+          <p className="mt-8 max-w-xl font-body text-lg font-light leading-relaxed text-muted-foreground md:text-xl text-balance">
+            Gestiona, modera y despliega testimonios de forma sencilla. Olvida las plantillas genéricas: construye autoridad con una estética que inspira confianza profunda.
           </p>
           
-          <div className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center">
-            <Button size="lg" className="h-14 bg-primary px-8 font-body text-sm uppercase tracking-wider text-primary-foreground hover:bg-primary/90">
+          <footer className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Button size="lg" className="h-14 bg-primary px-8 font-body text-sm uppercase tracking-wider text-primary-foreground hover:bg-primary/90 transition-transform hover:-translate-y-1">
               Comenzar Ahora <ArrowRight className="ml-3 h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="lg" className="h-14 px-8 font-body text-sm uppercase tracking-wider">
+            <Button variant="ghost" size="lg" className="h-14 px-8 font-body text-sm uppercase tracking-wider transition-colors hover:bg-accent/10">
               Ver Manifestos <ArrowDown className="ml-3 h-4 w-4" />
             </Button>
-          </div>
-        </div>
+          </footer>
+        </article>
 
         {/* Right Column: Brutalist / Asymmetrical Floating Testimonial */}
-        <div className="relative hidden w-full lg:block animate-in fade-in slide-in-from-right duration-1000 delay-300">
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[120%] border bg-card p-10 shadow-2xl transition-transform hover:-translate-x-2 hover:-translate-y-[calc(50%+0.5rem)]">
+        <aside className="relative hidden w-full lg:block animate-fade-in-up stagger-3">
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[120%] border bg-card p-10 shadow-soft-lg transition-transform hover:-translate-x-2 hover:-translate-y-[calc(50%+0.5rem)] duration-500">
             <div className="mb-6 flex gap-1">
               {[1, 2, 3, 4, 5].map((star) => (
                 <svg key={star} className="h-5 w-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
@@ -44,21 +44,21 @@ export const HeroSection = () => {
                 </svg>
               ))}
             </div>
-            <p className="font-caption text-2xl italic leading-relaxed text-card-foreground">
+            <blockquote className="font-caption text-2xl italic leading-relaxed text-card-foreground">
               &ldquo;Implementar Testimonial CMS no solo subió nuestras conversiones un 34%, sino que elevó por completo la percepción de nuestra marca. Absolutamente impecable.&rdquo;
-            </p>
-            <div className="mt-8 flex items-center gap-4">
+            </blockquote>
+            <figcaption className="mt-8 flex items-center gap-4">
               <div className="h-12 w-12 border border-primary bg-primary/10"></div>
               <div>
                 <p className="font-body text-sm font-bold uppercase tracking-wider text-foreground">Laura H.</p>
                 <p className="font-body text-xs text-muted-foreground uppercase tracking-widest">Directora Creativa, Studio X</p>
               </div>
-            </div>
+            </figcaption>
           </div>
           
           {/* Accent block behind the card */}
-          <div className="absolute right-[-2rem] top-[calc(50%+2rem)] -z-10 h-64 w-64 -translate-y-1/2 bg-primary/20 backdrop-blur-3xl" />
-        </div>
+          <div className="absolute right-[-2rem] top-[calc(50%+2rem)] -z-10 h-64 w-64 -translate-y-1/2 bg-primary/20 backdrop-blur-3xl rounded-full mix-blend-multiply" />
+        </aside>
         
       </div>
     </section>

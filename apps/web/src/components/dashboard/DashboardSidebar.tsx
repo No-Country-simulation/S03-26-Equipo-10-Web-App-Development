@@ -32,7 +32,7 @@ const navItems: NavItem[] = [
   { label: 'Analítica', href: '/admin/analytics', icon: BarChart3 },
   { label: 'Usuarios', href: '/admin/users', icon: Users, adminOnly: true },
   { label: 'Webhooks', href: '/admin/webhooks', icon: Webhook, adminOnly: true },
-  { label: 'API Keys', href: '/admin/api-keys', icon: KeyRound, adminOnly: true },
+  { label: 'APIs Keys', href: '/admin/api-keys', icon: KeyRound, adminOnly: true },
   { label: 'Configuración', href: '/admin/settings', icon: Settings, adminOnly: true },
 ];
 

@@ -91,7 +91,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <DashboardHeader title="Configuración" description="Información del tenant y feature flags.">
+      <DashboardHeader title="Configuración" description="Información de tu espacio de trabajo y módulos opcionales.">
         <Button variant="ghost" onClick={() => void load()} className="h-10 font-body text-xs uppercase tracking-wider">
           <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
         </Button>
@@ -107,24 +107,24 @@ export default function SettingsPage() {
           {/* Tenant Info */}
           <div>
             <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
-              Tenant
+              Mi Espacio de Trabajo
             </h2>
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="border p-6">
-                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nombre</span>
+                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nombre de la Marca</span>
                 <p className="mt-2 font-caption text-2xl font-light italic text-foreground">{tenant?.name ?? '—'}</p>
               </div>
               <div className="border p-6">
-                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estado</span>
+                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estado de la Cuenta</span>
                 <p className="mt-2">
                   <span className={cn('px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider', tenant?.isActive ? 'bg-primary/10 text-primary' : 'bg-destructive/20 text-destructive')}>
-                    {tenant?.isActive ? 'Activo' : 'Inactivo'}
+                    {tenant?.isActive ? 'Activa' : 'Inactiva'}
                   </span>
                 </p>
               </div>
               <div className="border p-6 sm:col-span-3">
-                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Creado</span>
-                <p className="mt-2 font-body text-sm text-foreground">{tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : '—'}</p>
+                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Fecha de Creación</span>
+                <p className="mt-2 font-body text-sm text-foreground">{tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</p>
               </div>
             </div>
           </div>
@@ -132,13 +132,13 @@ export default function SettingsPage() {
           {/* Formulario Público */}
           <div>
             <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
-              Formulario Público Temporal
+              Buzón de Recepción Público
             </h2>
             <div className="border p-6 shadow-sm">
               <div className="flex items-center justify-between border-b pb-4 mb-4">
                 <div>
                   <h3 className="font-body text-sm font-medium text-foreground">Habilitar Recepción Externa</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Permite que tus clientes envíen testimonios usando un link público (sin sesión).</p>
+                  <p className="text-xs text-muted-foreground mt-1">Permite que tus clientes envíen testimonios usando un enlace seguro sin necesidad de iniciar sesión.</p>
                 </div>
                 <div 
                   className="cursor-pointer"
@@ -159,7 +159,7 @@ export default function SettingsPage() {
 
               <div className="grid gap-4">
                 <div>
-                  <label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">Slug Público Personalizado</label>
+                  <label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">Enlace Personalizado</label>
                   <div className="flex items-center gap-4">
                     <div className="flex-1 max-w-sm flex">
                       <span className="inline-flex items-center px-3 border border-r-0 bg-muted/20 text-muted-foreground text-sm font-body">/p/</span>
@@ -175,9 +175,9 @@ export default function SettingsPage() {
                       variant="outline" 
                       onClick={() => void handleSaveSlug()}
                       disabled={isSavingSlug || slugInput === (tenant?.publicSlug ?? '')}
-                      className="font-body text-xs"
+                      className="font-body text-xs uppercase tracking-wider"
                     >
-                      {isSavingSlug ? 'Guardando...' : 'Guardar Slug'}
+                      {isSavingSlug ? 'Guardando...' : 'Guardar Enlace'}
                     </Button>
                   </div>
                 </div>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
                 {tenant?.publicSlug && (
                   <div className="mt-2 bg-muted/10 p-4 border flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-muted-foreground font-body">Tu enlace público es:</p>
+                      <p className="text-xs text-muted-foreground font-body">Tu buzón público está disponible en:</p>
                       <a href={publicLink} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline mt-1 block">
                         {publicLink}
                       </a>
@@ -196,9 +196,9 @@ export default function SettingsPage() {
                         void navigator.clipboard.writeText(publicLink);
                         alert('Enlace copiado al portapapeles');
                       }}
-                      className="font-body text-xs"
+                      className="font-body text-xs uppercase tracking-wider"
                     >
-                      Copiar Enlace
+                      Copiar
                     </Button>
                   </div>
                 )}
@@ -209,27 +209,34 @@ export default function SettingsPage() {
           {/* Feature Flags */}
           <div>
             <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
-              Feature Flags
+              Módulos Opcionales
             </h2>
             {flags.length === 0 ? (
               <div className="border border-dashed p-12 text-center">
-                <p className="font-body text-sm text-muted-foreground">No hay feature flags disponibles.</p>
+                <p className="font-body text-sm text-muted-foreground">No hay módulos disponibles.</p>
               </div>
             ) : (
               <div className="grid gap-3">
                 {flags.map((f) => (
                   <div key={f.id} className="flex items-center justify-between border p-5 transition-colors hover:bg-card">
                     <div>
-                      <span className="font-body text-sm font-medium text-foreground">{f.name}</span>
+                      <span className="font-body text-sm font-medium text-foreground">
+                        {f.name === 'enable_analytics' && 'Módulo de Analítica Avanzada'}
+                        {f.name === 'enable_webhooks' && 'Integraciones y Webhooks'}
+                        {f.name === 'enable_scoring' && 'Algoritmo de Relevancia Automático'}
+                        {f.name === 'testimonials' && 'Gestor Principal de Testimonios'}
+                        {!['enable_analytics', 'enable_webhooks', 'enable_scoring', 'testimonials'].includes(f.name) && f.name}
+                      </span>
                       <p className="mt-1 font-body text-xs text-muted-foreground">
-                        {f.name === 'enable_analytics' && 'Habilita el módulo de analítica para este tenant.'}
-                        {f.name === 'enable_webhooks' && 'Permite configurar webhooks para notificaciones externas.'}
-                        {f.name === 'enable_scoring' && 'Activa el cálculo automático de scoring de testimonios.'}
+                        {f.name === 'enable_analytics' && 'Obtén gráficas de conversión y clics de tus widgets públicos.'}
+                        {f.name === 'enable_webhooks' && 'Conecta eventos de testimonios con Slack, Zapier u otras herramientas.'}
+                        {f.name === 'enable_scoring' && 'Nuestra IA puntuará y destacará automáticamente tus mejores testimonios.'}
+                        {f.name === 'testimonials' && 'Permite la recepción y gestión manual de contenido.'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={cn('font-body text-[10px] font-bold uppercase tracking-wider', f.enabled ? 'text-primary' : 'text-muted-foreground')}>
-                        {f.enabled ? 'On' : 'Off'}
+                        {f.enabled ? 'Activo' : 'Inactivo'}
                       </span>
                       {f.enabled ? (
                         <ToggleRight className="h-6 w-6 text-primary" />

@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Plus, RefreshCw, Search, Youtube, ImageIcon } from 'lucide-react';
-import { TestimonialSheet } from '@/components/testimonials/TestimonialSheet';
+import { Plus, RefreshCw, Search } from 'lucide-react';
+import { TestimonialModal } from '@/components/testimonials/TestimonialModal';
 
 export default function TestimonialsPage() {
   const { session, fetchApi } = useSession();
@@ -100,7 +100,7 @@ export default function TestimonialsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por autor o contenido..."
-          className="h-10 bg-transparent pl-10 font-body text-sm"
+          className="h-10 bg-transparent pl-10 font-body text-sm rounded-none border-t-0 border-x-0 border-b-2 border-border focus-visible:ring-0 focus-visible:border-primary"
         />
       </div>
 
@@ -114,44 +114,27 @@ export default function TestimonialsPage() {
           <p className="font-body text-sm text-muted-foreground">No se encontraron testimonios.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto bg-card shadow-soft-lg">
           <table className="w-full">
             <thead>
               <tr className="border-b">
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Autor</th>
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Contenido</th>
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rating</th>
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Media</th>
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estado</th>
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Score</th>
+                <th className="py-4 pl-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">ID</th>
+                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Autor</th>
+                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Extracto</th>
+                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estado</th>
+                <th className="py-4 text-right pr-4 font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Acción</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((t) => (
                 <tr 
                   key={t.id} 
-                  className="border-b border-foreground/5 transition-colors hover:bg-card cursor-pointer"
-                  onClick={() => {
-                    setSelectedTestimonial(t);
-                    setSheetOpen(true);
-                  }}
+                  className="border-b border-border/50 transition-colors hover:bg-muted/10 group"
                 >
+                  <td className="py-4 pl-4 font-body text-xs text-muted-foreground">{t.id.split('-')[0]}</td>
                   <td className="py-4 pr-4 font-body text-sm font-medium text-foreground">{t.authorName}</td>
-                  <td className="max-w-xs truncate py-4 pr-4 font-caption text-sm italic text-muted-foreground">{t.content}</td>
-                  <td className="py-4 pr-4">
-                    <div className="flex gap-0.5">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <svg key={i} className={cn('h-3 w-3', i < t.rating ? 'text-primary' : 'text-muted-foreground/20')} fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="py-4 pr-4">
-                    <div className="flex gap-2 text-muted-foreground">
-                      {t.videoUrl ? <Youtube className="w-4 h-4 text-primary" /> : <Youtube className="w-4 h-4 opacity-20" />}
-                      {t.imageUrl ? <ImageIcon className="w-4 h-4 text-primary" /> : <ImageIcon className="w-4 h-4 opacity-20" />}
-                    </div>
+                  <td className="max-w-[200px] sm:max-w-xs truncate py-4 pr-4 font-caption text-sm italic text-muted-foreground">
+                    &ldquo;{t.content}&rdquo;
                   </td>
                   <td className="py-4 pr-4">
                     <span className={cn(
@@ -165,7 +148,19 @@ export default function TestimonialsPage() {
                       {t.status}
                     </span>
                   </td>
-                  <td className="py-4 font-body text-sm text-muted-foreground">{t.score}</td>
+                  <td className="py-4 pr-4 text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTestimonial(t);
+                        setSheetOpen(true);
+                      }}
+                      className="font-body text-[10px] uppercase tracking-wider hover:bg-primary hover:text-primary-foreground rounded-none"
+                    >
+                      Abrir Testimonio
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -173,7 +168,7 @@ export default function TestimonialsPage() {
         </div>
       )}
 
-      <TestimonialSheet 
+      <TestimonialModal 
         testimonial={selectedTestimonial}
         open={sheetOpen}
         onOpenChange={(open) => {
