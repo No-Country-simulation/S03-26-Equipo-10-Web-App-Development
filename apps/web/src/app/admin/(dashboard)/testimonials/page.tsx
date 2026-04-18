@@ -20,6 +20,10 @@ export default function TestimonialsPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
+  // Filter States
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
   async function load() {
     setLoading(true);
     try {
@@ -32,10 +36,32 @@ export default function TestimonialsPage() {
 
   useEffect(() => { if (session) void load(); }, [session]);
 
+  // Compute dynamic filters
+  const categoryCounts = new Map<string, { name: string; count: number }>();
+  const tagCounts = new Map<string, { name: string; count: number }>();
+
+  testimonials.forEach(t => {
+    if (t.category) {
+      const existing = categoryCounts.get(t.category.id);
+      if (existing) existing.count++;
+      else categoryCounts.set(t.category.id, { name: t.category.name, count: 1 });
+    }
+    if (t.tags) {
+      t.tags.forEach(tag => {
+        const existing = tagCounts.get(tag.id);
+        if (existing) existing.count++;
+        else tagCounts.set(tag.id, { name: tag.name, count: 1 });
+      });
+    }
+  });
+
   const filtered = testimonials.filter(
-    (t) =>
-      t.authorName.toLowerCase().includes(search.toLowerCase()) ||
-      t.content.toLowerCase().includes(search.toLowerCase()),
+    (t) => {
+      const matchSearch = t.authorName.toLowerCase().includes(search.toLowerCase()) || t.content.toLowerCase().includes(search.toLowerCase());
+      const matchCategory = selectedCategoryId ? t.categoryId === selectedCategoryId : true;
+      const matchTags = selectedTagIds.length > 0 ? selectedTagIds.every(tagId => t.tags?.some(tag => tag.id === tagId)) : true;
+      return matchSearch && matchCategory && matchTags;
+    }
   );
 
   return (
@@ -56,15 +82,77 @@ export default function TestimonialsPage() {
         </Button>
       </DashboardHeader>
 
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por autor o contenido..."
-          className="h-10 bg-transparent pl-10 font-body text-sm rounded-none border-t-0 border-x-0 border-b-2 border-border focus-visible:ring-0 focus-visible:border-primary"
-        />
+      {/* Search & Filters */}
+      <div className="mb-8 space-y-4">
+        {/* Text Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por autor o contenido..."
+            className="h-10 bg-transparent pl-10 font-body text-sm rounded-none border-t-0 border-x-0 border-b-2 border-border focus-visible:ring-0 focus-visible:border-primary"
+          />
+        </div>
+
+        {/* Dynamic Category Tabs */}
+        {categoryCounts.size > 0 && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button
+              onClick={() => setSelectedCategoryId(null)}
+              className={cn(
+                "font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border",
+                selectedCategoryId === null ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:bg-muted/50 border-border"
+              )}
+            >
+              Todas ({testimonials.length})
+            </button>
+            {Array.from(categoryCounts.entries()).map(([id, { name, count }]) => (
+              <button
+                key={id}
+                onClick={() => setSelectedCategoryId(id)}
+                className={cn(
+                  "font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border",
+                  selectedCategoryId === id ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:bg-muted/50 border-border"
+                )}
+              >
+                {name} ({count})
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Dynamic Tag Chips */}
+        {tagCounts.size > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {Array.from(tagCounts.entries()).map(([id, { name, count }]) => (
+              <button
+                key={id}
+                onClick={() => {
+                  setSelectedTagIds(prev => 
+                    prev.includes(id) ? prev.filter(tid => tid !== id) : [...prev, id]
+                  );
+                }}
+                className={cn(
+                  "font-body text-[9px] uppercase tracking-wider px-2 py-1 transition-colors border rounded-full",
+                  selectedTagIds.includes(id) 
+                    ? "bg-foreground text-background border-foreground" 
+                    : "bg-transparent text-muted-foreground border-border hover:border-foreground/30"
+                )}
+              >
+                #{name} <span className="opacity-50">({count})</span>
+              </button>
+            ))}
+            {selectedTagIds.length > 0 && (
+              <button 
+                onClick={() => setSelectedTagIds([])}
+                className="font-body text-[9px] uppercase tracking-wider px-2 py-1 text-destructive hover:underline ml-2"
+              >
+                Limpiar Etiquetas
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -96,8 +184,17 @@ export default function TestimonialsPage() {
                 >
                   <td className="py-4 pl-4 font-body text-xs text-muted-foreground">{t.id.split('-')[0]}</td>
                   <td className="py-4 pr-4 font-body text-sm font-medium text-foreground">{t.authorName}</td>
-                  <td className="max-w-[200px] sm:max-w-xs truncate py-4 pr-4 font-caption text-sm italic text-muted-foreground">
-                    &ldquo;{t.content}&rdquo;
+                  <td className="max-w-[200px] sm:max-w-xs py-4 pr-4">
+                    <div className="truncate font-caption text-sm italic text-muted-foreground mb-1">
+                      &ldquo;{t.content}&rdquo;
+                    </div>
+                    <div className="flex gap-1 overflow-hidden">
+                      {t.category && <span className="text-[8px] bg-primary/10 text-primary px-1 font-body uppercase">{t.category.name}</span>}
+                      {t.tags?.slice(0, 2).map(tag => (
+                        <span key={tag.id} className="text-[8px] border px-1 font-body text-muted-foreground uppercase">#{tag.name}</span>
+                      ))}
+                      {(t.tags?.length || 0) > 2 && <span className="text-[8px] text-muted-foreground">...</span>}
+                    </div>
                   </td>
                   <td className="py-4 pr-4">
                     <span className={cn(

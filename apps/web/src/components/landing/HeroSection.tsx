@@ -1,7 +1,61 @@
-import { ArrowRight, ArrowDown } from "lucide-react";
+"use client";
+
+import { ArrowRight, ArrowDown, Key, Webhook, TrendingUp, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import useEmblaCarousel from "embla-carousel-react";
+import Autoplay from "embla-carousel-autoplay";
+import { useCallback, useEffect, useState } from "react";
+
+const carouselSlides = [
+  {
+    id: 1,
+    title: "API-First Design",
+    description: "Integra testimonios dinámicos en cualquier framework o plataforma en minutos. Tu contenido viaja donde tu producto lo necesite.",
+    icon: <Key className="h-6 w-6 text-primary" />,
+    badge: "Developers"
+  },
+  {
+    id: 2,
+    title: "Webhooks en Tiempo Real",
+    description: "Configura disparadores automáticos. Notifica a tu equipo en Slack o sincroniza con tu CRM en el instante que apruebas un testimonio.",
+    icon: <Webhook className="h-6 w-6 text-primary" />,
+    badge: "Integrations"
+  },
+  {
+    id: 3,
+    title: "Scoring Algorítmico",
+    description: "Olvídate del orden manual. Nuestro algoritmo clasifica y expone primero las reseñas con mayor peso semántico y conversión.",
+    icon: <TrendingUp className="h-6 w-6 text-primary" />,
+    badge: "Intelligence"
+  },
+  {
+    id: 4,
+    title: "Gestión Multi-Tenant",
+    description: "Control absoluto para empresas. Asigna roles granulares (Admin, Editor) y administra docenas de marcas desde un único panel central.",
+    icon: <Shield className="h-6 w-6 text-primary" />,
+    badge: "Enterprise"
+  }
+];
 
 export const HeroSection = () => {
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: "center" }, [
+    Autoplay({ delay: 5000, stopOnInteraction: true, stopOnMouseEnter: true })
+  ]);
+  
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi, setSelectedIndex]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+  }, [emblaApi, onSelect]);
   return (
     <section className="relative min-h-[90vh] flex items-center overflow-hidden border-b py-20">
       <div className="absolute inset-0 bg-background/5" />
@@ -34,30 +88,59 @@ export const HeroSection = () => {
           </footer>
         </article>
 
-        {/* Right Column: Brutalist / Asymmetrical Floating Testimonial */}
-        <aside className="relative hidden w-full lg:block animate-fade-in-up stagger-3">
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[120%] border bg-card p-10 shadow-soft-lg transition-transform hover:-translate-x-2 hover:-translate-y-[calc(50%+0.5rem)] duration-500">
-            <div className="mb-6 flex gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <svg key={star} className="h-5 w-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
+        {/* Right Column: Embla Carousel with Brutalist Cards */}
+        <aside className="relative hidden w-full lg:flex lg:items-center lg:justify-center animate-fade-in-up stagger-3 h-full">
+          
+          <div className="w-[120%] absolute right-[-10%] overflow-hidden" ref={emblaRef}>
+            <div className="flex touch-pan-y flex-row">
+              {carouselSlides.map((slide, index) => (
+                <div key={slide.id} className="flex-[0_0_100%] min-w-0 pl-4 pr-4 py-8">
+                  <div className="relative border bg-card p-10 shadow-soft-lg transition-transform duration-500 min-h-[340px] flex flex-col justify-between group">
+                    <div>
+                      <div className="flex items-center justify-between mb-8">
+                        <div className="h-12 w-12 border border-primary bg-primary/10 flex items-center justify-center transition-transform duration-500 group-hover:scale-110">
+                          {slide.icon}
+                        </div>
+                        <span className="font-body text-[10px] font-bold uppercase tracking-widest bg-muted px-2 py-1 text-muted-foreground">
+                          {slide.badge}
+                        </span>
+                      </div>
+                      
+                      <h3 className="font-caption text-3xl italic mb-4 text-foreground">
+                        {slide.title}
+                      </h3>
+                      <p className="font-body text-sm leading-relaxed text-muted-foreground">
+                        {slide.description}
+                      </p>
+                    </div>
+                    
+                    <div className="mt-8 pt-6 border-t flex items-center justify-between">
+                      <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">Core Feature</span>
+                      <span className="font-caption text-4xl italic text-foreground/10 font-bold">{String(index + 1).padStart(2, '0')}</span>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-            <blockquote className="font-caption text-2xl italic leading-relaxed text-card-foreground">
-              &ldquo;Implementar Testimonial CMS no solo subió nuestras conversiones un 34%, sino que elevó por completo la percepción de nuestra marca. Absolutamente impecable.&rdquo;
-            </blockquote>
-            <figcaption className="mt-8 flex items-center gap-4">
-              <div className="h-12 w-12 border border-primary bg-primary/10"></div>
-              <div>
-                <p className="font-body text-sm font-bold uppercase tracking-wider text-foreground">Laura H.</p>
-                <p className="font-body text-xs text-muted-foreground uppercase tracking-widest">Directora Creativa, Studio X</p>
-              </div>
-            </figcaption>
+          </div>
+
+          {/* Carousel Controls */}
+          <div className="absolute -bottom-4 right-0 flex gap-2 z-20">
+            {carouselSlides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => emblaApi?.scrollTo(index)}
+                className={cn(
+                  "h-1 transition-all duration-300 rounded-full",
+                  index === selectedIndex ? "w-8 bg-primary" : "w-4 bg-primary/20 hover:bg-primary/40"
+                )}
+                aria-label={`Ir a diapositiva ${index + 1}`}
+              />
+            ))}
           </div>
           
-          {/* Accent block behind the card */}
-          <div className="absolute right-[-2rem] top-[calc(50%+2rem)] -z-10 h-64 w-64 -translate-y-1/2 bg-primary/20 backdrop-blur-3xl rounded-full mix-blend-multiply" />
+          {/* Accent block behind the carousel */}
+          <div className="absolute right-[-2rem] top-[calc(50%+2rem)] -z-10 h-64 w-64 -translate-y-1/2 bg-primary/20 backdrop-blur-3xl rounded-full mix-blend-multiply pointer-events-none" />
         </aside>
         
       </div>
