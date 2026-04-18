@@ -104,11 +104,6 @@ async function main() {
     create: { tenantId: tenant.id, email: DEMO_ADMIN_EMAIL, passwordHash: hashPassword(DEMO_ADMIN_PASSWORD), isActive: true },
   });
 
-  await prisma.userProfile.upsert({
-    where: { userId: admin.id },
-    update: { firstName: 'Admin', lastName: 'Demo', bio: 'Administrator of the tenant' },
-    create: { userId: admin.id, firstName: 'Admin', lastName: 'Demo', bio: 'Administrator of the tenant' }
-  });
 
   const editor = await prisma.user.upsert({
     where: { email: DEMO_EDITOR_EMAIL },
@@ -116,11 +111,6 @@ async function main() {
     create: { tenantId: tenant.id, email: DEMO_EDITOR_EMAIL, passwordHash: hashPassword(DEMO_EDITOR_PASSWORD), isActive: true },
   });
 
-  await prisma.userProfile.upsert({
-    where: { userId: editor.id },
-    update: { firstName: 'Editor', lastName: 'Demo', bio: 'Content Editor' },
-    create: { userId: editor.id, firstName: 'Editor', lastName: 'Demo', bio: 'Content Editor' }
-  });
 
   await prisma.userRole.upsert({
     where: { userId_roleId: { userId: admin.id, roleId: adminRole.id } },
@@ -154,11 +144,6 @@ async function main() {
       },
     });
 
-    await prisma.userProfile.upsert({
-      where: { userId: user.id },
-      update: { firstName, lastName, avatarUrl: faker.image.avatar(), bio: faker.person.bio() },
-      create: { userId: user.id, firstName, lastName, avatarUrl: faker.image.avatar(), bio: faker.person.bio() }
-    });
 
     await prisma.userRole.upsert({
       where: { userId_roleId: { userId: user.id, roleId: editorRole.id } },

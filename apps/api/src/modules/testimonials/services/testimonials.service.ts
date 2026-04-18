@@ -19,7 +19,7 @@ export class TestimonialsService {
     private readonly analyticsRepo: AnalyticsRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly youtubeService: YoutubeService,
-  ) {}
+  ) { }
 
   async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
     if (dto.rating < 1 || dto.rating > 5) {
@@ -45,7 +45,16 @@ export class TestimonialsService {
     this.eventEmitter.emit('testimonial.created', {
       tenantId,
       eventType: 'testimonial.created',
-      payload: { testimonialId: testimonial.id, authorName: testimonial.authorName },
+      payload: {
+        id: testimonial.id,
+        authorName: testimonial.authorName,
+        content: testimonial.content,
+        rating: testimonial.rating,
+        status: testimonial.status,
+        imageUrl: testimonial.imageUrl,
+        videoUrl: testimonial.videoUrl,
+        createdAt: testimonial.createdAt,
+      },
     });
 
     return testimonial;
@@ -65,7 +74,7 @@ export class TestimonialsService {
 
   async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
-    
+
     if (!tenant.isPublicFormEnabled) {
       throw new ForbiddenException('This form is currently closed');
     }
@@ -82,7 +91,15 @@ export class TestimonialsService {
     this.eventEmitter.emit('testimonial.created', {
       tenantId: tenant.id,
       eventType: 'testimonial.created',
-      payload: { testimonialId: testimonial.id, authorName: testimonial.authorName, source: 'public_form' },
+      payload: {
+        id: testimonial.id,
+        authorName: testimonial.authorName,
+        content: testimonial.content,
+        rating: testimonial.rating,
+        status: testimonial.status,
+        source: 'public_form',
+        createdAt: testimonial.createdAt,
+      },
     });
 
     if (dto.imageBase64) {
@@ -255,9 +272,17 @@ export class TestimonialsService {
       tenantId,
       eventType: 'testimonial.published',
       payload: {
-        testimonialId: updated.id,
+        id: updated.id,
         authorName: updated.authorName,
+        content: updated.content,
+        rating: updated.rating,
         score: updated.score,
+        imageUrl: updated.imageUrl,
+        videoUrl: updated.videoUrl,
+        videoTitle: updated.videoTitle,
+        videoThumbnailUrl: updated.videoThumbnailUrl,
+        publishedAt: updated.publishedAt,
+        createdAt: updated.createdAt,
       },
     });
 
