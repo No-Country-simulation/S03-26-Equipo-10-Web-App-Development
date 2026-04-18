@@ -198,7 +198,17 @@ export class TestimonialRepository {
   async findAllPublishedForScoring(): Promise<Array<{ id: string; rating: number; publishedAt: Date | null }>> {
     const publishedStatusId = await this.resolveStatusId('published');
     return this.prisma.testimonial.findMany({
-      where: { statusId: publishedStatusId },
+      where: {
+        statusId: publishedStatusId,
+        tenant: {
+          tenantFeatureFlags: {
+            some: {
+              featureFlag: { name: 'enable_scoring' },
+              enabled: true,
+            },
+          },
+        },
+      },
       select: { id: true, rating: true, publishedAt: true },
     });
   }
