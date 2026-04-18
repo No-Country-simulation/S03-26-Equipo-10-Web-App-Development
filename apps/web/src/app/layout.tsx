@@ -5,6 +5,26 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
+import { Funnel_Sans, Geist, Newsreader } from 'next/font/google';
+
+const funnelSans = Funnel_Sans({
+  subsets: ['latin'],
+  variable: '--font-heading',
+  display: 'swap',
+});
+
+const geist = Geist({
+  subsets: ['latin'],
+  variable: '--font-body',
+  display: 'swap',
+});
+
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  style: ['normal', 'italic'],
+  variable: '--font-caption',
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   themeColor: [
@@ -42,15 +62,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" suppressHydrationWarning className="scroll-smooth">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Funnel+Sans:ital,wght@0,300..800;1,300..800&family=Geist:wght@100..900&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="min-h-screen bg-background font-body antialiased text-foreground overflow-x-hidden selection:bg-primary selection:text-primary-foreground">
+      <body className={`min-h-screen bg-background antialiased text-foreground overflow-x-hidden selection:bg-primary selection:text-primary-foreground ${funnelSans.variable} ${geist.variable} ${newsreader.variable} font-body`}>
         <NoiseOverlay />
         <ThemeProvider>
           <TooltipProvider>

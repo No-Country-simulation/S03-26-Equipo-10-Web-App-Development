@@ -23,7 +23,11 @@ export class TestimonialRepository {
   async findById(tenantId: string, id: string): Promise<TestimonialView | null> {
     const row = await this.prisma.testimonial.findFirst({
       where: { id, tenantId },
-      include: { status: true },
+      include: { 
+        status: true,
+        category: true,
+        tags: { include: { tag: true } }
+      },
     });
 
     return row ? this.toView(row) : null;
@@ -36,6 +40,7 @@ export class TestimonialRepository {
     content: string;
     rating: number;
     categoryId?: string | null;
+    tagIds?: string[];
   }): Promise<TestimonialView> {
     const statusId = await this.resolveStatusId('draft');
 
@@ -49,8 +54,15 @@ export class TestimonialRepository {
         statusId,
         score: 0,
         categoryId: data.categoryId ?? null,
+        tags: data.tagIds ? {
+          create: data.tagIds.map(tagId => ({ tagId }))
+        } : undefined,
       },
-      include: { status: true },
+      include: { 
+        status: true,
+        category: true,
+        tags: { include: { tag: true } }
+      },
     });
 
     return this.toView(created);
@@ -64,6 +76,7 @@ export class TestimonialRepository {
       content?: string;
       rating?: number;
       categoryId?: string | null;
+      tagIds?: string[];
     },
   ): Promise<TestimonialView> {
     const updated = await this.prisma.testimonial.update({
@@ -73,9 +86,19 @@ export class TestimonialRepository {
         ...(data.content !== undefined && { content: data.content }),
         ...(data.rating !== undefined && { rating: data.rating }),
         ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
+        ...(data.tagIds !== undefined && {
+          tags: {
+            deleteMany: {},
+            create: data.tagIds.map(tagId => ({ tagId }))
+          }
+        }),
         updatedAt: new Date(),
       },
-      include: { status: true },
+      include: { 
+        status: true,
+        category: true,
+        tags: { include: { tag: true } }
+      },
     });
 
     return this.toView(updated);
@@ -96,7 +119,11 @@ export class TestimonialRepository {
         ...(extra?.moderationNotes !== undefined && { moderationNotes: extra.moderationNotes }),
         ...(extra?.publishedAt !== undefined && { publishedAt: extra.publishedAt }),
       },
-      include: { status: true },
+      include: { 
+        status: true,
+        category: true,
+        tags: { include: { tag: true } }
+      },
     });
 
     return this.toView(updated);
@@ -133,7 +160,11 @@ export class TestimonialRepository {
   async findByTenant(tenantId: string): Promise<TestimonialView[]> {
     const rows = await this.prisma.testimonial.findMany({
       where: { tenantId },
-      include: { status: true },
+      include: { 
+        status: true,
+        category: true,
+        tags: { include: { tag: true } }
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -165,7 +196,11 @@ export class TestimonialRepository {
     const [rows, total] = await Promise.all([
       this.prisma.testimonial.findMany({
         where,
-        include: { status: true },
+        include: { 
+          status: true,
+          category: true,
+          tags: { include: { tag: true } }
+        },
         orderBy:
           filters.sort === 'publishedAt:desc'
             ? { publishedAt: 'desc' }
@@ -189,7 +224,11 @@ export class TestimonialRepository {
     const publishedStatusId = await this.resolveStatusId('published');
     const row = await this.prisma.testimonial.findFirst({
       where: { id, tenantId, statusId: publishedStatusId },
-      include: { status: true },
+      include: { 
+        status: true,
+        category: true,
+        tags: { include: { tag: true } }
+      },
     });
 
     return row ? this.toView(row) : null;
@@ -247,6 +286,8 @@ export class TestimonialRepository {
     status: { code: string };
     score: number | { toString(): string };
     categoryId: string | null;
+    category?: { id: string; name: string } | null;
+    tags?: { tag: { id: string; name: string } }[];
     moderationNotes: string | null;
     imageUrl: string | null;
     videoUrl: string | null;
@@ -266,6 +307,8 @@ export class TestimonialRepository {
       status: row.status.code as TestimonialStatus,
       score: Number(row.score),
       categoryId: row.categoryId,
+      category: row.category ? { id: row.category.id, name: row.category.name } : null,
+      tags: row.tags ? row.tags.map(t => ({ id: t.tag.id, name: t.tag.name })) : [],
       moderationNotes: row.moderationNotes,
       imageUrl: row.imageUrl,
       videoUrl: row.videoUrl,

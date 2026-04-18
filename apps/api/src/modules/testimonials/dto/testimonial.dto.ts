@@ -19,6 +19,10 @@ export class CreateTestimonialDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
+
+  @IsOptional()
+  @IsUUID(undefined, { each: true })
+  tagIds?: string[];
 }
 
 export class UpdateTestimonialDto {
@@ -43,6 +47,10 @@ export class UpdateTestimonialDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
+
+  @IsOptional()
+  @IsUUID(undefined, { each: true })
+  tagIds?: string[];
 }
 
 export class ModerateTestimonialDto {

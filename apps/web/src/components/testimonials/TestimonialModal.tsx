@@ -42,6 +42,27 @@ export function TestimonialModal({
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [editAuthor, setEditAuthor] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
+  const [editTagIds, setEditTagIds] = useState<string[]>([]);
+
+  // Metadata
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [allTags, setAllTags] = useState<{id: string, name: string}[]>([]);
+
+  useEffect(() => {
+    async function loadMeta() {
+      if (!open) return;
+      try {
+        const [catRes, tagRes] = await Promise.all([
+          fetchApi<{id: string, name: string}[]>('/categories'),
+          fetchApi<{id: string, name: string}[]>('/tags')
+        ]);
+        setCategories(catRes.data);
+        setAllTags(tagRes.data);
+      } catch (e) { console.error('Error loading meta', e); }
+    }
+    void loadMeta();
+  }, [open, fetchApi]);
 
   useEffect(() => {
     if (open && testimonial) {
@@ -50,6 +71,8 @@ export function TestimonialModal({
       setIsEditing(false);
       setEditContent(testimonial.content);
       setEditAuthor(testimonial.authorName);
+      setEditCategoryId(testimonial.categoryId || null);
+      setEditTagIds(testimonial.tags?.map(t => t.id) || []);
     }
   }, [open, testimonial]);
 
@@ -128,6 +151,8 @@ export function TestimonialModal({
         body: JSON.stringify({
           authorName: editAuthor,
           content: editContent,
+          categoryId: editCategoryId,
+          tagIds: editTagIds,
         }),
       });
       setIsEditing(false);
@@ -157,9 +182,22 @@ export function TestimonialModal({
               
               {canEdit && !isEditing && (
                 <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)} className="h-8 font-body text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground">
-                  <Edit3 className="w-3 h-3 mr-2" /> Editar Texto
+                  <Edit3 className="w-3 h-3 mr-2" /> Editar Testimonio
                 </Button>
               )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-6">
+              {testimonial.category && (
+                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-background bg-primary px-2 py-1">
+                  {testimonial.category.name}
+                </span>
+              )}
+              {testimonial.tags?.map(tag => (
+                <span key={tag.id} className="font-body text-[10px] font-bold uppercase tracking-widest text-foreground border border-border px-2 py-1">
+                  #{tag.name}
+                </span>
+              ))}
             </div>
 
             {isEditing ? (
@@ -179,6 +217,44 @@ export function TestimonialModal({
                     onChange={e => setEditContent(e.target.value)} 
                     className="w-full mt-2 bg-background font-caption text-2xl italic leading-relaxed focus:outline-none focus:ring-0 resize-none min-h-[150px] border-b-2 border-border focus:border-primary"
                   />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Categoría</Label>
+                    <select 
+                      value={editCategoryId || ''} 
+                      onChange={e => setEditCategoryId(e.target.value || null)}
+                      className="w-full mt-2 bg-background border-b-2 border-border p-2 font-body text-xs focus:outline-none focus:border-primary"
+                    >
+                      <option value="">Sin Categoría</option>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Etiquetas</Label>
+                    <div className="flex flex-wrap gap-2 mt-2 max-h-[100px] overflow-y-auto p-2 border border-dashed">
+                      {allTags.map(tag => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => {
+                            setEditTagIds(prev => 
+                              prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
+                            );
+                          }}
+                          className={cn(
+                            "font-body text-[9px] uppercase tracking-wider px-2 py-1 transition-colors",
+                            editTagIds.includes(tag.id) 
+                              ? "bg-primary text-primary-foreground" 
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          )}
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
                   <Button variant="ghost" onClick={() => setIsEditing(false)} className="font-body text-xs uppercase tracking-wider">Cancelar</Button>

@@ -40,6 +40,7 @@ export class TestimonialsService {
       content: dto.content,
       rating: dto.rating,
       categoryId: dto.categoryId,
+      tagIds: dto.tagIds,
     });
 
     this.eventEmitter.emit('testimonial.created', {
@@ -190,6 +191,7 @@ export class TestimonialsService {
       content: dto.content,
       rating: dto.rating,
       categoryId: dto.categoryId,
+      tagIds: dto.tagIds,
     });
   }
 

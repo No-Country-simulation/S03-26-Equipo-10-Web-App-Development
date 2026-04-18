@@ -33,6 +33,18 @@ export interface TenantUser {
   roles: string[];
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  tenantId: string;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  tenantId: string;
+}
+
 export interface TestimonialRecord {
   id: string;
   authorName: string;
@@ -42,6 +54,9 @@ export interface TestimonialRecord {
   score: number;
   createdAt: string;
   publishedAt?: string | null;
+  categoryId?: string | null;
+  category?: { id: string; name: string } | null;
+  tags?: { id: string; name: string }[];
   imageUrl?: string | null;
   videoUrl?: string | null;
   videoTitle?: string | null;

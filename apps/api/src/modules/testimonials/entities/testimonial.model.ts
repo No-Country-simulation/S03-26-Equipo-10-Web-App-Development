@@ -18,6 +18,8 @@ export interface TestimonialView {
   status: TestimonialStatus;
   score: number;
   categoryId: string | null;
+  category?: { id: string; name: string } | null;
+  tags?: { id: string; name: string }[];
   moderationNotes: string | null;
   imageUrl: string | null;
   videoUrl: string | null;

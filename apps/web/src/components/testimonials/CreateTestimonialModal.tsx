@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from '@/hooks/use-session';
 import {
   Dialog,
@@ -29,12 +29,35 @@ export function CreateTestimonialModal({
   const [authorName, setAuthorName] = useState('');
   const [content, setContent] = useState('');
   const [rating, setRating] = useState(5);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [tagIds, setTagIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // Metadata
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
+  const [allTags, setAllTags] = useState<{id: string, name: string}[]>([]);
+
+  useEffect(() => {
+    async function loadMeta() {
+      if (!open) return;
+      try {
+        const [catRes, tagRes] = await Promise.all([
+          fetchApi<{id: string, name: string}[]>('/categories'),
+          fetchApi<{id: string, name: string}[]>('/tags')
+        ]);
+        setCategories(catRes.data);
+        setAllTags(tagRes.data);
+      } catch (e) { console.error('Error loading meta', e); }
+    }
+    void loadMeta();
+  }, [open, fetchApi]);
 
   function resetForm() {
     setAuthorName('');
     setContent('');
     setRating(5);
+    setCategoryId(null);
+    setTagIds([]);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -45,7 +68,13 @@ export function CreateTestimonialModal({
     try {
       await fetchApi('/testimonials', {
         method: 'POST',
-        body: JSON.stringify({ authorName, content, rating }),
+        body: JSON.stringify({ 
+          authorName, 
+          content, 
+          rating,
+          categoryId: categoryId || undefined,
+          tagIds: tagIds.length > 0 ? tagIds : undefined
+        }),
       });
       resetForm();
       onCreated();
@@ -140,6 +169,53 @@ export function CreateTestimonialModal({
                 {rating === 2 && 'Regular'}
                 {rating === 1 && 'Malo'}
               </p>
+            </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Categorization */}
+            <div className="space-y-4">
+              <div>
+                <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">
+                  Categoría
+                </Label>
+                <select 
+                  value={categoryId || ''} 
+                  onChange={e => setCategoryId(e.target.value || null)}
+                  className="w-full bg-background border-b border-border p-2 font-body text-xs focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="">Sin Categoría</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">
+                  Etiquetas
+                </Label>
+                <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto p-2 border border-dashed">
+                  {allTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => {
+                        setTagIds(prev => 
+                          prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
+                        );
+                      }}
+                      className={cn(
+                        "font-body text-[8px] uppercase tracking-wider px-2 py-1 transition-colors",
+                        tagIds.includes(tag.id) 
+                          ? "bg-primary text-primary-foreground" 
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      )}
+                    >
+                      {tag.name}
+                    </button>
+                  ))}
+                  {allTags.length === 0 && <p className="text-[8px] text-muted-foreground italic w-full text-center">No hay etiquetas</p>}
+                </div>
+              </div>
             </div>
 
             <div className="h-px bg-border" />
