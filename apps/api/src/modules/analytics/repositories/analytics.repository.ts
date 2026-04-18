@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 export interface DashboardData {
-  total: number;
-  published: number;
-  avgScore: number;
-  avgRating: number;
-  byStatus: Array<{ status: string; count: number }>;
+  totalViews: number;
+  totalClicks: number;
+  totalPlays: number;
+  events: Array<{
+    id: number;
+    testimonialId: string;
+    eventType: string;
+    createdAt: string;
+  }>;
 }
 
 export interface TestimonialMetrics {
@@ -18,33 +22,43 @@ export class AnalyticsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async getDashboard(tenantId: string): Promise<DashboardData> {
-    const [total, published, byStatus, scores] = await Promise.all([
-      this.prisma.testimonial.count({ where: { tenantId } }),
-      this.prisma.testimonial.count({
-        where: { tenantId, status: { code: 'published' } },
-      }),
-      this.prisma.testimonial.groupBy({
-        by: ['statusId'],
+    const [counts, rawEvents] = await Promise.all([
+      this.prisma.analyticsEvent.groupBy({
+        by: ['eventTypeId'],
         where: { tenantId },
         _count: true,
       }),
-      this.prisma.testimonial.aggregate({
+      this.prisma.analyticsEvent.findMany({
         where: { tenantId },
-        _avg: { score: true, rating: true },
+        include: { eventType: true },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
       }),
     ]);
 
-    const statuses = await this.prisma.testimonialStatus.findMany();
-    const statusMap = new Map(statuses.map((s: any) => [s.id, s.code]));
+    const eventTypes = await this.prisma.analyticsEventType.findMany();
+    const typeMap = new Map(eventTypes.map(t => [t.id, t.code]));
+
+    let totalViews = 0;
+    let totalClicks = 0;
+    let totalPlays = 0;
+
+    for (const count of counts) {
+      const code = typeMap.get(count.eventTypeId);
+      if (code === 'view') totalViews += count._count;
+      if (code === 'click') totalClicks += count._count;
+      if (code === 'play') totalPlays += count._count;
+    }
 
     return {
-      total,
-      published,
-      avgScore: Number(scores._avg.score ?? 0),
-      avgRating: Number(scores._avg.rating ?? 0),
-      byStatus: byStatus.map(entry => ({
-        status: statusMap.get(entry.statusId) ?? 'unknown',
-        count: entry._count,
+      totalViews,
+      totalClicks,
+      totalPlays,
+      events: rawEvents.map(e => ({
+        id: Number(e.id),
+        testimonialId: e.testimonialId,
+        eventType: e.eventType.code,
+        createdAt: e.createdAt.toISOString(),
       })),
     };
   }

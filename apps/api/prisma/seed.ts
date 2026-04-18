@@ -248,7 +248,7 @@ async function main() {
     create: {
       id: '00000000-0000-0000-0000-000000000001',
       tenantId: tenant.id,
-      url: 'https://example.test/webhooks/testimonial-published',
+      url: 'https://httpbin.org/post',
       eventId: publishedEvent.id,
       isActive: true,
       secret: 'dev-webhook-secret',
