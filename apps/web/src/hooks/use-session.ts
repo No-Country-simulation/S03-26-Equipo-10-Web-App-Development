@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SessionPayload, requestApi, ApiError } from '@/lib/api';
 import { getStoredSession, saveSession, clearSession } from '@/lib/session-store';
 
-export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: string } = {}) {
+export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: string | null } = {}) {
   const [session, setSession] = useState<SessionPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -14,7 +14,9 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
     const stored = getStoredSession();
     if (!stored) {
       setLoading(false);
-      router.replace(redirectTo);
+      if (redirectTo) {
+        router.replace(redirectTo);
+      }
       return;
     }
     setSession(stored);
@@ -38,7 +40,9 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
         if (err instanceof ApiError && err.status === 401) {
           clearSession();
           setSession(null);
-          router.replace(redirectTo);
+          if (redirectTo) {
+            router.replace(redirectTo);
+          }
         }
         throw err;
       }
@@ -49,7 +53,7 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
   const logout = useCallback(() => {
     clearSession();
     setSession(null);
-    router.replace(redirectTo);
+    router.replace(redirectTo || '/'); // Fallback to '/' if redirectTo is null
   }, [router, redirectTo]);
 
   const hasRole = useCallback(

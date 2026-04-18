@@ -51,11 +51,17 @@ export function DashboardSidebar({ userEmail, userRoles, isAdmin, onLogout }: Da
   return (
     <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-foreground text-background">
       {/* Brand */}
-      <div className="flex h-16 items-center gap-3 border-b border-background/10 px-6">
-        <span className="h-2 w-2 bg-primary" />
-        <span className="font-body text-xs font-bold uppercase tracking-[0.2em]">
-          Testimonial CMS
-        </span>
+      <div className="flex h-16 items-center border-b border-background/10 px-6">
+        <Link href="/" className="flex items-center gap-3 group w-full">
+          <img 
+            src="/favicon.ico" 
+            alt="Testimonial CMS Logo" 
+            className="h-6 w-6 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
+          />
+          <span className="font-body text-xs font-bold uppercase tracking-[0.2em] transition-all duration-300 group-hover:underline group-hover:underline-offset-4">
+            Testimonial CMS
+          </span>
+        </Link>
       </div>
 
       {/* Navigation */}
