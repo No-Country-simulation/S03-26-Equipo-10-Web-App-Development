@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 export interface DashboardData {
   totalViews: number;
@@ -14,8 +15,8 @@ export interface DashboardData {
 
 export interface TestimonialMetrics {
   views: number;
-  likes: number;
   clicks: number;
+  plays: number;
 }
 @Injectable()
 export class AnalyticsRepository {
@@ -65,7 +66,7 @@ export class AnalyticsRepository {
 
   async trackEvent(
     tenantId: string,
-    event: { eventType: string; testimonialId?: string; metadata?: Record<string, unknown> },
+    event: { eventType: string; testimonialId?: string; source?: string; metadata?: Record<string, unknown> },
   ): Promise<void> {
     const eventTypeRecord = await this.prisma.analyticsEventType.upsert({
       where: { code: event.eventType },
@@ -78,25 +79,28 @@ export class AnalyticsRepository {
         tenantId,
         eventTypeId: eventTypeRecord.id,
         testimonialId: event.testimonialId ?? '',
-        ipHash: event.metadata?.ip ? String(event.metadata.ip) : null,
+        source: event.source ?? 'public',
+        ipHash: event.metadata?.ip
+          ? createHash('sha256').update(String(event.metadata.ip)).digest('hex')
+          : null,
       },
     });
   }
 
   async getTestimonialMetrics(tenantId: string, testimonialId: string): Promise<TestimonialMetrics> {
-    const [views, likes, clicks] = await Promise.all([
+    const [views, clicks, plays] = await Promise.all([
       this.prisma.analyticsEvent.count({
         where: { tenantId, testimonialId, eventType: { code: 'view' } },
       }),
       this.prisma.analyticsEvent.count({
-        where: { tenantId, testimonialId, eventType: { code: 'like' } },
+        where: { tenantId, testimonialId, eventType: { code: 'click' } },
       }),
       this.prisma.analyticsEvent.count({
-        where: { tenantId, testimonialId, eventType: { code: 'click' } },
+        where: { tenantId, testimonialId, eventType: { code: 'play' } },
       }),
     ]);
 
-    return { views, likes, clicks };
+    return { views, clicks, plays };
   }
 
   async getEngagementCounts(testimonialIds: string[]): Promise<Map<string, { views: number; clicks: number }>> {

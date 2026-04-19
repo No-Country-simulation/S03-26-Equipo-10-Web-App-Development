@@ -98,6 +98,33 @@ export class AuthRepository {
 
       await tx.userRole.create({ data: { userId: user.id, roleId: adminRole.id } });
 
+      const defaultFlags = await tx.featureFlag.findMany({
+        where: {
+          name: {
+            in: ['enable_analytics', 'enable_webhooks', 'enable_scoring', 'testimonials'],
+          },
+        },
+      });
+
+      await Promise.all(
+        defaultFlags.map((featureFlag) =>
+          tx.tenantFeatureFlag.upsert({
+            where: {
+              tenantId_featureFlagId: {
+                tenantId: tenant.id,
+                featureFlagId: featureFlag.id,
+              },
+            },
+            update: { enabled: true },
+            create: {
+              tenantId: tenant.id,
+              featureFlagId: featureFlag.id,
+              enabled: true,
+            },
+          }),
+        ),
+      );
+
       return {
         id: user.id,
         email: user.email,
@@ -186,6 +213,19 @@ export class AuthRepository {
       update: { description: 'Tenant editor' },
       create: { code: 'editor', description: 'Tenant editor' },
     });
+
+    for (const [name, description] of [
+      ['enable_analytics', 'Enable analytics dashboard and tracking'],
+      ['enable_webhooks', 'Enable outbound webhooks'],
+      ['enable_scoring', 'Enable testimonial scoring'],
+      ['testimonials', 'Enable testimonials flows'],
+    ]) {
+      await prisma.featureFlag.upsert({
+        where: { name },
+        update: { description },
+        create: { name, description },
+      });
+    }
 
     for (const code of ['draft', 'pending', 'approved', 'published', 'rejected']) {
       await prisma.testimonialStatus.upsert({ where: { code }, update: {}, create: { code } });

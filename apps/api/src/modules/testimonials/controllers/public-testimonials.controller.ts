@@ -25,6 +25,16 @@ export class PublicTestimonialsController {
     return this.testimonialsService.listPublicTestimonials(tenantId, query);
   }
 
+  @Get('tenants/:slug')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 120, windowSeconds: 60, scope: 'ip' })
+  listBySlug(
+    @Param('slug') slug: string,
+    @Query() query: PublicTestimonialsQueryDto,
+  ) {
+    return this.testimonialsService.listPublicTestimonialsBySlug(slug, query);
+  }
+
   @Get(':testimonial_id')
   @UseGuards(ApiKeyGuard, RateLimitGuard, FeatureFlagGuard)
   @RequireFeature('testimonials')
@@ -34,6 +44,16 @@ export class PublicTestimonialsController {
     @Param('testimonial_id') testimonialId: string,
   ) {
     return this.testimonialsService.getPublicTestimonial(tenantId, testimonialId);
+  }
+
+  @Get('tenants/:slug/:testimonial_id')
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 120, windowSeconds: 60, scope: 'ip' })
+  getOneBySlug(
+    @Param('slug') slug: string,
+    @Param('testimonial_id') testimonialId: string,
+  ) {
+    return this.testimonialsService.getPublicTestimonialBySlug(slug, testimonialId);
   }
 
   @Post(':slug/submit')

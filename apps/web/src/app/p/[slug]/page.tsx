@@ -6,8 +6,9 @@ import { ShieldAlert, Star, CheckCircle, MessageSquareQuote } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
+import { getApiBaseUrl } from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const API_URL = getApiBaseUrl();
 
 interface FormInfo {
   name: string;

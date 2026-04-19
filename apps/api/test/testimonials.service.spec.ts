@@ -49,6 +49,10 @@ describe('TestimonialsService', () => {
     findById: jest.fn(),
   };
 
+  const mockTenantsService = {
+    getTenantByPublicSlug: jest.fn(),
+  };
+
   const mockEventEmitter = {
     emit: jest.fn(),
   };
@@ -72,6 +76,7 @@ describe('TestimonialsService', () => {
     service = new TestimonialsService(
       mockRepo as any,
       mockCategoryRepo as any,
+      mockTenantsService as any,
       mockEventEmitter as any,
       mockAnalyticsRepo as any,
       mockCloudinaryService as any,
@@ -170,6 +175,23 @@ describe('TestimonialsService', () => {
   it('throws NotFoundException when testimonial not found', async () => {
     mockRepo.findById.mockResolvedValue(null);
     await expect(service.getTestimonial('tenant-1', 'nonexistent')).rejects.toThrow(NotFoundException);
+  });
+
+  it('lists public testimonials by slug', async () => {
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValue({ id: 'tenant-1' });
+    mockRepo.findPublished.mockResolvedValue({
+      items: [makeView({ status: 'published' })],
+      total: 1,
+    });
+
+    const result = await service.listPublicTestimonialsBySlug('acme', {});
+
+    expect(mockTenantsService.getTenantByPublicSlug).toHaveBeenCalledWith('acme');
+    expect(mockRepo.findPublished).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ page: 1, limit: 20 }),
+    );
+    expect(result.meta.total).toBe(1);
   });
 
   it('enforces ownership for editors on edit and delete', async () => {

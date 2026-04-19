@@ -74,8 +74,18 @@ export class ApiError extends Error {
   }
 }
 
-function getApiBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+export function getApiBaseUrl() {
+  const configured = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+
+  if (configured.endsWith('/api/v1')) {
+    return configured;
+  }
+
+  if (configured.endsWith('/api')) {
+    return `${configured}/v1`;
+  }
+
+  return configured;
 }
 
 export async function requestApi<T>(

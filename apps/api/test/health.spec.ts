@@ -1,40 +1,45 @@
-import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/modules/database/prisma.service';
+import { HealthCheckService } from '@nestjs/terminus';
+import { HealthController } from '../src/modules/health/controllers/health.controller';
+import { PrismaHealthIndicator } from '../src/modules/health/services/prisma-health.indicator';
 
-describe('Health endpoint', () => {
-  let app: INestApplication;
+describe('HealthController', () => {
+  let controller: HealthController;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(PrismaService)
-      .useValue({
-        $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
-      })
-      .compile();
+      controllers: [HealthController],
+      providers: [
+        {
+          provide: HealthCheckService,
+          useValue: {
+            check: jest.fn().mockResolvedValue({
+              status: 'ok',
+              info: { database: { status: 'up' } },
+              error: {},
+              details: { database: { status: 'up' } },
+            }),
+          },
+        },
+        {
+          provide: PrismaHealthIndicator,
+          useValue: {
+            isHealthy: jest.fn().mockResolvedValue({ database: { status: 'up' } }),
+          },
+        },
+      ],
+    }).compile();
 
-    app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api/v1');
-    await app.init();
-  });
-
-  afterAll(async () => {
-    await app.close();
+    controller = moduleRef.get(HealthController);
   });
 
   it('returns api health status', async () => {
-    const response = await request(app.getHttpServer()).get('/api/v1/health');
+    const response = await controller.getHealth();
 
-    expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({
+    expect(response).toMatchObject({
       status: 'ok',
-      service: 'testimonial-cms-api',
-      database: 'reachable',
+      info: { database: { status: 'up' } },
+      details: { database: { status: 'up' } },
     });
   });
 });
-

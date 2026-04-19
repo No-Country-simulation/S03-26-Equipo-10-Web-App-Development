@@ -73,6 +73,11 @@ export class TestimonialsService {
     return testimonial;
   }
 
+  async getPublicTestimonialBySlug(slug: string, testimonialId: string) {
+    const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
+    return this.getPublicTestimonial(tenant.id, testimonialId);
+  }
+
   async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
 
@@ -163,6 +168,11 @@ export class TestimonialsService {
         limit,
       },
     };
+  }
+
+  async listPublicTestimonialsBySlug(slug: string, query: PublicTestimonialsQueryDto) {
+    const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
+    return this.listPublicTestimonials(tenant.id, query);
   }
 
   async updateTestimonial(tenantId: string, testimonialId: string, user: { userId: string; roles: string[] }, dto: UpdateTestimonialDto) {
