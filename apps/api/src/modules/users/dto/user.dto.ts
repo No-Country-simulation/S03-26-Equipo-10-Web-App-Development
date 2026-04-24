@@ -1,31 +1,16 @@
-import { IsEmail, IsIn, IsOptional, IsString, Matches } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateUserDto {
-  @IsEmail()
-  email!: string;
+const CreateUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*d)(?=.*[^A-Za-zd]).{8,72}$/, 'Password must contain uppercase, lowercase, number and special character'),
+  role: z.enum(['admin', 'editor']),
+});
+export class CreateUserDto extends createZodDto(CreateUserSchema) {}
 
-  @IsString()
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,72}$/, {
-    message: 'Password must contain uppercase, lowercase, number and special character',
-  })
-  password!: string;
-
-  @IsIn(['admin', 'editor'])
-  role!: 'admin' | 'editor';
-}
-
-export class UpdateUserDto {
-  @IsOptional()
-  @IsString()
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,72}$/, {
-    message: 'Password must contain uppercase, lowercase, number and special character',
-  })
-  password?: string;
-
-  @IsOptional()
-  @IsIn(['admin', 'editor'])
-  role?: 'admin' | 'editor';
-
-  @IsOptional()
-  isActive?: boolean;
-}
+const UpdateUserSchema = z.object({
+  password: z.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*d)(?=.*[^A-Za-zd]).{8,72}$/, 'Password must contain uppercase, lowercase, number and special character').optional(),
+  role: z.enum(['admin', 'editor']).optional(),
+  isActive: z.boolean().optional(),
+});
+export class UpdateUserDto extends createZodDto(UpdateUserSchema) {}

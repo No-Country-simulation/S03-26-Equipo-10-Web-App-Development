@@ -11,17 +11,26 @@
     "build": "npm run build -ws --if-present",
     "lint": "npm run lint -ws --if-present",
     "test": "npm run test -ws --if-present",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx,json,md}": [
+      "prettier --write"
+    ],
+    "*.{js,ts,jsx,tsx}": [
+      "eslint --fix"
+    ]
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
-    "prettier": "^3.5.3"
+    "concurrently": "9.1.2",
+    "prettier": "3.5.3"
   },
   "overrides": {
-    "picomatch": "^4.0.4",
-    "path-to-regexp": "^8.3.1",
-    "lodash": "^4.17.24",
-    "qs": "^6.14.2"
+    "picomatch": "4.0.4",
+    "path-to-regexp": "8.3.1",
+    "lodash": "4.17.21",
+    "qs": "6.14.2"
   },
   "engines": {
     "node": ">=20.11.0",

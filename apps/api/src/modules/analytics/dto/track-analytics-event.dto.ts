@@ -1,13 +1,9 @@
-import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class TrackAnalyticsEventDto {
-  @IsUUID()
-  testimonialId!: string;
-
-  @IsIn(['view', 'click', 'play'])
-  eventType!: 'view' | 'click' | 'play';
-
-  @IsOptional()
-  @IsString()
-  source?: string;
-}
+const TrackAnalyticsEventSchema = z.object({
+  testimonialId: z.string().uuid(),
+  eventType: z.enum(['view', 'click', 'play']),
+  source: z.string().optional(),
+});
+export class TrackAnalyticsEventDto extends createZodDto(TrackAnalyticsEventSchema) {}

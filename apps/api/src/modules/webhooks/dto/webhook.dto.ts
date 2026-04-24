@@ -1,39 +1,18 @@
-import { IsBoolean, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateWebhookDto {
-  @IsUrl()
-  url!: string;
+const CreateWebhookSchema = z.object({
+  url: z.string().url(),
+  eventCode: z.string().max(120),
+  secret: z.string().max(255).optional(),
+  isActive: z.boolean().optional(),
+});
+export class CreateWebhookDto extends createZodDto(CreateWebhookSchema) {}
 
-  @IsString()
-  @MaxLength(120)
-  eventCode!: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  secret?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
-
-export class UpdateWebhookDto {
-  @IsOptional()
-  @IsUrl()
-  url?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  eventCode?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  secret?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
+const UpdateWebhookSchema = z.object({
+  url: z.string().url().optional(),
+  eventCode: z.string().max(120).optional(),
+  secret: z.string().max(255).optional(),
+  isActive: z.boolean().optional(),
+});
+export class UpdateWebhookDto extends createZodDto(UpdateWebhookSchema) {}

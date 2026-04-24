@@ -1,122 +1,54 @@
-import { IsInt, IsOptional, IsString, IsUUID, IsUrl, Max, MaxLength, Min, MinLength, IsIn } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateTestimonialDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(120)
-  authorName!: string;
+const CreateTestimonialSchema = z.object({
+  authorName: z.string().min(2).max(120),
+  content: z.string().min(10).max(1000),
+  rating: z.number().int().min(1).max(5),
+  categoryId: z.string().uuid().optional(),
+  tagIds: z.array(z.string().uuid()).optional(),
+});
+export class CreateTestimonialDto extends createZodDto(CreateTestimonialSchema) {}
 
-  @IsString()
-  @MinLength(10)
-  @MaxLength(1000)
-  content!: string;
+const UpdateTestimonialSchema = z.object({
+  authorName: z.string().min(2).max(120).optional(),
+  content: z.string().min(10).max(1000).optional(),
+  rating: z.number().int().min(1).max(5).optional(),
+  categoryId: z.string().uuid().optional(),
+  tagIds: z.array(z.string().uuid()).optional(),
+});
+export class UpdateTestimonialDto extends createZodDto(UpdateTestimonialSchema) {}
 
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  rating!: number;
+const ModerateTestimonialSchema = z.object({
+  reason: z.string().max(500).optional(),
+});
+export class ModerateTestimonialDto extends createZodDto(ModerateTestimonialSchema) {}
 
-  @IsOptional()
-  @IsUUID()
-  categoryId?: string;
+const PublicTestimonialsQuerySchema = z.object({
+  q: z.string().optional(),
+  tag: z.string().optional(),
+  category: z.string().optional(),
+  sort: z.enum(['score:desc', 'publishedAt:desc']).optional(),
+  page: z.coerce.number().optional(),
+  limit: z.coerce.number().optional(),
+});
+export class PublicTestimonialsQueryDto extends createZodDto(PublicTestimonialsQuerySchema) {}
 
-  @IsOptional()
-  @IsUUID(undefined, { each: true })
-  tagIds?: string[];
-}
+const UploadImageSchema = z.object({
+  imageBase64: z.string(),
+});
+export class UploadImageDto extends createZodDto(UploadImageSchema) {}
 
-export class UpdateTestimonialDto {
-  @IsOptional()
-  @IsString()
-  @MinLength(2)
-  @MaxLength(120)
-  authorName?: string;
+const AttachVideoSchema = z.object({
+  videoUrl: z.string().url(),
+});
+export class AttachVideoDto extends createZodDto(AttachVideoSchema) {}
 
-  @IsOptional()
-  @IsString()
-  @MinLength(10)
-  @MaxLength(1000)
-  content?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  rating?: number;
-
-  @IsOptional()
-  @IsUUID()
-  categoryId?: string;
-
-  @IsOptional()
-  @IsUUID(undefined, { each: true })
-  tagIds?: string[];
-}
-
-export class ModerateTestimonialDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  reason?: string;
-}
-
-export class PublicTestimonialsQueryDto {
-  @IsOptional()
-  @IsString()
-  q?: string;
-
-  @IsOptional()
-  @IsString()
-  tag?: string;
-
-  @IsOptional()
-  @IsString()
-  category?: string;
-
-  @IsOptional()
-  @IsIn(['score:desc', 'publishedAt:desc'])
-  sort?: 'score:desc' | 'publishedAt:desc';
-
-  @IsOptional()
-  page?: number;
-
-  @IsOptional()
-  limit?: number;
-}
-
-export class UploadImageDto {
-  @IsString()
-  imageBase64!: string;
-}
-
-export class AttachVideoDto {
-  @IsString()
-  @IsUrl()
-  videoUrl!: string;
-}
-
-export class SubmitPublicTestimonialDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(120)
-  authorName!: string;
-
-  @IsString()
-  @MinLength(10)
-  @MaxLength(1000)
-  content!: string;
-
-  @IsInt()
-  @Min(1)
-  @Max(5)
-  rating!: number;
-
-  @IsOptional()
-  @IsString()
-  imageBase64?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsUrl()
-  videoUrl?: string;
-}
+const SubmitPublicTestimonialSchema = z.object({
+  authorName: z.string().min(2).max(120),
+  content: z.string().min(10).max(1000),
+  rating: z.number().int().min(1).max(5),
+  imageBase64: z.string().optional(),
+  videoUrl: z.string().url().optional(),
+});
+export class SubmitPublicTestimonialDto extends createZodDto(SubmitPublicTestimonialSchema) {}

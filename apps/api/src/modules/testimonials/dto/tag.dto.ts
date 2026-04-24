@@ -1,15 +1,12 @@
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateTagDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(80)
-  name!: string;
-}
+const CreateTagSchema = z.object({
+  name: z.string().min(2).max(80),
+});
+export class CreateTagDto extends createZodDto(CreateTagSchema) {}
 
-export class UpdateTagDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(80)
-  name!: string;
-}
+const UpdateTagSchema = z.object({
+  name: z.string().min(2).max(80),
+});
+export class UpdateTagDto extends createZodDto(UpdateTagSchema) {}

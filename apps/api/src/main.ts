@@ -1,7 +1,9 @@
-import { ValidationPipe } from '@nestjs/common';
+import { ZodValidationPipe } from 'nestjs-zod';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { NextFunction, Request, Response, json, urlencoded } from 'express';
+import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
@@ -12,7 +14,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import type { AppConfig } from './config/app.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
   const configService = app.get(ConfigService);
   const appConfig = configService.get<AppConfig>('app')!;
 
@@ -29,14 +32,9 @@ async function bootstrap() {
     requestContext.use(req, res, next),
   );
 
+  app.use(helmet());
   app.setGlobalPrefix('api/v1');
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+  app.useGlobalPipes(new ZodValidationPipe());
 
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalInterceptors(

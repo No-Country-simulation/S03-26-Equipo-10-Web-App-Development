@@ -1,5 +1,5 @@
 import { registerAs } from '@nestjs/config';
-import * as Joi from 'joi';
+import { z } from 'zod';
 
 export interface AppConfig {
   port: number;
@@ -21,24 +21,24 @@ export interface AppConfig {
   };
 }
 
-export const appConfigValidationSchema = Joi.object({
-  PORT: Joi.number().default(4000),
-  CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+export const appConfigValidationSchema = z.object({
+  PORT: z.coerce.number().default(4000),
+  CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
-  JWT_SECRET: Joi.string().required().messages({
-    'any.required': 'JWT_SECRET is required — the application cannot start without it',
+  JWT_SECRET: z.string({
+    required_error: 'JWT_SECRET is required — the application cannot start without it',
   }),
-  JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
-  DATABASE_URL: Joi.string().required().messages({
-    'any.required': 'DATABASE_URL is required — the application cannot start without it',
+  DATABASE_URL: z.string({
+    required_error: 'DATABASE_URL is required — the application cannot start without it',
   }),
 
-  CLOUDINARY_UPLOAD_URL: Joi.string().default(''),
-  CLOUDINARY_UPLOAD_PRESET: Joi.string().default(''),
+  CLOUDINARY_UPLOAD_URL: z.string().default(''),
+  CLOUDINARY_UPLOAD_PRESET: z.string().default(''),
 
-  YOUTUBE_API_KEY: Joi.string().default(''),
+  YOUTUBE_API_KEY: z.string().default(''),
 });
 
 export const appConfig = registerAs('app', (): AppConfig => ({

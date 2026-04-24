@@ -1,7 +1,7 @@
-import { IsString, MinLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class RefreshTokenDto {
-  @IsString()
-  @MinLength(20)
-  refreshToken!: string;
-}
+const RefreshTokenSchema = z.object({
+  refreshToken: z.string().min(20),
+});
+export class RefreshTokenDto extends createZodDto(RefreshTokenSchema) {}

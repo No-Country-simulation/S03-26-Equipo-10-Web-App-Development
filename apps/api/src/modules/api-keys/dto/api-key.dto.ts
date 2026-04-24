@@ -1,16 +1,12 @@
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { createZodDto } from 'nestjs-zod';
+import { z } from 'zod';
 
-export class CreateApiKeyDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(80)
-  name!: string;
-}
+const CreateApiKeySchema = z.object({
+  name: z.string().min(2).max(80),
+});
+export class CreateApiKeyDto extends createZodDto(CreateApiKeySchema) {}
 
-export class RotateApiKeyDto {
-  @IsOptional()
-  @IsString()
-  @MinLength(2)
-  @MaxLength(80)
-  name?: string;
-}
+const RotateApiKeySchema = z.object({
+  name: z.string().min(2).max(80).optional(),
+});
+export class RotateApiKeyDto extends createZodDto(RotateApiKeySchema) {}

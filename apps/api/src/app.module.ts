@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { LoggerModule } from 'nestjs-pino';
 import { appConfig, appConfigValidationSchema } from './config/app.config';
 import { CommonModule } from './common/common.module';
 import { HashingModule } from './modules/shared/hashing/hashing.module';
@@ -23,8 +24,12 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
       isGlobal: true,
       envFilePath: ['.env', '../../../.env'],
       load: [appConfig],
-      validationSchema: appConfigValidationSchema,
-      validationOptions: { abortEarly: true },
+      validate: (env) => appConfigValidationSchema.parse(env),
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: { target: 'pino-pretty' },
+      },
     }),
     EventEmitterModule.forRoot(),
     PrismaModule,
