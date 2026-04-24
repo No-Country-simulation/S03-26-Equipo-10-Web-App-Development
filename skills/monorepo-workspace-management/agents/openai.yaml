@@ -1,0 +1,4 @@
+interface:
+  display_name: "Monorepo Strategy Expert"
+  short_description: "Guía para la orquestación de múltiples paquetes, gestión de workspaces y optimización de DX en monorepos."
+  default_prompt: "Usa $monorepo-workspace-management para diseñar estructuras de monorepositorio eficientes, configurar scripts orquestadores raíz y asegurar el hoisting correcto de dependencias."

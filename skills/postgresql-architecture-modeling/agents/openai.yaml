@@ -1,0 +1,4 @@
+interface:
+  display_name: "PostgreSQL Architecture Expert"
+  short_description: "Guía para el diseño de bases de datos robustas, optimización de queries e integridad referencial."
+  default_prompt: "Usa $postgresql-architecture-modeling para diseñar esquemas de base de datos normalizados, optimizar planes de ejecución y asegurar la integridad de los datos mediante constraints y tipos de datos precisos."

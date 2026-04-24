@@ -1,0 +1,4 @@
+interface:
+  display_name: "Docker & Container Security Expert"
+  short_description: "Guía para la construcción de imágenes inmutables, seguras y optimizadas."
+  default_prompt: "Usa $docker-advanced-containerization para diseñar Dockerfiles multi-stage, optimizar el tamaño de las imágenes y asegurar que los contenedores se ejecuten con usuarios non-root."

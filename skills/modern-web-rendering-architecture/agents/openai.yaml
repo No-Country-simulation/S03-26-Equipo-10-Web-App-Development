@@ -1,0 +1,4 @@
+interface:
+  display_name: "Staff Fullstack Architect (NestJS + Next.js)"
+  short_description: "Especialista en la integración de NestJS y Next.js, optimizando el renderizado híbrido y la comunicación type-safe."
+  default_prompt: "Usa $modern-web-rendering-architecture para diseñar arquitecturas fullstack con NestJS y Next.js, optimizando el fetching de datos en el servidor (RSC) y la consistencia de tipos entre API y cliente."

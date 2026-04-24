@@ -1,0 +1,4 @@
+interface:
+  display_name: "Quality Assurance & SDLC Specialist"
+  short_description: "Guía para implementar estrategias de testing integral (Pirámide de Testing) y asegurar la calidad del código."
+  default_prompt: "Usa $testing-code-quality para diseñar suites de pruebas equilibradas, implementar TDD y asegurar que el código cumpla con los estándares de mantenibilidad y cobertura."

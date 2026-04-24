@@ -1,0 +1,4 @@
+interface:
+  display_name: "TLS & PKI Security Expert"
+  short_description: "Guía para la implementación de canales cifrados seguros, gestión de certificados y hardening de TLS."
+  default_prompt: "Usa $https-tls-pki para diseñar infraestructuras con cifrado en tránsito, configurar terminación TLS 1.3 segura y automatizar la renovación de certificados vía ACME."

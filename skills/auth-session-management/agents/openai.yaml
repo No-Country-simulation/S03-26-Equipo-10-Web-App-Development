@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Security Expert (OWASP)"
+  short_description: "Guía para la gestión segura de sesiones y mitigación de vectores de ataque web."
+  default_prompt: "Usa $auth-session-management para diseñar flujos de sesión resistentes a XSS/CSRF, priorizando cookies HttpOnly/Secure y rotación de tokens según estándares OWASP ASVS."

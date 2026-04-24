@@ -1,0 +1,21 @@
+{
+  "name": "project-root",
+  "private": true,
+  "description": "Monorepositorio Multipaquete (Example)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=@project/api",
+    "dev:web": "npm run dev --workspace=@project/web",
+    "build:all": "npm run build --workspaces",
+    "test:all": "npm run test --workspaces",
+    "lint:all": "npm run lint --workspaces",
+    "clean": "npm run clean --workspaces && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Staff Security Architect"
+  short_description: "Guía para el blindaje de la cadena de suministro, seguridad en el runtime y calidad técnica superior."
+  default_prompt: "Usa $security-config-blueprint para diseñar infraestructuras de código seguras, configurar validaciones de Zod en runtime, blindar dependencias con pnpm y establecer una arquitectura de confianza cero."

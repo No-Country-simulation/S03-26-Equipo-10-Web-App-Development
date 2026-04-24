@@ -1,0 +1,4 @@
+interface:
+  display_name: "Next.js Fullstack Specialist"
+  short_description: "Guía para la construcción de aplicaciones web de alto rendimiento con App Router y RSC."
+  default_prompt: "Usa $nextjs-typescript-development para diseñar arquitecturas híbridas (RSC/Client), implementar Server Actions seguros con Zod y optimizar Core Web Vitals."

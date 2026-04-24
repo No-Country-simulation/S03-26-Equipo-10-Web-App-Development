@@ -1,0 +1,4 @@
+interface:
+  display_name: "NestJS Architectural Specialist"
+  short_description: "Guía para la construcción de backends modulares, escalables y con tipado estricto usando NestJS."
+  default_prompt: "Usa $nestjs-backend-development para diseñar arquitecturas modulares, implementar inyección de dependencias y asegurar que la lógica de negocio esté desacoplada de los controladores."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Event-Driven & Outbox Systems Architect"
+  short_description: "Guía para la implementación de sistemas de notificación asincrónica fiables mediante el patrón Transactional Outbox."
+  default_prompt: "Usa $event-driven-webhook-delivery-system para diseñar arquitecturas de eventos resilientes, implementar el patrón Outbox y asegurar la entrega confiable de webhooks multi-tenant."

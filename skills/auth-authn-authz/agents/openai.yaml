@@ -1,0 +1,4 @@
+interface:
+  display_name: "Auth & AuthZ Security Specialist"
+  short_description: "Guía para implementar flujos de identidad seguros (Stateless/Stateful)"
+  default_prompt: "Usa $auth-authn-authz para diseñar e implementar un sistema de autenticación y autorización seguro, siguiendo las mejores prácticas de cookies HttpOnly y rotación de tokens."
