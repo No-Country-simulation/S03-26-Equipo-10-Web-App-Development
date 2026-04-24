@@ -1,0 +1,4 @@
+interface:
+  display_name: "API Architectural & Security Specialist"
+  short_description: "Especialista en el diseño y aseguramiento de APIs RESTful resilientes, seguras y escalables."
+  default_prompt: "Usa $api-architecture-security para auditar o diseñar contratos de API, implementar patrones de resiliencia, asegurar la integridad de datos con Zod y garantizar que se sigan las mejores prácticas de seguridad (OWASP) y semántica HTTP."
