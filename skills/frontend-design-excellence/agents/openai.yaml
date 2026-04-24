@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Design Specialist (Next.js & Tailwind)"
+  short_description: "Especialista en interfaces de alta gama usando Next.js 15, Tailwind CSS y Radix UI, con enfoque en diseño distintivo."
+  default_prompt: "Usa $frontend-design-excellence para diseñar y construir interfaces inolvidables integradas en el stack de Next.js y Tailwind del proyecto. Define primero una dirección estética clara, personaliza profundamente los componentes de Radix y evita cualquier estética genérica."

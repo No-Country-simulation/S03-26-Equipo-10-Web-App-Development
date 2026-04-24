@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { NextFunction, Request, Response, json, urlencoded } from 'express';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/filters/api-exception.filter';
@@ -33,6 +34,7 @@ async function bootstrap() {
   );
 
   app.use(helmet());
+  app.use(cookieParser());
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ZodValidationPipe());
 
@@ -48,6 +50,11 @@ async function bootstrap() {
     .setDescription('The API description for the Testimonials CMS')
     .setVersion('1.0')
     .addBearerAuth()
+    .addCookieAuth('accessToken', {
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'accessToken',
+    })
     .build();
   
   const document = SwaggerModule.createDocument(app, config);

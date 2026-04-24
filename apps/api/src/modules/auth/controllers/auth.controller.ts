@@ -1,5 +1,6 @@
 import { AuthService } from '../services/auth.service';
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RateLimit } from '../../../common/decorators/rate-limit.decorator';
 import { Idempotent } from '../../../common/decorators/idempotent.decorator';
@@ -18,25 +19,33 @@ export class AuthController {
   @Post('register-admin')
   @Idempotent()
   @RateLimit({ limit: 10, windowSeconds: 60, scope: 'ip' })
-  registerAdmin(@Body() dto: RegisterAdminDto) {
-    return this.authService.registerAdmin(dto);
+  async registerAdmin(@Body() dto: RegisterAdminDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.registerAdmin(dto);
+    this.setAuthCookies(res, result.tokens);
+    return { user: result.user };
   }
 
   @Post('login')
   @RateLimit({ limit: 5, windowSeconds: 60, scope: 'ip' })
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(dto);
+    this.setAuthCookies(res, result.tokens);
+    return { user: result.user };
   }
 
   @Post('refresh')
   @RateLimit({ limit: 20, windowSeconds: 60, scope: 'ip' })
-  refresh(@Body() dto: RefreshTokenDto) {
-    return this.authService.refreshSession(dto.refreshToken);
+  async refresh(@Body() dto: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.refreshSession(dto.refreshToken);
+    this.setAuthCookies(res, result.tokens);
+    return { user: result.user };
   }
 
   @Post('logout')
-  async logout(@Body() dto: RefreshTokenDto) {
+  async logout(@Body() dto: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(dto.refreshToken);
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
     return { message: 'Logged out successfully' };
   }
 
@@ -44,5 +53,22 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
     return { user };
+  }
+
+  private setAuthCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {
+    res.cookie('accessToken', tokens.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000, // 15 minutos (hardcodeado por simplicidad, se podría extraer de config)
+    });
+    
+    res.cookie('refreshToken', tokens.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/api/v1/auth/refresh',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
+    });
   }
 }

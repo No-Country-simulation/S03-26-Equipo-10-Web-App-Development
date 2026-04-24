@@ -19,14 +19,21 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<ApiRequest>();
-    const authorization = request.header('authorization');
-
-    if (!authorization?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing bearer token');
+    const request = context.switchToHttp().getRequest<ApiRequest & { cookies: Record<string, string> }>();
+    
+    // Extracción Híbrida: Cookie (primario) o Header Bearer (fallback)
+    let token = request.cookies?.['accessToken'];
+    
+    if (!token) {
+      const authorization = request.header('authorization');
+      if (authorization?.startsWith('Bearer ')) {
+        token = authorization.slice('Bearer '.length);
+      }
     }
 
-    const token = authorization.slice('Bearer '.length);
+    if (!token) {
+      throw new UnauthorizedException('Missing authentication token');
+    }
 
     let payload: JwtPayload;
     try {
@@ -58,7 +65,7 @@ export class JwtAuthGuard implements CanActivate {
       email: user.email,
       tenantId: user.tenantId,
       tenantName: user.tenant.name,
-      roles: user.roles.map(entry => entry.role.code as RoleCode),
+      roles: user.roles.map((entry: any) => entry.role.code as RoleCode),
       isActive: user.isActive,
     };
 

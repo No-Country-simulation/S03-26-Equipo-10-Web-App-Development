@@ -1,4 +1,7 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { CsrfMiddleware } from './common/middleware/csrf.middleware';
+import { CsrfGuard } from './common/guards/csrf.guard';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
@@ -46,8 +49,18 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     WebhooksModule,
     FeatureFlagsModule,
   ],
-  providers: [IdempotencyInterceptor],
+  providers: [
+    IdempotencyInterceptor,
+    {
+      provide: APP_GUARD,
+      useClass: CsrfGuard,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CsrfMiddleware).forRoutes('*');
+  }
+}
 
 
