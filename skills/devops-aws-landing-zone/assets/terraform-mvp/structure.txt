@@ -1,0 +1,28 @@
+infra/terraform/
+├── backend.tf
+├── providers.tf
+├── main.tf
+├── variables.tf
+├── outputs.tf
+├── modules/
+│   ├── vpc/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── security/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── ecs/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   └── rds/
+│       ├── main.tf
+│       ├── variables.tf
+│       └── outputs.tf
+└── environments/
+    ├── dev/
+    │   └── terraform.tfvars
+    └── prod/
+        └── terraform.tfvars

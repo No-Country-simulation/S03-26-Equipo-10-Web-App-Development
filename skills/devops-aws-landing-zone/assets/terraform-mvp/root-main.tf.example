@@ -1,0 +1,44 @@
+module "vpc" {
+  source = "./modules/vpc"
+
+  project_name       = var.project_name
+  environment        = var.environment
+  vpc_cidr           = var.vpc_cidr
+  availability_zones = var.availability_zones
+}
+
+module "security" {
+  source = "./modules/security"
+
+  project_name   = var.project_name
+  environment    = var.environment
+  vpc_id         = module.vpc.vpc_id
+  container_port = var.container_port
+}
+
+module "rds" {
+  source = "./modules/rds"
+
+  project_name           = var.project_name
+  environment            = var.environment
+  private_db_subnet_ids  = module.vpc.private_db_subnet_ids
+  rds_security_group_id  = module.security.rds_security_group_id
+  db_name                = var.db_name
+  db_instance_class      = var.db_instance_class
+  multi_az               = true
+}
+
+module "ecs" {
+  source = "./modules/ecs"
+
+  project_name              = var.project_name
+  environment               = var.environment
+  container_image           = var.container_image
+  container_port            = var.container_port
+  private_app_subnet_ids    = module.vpc.private_app_subnet_ids
+  ecs_security_group_id     = module.security.ecs_security_group_id
+  alb_security_group_id     = module.security.alb_security_group_id
+  secret_arn                = var.secret_arn
+  db_host                   = module.rds.db_endpoint
+  desired_count             = var.desired_count
+}

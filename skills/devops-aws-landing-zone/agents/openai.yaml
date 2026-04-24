@@ -1,0 +1,4 @@
+interface:
+  display_name: "AWS Terraform Landing Zone"
+  short_description: "Guia AWS/Terraform para landing zones"
+  default_prompt: "Use $devops-aws-landing-zone para disenar una landing zone AWS modular con Terraform para este proyecto."
