@@ -15,6 +15,12 @@ import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto,
  * Servicio central para la gestión de Testimonios.
  * Controla el ciclo de vida, integración con Cloudinary y YouTube, y
  * la emisión de eventos asíncronos mediante el patrón Outbox.
+ * 
+ * **Decisión de Diseño:** Se inyectan repositorios concretos en lugar de interfaces genéricas
+ * para mantener el pragmatismo y evitar sobre-ingeniería (ver ADR 0001).
+ * Todos los métodos que modifican estado y disparan webhooks deben hacerlo
+ * usando `outboxService` en lugar de emitir eventos en memoria, para garantizar
+ * tolerancia a fallos ante caídas del servidor.
  */
 @Injectable()
 export class TestimonialsService {
@@ -31,10 +37,19 @@ export class TestimonialsService {
   ) { }
 
   /**
-   * Crea un nuevo testimonio interno y encola un evento webhooks.
-   * @param tenantId ID del tenant.
-   * @param creatorUserId ID del usuario que lo crea.
-   * @param dto Datos del testimonio.
+   * Crea un nuevo testimonio interno (desde el panel de administración).
+   * 
+   * **Complejidad / Por qué:** Al crear un testimonio, es crítico notificar a otros sistemas
+   * (mediante webhooks). En lugar de enviar una petición HTTP aquí (que bloquearía la
+   * respuesta al usuario y podría fallar), delegamos la creación del evento a `outboxService`, 
+   * que asegura la grabación atómica en la misma base de datos.
+   * 
+   * @param tenantId - ID del inquilino propietario. Usado para aislamiento (Row-level multi-tenancy).
+   * @param creatorUserId - ID del usuario que lo crea.
+   * @param dto - Datos validados del testimonio.
+   * @throws {ConflictException} Si el rating no está entre 1 y 5.
+   * @throws {NotFoundException} Si la categoría proporcionada no existe o no pertenece al tenant.
+   * @returns El testimonio creado (en estado 'draft' por defecto).
    */
   async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
     if (dto.rating < 1 || dto.rating > 5) {
@@ -96,10 +111,17 @@ export class TestimonialsService {
   }
 
   /**
-   * Registra un testimonio enviado desde el formulario público.
-   * Valida que la configuración pública del Tenant esté activa.
-   * @param slug Slug público del Tenant.
-   * @param dto Datos del testimonio público.
+   * Registra un testimonio enviado desde el widget/formulario público.
+   * 
+   * **Complejidad / Por qué:** Las sumisiones públicas son anónimas (`createdById` es null)
+   * y no pueden estar pre-categorizadas. Además, para evitar spam, se verifica en tiempo
+   * real que el inquilino tenga el flag `isPublicFormEnabled` encendido. El testimonio
+   * transiciona directamente a `pending` (no a `draft`) para que los editores lo moderen.
+   * 
+   * @param slug - Slug público único del Tenant.
+   * @param dto - Datos del testimonio público.
+   * @throws {ForbiddenException} Si el formulario público del inquilino está desactivado.
+   * @returns El testimonio creado en estado 'pending'.
    */
   async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
@@ -173,8 +195,15 @@ export class TestimonialsService {
 
   /**
    * Obtiene la lista de testimonios publicados (públicos) de un tenant, con paginación, filtros y caché.
-   * @param tenantId ID del tenant.
-   * @param query Opciones de búsqueda y paginación.
+   * 
+   * **Complejidad / Por qué:** Este endpoint será el más llamado por los widgets insertados 
+   * en sitios web de clientes. Para proteger la base de datos de picos de tráfico, se utiliza 
+   * caché de Redis. La clave de caché es un hash de los parámetros de búsqueda para asegurar
+   * que consultas idénticas compartan el resultado.
+   * 
+   * @param tenantId - ID del tenant.
+   * @param query - Opciones de búsqueda y paginación (DTO).
+   * @returns Lista paginada de testimonios públicos.
    */
   async listPublicTestimonials(tenantId: string, query: PublicTestimonialsQueryDto) {
     const page = Math.max(1, Number(query.page ?? 1));
@@ -240,8 +269,17 @@ export class TestimonialsService {
   }
 
   /**
-   * Sube una imagen a Cloudinary y la vincula al testimonio.
-   * Lanza error si el testimonio ya está publicado.
+   * Sube una imagen a Cloudinary y actualiza la URL en el testimonio.
+   * 
+   * **Complejidad / Por qué:** Subir la imagen es una operación externa lenta. Se hace
+   * después de la creación del testimonio para que este proceso no bloquee la inserción 
+   * inicial, o se reintente si la red falla. CloudinaryService implementa internamente 
+   * el Circuit Breaker.
+   * 
+   * @param tenantId - ID del inquilino.
+   * @param testimonialId - ID del testimonio a actualizar.
+   * @param imageBase64 - Imagen en formato Base64 a subir.
+   * @throws {ConflictException} Si el testimonio ya está publicado (inmutable).
    */
   async uploadImage(tenantId: string, testimonialId: string, imageBase64: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
@@ -255,7 +293,16 @@ export class TestimonialsService {
   }
 
   /**
-   * Adjunta un video de YouTube, extrayendo metadatos (título y miniatura).
+   * Adjunta un video de YouTube al testimonio, extrayendo metadatos.
+   * 
+   * **Complejidad / Por qué:** Requerimos el título y miniatura de YouTube de forma síncrona 
+   * para poder mostrarlos en el frontend de inmediato sin depender de que el cliente (browser)
+   * cargue un iframe pesado solo para leer metadatos.
+   * 
+   * @param tenantId - ID del inquilino.
+   * @param testimonialId - ID del testimonio.
+   * @param videoUrl - URL válida de YouTube.
+   * @throws {BadRequestException} Si la URL no pertenece a YouTube.
    */
   async attachVideo(tenantId: string, testimonialId: string, videoUrl: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
@@ -315,9 +362,17 @@ export class TestimonialsService {
   }
 
   /**
-   * Publica un testimonio.
-   * Genera un evento 'testimonial.published' en el Outbox y anula el caché de los endpoints públicos
-   * para reflejar el cambio de inmediato.
+   * Publica un testimonio (lo hace visible en la API pública).
+   * 
+   * **Complejidad / Por qué:** Al publicar, dos cosas críticas deben ocurrir:
+   * 1. Notificar al exterior (Webhooks) mediante el patrón Outbox.
+   * 2. Invalidar la caché de listas públicas para que el nuevo testimonio aparezca 
+   *    inmediatamente en el widget del cliente sin esperar al TTL (Time To Live).
+   * 
+   * @param tenantId - ID del inquilino.
+   * @param testimonialId - ID del testimonio a publicar.
+   * @throws {ConflictException} Si la transición de estado no es válida.
+   * @returns El testimonio actualizado.
    */
   async publishTestimonial(tenantId: string, testimonialId: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);

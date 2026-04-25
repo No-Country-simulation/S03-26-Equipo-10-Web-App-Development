@@ -1,5 +1,22 @@
 # testimonial-cms
 
+## 🚀 Resumen (Executive Summary)
+
+**Testimonial CMS** es una plataforma SaaS (Software as a Service) multi-tenant diseñada para resolver el problema de la gestión dispersa de la prueba social. Permite a las empresas recolectar, moderar, analizar y distribuir testimonios y reseñas de clientes de forma centralizada.
+
+**Valor de Negocio:**
+- **Centralización:** Unifica testimonios escritos y en video en un solo panel de control.
+- **Distribución Ágil:** Facilita la integración en sitios web externos mediante *widgets* y una API pública robusta.
+- **Extensibilidad:** Integración inmediata con herramientas de terceros (CRM, Slack) a través de un sistema de **Webhooks** resiliente y en tiempo real.
+
+**Stack Tecnológico Principal:**
+- **Backend:** NestJS, Node.js v20.x
+- **Frontend / Admin:** Next.js v14.x, React
+- **Base de Datos:** PostgreSQL 16 (persistencia) + Redis 7 (caché y colas)
+- **Infraestructura:** Docker, Prisma ORM, BullMQ
+
+---
+
 Monorepo para un CMS de testimonios con `Next.js` en frontend/admin, `NestJS` en backend y `Postgres + Prisma` como base de datos.
 
 ## Arquitectura
