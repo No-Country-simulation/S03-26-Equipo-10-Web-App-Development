@@ -255,15 +255,15 @@ export class TestimonialRepository {
   async updateScores(updates: { id: string; score: number }[]): Promise<void> {
     if (updates.length === 0) return;
 
-    // Use a transaction since Prisma doesn't have a native upsert/updateMany with distinct values per row
-    await this.prisma.$transaction(
-      updates.map(({ id, score }) =>
-        this.prisma.testimonial.update({
+    // Use withRetry to handle transient deadlocks during batch score updates (R-1)
+    await this.prisma.withRetry(async (tx) => {
+      for (const { id, score } of updates) {
+        await tx.testimonial.update({
           where: { id },
           data: { score },
-        }),
-      ),
-    );
+        });
+      }
+    });
   }
 
   private async resolveStatusId(code: TestimonialStatus): Promise<number> {

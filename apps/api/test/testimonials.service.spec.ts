@@ -73,6 +73,15 @@ describe('TestimonialsService', () => {
     createEvent: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockCacheService = {
+    get: jest.fn().mockReturnValue(null),
+    set: jest.fn(),
+    getOrSet: jest.fn().mockImplementation((_key: string, factory: () => Promise<unknown>) => factory()),
+    invalidate: jest.fn(),
+    invalidateByPrefix: jest.fn(),
+    clear: jest.fn(),
+  };
+
   let service: TestimonialsService;
 
   beforeEach(() => {
@@ -86,6 +95,7 @@ describe('TestimonialsService', () => {
       mockCloudinaryService as any,
       mockYoutubeService as any,
       mockOutboxService as any,
+      mockCacheService as any,
     );
   });
 

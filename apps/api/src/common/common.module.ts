@@ -9,6 +9,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { IdempotencyInterceptor } from './interceptors/idempotency.interceptor';
 import { IdempotencyService } from './services/idempotency.service';
 import { RateLimitService } from './services/rate-limit.service';
+import { CacheService } from './services/cache.service';
 import type { AppConfig } from '../config/app.config';
 
 @Global()
@@ -30,6 +31,7 @@ import type { AppConfig } from '../config/app.config';
     IdempotencyInterceptor,
     IdempotencyService,
     RateLimitService,
+    CacheService,
   ],
   exports: [
     JwtModule,
@@ -40,6 +42,7 @@ import type { AppConfig } from '../config/app.config';
     IdempotencyInterceptor,
     IdempotencyService,
     RateLimitService,
+    CacheService,
   ],
 })
 export class CommonModule {}

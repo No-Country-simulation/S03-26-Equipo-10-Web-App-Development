@@ -7,6 +7,7 @@ import { AnalyticsRepository } from '../../analytics/repositories/analytics.repo
 import { CloudinaryService } from '../../shared/cloud/cloudinary.service';
 import { YoutubeService } from '../../shared/cloud/youtube.service';
 import { OutboxService } from '../../webhooks/services/outbox.service';
+import { CacheService } from '../../../common/services/cache.service';
 import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
 
@@ -21,6 +22,7 @@ export class TestimonialsService {
     private readonly cloudinaryService: CloudinaryService,
     private readonly youtubeService: YoutubeService,
     private readonly outboxService: OutboxService,
+    private readonly cache: CacheService,
   ) { }
 
   async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
@@ -156,23 +158,27 @@ export class TestimonialsService {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 20)));
 
-    const result = await this.repo.findPublished(tenantId, {
-      q: query.q,
-      tag: query.tag,
-      category: query.category,
-      sort: query.sort,
-      page,
-      limit,
-    });
+    const cacheKey = `public:${tenantId}:${query.q ?? ''}:${query.tag ?? ''}:${query.category ?? ''}:${query.sort ?? ''}:${page}:${limit}`;
 
-    return {
-      items: result.items,
-      meta: {
-        total: result.total,
+    return this.cache.getOrSet(cacheKey, async () => {
+      const result = await this.repo.findPublished(tenantId, {
+        q: query.q,
+        tag: query.tag,
+        category: query.category,
+        sort: query.sort,
         page,
         limit,
-      },
-    };
+      });
+
+      return {
+        items: result.items,
+        meta: {
+          total: result.total,
+          page,
+          limit,
+        },
+      };
+    }, 60_000); // 60s TTL
   }
 
   async listPublicTestimonialsBySlug(slug: string, query: PublicTestimonialsQueryDto) {
@@ -303,6 +309,9 @@ export class TestimonialsService {
         createdAt: updated.createdAt,
       },
     });
+
+    // Invalidate public listing cache for this tenant since published set changed
+    this.cache.invalidateByPrefix(`public:${tenantId}:`);
 
     return updated;
   }

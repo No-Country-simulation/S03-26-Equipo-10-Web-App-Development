@@ -2,10 +2,12 @@ import { NotFoundException, Injectable } from "@nestjs/common";
 import { WebhookRepository } from "../repositories/webhook.repository";
 import { CreateWebhookDto, UpdateWebhookDto } from "../dto/webhook.dto";
 import { HttpWebhookDispatcher } from "./http-webhook-dispatcher";
+import { assertPublicUrl } from "../utils/assert-public-url";
 
 @Injectable()
 export class WebhooksService {
     async createWebhook(tenantId: string, dto: CreateWebhookDto) {
+        assertPublicUrl(dto.url);
         return this.webhookRepo.create({
           tenantId,
           url: dto.url,
@@ -94,6 +96,10 @@ export class WebhooksService {
     async updateWebhook(tenantId: string, webhookId: string, dto: UpdateWebhookDto) {
         const webhook = await this.webhookRepo.findById(tenantId, webhookId);
         if (!webhook) throw new NotFoundException('Webhook not found');
+
+        if (dto.url) {
+          assertPublicUrl(dto.url);
+        }
 
         return this.webhookRepo.update(webhookId, {
           url: dto.url,
