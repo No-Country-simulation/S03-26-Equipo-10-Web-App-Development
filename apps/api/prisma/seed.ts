@@ -18,7 +18,7 @@ const DEMO_API_KEY_NAME = 'public-demo-key';
 const envCandidates = [resolve(__dirname, '../../.env'), resolve(__dirname, '../.env')];
 for (const envPath of envCandidates) {
   if (existsSync(envPath)) {
-    loadEnv({ path: envPath, override: false, quiet: true });
+    loadEnv({ path: envPath, override: false });
   }
 }
 

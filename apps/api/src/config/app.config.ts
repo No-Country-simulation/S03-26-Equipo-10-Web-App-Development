@@ -26,13 +26,13 @@ export const appConfigValidationSchema = z.object({
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
 
   JWT_SECRET: z.string({
-    required_error: 'JWT_SECRET is required — the application cannot start without it',
+    message: 'JWT_SECRET is required — the application cannot start without it',
   }),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
   DATABASE_URL: z.string({
-    required_error: 'DATABASE_URL is required — the application cannot start without it',
+    message: 'DATABASE_URL is required — the application cannot start without it',
   }),
 
   CLOUDINARY_UPLOAD_URL: z.string().default(''),
