@@ -1,18 +1,51 @@
-.git
-.github
-node_modules
-.next
-dist
-coverage
-.turbo
-*.log
+# Dependency directories
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# Env files
 .env
 .env.local
-apps/*/.env
-apps/*/.env.local
-apps/*/.next
-apps/*/dist
-apps/*/coverage
-infra/terraform/.terraform
-infra/terraform/**/*.tfstate
-skills
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS Files
+.DS_Store
+*.pem
+
+# Prisma
+**/prisma/migrations/
+!apps/api/prisma/migrations/
+!apps/api/prisma/schema.prisma
+
+# Git
+.git
+.gitignore
+
+# IDEs
+.idea
+.vscode/
+
+# Ignore skills and docs for prod container context
+skills/
+docs/
+diccionario_de_dato.md
+README.md

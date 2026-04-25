@@ -44,6 +44,56 @@ services:
       postgres:
         condition: service_healthy
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    hostname: api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend_network
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-this-local-password}@postgres:5432/${POSTGRES_DB:-testimonial_cms}?schema=public
+      - JWT_SECRET=change-this-jwt-secret-for-dev
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4000/api/v1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Internally NextJS SSR calls the API through Nginx or the docker network
+        # For client components, they will hit the exposed Nginx url
+        - NEXT_PUBLIC_API_URL=https://dev.testimonialcms.local/api/v1
+    hostname: web
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - backend_network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
   nginx:
     image: nginx:alpine
     hostname: nginx
@@ -56,8 +106,9 @@ services:
       - ./infra/nginx/certs:/etc/nginx/certs:ro
     networks:
       - backend_network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - api
+      - web
 
 volumes:
   postgres-data:
