@@ -28,6 +28,11 @@ import { TagsService } from '../services/tags.service';
 import { FeatureFlagGuard } from '../../../common/guards/feature-flag.guard';
 import { RequireFeature } from '../../../common/decorators/feature-flag.decorator';
 
+/**
+ * Controlador principal de Testimonios para la gestión interna.
+ * Requiere autenticación, roles de admin/editor y el Feature Flag activado.
+ * Maneja el CRUD, subida de medios, transiciones de estado y asignación de etiquetas.
+ */
 @Controller('testimonials')
 @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
 @RequireFeature('testimonials')
@@ -38,6 +43,10 @@ export class TestimonialsController {
     private readonly tagsService: TagsService,
   ) {}
 
+  /**
+   * Obtiene la lista completa de testimonios del tenant actual (sin filtrar por estado).
+   * @param tenantId ID del tenant extraído del token del usuario.
+   */
   @Get()
   list(@CurrentTenantId() tenantId: string) {
     return this.testimonialsService.listTestimonials(tenantId);
@@ -51,6 +60,12 @@ export class TestimonialsController {
     return this.testimonialsService.getTestimonial(tenantId, testimonialId);
   }
 
+  /**
+   * Crea un nuevo testimonio (estado inicial `draft`).
+   * @param tenantId ID del tenant actual.
+   * @param user Usuario creador.
+   * @param dto Datos iniciales del testimonio.
+   */
   @Post()
   @Idempotent()
   create(
@@ -61,6 +76,14 @@ export class TestimonialsController {
     return this.testimonialsService.createTestimonial(tenantId, user.userId, dto);
   }
 
+  /**
+   * Actualiza el contenido, rating o categoría de un testimonio.
+   * Restricciones: No se puede editar si está 'published'.
+   * @param tenantId ID del tenant.
+   * @param testimonialId ID del testimonio a actualizar.
+   * @param user Usuario realizando la acción (valida permisos de edición si es editor).
+   * @param dto Campos a actualizar.
+   */
   @Patch(':testimonial_id')
   update(
     @CurrentTenantId() tenantId: string,
@@ -80,6 +103,9 @@ export class TestimonialsController {
     return this.testimonialsService.removeTestimonial(tenantId, testimonialId, user);
   }
 
+  /**
+   * Envia a moderación el testimonio (`draft` -> `pending`).
+   */
   @Post(':testimonial_id/submit')
   submit(
     @CurrentTenantId() tenantId: string,
@@ -88,6 +114,9 @@ export class TestimonialsController {
     return this.testimonialsService.submitTestimonial(tenantId, testimonialId);
   }
 
+  /**
+   * Aprueba un testimonio (`pending` -> `approved`), dejándolo listo para publicar.
+   */
   @Post(':testimonial_id/approve')
   approve(
     @CurrentTenantId() tenantId: string,
@@ -105,6 +134,9 @@ export class TestimonialsController {
     return this.testimonialsService.rejectTestimonial(tenantId, testimonialId, dto.reason ?? '');
   }
 
+  /**
+   * Publica un testimonio aprobado (`approved` -> `published`), haciéndolo visible públicamente.
+   */
   @Post(':testimonial_id/publish')
   @Idempotent()
   publish(

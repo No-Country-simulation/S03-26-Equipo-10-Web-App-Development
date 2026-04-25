@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation';
 import { SessionPayload, requestApi, ApiError } from '@/lib/api';
 import { getStoredSession, saveSession, clearSession } from '@/lib/session-store';
 
+/**
+ * Hook de React para gestionar la sesión del usuario en el cliente.
+ * Se encarga de cargar la sesión persistida, proveer headers de autenticación
+ * y envolver las llamadas a la API para manejar la expiración del token (401).
+ * 
+ * @param options.redirectTo URL de redirección en caso de que la sesión no exista o caduque.
+ */
 export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: string | null } = {}) {
   const [session, setSession] = useState<SessionPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +35,10 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
     return { Authorization: `Bearer ${session.tokens.accessToken}` };
   }, [session]);
 
+  /**
+   * Envuelve requestApi para inyectar automáticamente el token Bearer
+   * y manejar globalmente los errores 401 (Unauthorized) cerrando la sesión.
+   */
   const fetchApi = useCallback(
     async <T,>(path: string, init: RequestInit = {}) => {
       if (!session) throw new Error('No session');
@@ -50,6 +61,9 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
     [session, authHeaders, router, redirectTo],
   );
 
+  /**
+   * Cierra la sesión en el cliente (limpia localStorage) y redirige.
+   */
   const logout = useCallback(() => {
     clearSession();
     setSession(null);

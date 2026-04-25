@@ -11,6 +11,11 @@ import { CacheService } from '../../../common/services/cache.service';
 import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
 
+/**
+ * Servicio central para la gestión de Testimonios.
+ * Controla el ciclo de vida, integración con Cloudinary y YouTube, y
+ * la emisión de eventos asíncronos mediante el patrón Outbox.
+ */
 @Injectable()
 export class TestimonialsService {
   constructor(
@@ -25,6 +30,12 @@ export class TestimonialsService {
     private readonly cache: CacheService,
   ) { }
 
+  /**
+   * Crea un nuevo testimonio interno y encola un evento webhooks.
+   * @param tenantId ID del tenant.
+   * @param creatorUserId ID del usuario que lo crea.
+   * @param dto Datos del testimonio.
+   */
   async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
     if (dto.rating < 1 || dto.rating > 5) {
       throw new ConflictException('Rating must be between 1 and 5');
@@ -84,6 +95,12 @@ export class TestimonialsService {
     return this.getPublicTestimonial(tenant.id, testimonialId);
   }
 
+  /**
+   * Registra un testimonio enviado desde el formulario público.
+   * Valida que la configuración pública del Tenant esté activa.
+   * @param slug Slug público del Tenant.
+   * @param dto Datos del testimonio público.
+   */
   async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
 
@@ -154,10 +171,16 @@ export class TestimonialsService {
     };
   }
 
+  /**
+   * Obtiene la lista de testimonios publicados (públicos) de un tenant, con paginación, filtros y caché.
+   * @param tenantId ID del tenant.
+   * @param query Opciones de búsqueda y paginación.
+   */
   async listPublicTestimonials(tenantId: string, query: PublicTestimonialsQueryDto) {
     const page = Math.max(1, Number(query.page ?? 1));
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 20)));
 
+    // Clave de caché para memorizar la respuesta y aligerar la base de datos
     const cacheKey = `public:${tenantId}:${query.q ?? ''}:${query.tag ?? ''}:${query.category ?? ''}:${query.sort ?? ''}:${page}:${limit}`;
 
     return this.cache.getOrSet(cacheKey, async () => {
@@ -216,6 +239,10 @@ export class TestimonialsService {
     });
   }
 
+  /**
+   * Sube una imagen a Cloudinary y la vincula al testimonio.
+   * Lanza error si el testimonio ya está publicado.
+   */
   async uploadImage(tenantId: string, testimonialId: string, imageBase64: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundException('Testimonial not found');
@@ -227,6 +254,9 @@ export class TestimonialsService {
     return this.repo.updateMedia(testimonialId, { imageUrl: result.secureUrl });
   }
 
+  /**
+   * Adjunta un video de YouTube, extrayendo metadatos (título y miniatura).
+   */
   async attachVideo(tenantId: string, testimonialId: string, videoUrl: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundException('Testimonial not found');
@@ -284,6 +314,11 @@ export class TestimonialsService {
     return this.repo.updateStatus(testimonialId, 'rejected', { moderationNotes: reason || null });
   }
 
+  /**
+   * Publica un testimonio.
+   * Genera un evento 'testimonial.published' en el Outbox y anula el caché de los endpoints públicos
+   * para reflejar el cambio de inmediato.
+   */
   async publishTestimonial(tenantId: string, testimonialId: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundException('Testimonial not found');

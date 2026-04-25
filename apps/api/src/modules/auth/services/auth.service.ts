@@ -6,6 +6,10 @@ import { LoginAttemptsService } from "./login-attempts.service";
 import { LoginDto } from "../dto/login.dto";
 import { RegisterAdminDto } from "../dto/register-admin.dto";
 
+/**
+ * Servicio encargado de la lógica de negocio para autenticación.
+ * Gestiona validación de credenciales, tokens, y persistencia de sesiones.
+ */
 @Injectable()
 export class AuthService {
     constructor(
@@ -15,7 +19,15 @@ export class AuthService {
         private readonly loginAttempts: LoginAttemptsService
     ) {}
 
+    /**
+     * Inicia sesión validando credenciales y generando tokens de acceso.
+     * 
+     * @param dto Objeto con email y contraseña.
+     * @returns Datos del usuario y el nuevo par de tokens.
+     * @throws {UnauthorizedException} Si las credenciales son inválidas o la cuenta está desactivada.
+     */
     async login(dto: LoginDto) {
+        // Verifica que el usuario no esté bloqueado temporalmente por intentos fallidos
         this.loginAttempts.assertNotBlocked(dto.email);
 
         const user = await this.authRepo.findUserByEmail(dto.email);
@@ -68,11 +80,22 @@ export class AuthService {
         };
     }
 
+    /**
+     * Invalida un refresh token específico en la base de datos, cerrando la sesión asociada.
+     * @param refreshToken El token sin hashear que envió el cliente.
+     */
     async logout(refreshToken: string) {
         const tokenHash = this.tokenService.hashToken(refreshToken);
         await this.authRepo.revokeRefreshTokenByHash(tokenHash);
     }
 
+    /**
+     * Refresca los tokens de acceso utilizando un refresh token válido.
+     * Implementa "Refresh Token Rotation" para mayor seguridad.
+     * 
+     * @param refreshToken Token de refresco actual.
+     * @returns Nuevos tokens y la info del usuario.
+     */
     async refreshSession(refreshToken: string) {
         const tokenHash = this.tokenService.hashToken(refreshToken);
         const record = await this.authRepo.findValidRefreshToken(tokenHash);
@@ -116,6 +139,13 @@ export class AuthService {
         };
     }
 
+    /**
+     * Registra un nuevo administrador (dueño) junto con su organización/tenant.
+     * 
+     * @param dto Datos del nuevo tenant y credenciales del admin.
+     * @returns Datos del usuario creado y sus tokens de sesión.
+     * @throws {ConflictException} Si el nombre del tenant o el email ya están en uso.
+     */
     async registerAdmin(dto: RegisterAdminDto) {
         const passwordHash = await this.passwordService.hashPassword(dto.password);
 

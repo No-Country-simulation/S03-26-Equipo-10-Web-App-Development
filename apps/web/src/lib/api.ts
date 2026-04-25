@@ -1,3 +1,6 @@
+/**
+ * Envoltorio estándar (envelope) devuelto por el interceptor `ApiResponseInterceptor` del backend.
+ */
 export interface ApiEnvelope<T> {
   success: boolean;
   data: T;
@@ -63,6 +66,9 @@ export interface TestimonialRecord {
   videoThumbnailUrl?: string | null;
 }
 
+/**
+ * Error personalizado para manejar respuestas fallidas de la API de manera consistente.
+ */
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -88,6 +94,15 @@ export function getApiBaseUrl() {
   return configured;
 }
 
+/**
+ * Cliente de API base para llamadas tipadas desde Next.js al backend NestJS.
+ * Construye la URL base y envuelve las respuestas en el tipo `ApiEnvelope<T>`.
+ * 
+ * @param path Ruta del endpoint (ej. `/auth/login`).
+ * @param init Opciones de Fetch API (método, headers, body, etc).
+ * @throws {ApiError} Si la respuesta del servidor no es OK (ej. 4xx, 5xx).
+ * @returns La carga útil de la respuesta parseada y tipada.
+ */
 export async function requestApi<T>(
   path: string,
   init: RequestInit = {},

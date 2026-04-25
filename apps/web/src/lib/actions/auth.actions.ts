@@ -4,6 +4,13 @@ import { cookies } from 'next/headers';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
+/**
+ * Server Action para iniciar sesión desde el formulario web.
+ * Se ejecuta en el servidor de Next.js de forma segura.
+ * 
+ * @param formData Datos del formulario enviados desde el cliente.
+ * @returns Un objeto indicando éxito o error.
+ */
 export async function loginAction(formData: FormData) {
   const email = formData.get('email');
   const password = formData.get('password');
