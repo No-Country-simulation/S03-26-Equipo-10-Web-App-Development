@@ -29,6 +29,8 @@ const config: Config = {
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: 'coverage',
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/test/setup.ts'],
+  moduleDirectories: ['node_modules', '<rootDir>/node_modules', '<rootDir>/../../node_modules'],
 };
 
 export default config;

@@ -69,6 +69,10 @@ describe('TestimonialsService', () => {
     getVideoMetadata: jest.fn(),
   };
 
+  const mockOutboxService = {
+    createEvent: jest.fn().mockResolvedValue(undefined),
+  };
+
   let service: TestimonialsService;
 
   beforeEach(() => {
@@ -81,6 +85,7 @@ describe('TestimonialsService', () => {
       mockAnalyticsRepo as any,
       mockCloudinaryService as any,
       mockYoutubeService as any,
+      mockOutboxService as any,
     );
   });
 

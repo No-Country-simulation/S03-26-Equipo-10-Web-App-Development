@@ -13,8 +13,8 @@ describe('LoginForm', () => {
 
     await user.clear(screen.getByLabelText(/email/i));
     await user.type(screen.getByLabelText(/email/i), 'editor@demo.com');
-    await user.clear(screen.getByLabelText(/password/i));
-    await user.type(screen.getByLabelText(/password/i), 'Editor123!');
+    await user.clear(screen.getByLabelText(/contraseña/i));
+    await user.type(screen.getByLabelText(/contraseña/i), 'Editor123!');
     await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
 
     expect(onSubmit).toHaveBeenCalledWith({

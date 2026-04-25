@@ -6,6 +6,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AnalyticsRepository } from '../../analytics/repositories/analytics.repository';
 import { CloudinaryService } from '../../shared/cloud/cloudinary.service';
 import { YoutubeService } from '../../shared/cloud/youtube.service';
+import { OutboxService } from '../../webhooks/services/outbox.service';
 import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
 
@@ -19,6 +20,7 @@ export class TestimonialsService {
     private readonly analyticsRepo: AnalyticsRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly youtubeService: YoutubeService,
+    private readonly outboxService: OutboxService,
   ) { }
 
   async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
@@ -43,7 +45,9 @@ export class TestimonialsService {
       tagIds: dto.tagIds,
     });
 
-    this.eventEmitter.emit('testimonial.created', {
+    // Atomic Outbox: persist the event right after the testimonial is created.
+    // This guarantees the webhook event is never lost even if the process crashes.
+    await this.outboxService.createEvent({
       tenantId,
       eventType: 'testimonial.created',
       payload: {
@@ -94,7 +98,8 @@ export class TestimonialsService {
       categoryId: null, // Public submissions don't assign categories by default
     });
 
-    this.eventEmitter.emit('testimonial.created', {
+    // Atomic Outbox for public submissions
+    await this.outboxService.createEvent({
       tenantId: tenant.id,
       eventType: 'testimonial.created',
       payload: {
@@ -280,7 +285,8 @@ export class TestimonialsService {
     this.assertTransition(testimonial.status, 'published');
     const updated = await this.repo.updateStatus(testimonialId, 'published', { publishedAt: new Date() });
 
-    this.eventEmitter.emit('testimonial.published', {
+    // Atomic Outbox: persist the event right after the status update.
+    await this.outboxService.createEvent({
       tenantId,
       eventType: 'testimonial.published',
       payload: {

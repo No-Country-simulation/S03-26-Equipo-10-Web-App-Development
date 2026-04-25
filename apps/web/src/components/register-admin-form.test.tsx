@@ -11,12 +11,12 @@ describe('RegisterAdminForm', () => {
 
     render(<RegisterAdminForm onSubmit={onSubmit} />);
 
-    await user.clear(screen.getByLabelText(/tenant/i));
-    await user.type(screen.getByLabelText(/tenant/i), 'North Studio');
-    await user.clear(screen.getByLabelText(/email admin/i));
-    await user.type(screen.getByLabelText(/email admin/i), 'admin@north.com');
-    await user.clear(screen.getByLabelText(/password/i));
-    await user.type(screen.getByLabelText(/password/i), 'Admin123!');
+    await user.clear(screen.getByLabelText(/nombre del tenant/i));
+    await user.type(screen.getByLabelText(/nombre del tenant/i), 'North Studio');
+    await user.clear(screen.getByLabelText(/email administrativo/i));
+    await user.type(screen.getByLabelText(/email administrativo/i), 'admin@north.com');
+    await user.clear(screen.getByLabelText(/contraseña/i));
+    await user.type(screen.getByLabelText(/contraseña/i), 'Admin123!');
     await user.click(screen.getByRole('button', { name: /crear tenant y admin/i }));
 
     expect(onSubmit).toHaveBeenCalledWith({
