@@ -387,4 +387,35 @@ ON testimonials(tenant_id, status_id);
 
 2. **Precisión**: Los tipos de datos reflejan exactamente lo definido en el script SQL (UUID, SMALLSERIAL, TEXT, etc.).
 
-3. **Diagramas**: Se recomienda adjuntar un diagrama Entidad‑Relación (ER) que muestre las relaciones entre tablas, especialmente las de muchos a muchos y las dependencias con `tenant_id`.
+3. **Diagramas**: A continuación, se adjunta el diagrama Entidad‑Relación (ER) que muestra las relaciones principales entre tablas y la dependencia estructural con `tenant_id`.
+
+```mermaid
+erDiagram
+    tenants ||--o{ users : "has"
+    tenants ||--o{ testimonials : "owns"
+    tenants ||--o{ categories : "defines"
+    tenants ||--o{ tags : "defines"
+    tenants ||--o{ webhooks : "configures"
+    tenants ||--o{ analytics_events : "tracks"
+    tenants ||--o{ api_keys : "issues"
+    tenants ||--o{ outbox_events : "generates"
+    tenants ||--o{ tenant_feature_flags : "enables"
+
+    users ||--o{ user_roles : "assigned"
+    users ||--o{ refresh_tokens : "holds"
+    roles ||--o{ user_roles : "grants"
+    roles ||--o{ role_permissions : "includes"
+    permissions ||--o{ role_permissions : "grouped in"
+
+    testimonials ||--o{ testimonial_tags : "tagged with"
+    tags ||--o{ testimonial_tags : "applied to"
+    testimonial_status ||--o{ testimonials : "defines status for"
+
+    analytics_event_types ||--o{ analytics_events : "categorizes"
+    testimonials ||--o{ analytics_events : "receives"
+
+    webhook_events ||--o{ webhooks : "triggers"
+    webhooks ||--o{ webhook_deliveries : "attempts"
+
+    feature_flags ||--o{ tenant_feature_flags : "toggled for"
+```

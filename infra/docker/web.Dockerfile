@@ -6,7 +6,6 @@ COPY apps/api/package.json apps/api/package.json
 COPY apps/api/prisma.config.ts apps/api/prisma.config.ts
 COPY apps/api/prisma apps/api/prisma
 COPY apps/web/package.json apps/web/package.json
-COPY apps/worker/package.json apps/worker/package.json
 
 RUN npm ci
 

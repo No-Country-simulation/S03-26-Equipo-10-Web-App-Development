@@ -1,149 +1,264 @@
-# testimonial-cms
+# Testimonial CMS - Social Proof Management Platform
 
-## 🚀 Resumen (Executive Summary)
+**Proyecto educativo**: Plataforma SaaS multi-tenant para recolectar, moderar, analizar y distribuir testimonios y reseñas de clientes de forma centralizada.
 
-**Testimonial CMS** es una plataforma SaaS (Software as a Service) multi-tenant diseñada para resolver el problema de la gestión dispersa de la prueba social. Permite a las empresas recolectar, moderar, analizar y distribuir testimonios y reseñas de clientes de forma centralizada.
+[![Node.js](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org)
+[![NestJS](https://img.shields.io/badge/NestJS-Backend-E0234E.svg)](https://nestjs.com)
+[![Next.js](https://img.shields.io/badge/Next.js-v14.x-black.svg)](https://nextjs.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://postgresql.org)
 
-**Valor de Negocio:**
-- **Centralización:** Unifica testimonios escritos y en video en un solo panel de control.
-- **Distribución Ágil:** Facilita la integración en sitios web externos mediante *widgets* y una API pública robusta.
-- **Extensibilidad:** Integración inmediata con herramientas de terceros (CRM, Slack) a través de un sistema de **Webhooks** resiliente y en tiempo real.
+## 📚 Documentación
 
-**Stack Tecnológico Principal:**
-- **Backend:** NestJS, Node.js v20.x
-- **Frontend / Admin:** Next.js v14.x, React
-- **Base de Datos:** PostgreSQL 16 (persistencia) + Redis 7 (caché y colas)
-- **Infraestructura:** Docker, Prisma ORM, BullMQ
+| Documento | Audiencia | Descripción |
+|-----------|-----------|-------------|
+| [docs/](docs/) | 👤 Todos | Directorio principal de toda la documentación técnica y producto |
+| [docs/technical/01_architecture.md](docs/technical/01_architecture.md) | 🏗️ Arquitectos | Guía completa de Clean Architecture y dependencias |
+| [docs/adr/](docs/adr/) | 🏗️ Arquitectos | Decisiones arquitectónicas (NestJS, Outbox, Multi-tenant) |
+| [diccionario_de_dato.md](diccionario_de_dato.md) | 💾 Data | Estructura de base de datos, relaciones y Diagrama ERD |
 
----
+## 📋 Descripción
 
-Monorepo para un CMS de testimonios con `Next.js` en frontend/admin, `NestJS` en backend y `Postgres + Prisma` como base de datos.
+### Stack Tecnológico
 
-## Arquitectura
+| Categoría | Tecnología | Versión | Propósito |
+|-----------|-----------|---------|-----------|
+| **Backend Framework**| NestJS | 10.x | API REST principal bajo Clean Architecture |
+| **Frontend/Admin** | Next.js | 14.x | Panel de control e interfaces (React) |
+| **Database** | PostgreSQL | 16 | Persistencia relacional de datos central |
+| **ORM** | Prisma | 5.x | Acceso a datos tipo-seguro y migraciones |
+| **Caché & Colas** | Redis | 7 | Almacenamiento rápido en memoria |
+| **Job Queue** | BullMQ | - | Procesamiento asíncrono (Outbox, webhooks) |
+| **Runtime** | Node.js | 20.x | Entorno de ejecución de servidor |
+| **Deployment** | Docker + Compose | - | Containerización |
 
-El backend implementa **Clean Architecture** (Hexagonal / Onion) estricta. Cada módulo NestJS separa sus responsabilidades en capas con inversión de dependencias:
+Testimonial CMS es una plataforma que resuelve el problema de la gestión dispersa de la prueba social. Este proyecto implementa un CMS que:
 
-```text
-apps/api/src/
-├── common/                → Decorators, guards, interceptors, hashing (global)
-├── prisma/                → PrismaService + PrismaModule (global)
-├── infrastructure/        → Outbox, cache, logging, HTTP resilience (shared)
-└── modules/
-    ├── testimonials/       → 11 use cases, 3 repos, entity con state machine
-    ├── auth/               → 5 use cases, JWT adapter, login attempts
-    ├── users/              → IUserRepository + PasswordService
-    ├── analytics/          → IAnalyticsRepository
-    ├── feature-flags/      → IFeatureFlagRepository
-    ├── webhooks/           → IWebhookRepository + HTTP dispatch
-    ├── tenants/            → ITenantRepository
-    ├── api-keys/           → IApiKeyRepository
-    ├── health/             → Healthcheck endpoints
-    └── docs/               → Swagger documentation
+- ✅ **Centraliza** testimonios escritos y en video en un solo panel de control
+- ✅ Soporta arquitectura **Multi-tenant** (Row-Level) aislando los datos de cada cliente
+- ✅ Facilita la **distribución ágil** mediante widgets insertables en sitios externos
+- ✅ Proporciona integraciones vía **Webhooks** resilientes usando el Patrón Outbox
+- ✅ **Modera testimonios** con flujos de aprobación y estados internos
+- ✅ Implementa **Clean Architecture** (Hexagonal/Onion) estricta en el backend
+- ✅ Expone una **API pública** documentada para desarrolladores
+- ✅ Rastrea **Analíticas de visualización** y clicks en los widgets
 
-docs/                      → Documentación funcional, técnica y de dominio
-  └── technical/ARCHITECTURE.md → Guía completa de arquitectura
+## 🏗️ Arquitectura
+
+```mermaid
+graph TB
+    Customer["👤 Cliente Externo<br>(Widget)"] -->|Envía testimonio| API["⚙️ Backend API<br>(NestJS)"]
+    Tenant["🏢 Empresa / Tenant<br>(Admin Panel)"] -->|Configura y Modera| API
+    
+    API --> DB[("💾 PostgreSQL<br>(Prisma)")]
+    API --> Cache[("⚡ Redis")]
+    API --> Worker["⏳ Outbox Worker<br>(BullMQ)"]
+    
+    Worker -->|Lee pending events| DB
+    Worker -->|POST /webhook| Webhook["🔗 Sistemas de Terceros<br>(Slack, CRM)"]
+
+    style API fill:#E0234E,color:#fff
+    style DB fill:#336791,color:#fff
+    style Worker fill:#FF9800,color:#fff
 ```
 
-Cada módulo sigue la estructura:
-```
-modules/{nombre}/
-├── domain/            → Entidades + interfaces de repositorio (ports)
-├── application/       → Use cases, DTOs, mappers, ports externos
-├── infrastructure/    → Adaptadores Prisma, JWT, etc. (implementaciones)
-├── presentation/      → Controllers HTTP
-└── {nombre}.module.ts → DI wiring: { provide: SYMBOL, useClass: Adapter }
-```
+> 📐 Diagramas detallados y guía de arquitectura en [docs/technical/01_architecture.md](docs/technical/01_architecture.md)
 
-> 📖 Documentación arquitectónica completa: [`docs/technical/ARCHITECTURE.md`](docs/technical/ARCHITECTURE.md)
+## 🚀 Quick Start
 
-## Requisitos
+### 1. Requisitos previos
 
-- Node.js 20+
-- npm 10+
-- Docker / Docker Compose
+- Node.js 20.11+
+- npm 10.5+
+- Docker & Docker Compose
 
-## Fuente de verdad de la base
-
-- `docker-compose.yml` solo levanta `Postgres` con persistencia y healthcheck.
-- El schema de la aplicación se aplica con `Prisma` desde `apps/api/prisma`.
-- `init.sql` se conserva como referencia del modelo de datos y del alcance documental; no se monta automáticamente en Docker para evitar drift con Prisma.
-
-## Puesta en marcha
-
-1. Copiar variables de entorno:
+### 2. Instalación
 
 ```bash
+# Clonar repositorio
+git clone https://github.com/tu-usuario/testimonial-cms.git
+cd testimonial-cms
+
+# Instalar dependencias del monorepo
+npm install
+
+# Configurar variables de entorno
 cp .env.example .env
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-2. Levantar Postgres:
+### 3. Inicializar base de datos
 
 ```bash
+# Levantar PostgreSQL vía Docker Compose
 docker compose up -d postgres
-```
 
-3. Instalar dependencias:
-
-```bash
-npm install
-```
-
-4. Generar cliente Prisma, migrar y seed:
-
-```bash
+# Generar cliente Prisma
 npm run db:generate --workspace @testimonial-cms/api
+
+# Aplicar migraciones al esquema de DB
 npm run db:migrate --workspace @testimonial-cms/api
+
+# Poblar con datos semilla (Seed)
 npm run db:seed --workspace @testimonial-cms/api
 ```
 
-5. Levantar frontend y backend:
+### 4. Ejecutar aplicación localmente
 
 ```bash
+# Levantar frontend y backend simultáneamente
 npm run dev
 ```
 
-## Endpoints principales
+Abre `http://localhost:3000` para el panel de administración y `http://localhost:4000/api/v1` para la API.
 
-- `GET /api/v1/health`
-- `POST /api/v1/auth/register-admin`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/me`
-- `GET /api/v1/users`
-- `POST /api/v1/users`
-- `GET /api/v1/testimonials`
-- `POST /api/v1/testimonials`
+### 5. Desplegar con Docker
 
-## Flujo mínimo disponible
+```bash
+# Levantar infraestructura (DB)
+docker-compose up -d
 
-- `http://localhost:3000/admin/register` crea un tenant + admin y guarda la sesión local.
-- `http://localhost:3000/admin/login` inicia sesión contra la API real.
-- `http://localhost:3000/admin` muestra tenant, usuarios y testimonios del tenant autenticado.
+# Ver logs
+docker-compose logs -f
+```
 
-## Buenas prácticas del compose actual
+### 6. Validar instalación
 
-- Imagen liviana: `postgres:16-alpine`
-- Volumen persistente nombrado
-- `healthcheck` con `pg_isready`
-- `restart: unless-stopped`
-- `PGDATA` separado dentro del volumen
-- `no-new-privileges` activado
+Ve a `http://localhost:3000/admin/register` para crear tu primer Tenant y usuario administrador. Luego inicia sesión.
 
-## Scripts raíz
+## 📁 Estructura del Proyecto
 
-- `npm run dev`
-- `npm run build`
-- `npm run lint`
-- `npm run test`
-- `npm run format`
+```
+testimonial-cms/
+├── apps/
+│   ├── api/                 # Backend NestJS (Clean Architecture)
+│   │   ├── src/
+│   │   │   ├── common/      # Utilidades globales, guards, interceptors
+│   │   │   ├── prisma/      # Servicio de base de datos
+│   │   │   ├── infrastructure/ # Adaptadores compartidos
+│   │   │   └── modules/     # Módulos de dominio (testimonials, auth)
+│   │   └── prisma/          # Esquemas y migraciones
+│   └── web/                 # Frontend Next.js
+├── docs/                    # Documentación extensa
+│   ├── adr/                 # Architectural Decision Records
+│   ├── technical/           # Documentación técnica
+│   ├── product/             # Documentación de producto
+│   └── operations/          # Despliegue y observabilidad
+├── scripts/                 # Utilidades
+├── docker-compose.yml       # Infraestructura local
+├── diccionario_de_dato.md   # Diccionario de base de datos
+└── package.json             # Monorepo configs
+```
 
+## 🔧 Configuración de Integraciones
 
-## Prisma y troubleshooting
+### Webhooks y Patrón Outbox
 
-- `npm run db:migrate --workspace @testimonial-cms/api` aplica migraciones existentes en modo no interactivo.
-- `npm run db:migrate:dev --workspace @testimonial-cms/api` se usa cuando queres crear una migracion nueva en desarrollo.
-- Si cambia `POSTGRES_PASSWORD` despues de que Postgres inicializo su volumen, la contraseña interna del usuario `postgres` no cambia sola.
-- En ese caso, recrea la base con `docker compose down -v` y luego `docker compose up -d postgres`, o actualiza la contraseña del rol dentro de Postgres para que coincida con `DATABASE_URL`.
+El sistema notifica a servicios externos de manera segura:
+1. **Configuración**: El tenant registra una URL de webhook.
+2. **Procesamiento**: Al aprobarse un testimonio, se inserta transaccionalmente un evento en `outbox_events`.
+3. **Despacho**: Un worker (`BullMQ`) lee el evento y hace un POST seguro. Garantiza "Al menos una entrega" (At-least-once delivery) y reintentos ante fallas.
+
+## 🧪 Testing
+
+### Tests unitarios y de integración
+
+```bash
+# Ejecutar todos los tests en los workspaces
+npm run test
+
+# Pruebas específicas
+npm run test --workspace @testimonial-cms/api
+npm run test --workspace @testimonial-cms/web
+```
+
+### Test funcional del flujo
+
+Flujo esperado:
+1. Cliente hace POST `/api/v1/testimonials` → Se guarda en estado `pending`.
+2. Admin aprueba en panel → Estado cambia a `published`.
+3. Worker dispara webhook configurado.
+
+## 📊 Endpoints de la API
+
+### `POST /api/v1/testimonials`
+Recibe un testimonio desde un widget público.
+
+**Request:**
+```json
+{
+  "content": "Excelente servicio, lo recomiendo al 100%.",
+  "author_name": "Facundo",
+  "rating": 5
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440002",
+    "status": "pending",
+    "created_at": "2026-04-25T14:00:00Z"
+  }
+}
+```
+
+### `GET /api/v1/health`
+Verifica conexión a Postgres y Redis.
+
+## 🛡️ Controles y Limitaciones
+
+### Row-Level Security (Multi-tenant)
+- Estricto aislamiento de datos: todas las consultas filtran por el `tenant_id` en el request.
+- No hay cruce de información entre empresas.
+
+### Rate Limiting y Validación
+- Límites de peticiones API con Guards de NestJS.
+- Entradas públicas sanitizadas con DTOs y `class-validator` para evitar inyecciones.
+
+## 🔐 Variables de Entorno
+
+Edita los archivos `.env` basándote en `.env.example`:
+
+```bash
+# Postgres DB
+POSTGRES_DB=testimonial_cms
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=change-this-local-password
+POSTGRES_PORT=5432
+DATABASE_URL=postgresql://postgres:change-this-local-password@localhost:5432/testimonial_cms?schema=public
+
+# API y Web
+WEB_PORT=3000
+API_PORT=4000
+NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+```
+
+## 📈 Roadmap
+
+- [x] Arquitectura base Multi-tenant (NestJS + Prisma)
+- [x] Esquema relacional y diccionarios
+- [x] Módulo Auth y Tenant provisioning
+- [x] Patrón Outbox para Webhooks
+- [x] Documentación 360 y modelado Mermaid
+- [ ] Panel de control Frontend (Next.js)
+- [ ] Widgets embeddables en React/VanillaJS
+- [ ] Analíticas avanzadas de impresiones
+
+## 🤝 Contribuir
+
+Pull requests son bienvenidos. Asegúrate de correr `npm run format` y `npm run lint` antes de realizar un commit.
+
+## 📄 Licencia
+
+MIT License - Proyecto educativo de código abierto
+
+## 👤 Autor
+
+**Equipo 10**
+
+---
+
+⭐ Si este proyecto te fue útil, dale una star en GitHub!
