@@ -47,7 +47,7 @@ Monorepo Root
 ├── apps/api/        → @testimonial-cms/api  (NestJS 11 + Prisma)
 ├── apps/web/        → @testimonial-cms/web  (Next.js 15 App Router)
 ├── docs/            → Documentación técnica, dominio, producto, operaciones
-├── .agents/         → Skills de IA (19 skills) + Reglas operativas + Prompts
+├── .agents/         → Skills de IA (20 skills) + Reglas operativas + Prompts
 ├── infra/           → Docker + Nginx configs
 └── scripts/         → Utilidades locales (PowerShell, Bash)
 ```
@@ -192,6 +192,7 @@ Al trabajar con un plan en `docs/plan/`:
 | `web-rendering-performance-engineering` | SKL-FE-ARCH-002 | Web Performance |
 | `web-seo-accessibility-engineering` | SKL-WEB-SEO-A11Y-001 | SEO + A11y |
 | `node-next-api-engineering` | SKL-API-NODE-NEXT-001 | Node.js APIs |
+| `node-backend-engineering` | SKL-NODE-BACKEND-001 | Node.js Backend |
 | `web-security-engineering` | SKL-WEB-SEC-001 | Security |
 | `api-key-security-engineering` | SKL-APIKEY-SEC-001 | API Keys |
 | `webhook-architecture-engineering` | SKL-WEBHOOK-ARCH-001 | Webhooks |

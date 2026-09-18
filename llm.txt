@@ -50,7 +50,7 @@ docs/governance/       → Ethics, compliance
 docs/collaboration/    → Contributing, git workflow, coding standards, setup, changelog
 docs/plan/             → Active HITL orchestration plans
 docs/modules/          → Per-module technical specs
-.agents/skills/        → 19 AI engineering skills (SKL-*)
+.agents/skills/        → 20 AI engineering skills (SKL-*)
 .agents/rules/         → Operative rules loaded by AI IDE
 .agents/prompts/       → Reusable prompt templates
 infra/                 → Nginx, Docker production configs
@@ -152,7 +152,7 @@ docs/technical/01_architecture.md   → system architecture + C4 diagrams
 docs/domain/business_rules.md       → domain invariants (source of truth)
 docs/domain/diccionario_de_dato.md  → ERD + all table schemas
 apps/api/prisma/schema.prisma       → canonical data model
-.agents/skills/                     → 19 engineering skills (read before coding)
+.agents/skills/                     → 20 engineering skills (read before coding)
 docs/plan/                          → active HITL plans (read before executing)
 
 ## PROHIBITED (NEVER DO)
