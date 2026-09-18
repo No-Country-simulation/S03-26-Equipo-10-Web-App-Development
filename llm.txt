@@ -1,0 +1,161 @@
+# Testimonial CMS — LLM Context File
+# Formato: texto plano hiper-denso para consumo mínimo de tokens
+# Última actualización: 2026-09-18
+# Versión del framework: SKL-PRO-001 v1.1.0
+# AVISO: No persistir secretos, tokens ni PII en este archivo
+
+## IDENTITY
+name: Testimonial CMS
+type: SaaS multi-tenant social proof management platform
+version: 0.1.0
+license: MIT (educational project)
+team: Equipo 10 — No Country simulation
+
+## STACK
+runtime: Node.js 24 LTS
+package_manager: npm (workspaces, npm ci obligatorio en CI)
+backend: NestJS 11
+orm: Prisma 6.5+
+database: PostgreSQL 18
+frontend: Next.js 15 (App Router, React 19)
+styles: Tailwind CSS v3 + Radix UI + next-themes
+queue: BullMQ + Redis 7
+infra: Docker Compose
+ci: GitHub Actions (husky pre-commit)
+
+## ARCHITECTURE
+pattern: Modular Monolith, N-Tier (NestJS standard layers)
+communication_sync: REST /api/v1/ (NestJS controllers)
+communication_async: Transactional Outbox → BullMQ → HTTP POST
+multi_tenant_strategy: Row-Level isolation (tenant_id FK in all tables)
+auth_strategy: JWT Access (15min, HttpOnly cookie) + Refresh Token Rotation (7d, path-scoped)
+rbac_roles: admin, editor
+api_public_auth: API Keys (HMAC-SHA256 hashed + pepper, prefix+publicId+secret format)
+webhook_security: HMAC-SHA256 signed, timingSafeEqual verified, anti-replay TTL
+
+## MONOREPO LAYOUT
+apps/api/              → @testimonial-cms/api
+apps/api/src/modules/  → NestJS domain modules
+apps/api/prisma/       → schema.prisma + migrations
+apps/web/              → @testimonial-cms/web
+apps/web/src/features/ → Next.js feature-oriented folders
+apps/web/src/app/      → Next.js App Router pages
+docs/                  → All documentation
+docs/technical/        → Architecture, patterns, design system, testing, accessibility
+docs/domain/           → Business rules + data dictionary (ERD)
+docs/adr/              → Architectural Decision Records (3 ADRs)
+docs/product/          → Definition, PRD, user stories, IA, design system strategy
+docs/operations/       → Infrastructure, observability, deployment, audit
+docs/governance/       → Ethics, compliance
+docs/collaboration/    → Contributing, git workflow, coding standards, setup, changelog
+docs/plan/             → Active HITL orchestration plans
+docs/modules/          → Per-module technical specs
+.agents/skills/        → 19 AI engineering skills (SKL-*)
+.agents/rules/         → Operative rules loaded by AI IDE
+.agents/prompts/       → Reusable prompt templates
+infra/                 → Nginx, Docker production configs
+scripts/               → Local utility scripts (PowerShell, Bash)
+
+## BACKEND MODULES (apps/api/src/modules/)
+auth/
+  endpoints: POST /api/v1/auth/register-admin, POST /api/v1/auth/login
+             POST /api/v1/auth/refresh, POST /api/v1/auth/logout, GET /api/v1/auth/me
+  guards: JwtAuthGuard, RateLimitGuard
+  decorators: @CurrentUser, @RateLimit, @Idempotent
+  dtos: LoginDto, RefreshTokenDto, RegisterAdminDto (nestjs-zod)
+  strategy: JWT HttpOnly cookie, refresh token rotation
+
+users/
+  responsibilities: CRUD users, RBAC assignment
+  scoping: always filtered by tenant_id
+
+tenants/
+  responsibilities: tenant provisioning, plan management, data isolation
+  isolation: tenant_id FK, no cross-tenant queries ever
+
+testimonials/
+  lifecycle: draft → pending → approved → published | rejected
+  controllers: TestimonialsController, TagsController, CategoriesController, PublicTestimonialsController
+  services: TestimonialsService, TagsService, CategoriesService, ScoringService
+  imports: AnalyticsModule, FeatureFlagsModule, WebhooksModule, CloudModule, TenantsModule
+  dtos: CreateTestimonialDto, UpdateTestimonialDto, ModerateTestimonialDto,
+        PublicTestimonialsQueryDto, UploadImageDto, AttachVideoDto, SubmitPublicTestimonialDto
+  constraints: content min 10 chars, rating 1-5
+
+webhooks/
+  pattern: Transactional Outbox (outbox_events table)
+  services: WebhooksService, OutboxService, OutboxProcessor, WebhookOutboxHandler,
+            HttpWebhookDispatcher, HttpResilienceService, WebhookEventsListener,
+            WebhooksBootstrapService, LoggerService
+  delivery: at-least-once, exponential backoff, DLQ
+  security: HMAC-SHA256 signature, timingSafeEqual verification
+
+analytics/
+  responsibilities: impression tracking, click events, widget analytics
+
+api-keys/
+  storage: never plaintext; HMAC-SHA256(secret, pepper), stored hash only
+  format: prefix + publicId + secret
+
+feature-flags/
+  scope: per-tenant toggles, no redeploy required
+
+health/
+  endpoints: GET /api/v1/health (liveness), GET /api/v1/health/ready (readiness with Prisma)
+
+## FRONTEND FEATURES (apps/web/src/features/)
+auth/          → login, register, session management
+testimonials/  → admin dashboard, moderation queue, CRUD
+users/         → user management panel
+webhooks/      → webhook endpoint configuration UI
+analytics/     → charts and metrics visualization
+feature-flags/ → per-tenant toggle management UI
+
+## DATABASE ENTITIES
+tenants, users, roles, permissions, role_permissions,
+testimonials, testimonial_media, tags, testimonial_tags, categories,
+api_keys, webhook_endpoints, outbox_events,
+feature_flags, analytics_events, widget_configs, embed_codes, collection_forms
+
+## BUSINESS INVARIANTS
+BR-VAL-001: testimonial content >= 10 chars
+BR-VAL-002: rating integer 1-5
+BR-FLOW-001: lifecycle draft→pending→approved→published|rejected (no skip, no revert published)
+BR-SEC-001: all queries scoped by tenant_id, zero cross-tenant
+BR-SEC-002: API Keys never stored plaintext
+BR-WEB-001: webhook delivery at-least-once, HMAC signed
+BR-WEB-002: outbox_events written in same DB transaction as domain event
+
+## ADRs
+ADR-0001: NestJS + arquitectura modular (docs/adr/0001-uso-de-nestjs-y-arquitectura-modular.md)
+ADR-0002: Outbox pattern para eventos y webhooks (docs/adr/0002-patron-outbox-para-eventos-y-webhooks.md)
+ADR-0003: Estrategia multi-tenant row-level (docs/adr/0003-estrategia-multi-tenant-row-level.md)
+
+## COMMIT STANDARD (Conventional Commits)
+format: <tipo>[ámbito]: <descripción imperativa en inglés>
+types: feat, fix, docs, style, refactor, test, chore, perf, ci, build
+branch_naming: <tipo>/<issue-number>-<descripción-corta>
+ref: docs/collaboration/02_git_workflow.md
+
+## HITL RULES
+- Execute ONLY current active phase from docs/plan/<date>_<task>.md
+- Stop after each phase and propose commit
+- Wait for human ACK before next phase
+- On ambiguity: ask, never assume
+- Forbidden: grouping multiple phases in one execution
+
+## CRITICAL PATHS (read before touching related code)
+docs/technical/01_architecture.md   → system architecture + C4 diagrams
+docs/domain/business_rules.md       → domain invariants (source of truth)
+docs/domain/diccionario_de_dato.md  → ERD + all table schemas
+apps/api/prisma/schema.prisma       → canonical data model
+.agents/skills/                     → 19 engineering skills (read before coding)
+docs/plan/                          → active HITL plans (read before executing)
+
+## PROHIBITED (NEVER DO)
+- Store secrets/tokens/passwords in any context file
+- Query DB without tenant_id filter
+- Execute prisma migrate deploy without human ACK
+- Modify docker-compose.yml or infra/ without human ACK
+- Group multiple HITL phases without intermediate ACK
+- Use npm install in CI (always npm ci)

@@ -2,19 +2,32 @@
 
 **Proyecto educativo**: Plataforma SaaS multi-tenant para recolectar, moderar, analizar y distribuir testimonios y reseñas de clientes de forma centralizada.
 
-[![Node.js](https://img.shields.io/badge/Node.js-20.x-green.svg)](https://nodejs.org)
-[![NestJS](https://img.shields.io/badge/NestJS-Backend-E0234E.svg)](https://nestjs.com)
-[![Next.js](https://img.shields.io/badge/Next.js-v14.x-black.svg)](https://nextjs.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://postgresql.org)
+[![Node.js](https://img.shields.io/badge/Node.js-24.x_LTS-green.svg)](https://nodejs.org)
+[![NestJS](https://img.shields.io/badge/NestJS-11.x-E0234E.svg)](https://nestjs.com)
+[![Next.js](https://img.shields.io/badge/Next.js-15.x-black.svg)](https://nextjs.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18-336791.svg)](https://postgresql.org)
+[![Prisma](https://img.shields.io/badge/Prisma-6.5+-2D3748.svg)](https://prisma.io)
 
 ## 📚 Documentación
 
+### Contexto para Agentes de IA (SKL-PRO-001)
+
+| Archivo | Audiencia | Propósito |
+|---------|-----------|----------|
+| [AGENTS.md](AGENTS.md) | 🤖 IA + 👤 Devs | Onboarding canónico: stack, fronteras, reglas operativas |
+| [llm.txt](llm.txt) | 🤖 IA | Contexto hiper-denso optimizado para LLMs (bajo consumo de tokens) |
+| [docs/plan/](docs/plan/) | 🤖 IA + 👤 Devs | Planes de orquestación HITL activos |
+| [docs/modules/](docs/modules/) | 🤖 IA + 👤 Devs | Especificaciones técnicas por módulo |
+
+### Documentación Técnica
+
 | Documento | Audiencia | Descripción |
 |-----------|-----------|-------------|
-| [docs/](docs/) | 👤 Todos | Directorio principal de toda la documentación técnica y producto |
-| [docs/technical/01_architecture.md](docs/technical/01_architecture.md) | 🏗️ Arquitectos | Guía completa de Clean Architecture y dependencias |
+| [docs/](docs/) | 👤 Todos | Directorio principal de toda la documentación |
+| [docs/technical/01_architecture.md](docs/technical/01_architecture.md) | 🏗️ Arquitectos | Guía completa de arquitectura y dependencias |
 | [docs/adr/](docs/adr/) | 🏗️ Arquitectos | Decisiones arquitectónicas (NestJS, Outbox, Multi-tenant) |
-| [diccionario_de_dato.md](diccionario_de_dato.md) | 💾 Data | Estructura de base de datos, relaciones y Diagrama ERD |
+| [docs/domain/diccionario_de_dato.md](docs/domain/diccionario_de_dato.md) | 💾 Data | Estructura de base de datos, relaciones y Diagrama ERD |
+| [docs/domain/business_rules.md](docs/domain/business_rules.md) | 📋 Todos | Reglas de negocio e invariantes del dominio |
 
 ## 📋 Descripción
 
