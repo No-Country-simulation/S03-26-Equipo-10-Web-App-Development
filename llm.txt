@@ -132,10 +132,13 @@ ADR-0002: Outbox pattern para eventos y webhooks (docs/adr/0002-patron-outbox-pa
 ADR-0003: Estrategia multi-tenant row-level (docs/adr/0003-estrategia-multi-tenant-row-level.md)
 
 ## COMMIT STANDARD (Conventional Commits)
-format: <tipo>[ámbito]: <descripción imperativa en inglés>
+format: <type>(<scope>): <descripción en español rioplatense, voseo formal>
+body_language: español rioplatense con voseo (sólo type y scope en inglés)
+voseo_rule: NO tuteo (implementa), NO ustedeo (implemente), NO infinitivo (implementar)
+voseo_examples: implementá, agregá, corregí, extraé, remové, actualizá, incorporá, evitá
 types: feat, fix, docs, style, refactor, test, chore, perf, ci, build
-branch_naming: <tipo>/<issue-number>-<descripción-corta>
-ref: docs/collaboration/02_git_workflow.md
+branch_naming: <type>/<issue-number>-<descripción-corta>
+ref: docs/collaboration/02_git_workflow.md, .agents/skills/git-engineering/SKILL.md#6141
 
 ## HITL RULES
 - Execute ONLY current active phase from docs/plan/<date>_<task>.md

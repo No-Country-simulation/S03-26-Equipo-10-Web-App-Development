@@ -373,9 +373,35 @@ Tipos principales:
 - `chore`: Tareas auxiliares que no modifican código de producción ni tests.
 - `revert`: Reversión de un commit previo.
 
+#### 6.14.1. Idioma y Registro del Mensaje de Commit
+
+Los mensajes de commit se redactan en **español rioplatense** con **voseo formal**.
+
+- El `type` (`feat`, `fix`, `refactor`, etc.) y el `scope` (`auth`, `webhooks`, `testimonials`, etc.) van **siempre en inglés** — garantizan compatibilidad con `semantic-release`, `commitlint` y herramientas de análisis automático.
+- El `description`, `body` y `footer` van en **español rioplatense con voseo**.
+
+**Imperativo con voseo — referencia rápida:**
+
+| Tuteo ❌ | Voseo ✅ | Ejemplo de commit |
+|----------|---------|-------------------|
+| `implementa` | `implementá` | `feat(auth): implementá el login con OAuth2` |
+| `agrega` | `agregá` | `feat(api): agregá el endpoint de moderación` |
+| `añade` | `añadí` | `feat(api): añadí la validación de rating` |
+| `corrige` | `corregí` | `fix(webhooks): corregí el timeout en outbox` |
+| `extrae` | `extraé` | `refactor(scoring): extraé el decay a función pura` |
+| `remueve` | `remové` | `feat(api)!: remové el endpoint deprecado` |
+| `actualiza` | `actualizá` | `chore(deps): actualizá Prisma a 6.5` |
+| `incorpora` | `incorporá` | `test(auth): incorporá casos de token expirado` |
+| `previene` | `evitá` | `fix(checkout): evitá el doble clic en el botón` |
+
+> [!NOTE]
+> `type` y `scope` siempre en inglés. Solo `description`, `body` y `footer`
+> en español rioplatense con voseo. No usar tuteo (`implementa`), ustedeo
+> (`implemente`) ni infinitivo (`implementar`).
+
 Ejemplo completo:
 ```text
-feat(auth): implementar inicio de sesión con Google OAuth2
+feat(auth): implementá el inicio de sesión con Google OAuth2
 
 Se integra el flujo Authorization Code con PKCE para autenticar
 usuarios corporativos contra el Identity Provider de Google.
@@ -386,7 +412,7 @@ Closes #142
 #### 6.15. Declaración de Breaking Changes
 Indicar cambios incompatibles hacia atrás mediante el signo de exclamación `!` tras el tipo o una sección `BREAKING CHANGE:` en el pie:
 ```text
-feat(api)!: remover endpoint deprecado /v1/auth/token
+feat(api)!: remové el endpoint deprecado /v1/auth/token
 
 BREAKING CHANGE: Las integraciones deben migrar obligatoriamente a /v2/auth/oauth.
 ```
@@ -396,22 +422,28 @@ Un commit debe resolver un único problema o introducir una única mejora lógic
 
 ```text
 ❌ Mega-commit incorrecto:
-feat: agregar login, modificar colores de dashboard, actualizar prisma y fix en el checkout
+feat: agregá login, modificá colores del dashboard, actualizá Prisma y corregí el checkout
 
 ✅ Commits atómicos correctos:
-feat(auth): agregar validación de tokens JWT
-test(auth): incorporar casos de prueba de expiración de sesión
-refactor(database): extraer cliente de prisma a módulo compartido
-fix(checkout): prevenir doble clic en botón de pago
+feat(auth): agregá la validación de tokens JWT
+test(auth): incorporá los casos de prueba de expiración de sesión
+refactor(database): extraé el cliente de Prisma a módulo compartido
+fix(checkout): evitá el doble clic en el botón de pago
 ```
 
 #### 6.17. Plantilla `.gitmessage`
 Configurar en la raíz del proyecto para orientar al equipo:
 ```text
-# <tipo>(<ámbito opcional>): <descripción concisa en modo imperativo>
+# <type>(<scope>): <descripción concisa en español rioplatense, voseo formal, modo imperativo>
+#
+# ✅ Correcto (voseo):  feat(auth): implementá el inicio de sesión con OAuth2
+# ❌ Tuteo:             feat(auth): implementa el inicio de sesión con OAuth2
+# ❌ Infinitivo:        feat(auth): implementar el inicio de sesión con OAuth2
+# ❌ Inglés:            feat(auth): implement google oauth login
+# ❌ Ustedeo:           feat(auth): implemente el inicio de sesión con OAuth2
 #
 # Explicá el POR QUÉ del cambio y qué problema resuelve en el negocio.
-# Detallá decisiones arquitectónicas no evidentes a partir del diff.
+# Describí las decisiones arquitectónicas no evidentes a partir del diff.
 #
 # Closes #000
 # BREAKING CHANGE: <descripción del cambio incompatible>

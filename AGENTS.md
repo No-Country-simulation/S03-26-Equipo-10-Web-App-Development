@@ -141,21 +141,27 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 Usar **Conventional Commits** (ver referencia completa en `docs/collaboration/02_git_workflow.md`):
 
 ```
-<tipo>[ámbito opcional]: <descripción corta>
+<type>(<scope>): <descripción en español rioplatense, voseo formal>
 
-[descripción larga opcional]
+[cuerpo opcional en español rioplatense]
 
 [Closes #<issue>]
 ```
+
+**Reglas de idioma**:
+- `type` y `scope` → **inglés** (`feat`, `fix`, `auth`, `testimonials`...)
+- `description`, `body`, `footer` → **español rioplatense con voseo formal**
+- No usar tuteo (`implementa`), ustedeo (`implemente`) ni infinitivo (`implementar`)
 
 **Tipos permitidos**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`
 
 **Ejemplos**:
 ```bash
-feat(api): add endpoint to moderate testimonials
-fix(webhooks): handle timeout in outbox processor
-docs(modules): add testimonials module spec
-test(auth): add unit tests for refresh token rotation
+feat(api): agregá el endpoint de moderación de testimonios
+fix(webhooks): corregí el timeout en el procesador de outbox
+docs(modules): incorporá la especificación del módulo testimonials
+test(auth): incorporá los tests unitarios de rotación de refresh token
+refactor(scoring): extraé la lógica de decay a una función pura
 ```
 
 ---
