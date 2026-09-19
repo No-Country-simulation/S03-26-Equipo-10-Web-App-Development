@@ -13,7 +13,7 @@ export class UserRepository {
       orderBy: { createdAt: 'desc' },
     });
 
-    return users.map((u: any) => this.toView(u));
+    return users.map((u) => this.toView(u));
   }
 
   async findById(tenantId: string, userId: string): Promise<UserView | null> {
@@ -96,7 +96,7 @@ export class UserRepository {
       tenantId: user.tenantId,
       email: user.email,
       isActive: user.isActive,
-      roles: user.roles.map((r: any) => r.role.code),
+      roles: user.roles.map((r) => r.role.code),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

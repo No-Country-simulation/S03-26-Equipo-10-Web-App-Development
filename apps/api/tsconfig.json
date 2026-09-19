@@ -11,6 +11,8 @@
     "sourceMap": true,
     "outDir": "./dist",
     "incremental": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
     "types": [
       "node",
       "jest"

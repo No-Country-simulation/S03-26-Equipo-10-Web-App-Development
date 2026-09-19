@@ -1,10 +1,11 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { randomBytes } from 'crypto';
+import type { ApiRequest } from '../interfaces/auth-context.interface';
 
 @Injectable()
 export class CsrfMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
+  use(req: ApiRequest & { csrfToken?: string }, res: Response, next: NextFunction) {
     let csrfToken = req.cookies['csrfToken'];
     
     if (!csrfToken) {
@@ -16,8 +17,8 @@ export class CsrfMiddleware implements NestMiddleware {
       });
     }
     
-    // Pass the token to the request object so the guard can access it if needed
-    (req as any).csrfToken = csrfToken;
+    // Adjunta el token al request para que el guard pueda leerlo sin acceso a la cookie
+    (req as ApiRequest & { csrfToken?: string }).csrfToken = csrfToken;
     
     next();
   }

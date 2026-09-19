@@ -38,7 +38,7 @@ export class JwtAuthGuard implements CanActivate {
     let payload: JwtPayload;
     try {
       payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.configService.get<AppConfig>('app')!.jwt.secret,
+        secret: this.configService.get<AppConfig>('app')?.jwt.secret,
       });
     } catch {
       throw new UnauthorizedException('Invalid access token');
@@ -65,7 +65,7 @@ export class JwtAuthGuard implements CanActivate {
       email: user.email,
       tenantId: user.tenantId,
       tenantName: user.tenant.name,
-      roles: user.roles.map((entry: any) => entry.role.code as RoleCode),
+      roles: user.roles.map((entry) => entry.role.code as RoleCode),
       isActive: user.isActive,
     };
 

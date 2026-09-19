@@ -38,7 +38,7 @@ export class WebhookRepository {
       orderBy: { createdAt: 'desc' },
     });
 
-    return webhooks.map((w: any) => ({
+    return webhooks.map((w) => ({
       id: w.id,
       tenantId: w.tenantId,
       url: w.url,
@@ -147,7 +147,7 @@ export class WebhookRepository {
       take: 200,
     });
 
-    return deliveries.map((d: any) => ({
+    return deliveries.map((d) => ({
       id: d.id,
       webhookId: d.webhookId,
       outboxEventId: d.outboxEventId,
@@ -198,7 +198,7 @@ export class WebhookRepository {
       include: { event: true },
     });
 
-    return webhooks.map((w: any) => ({
+    return webhooks.map((w) => ({
       id: w.id,
       tenantId: w.tenantId,
       url: w.url,

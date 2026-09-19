@@ -29,7 +29,10 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
   
   const configService = app.get(ConfigService);
-  const appConfig = configService.get<AppConfig>('app')!;
+  const appConfig = configService.get<AppConfig>('app');
+  if (!appConfig) {
+    throw new Error('Missing app configuration — verificá que ConfigModule.forRoot() esté cargando app.config correctamente.');
+  }
 
   // Configuración de CORS basada en la configuración de entorno
   app.enableCors({

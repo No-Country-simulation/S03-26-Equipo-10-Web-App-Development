@@ -21,7 +21,11 @@ export class JwtTokenService {
     private readonly passwordService: PasswordService,
     private readonly configService: ConfigService,
   ) {
-    this.jwtConfig = this.configService.get<AppConfig>('app')!.jwt;
+    const appConfig = this.configService.get<AppConfig>('app');
+    if (!appConfig) {
+      throw new Error('JwtTokenService: app configuration not found — verificá que ConfigModule esté correctamente inicializado.');
+    }
+    this.jwtConfig = appConfig.jwt;
   }
 
   async signAccessToken(payload: TokenPayload): Promise<string> {
