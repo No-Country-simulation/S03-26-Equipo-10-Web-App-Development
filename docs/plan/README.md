@@ -90,7 +90,7 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 
 | Archivo | Estado | Descripción |
 |---------|--------|-------------|
-| *(ninguno activo)* | — | — |
+| [`2026-09-18_feat-skill-layered-architecture.md`](./2026-09-18_feat-skill-layered-architecture.md) | `Completado` | Incorporación de la skill SKL-ARCH-LAYERED-001 (Senior Layered Architecture) |
 
 ---
 
