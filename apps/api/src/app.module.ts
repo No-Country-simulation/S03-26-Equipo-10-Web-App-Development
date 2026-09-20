@@ -31,7 +31,29 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     }),
     LoggerModule.forRoot({
       pinoHttp: {
-        transport: { target: 'pino-pretty' },
+        level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+        // En producción, emitir JSON crudo (Loki/ELK); en dev, formatear para legibilidad
+        ...(process.env.NODE_ENV !== 'production' && {
+          transport: { target: 'pino-pretty' },
+        }),
+        // OBS-F3: Redactar secretos y PII para prevenir fugas en logs (OBS-02)
+        redact: {
+          paths: [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.body.password',
+            'req.body.token',
+            'req.body.apiKey',
+            'req.body.refreshToken',
+            'req.body.secret',
+          ],
+          censor: '[REDACTED]',
+        },
+        // Inyectar traceId y tenantId automáticamente en cada log HTTP
+        customProps: (req: object) => ({
+          traceId: (req as { requestContext?: { correlationId?: string } }).requestContext?.correlationId,
+          tenantId: (req as { user?: { tenantId?: string } }).user?.tenantId,
+        }),
       },
     }),
     EventEmitterModule.forRoot(),

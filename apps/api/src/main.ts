@@ -64,9 +64,9 @@ async function bootstrap() {
   // Registra filtros de excepciones y múltiples interceptores globales
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalInterceptors(
-    new LoggingInterceptor(),
-    new ApiResponseInterceptor(), // Estandariza la respuesta (data, status)
-    app.get(IdempotencyInterceptor), // Previene envíos duplicados basados en headers
+    app.get(LoggingInterceptor),
+    new ApiResponseInterceptor(),
+    app.get(IdempotencyInterceptor),
   );
 
   const config = new DocumentBuilder()

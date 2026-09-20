@@ -11,8 +11,14 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service like Sentry or Pino
-    console.error(error);
+    // OBS-F9: Logging estructurado con digest para correlación con logs del servidor.
+    // En producción, reemplazar con un servicio de telemetría (Sentry, Datadog, etc.)
+    console.error('Unhandled Client Error:', {
+      message: error.message,
+      digest: error.digest,
+      // Ocultar stack en producción para prevenir fuga de detalles de implementación
+      stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined,
+    });
   }, [error]);
 
   return (
@@ -24,8 +30,18 @@ export default function Error({
         <p className="text-muted-foreground font-body max-w-[500px] mx-auto text-lg">
           No pudimos procesar tu solicitud en este momento. Por favor, intenta de nuevo.
         </p>
+        {/* OBS-F8: Mostrar error.digest como código de referencia para soporte técnico.
+            Permite correlacionar el reporte del usuario con los logs del servidor. */}
+        {error.digest && (
+          <p className="font-mono text-xs text-muted-foreground/60 mt-2">
+            Referencia:{' '}
+            <span className="font-semibold text-muted-foreground">
+              {error.digest}
+            </span>
+          </p>
+        )}
       </div>
-      <Button 
+      <Button
         onClick={() => reset()}
         variant="outline"
         className="border-primary rounded-none font-caption italic hover:bg-primary hover:text-primary-foreground transition-colors"

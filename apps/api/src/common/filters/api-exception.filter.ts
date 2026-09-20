@@ -6,14 +6,17 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import { Response } from 'express';
+import type { ApiRequest, RequestContext } from '../interfaces/auth-context.interface';
 
 /**
- * Filtro global de excepciones que serializa todos los errores al formato
- * de envelope estándar del proyecto.
+ * Filtro global de excepciones que implementa el estándar RFC 9457 Problem Details.
  *
- * H-14: Loguea los errores 5xx con contexto operacional (requestId, path, exception)
- * para observabilidad en producción. Los errores 4xx no se loguean ya que son
- * parte del flujo normal del negocio (validaciones, recursos no encontrados, etc.).
+ * OBS-F1: Emite `Content-Type: application/problem+json` con los campos:
+ * `type`, `title`, `status`, `detail`, `instance`, `code`, `traceId`, `timestamp`.
+ *
+ * En producción, los errores 5xx ocultan detalles internos al cliente (OBS-04).
+ * Todos los errores 5xx se loguean con contexto operacional completo (OBS-05).
  */
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -21,12 +24,13 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost) {
     const context = host.switchToHttp();
-    const response = context.getResponse();
-    const request = context.getRequest<{
-      url: string;
-      method: string;
-      requestContext?: { requestId?: string };
-    }>();
+    const response = context.getResponse<Response>();
+    const request = context.getRequest<ApiRequest>();
+
+    const requestContext = request.requestContext as RequestContext | undefined;
+    const traceId = requestContext?.correlationId
+      ?? request.header('x-correlation-id')
+      ?? 'unknown';
 
     const status =
       exception instanceof HttpException
@@ -36,67 +40,94 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const payload =
       exception instanceof HttpException ? exception.getResponse() : undefined;
 
-    // H-14: Loguear errores 5xx con contexto completo para observabilidad.
+    const errorCode = this.resolveErrorCode(status, payload);
+
+    // OBS-F1+H-14: Loguear 5xx con contexto completo para observabilidad.
     // Los 4xx son errores de cliente y no representan fallas del sistema.
     if (status >= 500) {
       this.logger.error(
         {
+          event: 'http.server_error',
           err: exception,
           path: request.url,
           method: request.method,
-          requestId: request.requestContext?.requestId,
+          traceId,
+          tenantId: request.user?.tenantId,
           statusCode: status,
         },
         'Unhandled server error',
       );
     }
 
-    response.status(status).json({
-      success: false,
-      error: {
-        code: this.resolveCode(status, payload),
-        message: this.resolveMessage(payload, exception),
-        details: this.resolveDetails(payload),
-        timestamp: new Date().toISOString(),
-        path: request.url,
-        requestId: request.requestContext?.requestId,
-      },
-    });
+    // RFC 9457 Problem Details (https://www.rfc-editor.org/rfc/rfc9457)
+    const problemDetails = {
+      type: `https://api.testimonialcms.com/errors/${errorCode.toLowerCase().replace(/_/g, '-')}`,
+      title: this.resolveTitle(status),
+      status,
+      // OBS-04: En prod, los 5xx no exponen mensajes internos al cliente
+      detail: this.resolveSafeDetail(status, payload, exception),
+      instance: request.url,
+      code: errorCode,
+      traceId,
+      timestamp: new Date().toISOString(),
+      // Solo incluir invalidParams si hay errores de validación (400 con array)
+      ...(this.resolveInvalidParams(payload) !== undefined && {
+        invalidParams: this.resolveInvalidParams(payload),
+      }),
+    };
+
+    response
+      .status(status)
+      .header('Content-Type', 'application/problem+json')
+      .json(problemDetails);
   }
 
-  private resolveCode(status: number, payload: unknown): string {
+  private resolveErrorCode(status: number, payload: unknown): string {
     if (payload && typeof payload === 'object' && 'code' in payload) {
-      return String(payload.code);
+      return String((payload as Record<string, unknown>).code);
     }
 
     switch (status) {
-      case HttpStatus.BAD_REQUEST:
-        return 'VALIDATION_ERROR';
-      case HttpStatus.UNAUTHORIZED:
-        return 'UNAUTHORIZED';
-      case HttpStatus.FORBIDDEN:
-        return 'FORBIDDEN';
-      case HttpStatus.NOT_FOUND:
-        return 'NOT_FOUND';
-      case HttpStatus.CONFLICT:
-        return 'CONFLICT';
-      case HttpStatus.TOO_MANY_REQUESTS:
-        return 'TOO_MANY_REQUESTS';
-      default:
-        return 'INTERNAL_ERROR';
+      case HttpStatus.BAD_REQUEST:        return 'VALIDATION_ERROR';
+      case HttpStatus.UNAUTHORIZED:       return 'AUTH_INVALID_TOKEN';
+      case HttpStatus.FORBIDDEN:          return 'ACCESS_FORBIDDEN';
+      case HttpStatus.NOT_FOUND:          return 'RESOURCE_NOT_FOUND';
+      case HttpStatus.CONFLICT:           return 'STATE_CONFLICT';
+      case HttpStatus.UNPROCESSABLE_ENTITY: return 'UNPROCESSABLE_ENTITY';
+      case HttpStatus.TOO_MANY_REQUESTS:  return 'RATE_LIMITED';
+      default:                            return 'INTERNAL_SERVER_ERROR';
     }
   }
 
-  private resolveMessage(payload: unknown, exception: unknown): string {
+  private resolveTitle(status: number): string {
+    switch (status) {
+      case 400: return 'Bad Request';
+      case 401: return 'Unauthorized';
+      case 403: return 'Forbidden';
+      case 404: return 'Not Found';
+      case 409: return 'Conflict';
+      case 422: return 'Unprocessable Content';
+      case 429: return 'Too Many Requests';
+      default:  return 'Internal Server Error';
+    }
+  }
+
+  /**
+   * OBS-04: En producción, los errores 500 devuelven un mensaje genérico seguro
+   * para no exponer detalles de implementación, stack traces ni mensajes internos.
+   */
+  private resolveSafeDetail(status: number, payload: unknown, exception: unknown): string {
+    if (status >= 500 && process.env.NODE_ENV === 'production') {
+      return 'An unexpected error occurred. Please contact support referencing the traceId.';
+    }
+
     if (typeof payload === 'string') {
       return payload;
     }
 
     if (payload && typeof payload === 'object' && 'message' in payload) {
-      const message = payload.message;
-      if (Array.isArray(message)) {
-        return 'Request validation failed';
-      }
+      const message = (payload as Record<string, unknown>).message;
+      if (Array.isArray(message)) return 'Validation failed. See invalidParams for details.';
       return String(message);
     }
 
@@ -104,14 +135,18 @@ export class ApiExceptionFilter implements ExceptionFilter {
       return exception.message;
     }
 
-    return 'Unexpected error';
+    return 'Operation failed';
   }
 
-  private resolveDetails(payload: unknown) {
-    if (!payload || typeof payload !== 'object' || !('message' in payload)) {
-      return undefined;
+  private resolveInvalidParams(payload: unknown): unknown[] | undefined {
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'message' in payload &&
+      Array.isArray((payload as Record<string, unknown>).message)
+    ) {
+      return (payload as Record<string, unknown>).message as unknown[];
     }
-
-    return Array.isArray(payload.message) ? payload.message : undefined;
+    return undefined;
   }
 }

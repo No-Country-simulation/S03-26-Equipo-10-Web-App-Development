@@ -98,6 +98,27 @@ export function getApiBaseUrl() {
 }
 
 /**
+ * Type guard para verificar que un valor tiene la forma de RFC 9457 Problem Details.
+ * OBS-F1: El backend migró a application/problem+json — este guard detecta el nuevo formato.
+ */
+function isProblemDetails(value: unknown): value is {
+  type: string;
+  title: string;
+  status: number;
+  detail: string;
+  code?: string;
+  traceId?: string;
+} {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'type' in value &&
+    'status' in value &&
+    'detail' in value
+  );
+}
+
+/**
  * Type guard para verificar que un valor desconocido tiene la forma de un ApiEnvelope.
  * H-07: Valida la estructura mínima del envelope antes del casteo a `ApiEnvelope<T>`.
  */
@@ -135,8 +156,19 @@ export async function requestApi<T>(
   const raw: unknown = await response.json();
 
   if (!response.ok) {
-    // Extraer el error del envelope si la respuesta tiene la forma esperada
-    const errorPayload = isApiEnvelope(raw) ? (raw as { error?: { message?: string; code?: string } }) : null;
+    // OBS-F1: Extraer el error del formato RFC 9457 Problem Details
+    if (isProblemDetails(raw)) {
+      throw new ApiError(
+        raw.detail,
+        raw.code ?? 'UNKNOWN_ERROR',
+        response.status,
+        { cause: new Error(`traceId: ${raw.traceId ?? 'unknown'}`) },
+      );
+    }
+    // Fallback: envelope antiguo { error: { message, code } }
+    const errorPayload = isApiEnvelope(raw)
+      ? (raw as { error?: { message?: string; code?: string } })
+      : null;
     throw new ApiError(
       errorPayload?.error?.message ?? 'Unexpected error',
       errorPayload?.error?.code,

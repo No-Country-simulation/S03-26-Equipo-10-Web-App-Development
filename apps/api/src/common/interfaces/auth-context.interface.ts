@@ -20,9 +20,14 @@ export interface AuthenticatedUser {
   isActive: boolean;
 }
 
+export interface RequestContext {
+  readonly requestId: string;
+  readonly correlationId: string;
+}
+
 export interface ApiRequest extends Request {
   tenantId?: string;
   user?: AuthenticatedUser;
   apiKey?: { apiKeyId: string; tenantId: string };
-  requestContext?: unknown;
+  requestContext?: RequestContext;
 }
