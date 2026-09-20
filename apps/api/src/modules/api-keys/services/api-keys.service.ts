@@ -1,51 +1,50 @@
-import { NotFoundException, Injectable } from "@nestjs/common";
-import { createHash, randomBytes } from "node:crypto";
-import { ApiKeyRepository } from "../repositories/api-key.repository";
-import { CreateApiKeyDto, RotateApiKeyDto } from "../dto/api-key.dto";
+import { NotFoundException, Injectable } from '@nestjs/common';
+import { createHash, randomBytes } from 'node:crypto';
+import { ApiKeyRepository } from '../repositories/api-key.repository';
+import { CreateApiKeyDto, RotateApiKeyDto } from '../dto/api-key.dto';
 
 @Injectable()
 export class ApiKeysService {
-    async createApiKey(tenantId: string, dto: CreateApiKeyDto) {
-        const rawApiKey = `tms_${randomBytes(24).toString('hex')}`;
-        const keyHash = createHash('sha256').update(rawApiKey).digest('hex');
+  constructor(private readonly apiKeyRepo: ApiKeyRepository) {}
 
-        const result = await this.apiKeyRepo.create(tenantId, dto.name, keyHash);
-        return { ...result, apiKey: rawApiKey };
-    }
+  async createApiKey(tenantId: string, dto: CreateApiKeyDto) {
+    const rawApiKey = `tms_${randomBytes(24).toString('hex')}`;
+    const keyHash = createHash('sha256').update(rawApiKey).digest('hex');
 
-    async listApiKeys(tenantId: string) {
-        const keys = await this.apiKeyRepo.findByTenant(tenantId);
-        return {
-          items: keys,
-          meta: { total: keys.length, page: 1, limit: keys.length },
-        };
-    }
+    const result = await this.apiKeyRepo.create(tenantId, dto.name, keyHash);
+    return { ...result, apiKey: rawApiKey };
+  }
 
-    async getApiKey(tenantId: string, apiKeyId: string) {
-        const key = await this.apiKeyRepo.findById(tenantId, apiKeyId);
-        if (!key) throw new NotFoundException('API key not found');
-        return key;
-    }
+  async listApiKeys(tenantId: string) {
+    const keys = await this.apiKeyRepo.findByTenant(tenantId);
+    return {
+      items: keys,
+      meta: { total: keys.length, page: 1, limit: keys.length },
+    };
+  }
 
-    async revokeApiKey(tenantId: string, apiKeyId: string) {
-        const current = await this.apiKeyRepo.findById(tenantId, apiKeyId);
-        if (!current) throw new NotFoundException('API key not found');
+  async getApiKey(tenantId: string, apiKeyId: string) {
+    const key = await this.apiKeyRepo.findById(tenantId, apiKeyId);
+    if (!key) throw new NotFoundException('API key not found');
+    return key;
+  }
 
-        await this.apiKeyRepo.revoke(apiKeyId);
-        return { id: apiKeyId, revoked: true };
-    }
+  async revokeApiKey(tenantId: string, apiKeyId: string) {
+    const current = await this.apiKeyRepo.findById(tenantId, apiKeyId);
+    if (!current) throw new NotFoundException('API key not found');
 
-    async rotateApiKey(tenantId: string, apiKeyId: string, dto: RotateApiKeyDto) {
-        const current = await this.apiKeyRepo.findById(tenantId, apiKeyId);
-        if (!current) throw new NotFoundException('API key not found');
+    await this.apiKeyRepo.revoke(apiKeyId);
+    return { id: apiKeyId, revoked: true };
+  }
 
-        const rawApiKey = `tms_${randomBytes(24).toString('hex')}`;
-        const keyHash = createHash('sha256').update(rawApiKey).digest('hex');
+  async rotateApiKey(tenantId: string, apiKeyId: string, dto: RotateApiKeyDto) {
+    const current = await this.apiKeyRepo.findById(tenantId, apiKeyId);
+    if (!current) throw new NotFoundException('API key not found');
 
-        const result = await this.apiKeyRepo.rotate(apiKeyId, dto.name ?? current.name, keyHash);
-        return { ...result, apiKey: rawApiKey };
-    }
+    const rawApiKey = `tms_${randomBytes(24).toString('hex')}`;
+    const keyHash = createHash('sha256').update(rawApiKey).digest('hex');
 
-    constructor(private readonly apiKeyRepo: ApiKeyRepository) {
-    }
+    const result = await this.apiKeyRepo.rotate(apiKeyId, dto.name ?? current.name, keyHash);
+    return { ...result, apiKey: rawApiKey };
+  }
 }

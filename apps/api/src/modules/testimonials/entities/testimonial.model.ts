@@ -9,23 +9,23 @@ export const VALID_TRANSITIONS: Record<TestimonialStatus, TestimonialStatus[]> =
 };
 
 export interface TestimonialView {
-  id: string;
-  tenantId: string;
-  createdById: string | null;
-  authorName: string;
-  content: string;
-  rating: number;
-  status: TestimonialStatus;
-  score: number;
-  categoryId: string | null;
-  category?: { id: string; name: string } | null;
-  tags?: { id: string; name: string }[];
-  moderationNotes: string | null;
-  imageUrl: string | null;
-  videoUrl: string | null;
-  videoTitle: string | null;
-  videoThumbnailUrl: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
+  readonly id: string;
+  readonly tenantId: string;
+  readonly createdById: string | null;
+  readonly authorName: string;
+  readonly content: string;
+  readonly rating: number;
+  readonly status: TestimonialStatus;
+  readonly score: number;
+  readonly categoryId: string | null;
+  readonly category?: { readonly id: string; readonly name: string } | null;
+  readonly tags?: ReadonlyArray<{ readonly id: string; readonly name: string }>;
+  readonly moderationNotes: string | null;
+  readonly imageUrl: string | null;
+  readonly videoUrl: string | null;
+  readonly videoTitle: string | null;
+  readonly videoThumbnailUrl: string | null;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly publishedAt: Date | null;
 }

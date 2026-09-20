@@ -68,14 +68,17 @@ export interface TestimonialRecord {
 
 /**
  * Error personalizado para manejar respuestas fallidas de la API de manera consistente.
+ *
+ * H-15: Acepta `ErrorOptions` para encadenar la causa original (`{ cause: originalError }`).
  */
 export class ApiError extends Error {
   constructor(
     message: string,
     public readonly code?: string,
     public readonly status?: number,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = 'ApiError';
   }
 }
@@ -95,12 +98,25 @@ export function getApiBaseUrl() {
 }
 
 /**
+ * Type guard para verificar que un valor desconocido tiene la forma de un ApiEnvelope.
+ * H-07: Valida la estructura mínima del envelope antes del casteo a `ApiEnvelope<T>`.
+ */
+function isApiEnvelope(value: unknown): value is ApiEnvelope<unknown> {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    'success' in value &&
+    typeof (value as Record<string, unknown>).success === 'boolean'
+  );
+}
+
+/**
  * Cliente de API base para llamadas tipadas desde Next.js al backend NestJS.
  * Construye la URL base y envuelve las respuestas en el tipo `ApiEnvelope<T>`.
- * 
+ *
  * @param path Ruta del endpoint (ej. `/auth/login`).
  * @param init Opciones de Fetch API (método, headers, body, etc).
- * @throws {ApiError} Si la respuesta del servidor no es OK (ej. 4xx, 5xx).
+ * @throws {ApiError} Si la respuesta del servidor no es OK (ej. 4xx, 5xx) o el formato es inesperado.
  * @returns La carga útil de la respuesta parseada y tipada.
  */
 export async function requestApi<T>(
@@ -116,15 +132,26 @@ export async function requestApi<T>(
     cache: 'no-store',
   });
 
-  const payload = await response.json();
+  const raw: unknown = await response.json();
 
   if (!response.ok) {
+    // Extraer el error del envelope si la respuesta tiene la forma esperada
+    const errorPayload = isApiEnvelope(raw) ? (raw as { error?: { message?: string; code?: string } }) : null;
     throw new ApiError(
-      payload?.error?.message ?? 'Unexpected error',
-      payload?.error?.code,
+      errorPayload?.error?.message ?? 'Unexpected error',
+      errorPayload?.error?.code,
       response.status,
     );
   }
 
-  return payload as ApiEnvelope<T>;
+  // H-07: Validar que el servidor devolvió un envelope válido antes de castearlo
+  if (!isApiEnvelope(raw)) {
+    throw new ApiError(
+      'Unexpected API response format — el servidor no devolvió un envelope válido.',
+      'INVALID_RESPONSE',
+      response.status,
+    );
+  }
+
+  return raw as ApiEnvelope<T>;
 }

@@ -54,16 +54,19 @@ export class JwtTokenService {
 
   private parseDurationMs(value: string): number {
     const match = value.match(/^(\d+)([mhd])$/i);
-    if (!match) return 7 * 24 * 60 * 60 * 1000;
+    if (!match) {
+      throw new Error(
+        `JwtTokenService: formato de duración inválido "${value}". Formato esperado: <número><m|h|d> (ej. "15m", "1h", "7d").`,
+      );
+    }
 
     const amount = Number(match[1]);
-    const unit = match[2].toLowerCase();
+    const unit = match[2]!.toLowerCase();
 
     switch (unit) {
       case 'm': return amount * 60 * 1000;
       case 'h': return amount * 60 * 60 * 1000;
-      case 'd':
-      default: return amount * 24 * 60 * 60 * 1000;
+      default:  return amount * 24 * 60 * 60 * 1000; // 'd'
     }
   }
 }
