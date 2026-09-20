@@ -93,6 +93,7 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 | [`2026-09-18_feat-skill-layered-architecture.md`](./2026-09-18_feat-skill-layered-architecture.md) | `Completado` | Incorporación de la skill SKL-ARCH-LAYERED-001 (Senior Layered Architecture) |
 | [`2026-09-18_feat-skill-cognitive-interface.md`](./2026-09-18_feat-skill-cognitive-interface.md) | `Completado` | Incorporación de la skill SKL-UX-PSYCH-001 (Cognitive Interface Engineering) |
 | [`2026-09-18_feat-skill-docker-engineering.md`](./2026-09-18_feat-skill-docker-engineering.md) | `Completado` | Incorporación de la skill SKL-DEVOPS-DKR-001 (Docker Container Engineering) |
+| [`2026-09-20_feat-skill-monorepo-engineering.md`](./2026-09-20_feat-skill-monorepo-engineering.md) | `Completado` | Incorporación de la skill SKL-MONOREPO-ARCH-001 (Senior Monorepo Architecture & Engineering) |
 
 ---
 

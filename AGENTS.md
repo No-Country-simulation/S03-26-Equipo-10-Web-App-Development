@@ -47,7 +47,7 @@ Monorepo Root
 ├── apps/api/        → @testimonial-cms/api  (NestJS 11 + Prisma)
 ├── apps/web/        → @testimonial-cms/web  (Next.js 15 App Router)
 ├── docs/            → Documentación técnica, dominio, producto, operaciones
-├── .agents/         → Skills de IA (23 skills) + Reglas operativas + Prompts
+├── .agents/         → Skills de IA (24 skills) + Reglas operativas + Prompts
 ├── infra/           → Docker + Nginx configs
 └── scripts/         → Utilidades locales (PowerShell, Bash)
 ```
@@ -207,7 +207,8 @@ Al trabajar con un plan en `docs/plan/`:
 | `layered-architecture-engineering` | SKL-ARCH-LAYERED-001 | Architecture / Full-Stack |
 | `cognitive-interface-engineering` | SKL-UX-PSYCH-001 | UX / Cognitive Interface |
 | `docker-container-engineering` | SKL-DEVOPS-DKR-001 | DevOps / Containers |
+| `monorepo-architecture-engineering` | SKL-MONOREPO-ARCH-001 | Architecture / DevOps / Monorepo |
 
 ---
 
-*Última actualización: 2026-09-18 — Versión del framework: SKL-PRO-001 v1.1.0*
+*Última actualización: 2026-09-20 — Versión del framework: SKL-PRO-001 v1.1.0*

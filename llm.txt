@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-09-18
+# Última actualización: 2026-09-20
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -50,7 +50,7 @@ docs/governance/       → Ethics, compliance
 docs/collaboration/    → Contributing, git workflow, coding standards, setup, changelog
 docs/plan/             → Active HITL orchestration plans
 docs/modules/          → Per-module technical specs
-.agents/skills/        → 23 AI engineering skills (SKL-*)
+.agents/skills/        → 24 AI engineering skills (SKL-*)
 .agents/rules/         → Operative rules loaded by AI IDE
 .agents/prompts/       → Reusable prompt templates
 infra/                 → Nginx, Docker production configs
