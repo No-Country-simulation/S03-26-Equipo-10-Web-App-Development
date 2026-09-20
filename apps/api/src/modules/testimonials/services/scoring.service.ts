@@ -14,12 +14,12 @@ export class ScoringService implements OnApplicationBootstrap, OnApplicationShut
   ) {}
 
   onApplicationBootstrap() {
-    this.logger.log('Starting score calculation worker (Hourly)');
+    this.logger.log('Iniciando worker de cálculo de scores (cada hora)');
     // Run immediately on boot
-    this.processScores().catch(err => this.logger.error('Initial scoring failed', err));
+    this.processScores().catch(err => this.logger.error({ err }, 'Initial scoring failed'));
     // Run every hour
     this.timer = setInterval(() => {
-      this.processScores().catch(err => this.logger.error('Scheduled scoring failed', err));
+      this.processScores().catch(err => this.logger.error({ err }, 'Scheduled scoring failed'));
     }, 60 * 60 * 1000);
   }
 
@@ -31,7 +31,7 @@ export class ScoringService implements OnApplicationBootstrap, OnApplicationShut
 
   async processScores() {
     if (this.isProcessing) {
-      this.logger.warn('Skipping score calculation: previous run still in progress');
+      this.logger.warn('Skipping score calculation — previous run still in progress');
       return;
     }
 
@@ -39,15 +39,15 @@ export class ScoringService implements OnApplicationBootstrap, OnApplicationShut
     const startTime = Date.now();
 
     try {
-      this.logger.log('Fetching published testimonials for scoring...');
+      this.logger.log('Fetching published testimonials for scoring');
       const testimonials = await this.testimonialRepo.findAllPublishedForScoring();
       
       if (testimonials.length === 0) {
-        this.logger.log('No published testimonials found. Skipping scoring.');
+        this.logger.log('No published testimonials found — skipping scoring run');
         return;
       }
 
-      this.logger.log(`Calculating scores for ${testimonials.length} testimonials...`);
+      this.logger.log({ count: testimonials.length }, 'Calculating testimonial scores');
       const testimonialIds = testimonials.map(t => t.id);
       
       // Get all engagement metrics in one query (O(1) database roundtrip)
@@ -79,8 +79,8 @@ export class ScoringService implements OnApplicationBootstrap, OnApplicationShut
 
       await this.testimonialRepo.updateScores(updates);
       
-      const duration = Date.now() - startTime;
-      this.logger.log(`Score calculation completed in ${duration}ms. Updated ${updates.length} testimonials.`);
+      const durationMs = Date.now() - startTime;
+      this.logger.log({ durationMs, updatedCount: updates.length }, 'Score calculation completed');
     } finally {
       this.isProcessing = false;
     }

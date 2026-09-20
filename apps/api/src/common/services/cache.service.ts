@@ -6,13 +6,18 @@ interface CacheEntry<T> {
 }
 
 /**
- * Simple in-memory cache with TTL support.
+ * Simple in-memory cache with TTL support and bounded size.
  * Designed for single-node deployments (no shared state between instances).
+ *
+ * H-09: Agrega MAX_ENTRIES para evitar crecimiento ilimitado en memoria.
+ * Usa evicción FIFO cuando se alcanza el límite.
  */
 @Injectable()
 export class CacheService {
   private readonly store = new Map<string, CacheEntry<unknown>>();
   private readonly DEFAULT_TTL_MS = 60_000; // 60 seconds
+  /** Límite de entradas simultáneas. Previene memory leaks en servicios de larga vida. */
+  private readonly MAX_ENTRIES = 10_000;
 
   /**
    * Get a cached value by key. Returns null if expired or missing.
@@ -31,8 +36,17 @@ export class CacheService {
 
   /**
    * Set a value in the cache with an optional TTL in milliseconds.
+   * Si el store alcanza MAX_ENTRIES, evicta la entrada más antigua (FIFO).
    */
   set<T>(key: string, data: T, ttlMs?: number): void {
+    // Evicción FIFO cuando se alcanza el límite de capacidad
+    if (!this.store.has(key) && this.store.size >= this.MAX_ENTRIES) {
+      const oldestKey = this.store.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.store.delete(oldestKey);
+      }
+    }
+
     this.store.set(key, {
       data,
       expiresAt: Date.now() + (ttlMs ?? this.DEFAULT_TTL_MS),
@@ -74,5 +88,13 @@ export class CacheService {
    */
   clear(): void {
     this.store.clear();
+  }
+
+  /**
+   * Devuelve el número de entradas actualmente en caché.
+   * Útil para métricas y health checks.
+   */
+  get size(): number {
+    return this.store.size;
   }
 }

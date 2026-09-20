@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
+import { LoggerService } from './logger.service';
 
 export interface RetryOptions {
   timeoutMs?: number;
@@ -13,9 +14,14 @@ interface CircuitState {
   openedAt?: number;
 }
 
+/** Tiempo en ms que el circuito permanece abierto antes de reintentar. */
+const CIRCUIT_RESET_MS = 30_000;
+/** Número de fallos consecutivos para abrir el circuito. */
+const CIRCUIT_THRESHOLD = 3;
+
 @Injectable()
 export class HttpResilienceService {
-  private readonly logger = new Logger(HttpResilienceService.name);
+  private readonly logger = new LoggerService();
   private readonly circuits = new Map<string, CircuitState>();
 
   async request<T>(
@@ -44,7 +50,7 @@ export class HttpResilienceService {
 
         this.resetCircuit(options.circuitKey);
         return response.data as T;
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = error;
         attempt += 1;
 
@@ -53,7 +59,7 @@ export class HttpResilienceService {
           throw error;
         }
 
-        await this.sleep(baseDelayMs * attempt + Math.floor(Math.random() * 100));
+        await this.sleep(this.jitteredBackoff(baseDelayMs, attempt));
       }
     }
 
@@ -81,7 +87,7 @@ export class HttpResilienceService {
         const response = await axios.post(url, body, {
           headers,
           timeout: timeoutMs,
-          // Accept any status code < 500, let the caller decide what's success
+          // Acepta cualquier status < 500 — el caller decide qué es éxito
           validateStatus: (status) => status < 500,
         });
 
@@ -91,17 +97,18 @@ export class HttpResilienceService {
           status: response.status,
           body: typeof response.data === 'string' ? response.data : JSON.stringify(response.data),
         };
-      } catch (error) {
+      } catch (error: unknown) {
         lastError = error;
         attempt += 1;
 
         if (attempt > retries) {
           this.markFailure(options.circuitKey);
-          const axiosErr = error as AxiosError;
-          throw new Error(axiosErr.message ?? 'Unexpected delivery error');
+          // H-06: Preservar la causa original del error (RF-24)
+          const message = error instanceof AxiosError ? error.message : 'Unexpected delivery error';
+          throw new Error(message, { cause: error });
         }
 
-        await this.sleep(baseDelayMs * attempt + Math.floor(Math.random() * 100));
+        await this.sleep(this.jitteredBackoff(baseDelayMs, attempt));
       }
     }
 
@@ -111,13 +118,10 @@ export class HttpResilienceService {
 
   private assertCircuit(key: string) {
     const state = this.circuits.get(key);
-    if (!state?.openedAt) {
-      return;
-    }
+    if (!state?.openedAt) return;
 
     const elapsed = Date.now() - state.openedAt;
-    const resetMs = 30_000;
-    if (elapsed > resetMs) {
+    if (elapsed > CIRCUIT_RESET_MS) {
       this.circuits.set(key, { failures: 0 });
       return;
     }
@@ -129,8 +133,8 @@ export class HttpResilienceService {
     const current = this.circuits.get(key) ?? { failures: 0 };
     const failures = current.failures + 1;
 
-    if (failures >= 3) {
-      this.logger.warn(`Circuit opened for ${key}`);
+    if (failures >= CIRCUIT_THRESHOLD) {
+      this.logger.warn(`Circuit opened for ${key}`, { circuitKey: key, failures });
       this.circuits.set(key, { failures, openedAt: Date.now() });
       return;
     }
@@ -142,7 +146,12 @@ export class HttpResilienceService {
     this.circuits.set(key, { failures: 0 });
   }
 
+  /** Backoff exponencial con jitter completo para evitar thundering herd. */
+  private jitteredBackoff(baseDelayMs: number, attempt: number): number {
+    return baseDelayMs * attempt + Math.floor(Math.random() * 100);
+  }
+
   private async sleep(ms: number): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, ms));
+    await new Promise<void>(resolve => setTimeout(resolve, ms));
   }
 }

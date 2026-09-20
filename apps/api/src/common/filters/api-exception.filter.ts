@@ -4,14 +4,29 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 
+/**
+ * Filtro global de excepciones que serializa todos los errores al formato
+ * de envelope estándar del proyecto.
+ *
+ * H-14: Loguea los errores 5xx con contexto operacional (requestId, path, exception)
+ * para observabilidad en producción. Los errores 4xx no se loguean ya que son
+ * parte del flujo normal del negocio (validaciones, recursos no encontrados, etc.).
+ */
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ApiExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const context = host.switchToHttp();
     const response = context.getResponse();
-    const request = context.getRequest();
+    const request = context.getRequest<{
+      url: string;
+      method: string;
+      requestContext?: { requestId?: string };
+    }>();
 
     const status =
       exception instanceof HttpException
@@ -20,6 +35,21 @@ export class ApiExceptionFilter implements ExceptionFilter {
 
     const payload =
       exception instanceof HttpException ? exception.getResponse() : undefined;
+
+    // H-14: Loguear errores 5xx con contexto completo para observabilidad.
+    // Los 4xx son errores de cliente y no representan fallas del sistema.
+    if (status >= 500) {
+      this.logger.error(
+        {
+          err: exception,
+          path: request.url,
+          method: request.method,
+          requestId: request.requestContext?.requestId,
+          statusCode: status,
+        },
+        'Unhandled server error',
+      );
+    }
 
     response.status(status).json({
       success: false,
