@@ -22,18 +22,30 @@ export interface AppConfig {
 }
 
 export const appConfigValidationSchema = z.object({
-  PORT: z.coerce.number().default(4000),
-  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  CORS_ORIGIN: z.string().url().refine((value) => {
+    if (!URL.canParse(value)) return false;
+    const origin = new URL(value);
+    return ['http:', 'https:'].includes(origin.protocol)
+      && !origin.username
+      && !origin.password
+      && origin.pathname === '/'
+      && !origin.search
+      && !origin.hash;
+  }, 'CORS_ORIGIN must be an HTTP(S) origin').default('http://localhost:3000'),
 
   JWT_SECRET: z.string({
     message: 'JWT_SECRET is required — the application cannot start without it',
-  }),
+  }).refine((value) => value.trim().length >= 32, 'JWT_SECRET must contain at least 32 characters after trimming'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
   DATABASE_URL: z.string({
     message: 'DATABASE_URL is required — the application cannot start without it',
-  }),
+  }).url().refine(
+    (value) => URL.canParse(value) && ['postgresql:', 'postgres:'].includes(new URL(value).protocol),
+    'DATABASE_URL must be a PostgreSQL URL',
+  ),
 
   CLOUDINARY_UPLOAD_URL: z.string().default(''),
   CLOUDINARY_UPLOAD_PRESET: z.string().default(''),

@@ -1,6 +1,6 @@
 FROM node:24.21.0-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache openssl && npm install --global npm@10.9.9
+RUN apk add --no-cache openssl && npm install --global npm@11.19.0
 
 FROM base AS deps
 COPY package.json package-lock.json .npmrc ./

@@ -4,10 +4,8 @@ dist
 *.tsbuildinfo
 coverage
 .turbo
-.env
-.env.local
-apps/*/.env
-apps/*/.env.local
+.env*
+!.env.example
 *.log
 .codex
 infra/nginx/certs/

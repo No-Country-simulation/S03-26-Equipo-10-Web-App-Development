@@ -57,7 +57,7 @@ services:
       - backend_network
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-this-local-password}@postgres:5432/${POSTGRES_DB:-testimonial_cms}?schema=public
-      - JWT_SECRET=change-this-jwt-secret-for-dev
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in the root .env file with at least 32 characters}
     deploy:
       resources:
         limits:

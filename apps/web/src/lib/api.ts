@@ -84,7 +84,10 @@ export class ApiError extends Error {
 }
 
 export function getApiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+  const configured = process.env.NEXT_PUBLIC_API_URL;
+  if (!configured) {
+    throw new Error('NEXT_PUBLIC_API_URL is required');
+  }
 
   if (configured.endsWith('/api/v1')) {
     return configured;

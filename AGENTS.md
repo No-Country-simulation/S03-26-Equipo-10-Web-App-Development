@@ -29,7 +29,7 @@
 | **UI** | React | 18.x |
 | **Estilos** | Tailwind CSS + Radix UI | v3 |
 | **Queue/Cache** | BullMQ + Redis | 7 |
-| **Package manager** | npm | 10.x |
+| **Package manager** | npm | 11.x |
 | **Infraestructura** | Docker Compose | — |
 
 ---

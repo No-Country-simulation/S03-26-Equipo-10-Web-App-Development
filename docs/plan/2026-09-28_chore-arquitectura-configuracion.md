@@ -1,7 +1,7 @@
 # Plan HITL: arquitectura y configuración reproducible
 
 **Fecha de inicio:** 2026-09-28
-**Estado global:** Fases implementadas; revisión de fase 3 y verificación PostgreSQL de fase 2 pendientes
+**Estado global:** Fases implementadas; verificación PostgreSQL de fase 2 pendiente
 **Rama:** `main` (sin crear rama en esta fase)
 
 ## 1. Contexto y restricciones
@@ -41,7 +41,7 @@
 **Review humano (ACK):** Recibido el 2026-09-28 para avanzar a la fase 3 con la verificación PostgreSQL pendiente.
 **Commit sugerido:** `fix(testimonials): asegurá el outbox y el aislamiento por tenant`.
 
-### `[Actual]` Fase 3: fronteras de módulos y frontend
+### `[Completada]` Fase 3: fronteras de módulos y frontend
 
 - [x] Reemplazar imports privados entre módulos por interfaces públicas acotadas y hacer cumplir las fronteras con ESLint.
 - [x] Retirar archivos preparatorios no usados y migrar la ruta activa de testimonios a `features/testimonials/`.
@@ -50,9 +50,9 @@
 **Verificación local:** typecheck, lint, tests y build pasan en API y web. El lint rechaza imports privados entre módulos y entre workspaces con pruebas de entrada deliberadamente prohibida. En web, 12 tests pasan; la prueba de `TestimonialsScreen` cubre listado, filtro, creación y moderación. En API, 62 tests pasan y siguen pendientes las 5 pruebas de PostgreSQL de la fase 2. Lint termina con advertencias heredadas (2 en API, 25 en web) y sin errores. El build web completó la ruta `/admin/testimonials`.
 
 **Criterio:** lint rechaza imports prohibidos y la ruta de testimonios conserva sus flujos.
-**Review humano (ACK):** Pendiente.
+**Review humano (ACK):** Recibido el 2026-09-28 mediante el pedido explícito de implementar el plan de cierre integral; la verificación PostgreSQL continúa pendiente en el nuevo plan.
 **Commit sugerido:** `refactor(architecture): ordená las fronteras y la feature de testimonios`.
 
 ## 3. Cierre
 
-Ejecutar solo la fase `[Actual]` por turno. Al terminar, presentar pruebas y commit sugerido; detenerse hasta recibir ACK. No añadir `CODEOWNERS` sin responsables de GitHub identificados.
+Las fases de implementación quedaron cerradas. La verificación PostgreSQL pendiente se retoma en el plan de cierre integral. No añadir `CODEOWNERS` sin responsables de GitHub identificados.

@@ -1,8 +1,8 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { getApiBaseUrl } from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const API_URL = getApiBaseUrl();
 
 /**
  * Server Action para iniciar sesión desde el formulario web.
@@ -40,7 +40,7 @@ export async function loginAction(formData: FormData) {
     }
 
     return { success: true };
-  } catch (error) {
+  } catch {
     return { error: 'Network error. Please try again.' };
   }
 }

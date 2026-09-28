@@ -81,7 +81,7 @@ graph TB
 ### 1. Requisitos previos
 
 - Node.js 24.21.0
-- npm 10.9.9 (Node 24 incluye npm 11; instalá npm 10 antes de `npm ci`)
+- npm 11.19.0
 - Docker & Docker Compose
 
 ### 2. Instalación
@@ -92,7 +92,7 @@ git clone https://github.com/tu-usuario/testimonial-cms.git
 cd testimonial-cms
 
 # Usar la versión de npm definida por el proyecto
-npm install --global npm@10.9.9
+npm install --global npm@11.19.0
 
 # Instalar dependencias del monorepo
 npm ci
@@ -102,6 +102,8 @@ cp .env.example .env
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 ```
+
+Definí un `JWT_SECRET` de al menos 32 caracteres en el `.env` raíz para Docker Compose o en `apps/api/.env` para la API local. `NEXT_PUBLIC_API_URL` debe contener una URL HTTP(S) válida antes de iniciar o compilar web; se incorpora al bundle durante el build.
 
 ### 3. Inicializar base de datos
 
