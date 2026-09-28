@@ -47,7 +47,7 @@ export class CategoryRepository {
 
   async update(tenantId: string, id: string, name: string): Promise<CategoryView> {
     const row = await this.prisma.category.update({
-      where: { id },
+      where: { id, tenantId },
       data: { name },
     });
 
@@ -58,7 +58,7 @@ export class CategoryRepository {
     };
   }
 
-  async remove(id: string): Promise<void> {
-    await this.prisma.category.delete({ where: { id } });
+  async remove(tenantId: string, id: string): Promise<void> {
+    await this.prisma.category.delete({ where: { id, tenantId } });
   }
 }

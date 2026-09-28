@@ -101,7 +101,7 @@ export class WebhookRepository {
     };
   }
 
-  async update(webhookId: string, params: {
+  async update(tenantId: string, webhookId: string, params: {
     url?: string;
     eventCode?: string;
     secret?: string;
@@ -115,7 +115,7 @@ export class WebhookRepository {
     }
 
     const updated = await this.prisma.webhook.update({
-      where: { id: webhookId },
+      where: { id: webhookId, tenantId },
       data: {
         ...(params.url !== undefined && { url: params.url }),
         ...(params.secret !== undefined && { secret: params.secret }),
@@ -136,8 +136,8 @@ export class WebhookRepository {
     };
   }
 
-  async remove(webhookId: string): Promise<void> {
-    await this.prisma.webhook.delete({ where: { id: webhookId } });
+  async remove(tenantId: string, webhookId: string): Promise<void> {
+    await this.prisma.webhook.delete({ where: { id: webhookId, tenantId } });
   }
 
   async findDeliveries(webhookId: string): Promise<WebhookDeliveryView[]> {

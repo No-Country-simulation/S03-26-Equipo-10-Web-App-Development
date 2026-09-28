@@ -33,7 +33,7 @@ export class ApiKeysService {
     const current = await this.apiKeyRepo.findById(tenantId, apiKeyId);
     if (!current) throw new NotFoundException('API key not found');
 
-    await this.apiKeyRepo.revoke(apiKeyId);
+    await this.apiKeyRepo.revoke(tenantId, apiKeyId);
     return { id: apiKeyId, revoked: true };
   }
 
@@ -44,7 +44,7 @@ export class ApiKeysService {
     const rawApiKey = `tms_${randomBytes(24).toString('hex')}`;
     const keyHash = createHash('sha256').update(rawApiKey).digest('hex');
 
-    const result = await this.apiKeyRepo.rotate(apiKeyId, dto.name ?? current.name, keyHash);
+    const result = await this.apiKeyRepo.rotate(tenantId, apiKeyId, dto.name ?? current.name, keyHash);
     return { ...result, apiKey: rawApiKey };
   }
 }

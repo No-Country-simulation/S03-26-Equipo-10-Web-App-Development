@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { TestimonialsService } from '../src/modules/testimonials/services/testimonials.service';
-import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../src/modules/testimonials/entities/testimonial.model';
+import { VALID_TRANSITIONS, TestimonialView } from '../src/modules/testimonials/entities/testimonial.model';
 
 describe('VALID_TRANSITIONS', () => {
   it('defines correct transitions for each status', () => {
@@ -36,7 +36,7 @@ describe('TestimonialsService', () => {
 
   const mockRepo = {
     findById: jest.fn(),
-    create: jest.fn(),
+    createWithEvent: jest.fn(),
     updateFields: jest.fn(),
     updateStatus: jest.fn(),
     remove: jest.fn(),
@@ -69,10 +69,6 @@ describe('TestimonialsService', () => {
     getVideoMetadata: jest.fn(),
   };
 
-  const mockOutboxService = {
-    createEvent: jest.fn().mockResolvedValue(undefined),
-  };
-
   const mockCacheService = {
     get: jest.fn().mockReturnValue(null),
     set: jest.fn(),
@@ -94,14 +90,13 @@ describe('TestimonialsService', () => {
       mockAnalyticsRepo as any,
       mockCloudinaryService as any,
       mockYoutubeService as any,
-      mockOutboxService as any,
       mockCacheService as any,
     );
   });
 
   it('creates a draft testimonial', async () => {
     const created = makeView();
-    mockRepo.create.mockResolvedValue(created);
+    mockRepo.createWithEvent.mockResolvedValue(created);
 
     const result = await service.createTestimonial('tenant-1', 'user-1', {
       authorName: 'John',
@@ -111,11 +106,30 @@ describe('TestimonialsService', () => {
 
     expect(result.status).toBe('draft');
     expect(result.score).toBe(0);
-    expect(mockRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockRepo.createWithEvent).toHaveBeenCalledWith(expect.objectContaining({
       tenantId: 'tenant-1',
       createdById: 'user-1',
       rating: 5,
-    }));
+    }), 'draft', expect.objectContaining({ eventType: 'testimonial.created' }));
+  });
+
+  it('creates public submissions directly as pending', async () => {
+    const pending = makeView({ status: 'pending', createdById: null });
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValue({ id: 'tenant-1', isPublicFormEnabled: true });
+    mockRepo.createWithEvent.mockResolvedValue(pending);
+    mockRepo.findById.mockResolvedValue(pending);
+
+    const result = await service.submitPublicTestimonial('acme', {
+      authorName: 'John', content: 'Great product, highly recommend it!', rating: 5,
+    });
+
+    expect(result.status).toBe('pending');
+    expect(mockRepo.createWithEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1', createdById: null }),
+      'pending',
+      expect.objectContaining({ eventType: 'testimonial.created' }),
+    );
+    expect(mockRepo.updateStatus).not.toHaveBeenCalled();
   });
 
   it('follows the correct state machine: draft → pending → approved → published', async () => {
@@ -128,16 +142,19 @@ describe('TestimonialsService', () => {
     mockRepo.updateStatus.mockResolvedValueOnce(pending);
     const submitResult = await service.submitTestimonial('tenant-1', 'test-1');
     expect(submitResult.status).toBe('pending');
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'draft', 'pending');
 
     mockRepo.findById.mockResolvedValueOnce(pending);
     mockRepo.updateStatus.mockResolvedValueOnce(approved);
     const approveResult = await service.approveTestimonial('tenant-1', 'test-1');
     expect(approveResult.status).toBe('approved');
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'pending', 'approved');
 
     mockRepo.findById.mockResolvedValueOnce(approved);
     mockRepo.updateStatus.mockResolvedValueOnce(published);
     const publishResult = await service.publishTestimonial('tenant-1', 'test-1');
     expect(publishResult.status).toBe('published');
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'approved', 'published', expect.any(Object), expect.objectContaining({ eventType: 'testimonial.published' }));
   });
 
   it('rejects invalid state transitions', async () => {
@@ -157,7 +174,7 @@ describe('TestimonialsService', () => {
 
     const result = await service.rejectTestimonial('tenant-1', 'test-1', 'Not appropriate');
     expect(result.status).toBe('rejected');
-    expect(mockRepo.updateStatus).toHaveBeenCalledWith('test-1', 'rejected', { moderationNotes: 'Not appropriate' });
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'pending', 'rejected', { moderationNotes: 'Not appropriate' });
   });
 
   it('prevents editing published testimonials', async () => {

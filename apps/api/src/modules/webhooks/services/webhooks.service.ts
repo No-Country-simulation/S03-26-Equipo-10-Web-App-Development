@@ -28,7 +28,7 @@ export class WebhooksService {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
     if (!webhook) throw new NotFoundException('Webhook not found');
 
-    await this.webhookRepo.remove(webhookId);
+    await this.webhookRepo.remove(tenantId, webhookId);
     return { id: webhookId, deleted: true };
   }
 
@@ -131,7 +131,7 @@ export class WebhooksService {
       assertPublicUrl(dto.url);
     }
 
-    return this.webhookRepo.update(webhookId, {
+    return this.webhookRepo.update(tenantId, webhookId, {
       ...(dto.url !== undefined && { url: dto.url }),
       ...(dto.eventCode !== undefined && { eventCode: dto.eventCode }),
       ...(dto.secret !== undefined && { secret: dto.secret }),

@@ -49,14 +49,12 @@ export class UserRepository {
         email: params.email,
         passwordHash: params.passwordHash,
         isActive: true,
+        roles: { create: { roleId: role.id } },
       },
+      include: { roles: { include: { role: true } } },
     });
 
-    await this.prisma.userRole.create({
-      data: { userId: user.id, roleId: role.id },
-    });
-
-    return this.findById(params.tenantId, user.id) as Promise<UserView>;
+    return this.toView(user);
   }
 
   async update(params: {

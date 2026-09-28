@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TagView } from '../entities/tag.model';
 
@@ -47,7 +47,7 @@ export class TagRepository {
 
   async update(tenantId: string, id: string, name: string): Promise<TagView> {
     const row = await this.prisma.tag.update({
-      where: { id },
+      where: { id, tenantId },
       data: { name },
     });
 
@@ -58,19 +58,26 @@ export class TagRepository {
     };
   }
 
-  async remove(id: string): Promise<void> {
-    await this.prisma.tag.delete({ where: { id } });
+  async remove(tenantId: string, id: string): Promise<void> {
+    await this.prisma.tag.delete({ where: { id, tenantId } });
   }
 
-  async attachToTestimonial(testimonialId: string, tagId: string): Promise<void> {
-    await this.prisma.testimonialTag.upsert({
-      where: { testimonialId_tagId: { testimonialId, tagId } },
-      update: {},
-      create: { testimonialId, tagId },
+  async attachToTestimonial(tenantId: string, testimonialId: string, tagId: string): Promise<void> {
+    await this.prisma.$transaction(async tx => {
+      const testimonial = await tx.testimonial.findFirst({ where: { id: testimonialId, tenantId }, select: { id: true } });
+      const tag = await tx.tag.findFirst({ where: { id: tagId, tenantId }, select: { id: true } });
+      if (!testimonial || !tag) throw new NotFoundException('Testimonial or tag not found');
+      await tx.testimonialTag.upsert({
+        where: { testimonialId_tagId: { testimonialId, tagId } },
+        update: {},
+        create: { testimonialId, tagId },
+      });
     });
   }
 
-  async detachFromTestimonial(testimonialId: string, tagId: string): Promise<void> {
-    await this.prisma.testimonialTag.deleteMany({ where: { testimonialId, tagId } });
+  async detachFromTestimonial(tenantId: string, testimonialId: string, tagId: string): Promise<void> {
+    await this.prisma.testimonialTag.deleteMany({
+      where: { testimonialId, tagId, testimonial: { tenantId }, tag: { tenantId } },
+    });
   }
 }

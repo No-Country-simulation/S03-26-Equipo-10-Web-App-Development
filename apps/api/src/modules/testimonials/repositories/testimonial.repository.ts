@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
 
@@ -15,6 +16,27 @@ export interface PaginatedResult<T> {
   items: T[];
   total: number;
 }
+
+type CreateData = {
+  tenantId: string;
+  createdById: string | null;
+  authorName: string;
+  content: string;
+  rating: number;
+  categoryId?: string | null;
+  tagIds?: string[];
+};
+
+type EventFactory = {
+  eventType: string;
+  payload: (view: TestimonialView) => Record<string, unknown>;
+};
+
+const testimonialInclude = {
+  status: true,
+  category: true,
+  tags: { include: { tag: true } },
+} as const;
 
 @Injectable()
 export class TestimonialRepository {
@@ -33,39 +55,38 @@ export class TestimonialRepository {
     return row ? this.toView(row) : null;
   }
 
-  async create(data: {
-    tenantId: string;
-    createdById: string | null;
-    authorName: string;
-    content: string;
-    rating: number;
-    categoryId?: string | null;
-    tagIds?: string[];
-  }): Promise<TestimonialView> {
-    const statusId = await this.resolveStatusId('draft');
-
-    const created = await this.prisma.testimonial.create({
-      data: {
-        tenantId: data.tenantId,
-        createdById: data.createdById,
-        authorName: data.authorName,
-        content: data.content,
-        rating: data.rating,
-        statusId,
-        score: 0,
-        categoryId: data.categoryId ?? null,
-        ...(data.tagIds !== undefined && {
-          tags: { create: data.tagIds.map(tagId => ({ tagId })) },
-        }),
-      },
-      include: { 
-        status: true,
-        category: true,
-        tags: { include: { tag: true } }
-      },
+  async createWithEvent(data: CreateData, status: 'draft' | 'pending', event: EventFactory): Promise<TestimonialView> {
+    return this.prisma.$transaction(async tx => {
+      await this.assertReferencesBelongToTenant(tx, data.tenantId, data.categoryId, data.tagIds);
+      const statusId = await this.resolveStatusId(status, tx);
+      const created = await tx.testimonial.create({
+        data: {
+          tenantId: data.tenantId,
+          createdById: data.createdById,
+          authorName: data.authorName,
+          content: data.content,
+          rating: data.rating,
+          statusId,
+          score: 0,
+          categoryId: data.categoryId ?? null,
+          ...(data.tagIds !== undefined && {
+            tags: { create: data.tagIds.map(tagId => ({ tagId })) },
+          }),
+        },
+        include: testimonialInclude,
+      });
+      const view = this.toView(created);
+      await tx.outboxEvent.create({
+        data: {
+          tenantId: data.tenantId,
+          eventType: event.eventType,
+          payload: event.payload(view) as Prisma.InputJsonValue,
+          status: 'pending',
+          attempts: 0,
+        },
+      });
+      return view;
     });
-
-    return this.toView(created);
   }
 
   async updateFields(
@@ -78,9 +99,12 @@ export class TestimonialRepository {
       categoryId?: string | null;
       tagIds?: string[];
     },
+    expectedStatus: TestimonialStatus,
   ): Promise<TestimonialView> {
+    await this.assertReferencesBelongToTenant(this.prisma, tenantId, data.categoryId, data.tagIds);
+    const expectedStatusId = await this.resolveStatusId(expectedStatus);
     const updated = await this.prisma.testimonial.update({
-      where: { id },
+      where: { id, tenantId, statusId: expectedStatusId },
       data: {
         ...(data.authorName !== undefined && { authorName: data.authorName }),
         ...(data.content !== undefined && { content: data.content }),
@@ -99,38 +123,58 @@ export class TestimonialRepository {
         category: true,
         tags: { include: { tag: true } }
       },
-    });
+    }).catch(this.rethrowConditionalWriteConflict);
 
     return this.toView(updated);
   }
 
   async updateStatus(
+    tenantId: string,
     id: string,
+    expectedStatus: TestimonialStatus,
     status: TestimonialStatus,
     extra?: { moderationNotes?: string | null; publishedAt?: Date | null },
+    event?: EventFactory,
   ): Promise<TestimonialView> {
-    const statusId = await this.resolveStatusId(status);
-
-    const updated = await this.prisma.testimonial.update({
-      where: { id },
-      data: {
-        statusId,
-        updatedAt: new Date(),
-        ...(extra?.moderationNotes !== undefined && { moderationNotes: extra.moderationNotes }),
-        ...(extra?.publishedAt !== undefined && { publishedAt: extra.publishedAt }),
-      },
-      include: { 
-        status: true,
-        category: true,
-        tags: { include: { tag: true } }
-      },
+    return this.prisma.$transaction(async tx => {
+      const expectedStatusId = await this.resolveStatusId(expectedStatus, tx);
+      const statusId = await this.resolveStatusId(status, tx);
+      const updated = await tx.testimonial.updateMany({
+        where: { id, tenantId, statusId: expectedStatusId },
+        data: {
+          statusId,
+          updatedAt: new Date(),
+          ...(extra?.moderationNotes !== undefined && { moderationNotes: extra.moderationNotes }),
+          ...(extra?.publishedAt !== undefined && { publishedAt: extra.publishedAt }),
+        },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictException('Testimonial status changed before this transition');
+      }
+      const row = await tx.testimonial.findFirstOrThrow({
+        where: { id, tenantId, statusId },
+        include: testimonialInclude,
+      });
+      const view = this.toView(row);
+      if (event) {
+        await tx.outboxEvent.create({
+          data: {
+            tenantId,
+            eventType: event.eventType,
+            payload: event.payload(view) as Prisma.InputJsonValue,
+            status: 'pending',
+            attempts: 0,
+          },
+        });
+      }
+      return view;
     });
-
-    return this.toView(updated);
   }
 
   async updateMedia(
+    tenantId: string,
     id: string,
+    expectedStatus: TestimonialStatus,
     data: {
       imageUrl?: string | null;
       videoUrl?: string | null;
@@ -138,8 +182,9 @@ export class TestimonialRepository {
       videoThumbnailUrl?: string | null;
     },
   ): Promise<TestimonialView> {
+    const expectedStatusId = await this.resolveStatusId(expectedStatus);
     const updated = await this.prisma.testimonial.update({
-      where: { id },
+      where: { id, tenantId, statusId: expectedStatusId },
       data: {
         ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
         ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),
@@ -148,7 +193,7 @@ export class TestimonialRepository {
         updatedAt: new Date(),
       },
       include: { status: true },
-    });
+    }).catch(this.rethrowConditionalWriteConflict);
 
     return this.toView(updated);
   }
@@ -266,14 +311,38 @@ export class TestimonialRepository {
     });
   }
 
-  private async resolveStatusId(code: TestimonialStatus): Promise<number> {
-    const status = await this.prisma.testimonialStatus.findUnique({
+  private async resolveStatusId(code: TestimonialStatus, client: Prisma.TransactionClient | PrismaService = this.prisma): Promise<number> {
+    const status = await client.testimonialStatus.findUnique({
       where: { code },
     });
     if (!status) {
       throw new Error(`Missing testimonial status: ${code}`);
     }
     return status.id;
+  }
+
+  private async assertReferencesBelongToTenant(
+    client: Prisma.TransactionClient | PrismaService,
+    tenantId: string,
+    categoryId?: string | null,
+    tagIds?: string[],
+  ): Promise<void> {
+    if (categoryId) {
+      const category = await client.category.findFirst({ where: { id: categoryId, tenantId }, select: { id: true } });
+      if (!category) throw new NotFoundException('Category not found');
+    }
+    if (tagIds) {
+      const uniqueIds = [...new Set(tagIds)];
+      const count = await client.tag.count({ where: { id: { in: uniqueIds }, tenantId } });
+      if (count !== uniqueIds.length) throw new NotFoundException('Tag not found');
+    }
+  }
+
+  private rethrowConditionalWriteConflict(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      throw new ConflictException('Testimonial changed before this update');
+    }
+    throw error;
   }
 
   private toView(row: {

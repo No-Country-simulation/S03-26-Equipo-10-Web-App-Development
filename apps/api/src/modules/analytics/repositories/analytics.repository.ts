@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
 export interface DashboardData {
@@ -68,6 +68,11 @@ export class AnalyticsRepository {
     tenantId: string,
     event: { eventType: string; testimonialId?: string; source?: string; metadata?: Record<string, unknown> },
   ): Promise<void> {
+    const testimonial = event.testimonialId
+      ? await this.prisma.testimonial.findFirst({ where: { id: event.testimonialId, tenantId }, select: { id: true } })
+      : null;
+    if (!testimonial) throw new NotFoundException('Testimonial not found for this tenant');
+
     const eventTypeRecord = await this.prisma.analyticsEventType.upsert({
       where: { code: event.eventType },
       update: {},
@@ -78,7 +83,7 @@ export class AnalyticsRepository {
       data: {
         tenantId,
         eventTypeId: eventTypeRecord.id,
-        testimonialId: event.testimonialId ?? '',
+        testimonialId: testimonial.id,
         source: event.source ?? 'public',
         ipHash: event.metadata?.ip
           ? createHash('sha256').update(String(event.metadata.ip)).digest('hex')

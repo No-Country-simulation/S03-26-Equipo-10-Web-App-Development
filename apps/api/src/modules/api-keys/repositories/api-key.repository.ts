@@ -71,17 +71,17 @@ export class ApiKeyRepository {
     return { id: created.id, name: created.name, createdAt: created.createdAt };
   }
 
-  async rotate(apiKeyId: string, name: string, keyHash: string) {
+  async rotate(tenantId: string, apiKeyId: string, name: string, keyHash: string) {
     const updated = await this.prisma.apiKey.update({
-      where: { id: apiKeyId },
+      where: { id: apiKeyId, tenantId },
       data: { name, keyHash, isActive: true, lastUsedAt: null },
     });
     return { id: updated.id, name: updated.name, updatedAt: updated.updatedAt };
   }
 
-  async revoke(apiKeyId: string): Promise<void> {
+  async revoke(tenantId: string, apiKeyId: string): Promise<void> {
     await this.prisma.apiKey.update({
-      where: { id: apiKeyId },
+      where: { id: apiKeyId, tenantId },
       data: { isActive: false },
     });
   }

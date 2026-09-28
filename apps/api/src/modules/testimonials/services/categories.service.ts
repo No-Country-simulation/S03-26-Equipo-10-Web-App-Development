@@ -35,7 +35,7 @@ export class CategoriesService {
   async remove(tenantId: string, categoryId: string) {
     const category = await this.categoryRepo.findById(tenantId, categoryId);
     if (!category) throw new NotFoundException('Category not found');
-    await this.categoryRepo.remove(categoryId);
+    await this.categoryRepo.remove(tenantId, categoryId);
     return { id: categoryId, deleted: true };
   }
 }

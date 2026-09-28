@@ -14,7 +14,7 @@
 
 ## 2. Fases
 
-### `[Actual]` Fase 1: runtime y verificaciones reproducibles
+### `[Completada]` Fase 1: runtime y verificaciones reproducibles
 
 - [x] Fijar Node y npm en metadatos del repositorio, configuración de npm, CI y builds Docker.
 - [x] Declarar herramientas usadas por lint y hooks, agregar scripts de typecheck y adoptar ESLint Flat Config en web.
@@ -24,14 +24,18 @@
 **Verificación local:** `npm ci` con npm 10.9.9, Prisma Client, typecheck, tests y builds de ambas apps completados. ESLint terminó sin errores, con 30 advertencias heredadas. El build web requirió red para `next/font/google`. No hay Docker ni Podman en este entorno, por lo que la construcción y el arranque de imágenes quedan sin verificar aquí. `npm audit` informó 37 vulnerabilidades en el árbol actual (6 bajas, 10 moderadas, 18 altas y 3 críticas); se requiere un trabajo separado de remediación de dependencias.
 
 **Criterio:** lockfile sin cambios tras `npm ci`, verificaciones reproducibles y resultados o limitaciones documentados.  
-**Review humano (ACK):** Pendiente.  
+**Review humano (ACK):** Recibido el 2026-09-28 para avanzar a la fase 2.
 **Commit sugerido:** `chore(config): fijá el runtime y agregá verificaciones reproducibles`.
 
-### `[Pendiente]` Fase 2: integridad de datos y aislamiento
+### `[Actual]` Fase 2: integridad de datos y aislamiento
 
-- [ ] Escribir testimonio y evento de outbox en una transacción; crear envíos públicos en `pending`.
-- [ ] Filtrar mutaciones por tenant y condicionar transiciones al estado esperado; auditar otras escrituras solicitadas por usuarios.
-- [ ] Probar rollback, aislamiento entre tenants y carreras de transición con PostgreSQL real, además de reglas unitarias.
+- [x] Escribir testimonio y evento de outbox en una transacción; crear envíos públicos en `pending`.
+- [x] Filtrar mutaciones por tenant y condicionar transiciones al estado esperado; auditar otras escrituras solicitadas por usuarios.
+- [ ] Ejecutar con PostgreSQL real las pruebas de rollback, aislamiento entre tenants y carreras de transición. Las pruebas están implementadas en `apps/api/test/testimonial-persistence.integration.spec.ts`; falta una base de pruebas con migraciones aplicadas y `TEST_DATABASE_URL`.
+
+**Auditoría de escrituras:** testimonios, categorías, etiquetas, API keys y webhooks usan el tenant en las mutaciones. Las asociaciones de etiquetas y los eventos de analítica verifican que el testimonio y las referencias pertenezcan al mismo tenant. La creación de usuario y rol se realiza con una escritura anidada. La actualización de scores es una tarea global del sistema, no una mutación iniciada por el usuario; los refresh tokens se identifican por su secreto global y no por un ID aportado por otro tenant.
+
+**Verificación local:** typecheck, lint, build y 62 tests de API pasan. Cinco pruebas de integración con PostgreSQL se omiten porque este entorno no tiene servidor PostgreSQL, Docker, Podman ni `TEST_DATABASE_URL`. El usuario indicó dejar esta verificación pendiente y cerrar la implementación local de la fase. Para ejecutarla luego con una base descartable ya migrada: `TEST_DATABASE_URL=... npm test --workspace=@testimonial-cms/api -- --runTestsByPath test/testimonial-persistence.integration.spec.ts`. No se ejecutaron migraciones ni se cambió el esquema Prisma.
 
 **Criterio:** no hay testimonio o publicación sin su evento, ni escritura cruzada entre tenants.  
 **Review humano (ACK):** Pendiente.  

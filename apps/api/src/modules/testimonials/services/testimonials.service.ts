@@ -6,9 +6,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AnalyticsRepository } from '../../analytics/repositories/analytics.repository';
 import { CloudinaryService } from '../../shared/cloud/cloudinary.service';
 import { YoutubeService } from '../../shared/cloud/youtube.service';
-import { OutboxService } from '../../webhooks/services/outbox.service';
 import { CacheService } from '../../../common/services/cache.service';
-import { VALID_TRANSITIONS, TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
+import { VALID_TRANSITIONS, TestimonialStatus } from '../entities/testimonial.model';
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
 
 /**
@@ -18,9 +17,8 @@ import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto,
  * 
  * **Decisión de Diseño:** Se inyectan repositorios concretos en lugar de interfaces genéricas
  * para mantener el pragmatismo y evitar sobre-ingeniería (ver ADR 0001).
- * Todos los métodos que modifican estado y disparan webhooks deben hacerlo
- * usando `outboxService` en lugar de emitir eventos en memoria, para garantizar
- * tolerancia a fallos ante caídas del servidor.
+ * Los eventos de creación y publicación se guardan con el testimonio en una
+ * misma transacción del repositorio. Los servicios externos se invocan después.
  */
 @Injectable()
 export class TestimonialsService {
@@ -32,7 +30,6 @@ export class TestimonialsService {
     private readonly analyticsRepo: AnalyticsRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly youtubeService: YoutubeService,
-    private readonly outboxService: OutboxService,
     private readonly cache: CacheService,
   ) { }
 
@@ -41,8 +38,8 @@ export class TestimonialsService {
    * 
    * **Complejidad / Por qué:** Al crear un testimonio, es crítico notificar a otros sistemas
    * (mediante webhooks). En lugar de enviar una petición HTTP aquí (que bloquearía la
-   * respuesta al usuario y podría fallar), delegamos la creación del evento a `outboxService`, 
-   * que asegura la grabación atómica en la misma base de datos.
+   * respuesta al usuario y podría fallar), el repositorio guarda el evento
+   * junto con el testimonio en una transacción.
    * 
    * @param tenantId - ID del inquilino propietario. Usado para aislamiento (Row-level multi-tenancy).
    * @param creatorUserId - ID del usuario que lo crea.
@@ -63,7 +60,7 @@ export class TestimonialsService {
       }
     }
 
-    const testimonial = await this.repo.create({
+    return this.repo.createWithEvent({
       tenantId,
       createdById: creatorUserId,
       authorName: dto.authorName,
@@ -71,14 +68,9 @@ export class TestimonialsService {
       rating: dto.rating,
       ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
       ...(dto.tagIds !== undefined && { tagIds: dto.tagIds }),
-    });
-
-    // Atomic Outbox: persist the event right after the testimonial is created.
-    // This guarantees the webhook event is never lost even if the process crashes.
-    await this.outboxService.createEvent({
-      tenantId,
+    }, 'draft', {
       eventType: 'testimonial.created',
-      payload: {
+      payload: testimonial => ({
         id: testimonial.id,
         authorName: testimonial.authorName,
         content: testimonial.content,
@@ -87,10 +79,8 @@ export class TestimonialsService {
         imageUrl: testimonial.imageUrl,
         videoUrl: testimonial.videoUrl,
         createdAt: testimonial.createdAt,
-      },
+      }),
     });
-
-    return testimonial;
   }
 
   async getTestimonial(tenantId: string, testimonialId: string) {
@@ -130,20 +120,16 @@ export class TestimonialsService {
       throw new ForbiddenException('This form is currently closed');
     }
 
-    const testimonial = await this.repo.create({
+    const testimonial = await this.repo.createWithEvent({
       tenantId: tenant.id,
       createdById: null, // Anonymous submission
       authorName: dto.authorName,
       content: dto.content,
       rating: dto.rating,
       categoryId: null, // Public submissions don't assign categories by default
-    });
-
-    // Atomic Outbox for public submissions
-    await this.outboxService.createEvent({
-      tenantId: tenant.id,
+    }, 'pending', {
       eventType: 'testimonial.created',
-      payload: {
+      payload: testimonial => ({
         id: testimonial.id,
         authorName: testimonial.authorName,
         content: testimonial.content,
@@ -151,7 +137,7 @@ export class TestimonialsService {
         status: testimonial.status,
         source: 'public_form',
         createdAt: testimonial.createdAt,
-      },
+      }),
     });
 
     if (dto.imageBase64) {
@@ -162,10 +148,9 @@ export class TestimonialsService {
       await this.attachVideo(tenant.id, testimonial.id, dto.videoUrl);
     }
 
-    // Submissions already go to 'draft'. Since this needs to go to pending, 
-    // we should transition it right after creation, or modify repo.create.
-    // Given the previous workflow, create starts at 'draft', let's transition it:
-    return this.repo.updateStatus(testimonial.id, 'pending');
+    const updated = await this.repo.findById(tenant.id, testimonial.id);
+    if (!updated) throw new NotFoundException('Testimonial not found');
+    return updated;
   }
 
   async getPublicFormInfo(slug: string) {
@@ -265,7 +250,7 @@ export class TestimonialsService {
       ...(dto.rating !== undefined && { rating: dto.rating }),
       ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
       ...(dto.tagIds !== undefined && { tagIds: dto.tagIds }),
-    });
+    }, testimonial.status);
   }
 
   /**
@@ -289,7 +274,7 @@ export class TestimonialsService {
     }
 
     const result = await this.cloudinaryService.uploadImage(imageBase64);
-    return this.repo.updateMedia(testimonialId, { imageUrl: result.secureUrl });
+    return this.repo.updateMedia(tenantId, testimonialId, testimonial.status, { imageUrl: result.secureUrl });
   }
 
   /**
@@ -318,7 +303,7 @@ export class TestimonialsService {
 
     const metadata = await this.youtubeService.getVideoMetadata(videoUrl);
 
-    return this.repo.updateMedia(testimonialId, {
+    return this.repo.updateMedia(tenantId, testimonialId, testimonial.status, {
       videoUrl,
       videoTitle: metadata?.title ?? null,
       videoThumbnailUrl: metadata?.thumbnailUrl ?? null,
@@ -342,7 +327,7 @@ export class TestimonialsService {
     if (!testimonial) throw new NotFoundException('Testimonial not found');
 
     this.assertTransition(testimonial.status, 'pending');
-    return this.repo.updateStatus(testimonialId, 'pending');
+    return this.repo.updateStatus(tenantId, testimonialId, testimonial.status, 'pending');
   }
 
   async approveTestimonial(tenantId: string, testimonialId: string) {
@@ -350,7 +335,7 @@ export class TestimonialsService {
     if (!testimonial) throw new NotFoundException('Testimonial not found');
 
     this.assertTransition(testimonial.status, 'approved');
-    return this.repo.updateStatus(testimonialId, 'approved');
+    return this.repo.updateStatus(tenantId, testimonialId, testimonial.status, 'approved');
   }
 
   async rejectTestimonial(tenantId: string, testimonialId: string, reason: string) {
@@ -358,7 +343,7 @@ export class TestimonialsService {
     if (!testimonial) throw new NotFoundException('Testimonial not found');
 
     this.assertTransition(testimonial.status, 'rejected');
-    return this.repo.updateStatus(testimonialId, 'rejected', { moderationNotes: reason || null });
+    return this.repo.updateStatus(tenantId, testimonialId, testimonial.status, 'rejected', { moderationNotes: reason || null });
   }
 
   /**
@@ -379,13 +364,9 @@ export class TestimonialsService {
     if (!testimonial) throw new NotFoundException('Testimonial not found');
 
     this.assertTransition(testimonial.status, 'published');
-    const updated = await this.repo.updateStatus(testimonialId, 'published', { publishedAt: new Date() });
-
-    // Atomic Outbox: persist the event right after the status update.
-    await this.outboxService.createEvent({
-      tenantId,
+    const updated = await this.repo.updateStatus(tenantId, testimonialId, testimonial.status, 'published', { publishedAt: new Date() }, {
       eventType: 'testimonial.published',
-      payload: {
+      payload: updated => ({
         id: updated.id,
         authorName: updated.authorName,
         content: updated.content,
@@ -397,7 +378,7 @@ export class TestimonialsService {
         videoThumbnailUrl: updated.videoThumbnailUrl,
         publishedAt: updated.publishedAt,
         createdAt: updated.createdAt,
-      },
+      }),
     });
 
     // Invalidate public listing cache for this tenant since published set changed

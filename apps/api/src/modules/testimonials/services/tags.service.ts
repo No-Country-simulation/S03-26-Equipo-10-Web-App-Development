@@ -37,7 +37,7 @@ export class TagsService {
   async remove(tenantId: string, tagId: string) {
     const tag = await this.tagRepo.findById(tenantId, tagId);
     if (!tag) throw new NotFoundException('Tag not found');
-    await this.tagRepo.remove(tagId);
+    await this.tagRepo.remove(tenantId, tagId);
     return { id: tagId, deleted: true };
   }
 
@@ -48,7 +48,7 @@ export class TagsService {
     const tag = await this.tagRepo.findById(tenantId, tagId);
     if (!tag) throw new NotFoundException('Tag not found');
 
-    await this.tagRepo.attachToTestimonial(testimonialId, tagId);
+    await this.tagRepo.attachToTestimonial(tenantId, testimonialId, tagId);
   }
 
   async detach(tenantId: string, testimonialId: string, tagId: string) {
@@ -58,6 +58,6 @@ export class TagsService {
     const tag = await this.tagRepo.findById(tenantId, tagId);
     if (!tag) throw new NotFoundException('Tag not found');
 
-    await this.tagRepo.detachFromTestimonial(testimonialId, tagId);
+    await this.tagRepo.detachFromTestimonial(tenantId, testimonialId, tagId);
   }
 }
