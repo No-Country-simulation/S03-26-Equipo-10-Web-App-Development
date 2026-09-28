@@ -132,12 +132,14 @@ Abre `http://localhost:3000` para el panel de administración y `http://localhos
 
 ### 5. Desplegar con Docker
 
+Si ya tenés un volumen de PostgreSQL 16, seguí primero la [guía de respaldo y restauración a PostgreSQL 18](docs/operations/04_postgresql_18_compose_upgrade.md). El Compose nuevo usa un volumen distinto y conserva el anterior.
+
 ```bash
 # Levantar infraestructura (DB)
-docker-compose up -d
+docker compose up -d
 
 # Ver logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### 6. Validar instalación

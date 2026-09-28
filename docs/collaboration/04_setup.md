@@ -391,7 +391,7 @@ version: '3.8'
 services:
   # Base de datos PostgreSQL
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: testimonial-cms-postgres
     ports:
       - "5432:5432"
@@ -400,7 +400,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres18_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -469,7 +469,7 @@ services:
     command: npm run dev --workspace=frontend
 
 volumes:
-  postgres_data:
+  postgres18_data:
   redis_data:
 ```
 

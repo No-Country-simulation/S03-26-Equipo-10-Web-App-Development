@@ -27,6 +27,7 @@ async function bootstrap() {
   
   // Configura Pino como el logger principal
   app.useLogger(app.get(Logger));
+  app.enableShutdownHooks(['SIGTERM', 'SIGINT']);
   
   const configService = app.get(ConfigService);
   const appConfig = configService.get<AppConfig>('app');

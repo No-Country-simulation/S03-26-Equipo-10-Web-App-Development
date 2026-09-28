@@ -8,6 +8,9 @@ import { AnalyticsRepository } from '../src/modules/analytics/repositories/analy
 // Requires a disposable PostgreSQL database with the repository migrations applied.
 // Set TEST_DATABASE_URL explicitly; this suite never modifies a developer database by default.
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+if (process.env.CI && !testDatabaseUrl) {
+  throw new Error('TEST_DATABASE_URL is required in CI so PostgreSQL integration tests cannot be skipped');
+}
 const describeWithDatabase = testDatabaseUrl ? describe : describe.skip;
 
 describeWithDatabase('testimonial persistence with PostgreSQL', () => {
