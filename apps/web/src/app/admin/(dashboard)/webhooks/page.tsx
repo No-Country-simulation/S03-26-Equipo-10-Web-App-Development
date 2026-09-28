@@ -53,8 +53,8 @@ export default function WebhooksPage() {
       });
       setShowForm(false);
       void load();
-    } catch (err: any) {
-      alert(`Error al crear webhook: ${err.message}`);
+    } catch (err) {
+      alert(`Error al crear webhook: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setCreateLoading(false);
     }
@@ -65,8 +65,8 @@ export default function WebhooksPage() {
     try {
       await fetchApi(`/webhooks/${id}`, { method: 'DELETE' });
       void load();
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -74,8 +74,8 @@ export default function WebhooksPage() {
     try {
       await fetchApi(`/webhooks/${id}/test`, { method: 'POST' });
       alert('Evento de prueba enviado correctamente a la URL suscrita.');
-    } catch (err: any) {
-      alert(`Error enviando prueba: ${err.message}`);
+    } catch (err) {
+      alert(`Error enviando prueba: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

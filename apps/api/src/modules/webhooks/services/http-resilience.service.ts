@@ -44,7 +44,7 @@ export class HttpResilienceService {
           url,
           method: (init.method as string) ?? 'GET',
           headers: init.headers as Record<string, string>,
-          data: init.body,
+          ...(init.body !== undefined && { data: init.body }),
           timeout: timeoutMs,
         });
 

@@ -1,44 +1,30 @@
-# Stage 1: Base and Dependencies
-FROM node:20-alpine AS deps
+FROM node:24.21.0-alpine AS base
 WORKDIR /app
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
-# Copy root workspace files
-COPY package.json package-lock.json ./
-# Copy workspace apps package.json to install dependencies correctly
+RUN apk add --no-cache openssl && npm install --global npm@10.9.9
+
+FROM base AS deps
+COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/
-# Install dependencies (KISS: using clean install)
+COPY apps/web/package.json ./apps/web/
 RUN npm ci
 
-# Stage 2: Builder
-FROM node:20-alpine AS builder
-WORKDIR /app
-RUN apk add --no-cache openssl
-COPY --from=deps /app/node_modules ./node_modules
+FROM deps AS builder
 COPY . .
-# Generate Prisma Client
-RUN cd apps/api && npx prisma generate
-# Build the NestJS app
-RUN npm run build -w @testimonial-cms/api
+RUN npm run db:generate --workspace @testimonial-cms/api
+RUN npm run build --workspace @testimonial-cms/api
 
-# Stage 3: Runner
-FROM node:20-alpine AS runner
-WORKDIR /app
-RUN apk add --no-cache openssl
+FROM base AS production-deps
+COPY package.json package-lock.json .npmrc ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+RUN npm ci --omit=dev --workspace @testimonial-cms/api --ignore-scripts
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
+FROM base AS runner
 ENV NODE_ENV=production
-
-# Copy node_modules and Prisma schema/client
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
+COPY --from=production-deps /app/node_modules ./node_modules
+COPY --from=production-deps /app/apps ./apps
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
-
-# Use nonroot user for security
 USER node
-
 EXPOSE 4000
-
-# Start the application
 CMD ["node", "apps/api/dist/main.js"]

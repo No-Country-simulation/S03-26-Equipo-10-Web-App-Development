@@ -41,7 +41,7 @@
 | **ORM** | Prisma | 5.x | Acceso a datos tipo-seguro y migraciones |
 | **Caché & Colas** | Redis | 7 | Almacenamiento rápido en memoria |
 | **Job Queue** | BullMQ | - | Procesamiento asíncrono (Outbox, webhooks) |
-| **Runtime** | Node.js | 20.x | Entorno de ejecución de servidor |
+| **Runtime** | Node.js | 24.21.0 | Entorno de ejecución de servidor |
 | **Deployment** | Docker + Compose | - | Containerización |
 
 Testimonial CMS es una plataforma que resuelve el problema de la gestión dispersa de la prueba social. Este proyecto implementa un CMS que:
@@ -80,8 +80,8 @@ graph TB
 
 ### 1. Requisitos previos
 
-- Node.js 20.11+
-- npm 10.5+
+- Node.js 24.21.0
+- npm 10.9.9 (Node 24 incluye npm 11; instalá npm 10 antes de `npm ci`)
 - Docker & Docker Compose
 
 ### 2. Instalación
@@ -91,8 +91,11 @@ graph TB
 git clone https://github.com/tu-usuario/testimonial-cms.git
 cd testimonial-cms
 
+# Usar la versión de npm definida por el proyecto
+npm install --global npm@10.9.9
+
 # Instalar dependencias del monorepo
-npm install
+npm ci
 
 # Configurar variables de entorno
 cp .env.example .env

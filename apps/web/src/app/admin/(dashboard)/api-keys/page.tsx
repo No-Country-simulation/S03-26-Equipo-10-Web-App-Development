@@ -58,8 +58,8 @@ export default function ApiKeysPage() {
       setNewRawToken(res.data.apiKey);
       setShowForm(false);
       void load();
-    } catch (err: any) {
-      alert(`Error al generar token: ${err.message}`);
+    } catch (err) {
+      alert(`Error al generar token: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setCreateLoading(false);
     }
@@ -70,8 +70,8 @@ export default function ApiKeysPage() {
     try {
       await fetchApi(`/api-keys/${id}`, { method: 'DELETE' });
       void load();
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

@@ -117,10 +117,10 @@ export class WebhookRepository {
     const updated = await this.prisma.webhook.update({
       where: { id: webhookId },
       data: {
-        url: params.url,
-        secret: params.secret,
-        isActive: params.isActive,
-        eventId,
+        ...(params.url !== undefined && { url: params.url }),
+        ...(params.secret !== undefined && { secret: params.secret }),
+        ...(params.isActive !== undefined && { isActive: params.isActive }),
+        ...(eventId !== undefined && { eventId }),
       },
       include: { event: true },
     });
@@ -172,12 +172,12 @@ export class WebhookRepository {
     const delivery = await this.prisma.webhookDelivery.create({
       data: {
         webhookId: params.webhookId,
-        outboxEventId: params.outboxEventId,
+        ...(params.outboxEventId !== undefined && { outboxEventId: params.outboxEventId }),
         status: params.status,
         attempts: params.attempts,
-        responseCode: params.responseCode,
-        responseBody: params.responseBody,
-        errorMessage: params.errorMessage,
+        ...(params.responseCode !== undefined && { responseCode: params.responseCode }),
+        ...(params.responseBody !== undefined && { responseBody: params.responseBody }),
+        ...(params.errorMessage !== undefined && { errorMessage: params.errorMessage }),
       },
     });
 

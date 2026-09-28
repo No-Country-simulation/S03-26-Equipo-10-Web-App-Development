@@ -48,7 +48,7 @@ export function TestimonialSheet({
 
   if (!testimonial) return null;
 
-  async function handleStatusChange(action: string, body?: any) {
+  async function handleStatusChange(action: string, body?: { reason: string }) {
     if (!testimonial) return;
     setStatusLoading(true);
     try {
@@ -58,8 +58,8 @@ export function TestimonialSheet({
       });
       onUpdated();
       setRejectMode(false);
-    } catch (err: any) {
-      alert(`Error con la acción ${action}: ${err.message}`);
+    } catch (err) {
+      alert(`Error con la acción ${action}: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setStatusLoading(false);
     }
@@ -75,8 +75,8 @@ export function TestimonialSheet({
       });
       setVideoUrl('');
       onUpdated();
-    } catch (e: any) {
-      alert(e.message || 'Error attaching video');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Error attaching video');
     } finally {
       setLoadingVideo(false);
     }
@@ -97,8 +97,8 @@ export function TestimonialSheet({
             body: JSON.stringify({ imageBase64: base64 }),
           });
           onUpdated();
-        } catch (err: any) {
-          alert('Error uploading image: ' + err.message);
+        } catch (err) {
+          alert('Error uploading image: ' + (err instanceof Error ? err.message : String(err)));
         } finally {
           setLoadingImage(false);
         }

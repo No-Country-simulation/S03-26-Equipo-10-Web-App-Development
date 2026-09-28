@@ -79,8 +79,8 @@ export function CreateTestimonialModal({
       resetForm();
       onCreated();
       onOpenChange(false);
-    } catch (err: any) {
-      alert('Error creando testimonio: ' + err.message);
+    } catch (err) {
+      alert('Error creando testimonio: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSubmitting(false);
     }

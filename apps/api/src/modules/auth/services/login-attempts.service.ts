@@ -27,7 +27,7 @@ export class LoginAttemptsService {
 
     this.attempts.set(key, {
       count: blockedUntil ? 0 : nextCount,
-      blockedUntil,
+      ...(blockedUntil !== undefined && { blockedUntil }),
     });
   }
 

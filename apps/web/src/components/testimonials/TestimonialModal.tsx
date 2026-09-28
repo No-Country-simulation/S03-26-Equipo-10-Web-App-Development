@@ -81,7 +81,7 @@ export function TestimonialModal({
   const isPublished = testimonial.status === 'published';
   const canEdit = isAdmin;
 
-  async function handleStatusChange(action: string, body?: any) {
+  async function handleStatusChange(action: string, body?: { reason: string }) {
     if (!testimonial) return;
     setStatusLoading(true);
     try {
@@ -91,8 +91,8 @@ export function TestimonialModal({
       });
       onUpdated();
       setRejectMode(false);
-    } catch (err: any) {
-      alert(`Error con la acción ${action}: ${err.message}`);
+    } catch (err) {
+      alert(`Error con la acción ${action}: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setStatusLoading(false);
     }
@@ -108,8 +108,8 @@ export function TestimonialModal({
       });
       setVideoUrl('');
       onUpdated();
-    } catch (e: any) {
-      alert(e.message || 'Error adjuntando video');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Error adjuntando video');
     } finally {
       setLoadingVideo(false);
     }
@@ -130,8 +130,8 @@ export function TestimonialModal({
             body: JSON.stringify({ imageBase64: base64 }),
           });
           onUpdated();
-        } catch (err: any) {
-          alert('Error subiendo imagen: ' + err.message);
+        } catch (err) {
+          alert('Error subiendo imagen: ' + (err instanceof Error ? err.message : String(err)));
         } finally {
           setLoadingImage(false);
         }
@@ -157,8 +157,8 @@ export function TestimonialModal({
       });
       setIsEditing(false);
       onUpdated();
-    } catch (err: any) {
-      alert('Error guardando edición: ' + err.message);
+    } catch (err) {
+      alert('Error guardando edición: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setStatusLoading(false);
     }

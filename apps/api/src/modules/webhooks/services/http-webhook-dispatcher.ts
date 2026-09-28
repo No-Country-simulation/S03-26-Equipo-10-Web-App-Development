@@ -40,7 +40,7 @@ export class HttpWebhookDispatcher {
 
       await this.webhookRepo.createDelivery({
         webhookId,
-        outboxEventId,
+        ...(outboxEventId !== undefined && { outboxEventId }),
         status: response.status >= 200 && response.status < 300 ? 'success' : 'failed',
         attempts: 1,
         responseCode: response.status,
@@ -52,7 +52,7 @@ export class HttpWebhookDispatcher {
 
       await this.webhookRepo.createDelivery({
         webhookId,
-        outboxEventId,
+        ...(outboxEventId !== undefined && { outboxEventId }),
         status: 'failed',
         attempts: 1,
         errorMessage: message,

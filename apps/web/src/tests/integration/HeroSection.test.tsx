@@ -15,12 +15,12 @@ vi.mock('embla-carousel-autoplay', () => ({
 
 // Mock lucide-react icons to simple span elements
 vi.mock('lucide-react', () => ({
-  ArrowRight: (props: any) => React.createElement('span', { 'data-testid': 'arrow-right' }),
-  ArrowDown: (props: any) => React.createElement('span', { 'data-testid': 'arrow-down' }),
-  Key: (props: any) => React.createElement('span', { 'data-testid': 'key-icon' }),
-  Webhook: (props: any) => React.createElement('span', { 'data-testid': 'webhook-icon' }),
-  TrendingUp: (props: any) => React.createElement('span', { 'data-testid': 'trending-icon' }),
-  Shield: (props: any) => React.createElement('span', { 'data-testid': 'shield-icon' }),
+  ArrowRight: () => React.createElement('span', { 'data-testid': 'arrow-right' }),
+  ArrowDown: () => React.createElement('span', { 'data-testid': 'arrow-down' }),
+  Key: () => React.createElement('span', { 'data-testid': 'key-icon' }),
+  Webhook: () => React.createElement('span', { 'data-testid': 'webhook-icon' }),
+  TrendingUp: () => React.createElement('span', { 'data-testid': 'trending-icon' }),
+  Shield: () => React.createElement('span', { 'data-testid': 'shield-icon' }),
 }));
 
 // The HeroSection module uses JSX at the top level (carouselSlides array).

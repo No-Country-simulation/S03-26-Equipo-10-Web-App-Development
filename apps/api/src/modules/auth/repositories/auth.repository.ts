@@ -219,7 +219,7 @@ export class AuthRepository {
       ['enable_webhooks', 'Enable outbound webhooks'],
       ['enable_scoring', 'Enable testimonial scoring'],
       ['testimonials', 'Enable testimonials flows'],
-    ]) {
+    ] as const) {
       await prisma.featureFlag.upsert({
         where: { name },
         update: { description },

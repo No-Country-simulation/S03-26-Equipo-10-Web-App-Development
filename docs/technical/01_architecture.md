@@ -372,7 +372,7 @@ async createTestimonial(@Body() dto: CreateTestimonialDto, @Headers('Idempotency
 
 | Capa/Componente | Tecnología | Versión | Justificación | Alternativas Descartadas |
 |-----------------|------------|---------|---------------|--------------------------|
-| **Runtime** | Node.js | 20.x LTS | Amplia adopción, ecosistema maduro, async/await nativo | Python, Go, Java |
+| **Runtime** | Node.js | 24.21.0 LTS | Amplia adopción, ecosistema maduro, async/await nativo | Python, Go, Java |
 | **Framework Backend** | NestJS | 10.x | Arquitectura por defecto, DI, modularidad, soporte para microservicios y colas | Express (más libertad pero menos estructura), Fastify |
 | **Base de Datos** | PostgreSQL | 16 | ACID, JSONB, robustez, comunidad | MySQL (menor soporte JSON), MongoDB (sin ACID fuerte) |
 | **ORM** | Prisma | 5.x | Type‑safe, auto‑generadas queries, migraciones fáciles | TypeORM, Sequelize (menor type safety) |

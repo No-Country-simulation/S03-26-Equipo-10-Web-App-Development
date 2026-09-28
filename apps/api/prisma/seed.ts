@@ -195,8 +195,8 @@ async function main() {
        const created = await prisma.testimonial.create({
         data: {
           tenantId: tenant.id,
-          createdById: fakeUsers[faker.number.int({ min: 0, max: fakeUsers.length - 1 })].id,
-          categoryId: createdCats[faker.number.int({ min: 0, max: createdCats.length - 1 })].id,
+          createdById: faker.helpers.arrayElement(fakeUsers).id,
+          categoryId: faker.helpers.arrayElement(createdCats).id,
           authorName,
           content,
           rating,
@@ -211,7 +211,7 @@ async function main() {
 
     // Attach 2 random tags
     for(let j = 0; j < 2; j++) {
-       const randomTag = createdTags[faker.number.int({ min: 0, max: createdTags.length - 1 })];
+       const randomTag = faker.helpers.arrayElement(createdTags);
        await prisma.testimonialTag.upsert({
           where: { testimonialId_tagId: { testimonialId, tagId: randomTag.id } },
           update: {},

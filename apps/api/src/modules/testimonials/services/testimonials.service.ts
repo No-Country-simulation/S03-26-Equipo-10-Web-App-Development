@@ -69,8 +69,8 @@ export class TestimonialsService {
       authorName: dto.authorName,
       content: dto.content,
       rating: dto.rating,
-      categoryId: dto.categoryId,
-      tagIds: dto.tagIds,
+      ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
+      ...(dto.tagIds !== undefined && { tagIds: dto.tagIds }),
     });
 
     // Atomic Outbox: persist the event right after the testimonial is created.
@@ -214,10 +214,10 @@ export class TestimonialsService {
 
     return this.cache.getOrSet(cacheKey, async () => {
       const result = await this.repo.findPublished(tenantId, {
-        q: query.q,
-        tag: query.tag,
-        category: query.category,
-        sort: query.sort,
+        ...(query.q !== undefined && { q: query.q }),
+        ...(query.tag !== undefined && { tag: query.tag }),
+        ...(query.category !== undefined && { category: query.category }),
+        ...(query.sort !== undefined && { sort: query.sort }),
         page,
         limit,
       });
@@ -260,11 +260,11 @@ export class TestimonialsService {
     }
 
     return this.repo.updateFields(tenantId, testimonialId, {
-      authorName: dto.authorName,
-      content: dto.content,
-      rating: dto.rating,
-      categoryId: dto.categoryId,
-      tagIds: dto.tagIds,
+      ...(dto.authorName !== undefined && { authorName: dto.authorName }),
+      ...(dto.content !== undefined && { content: dto.content }),
+      ...(dto.rating !== undefined && { rating: dto.rating }),
+      ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
+      ...(dto.tagIds !== undefined && { tagIds: dto.tagIds }),
     });
   }
 

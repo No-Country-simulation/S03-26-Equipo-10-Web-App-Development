@@ -53,8 +53,8 @@ export default function UsersPage() {
       });
       setShowForm(false);
       void load();
-    } catch (err: any) {
-      alert(`Error al invitar: ${err.message}`);
+    } catch (err) {
+      alert(`Error al invitar: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setCreateLoading(false);
     }
@@ -65,8 +65,8 @@ export default function UsersPage() {
     try {
       await fetchApi(`/users/${id}`, { method: 'DELETE' });
       void load();
-    } catch (err: any) {
-      alert(`Error: ${err.message}`);
+    } catch (err) {
+      alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

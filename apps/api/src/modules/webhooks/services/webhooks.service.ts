@@ -19,8 +19,8 @@ export class WebhooksService {
       tenantId,
       url: dto.url,
       eventCode: dto.eventCode,
-      secret: dto.secret,
-      isActive: dto.isActive,
+      ...(dto.secret !== undefined && { secret: dto.secret }),
+      ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     });
   }
 
@@ -132,10 +132,10 @@ export class WebhooksService {
     }
 
     return this.webhookRepo.update(webhookId, {
-      url: dto.url,
-      eventCode: dto.eventCode,
-      secret: dto.secret,
-      isActive: dto.isActive,
+      ...(dto.url !== undefined && { url: dto.url }),
+      ...(dto.eventCode !== undefined && { eventCode: dto.eventCode }),
+      ...(dto.secret !== undefined && { secret: dto.secret }),
+      ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     });
   }
 }

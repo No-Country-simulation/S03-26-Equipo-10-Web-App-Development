@@ -87,8 +87,8 @@ export class UsersService {
         return this.userRepo.update({
           tenantId,
           userId,
-          passwordHash,
-          isActive: dto.isActive,
+          ...(passwordHash !== undefined && { passwordHash }),
+          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         });
     }
 

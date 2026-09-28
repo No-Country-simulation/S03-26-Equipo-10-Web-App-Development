@@ -54,9 +54,9 @@ export class TestimonialRepository {
         statusId,
         score: 0,
         categoryId: data.categoryId ?? null,
-        tags: data.tagIds ? {
-          create: data.tagIds.map(tagId => ({ tagId }))
-        } : undefined,
+        ...(data.tagIds !== undefined && {
+          tags: { create: data.tagIds.map(tagId => ({ tagId })) },
+        }),
       },
       include: { 
         status: true,

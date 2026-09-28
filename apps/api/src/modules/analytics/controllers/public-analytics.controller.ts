@@ -20,7 +20,11 @@ export class PublicAnalyticsController {
     @Body() dto: TrackAnalyticsEventDto,
     @Ip() ip: string,
   ) {
-    return this.analyticsService.trackEvent(tenantId, dto, ip);
+    return this.analyticsService.trackEvent(tenantId, {
+      eventType: dto.eventType,
+      testimonialId: dto.testimonialId,
+      ...(dto.source !== undefined && { source: dto.source }),
+    }, ip);
   }
 
   @Post('tenants/:slug/events')
@@ -32,6 +36,10 @@ export class PublicAnalyticsController {
     @Body() dto: TrackAnalyticsEventDto,
     @Ip() ip: string,
   ) {
-    return this.analyticsService.trackPublicEventBySlug(slug, dto, ip);
+    return this.analyticsService.trackPublicEventBySlug(slug, {
+      eventType: dto.eventType,
+      testimonialId: dto.testimonialId,
+      ...(dto.source !== undefined && { source: dto.source }),
+    }, ip);
   }
 }

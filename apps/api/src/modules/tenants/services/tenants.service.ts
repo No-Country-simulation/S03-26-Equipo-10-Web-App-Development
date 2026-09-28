@@ -32,9 +32,9 @@ export class TenantsService {
         }
 
         return this.tenantRepo.update(tenantId, {
-          name: dto.name,
-          publicSlug: dto.publicSlug,
-          isPublicFormEnabled: dto.isPublicFormEnabled,
+          ...(dto.name !== undefined && { name: dto.name }),
+          ...(dto.publicSlug !== undefined && { publicSlug: dto.publicSlug }),
+          ...(dto.isPublicFormEnabled !== undefined && { isPublicFormEnabled: dto.isPublicFormEnabled }),
         });
     }
 

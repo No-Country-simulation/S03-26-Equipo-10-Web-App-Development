@@ -72,8 +72,8 @@ export default function PublicCapturePage() {
       }
 
       setSuccess(true);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
     }
