@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException, Injectable } from "@nestjs/common";
 import { UserRepository } from "../repositories/user.repository";
-import { PasswordService } from "../../shared/hashing/password.service";
+import { PasswordService } from '../../shared/hashing';
 import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
 
 /**

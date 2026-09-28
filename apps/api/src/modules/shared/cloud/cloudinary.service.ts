@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpResilienceService } from '../../webhooks/services/http-resilience.service';
+import { HttpResilienceService } from '../../webhooks';
 import type { AppConfig } from '../../../config/app.config';
 
 interface CloudinaryUploadResult {

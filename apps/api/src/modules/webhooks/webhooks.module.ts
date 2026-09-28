@@ -26,8 +26,7 @@ import { WebhookRepository } from './repositories/webhook.repository';
     WebhooksService,
     WebhookEventsListener,
   ],
-  exports: [WebhookOutboxHandler, WebhooksService, OutboxService, WebhookRepository, HttpWebhookDispatcher, HttpResilienceService],
+  exports: [HttpResilienceService],
 })
 export class WebhooksModule {}
-
 

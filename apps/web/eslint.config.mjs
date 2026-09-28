@@ -9,6 +9,17 @@ const compat = new FlatCompat({
 const config = [
   { ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'] },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          regex: '^(?:\\.\\./)+(?:api)(?:/|$)|^@testimonial-cms/api(?:/|$)|^apps/api/',
+          message: 'Web no puede importar código del workspace API.',
+        }],
+      }],
+    },
+  },
 ];
 
 export default config;

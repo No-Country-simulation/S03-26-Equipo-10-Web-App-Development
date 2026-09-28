@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
-import { AnalyticsRepository } from '../../analytics/repositories/analytics.repository';
+import { AnalyticsService } from '../../analytics';
 
 @Injectable()
 export class ScoringService implements OnApplicationBootstrap, OnApplicationShutdown {
@@ -10,7 +10,7 @@ export class ScoringService implements OnApplicationBootstrap, OnApplicationShut
 
   constructor(
     private readonly testimonialRepo: TestimonialRepository,
-    private readonly analyticsRepo: AnalyticsRepository,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   onApplicationBootstrap() {
@@ -51,7 +51,7 @@ export class ScoringService implements OnApplicationBootstrap, OnApplicationShut
       const testimonialIds = testimonials.map(t => t.id);
       
       // Get all engagement metrics in one query (O(1) database roundtrip)
-      const engagementMap = await this.analyticsRepo.getEngagementCounts(testimonialIds);
+      const engagementMap = await this.analyticsService.getEngagementCounts(testimonialIds);
       
       const now = new Date().getTime();
       const updates: { id: string; score: number }[] = [];

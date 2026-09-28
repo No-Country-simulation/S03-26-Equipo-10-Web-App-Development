@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'node:crypto';
-import { PasswordService } from '../../shared/hashing/password.service';
+import { PasswordService } from '../../shared/hashing';
 import type { AppConfig } from '../../../config/app.config';
 
 export interface TokenPayload {

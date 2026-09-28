@@ -26,7 +26,7 @@
 | **ORM** | Prisma | 6.5+ |
 | **Base de datos** | PostgreSQL | 18+ |
 | **Frontend** | Next.js (App Router) | 15.x |
-| **UI** | React | 19.x |
+| **UI** | React | 18.x |
 | **Estilos** | Tailwind CSS + Radix UI | v3 |
 | **Queue/Cache** | BullMQ + Redis | 7 |
 | **Package manager** | npm | 10.x |
@@ -111,16 +111,11 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 | `database/` | PrismaService compartido |
 | `shared/` | Cloud (Cloudinary), utilidades transversales |
 
-### Frontend (`apps/web/src/features/`)
+### Frontend
 
-| Feature | Responsabilidad Principal |
-|---------|--------------------------|
-| `auth/` | Login, registro, gestión de sesión |
-| `testimonials/` | Dashboard, moderación, CRUD de testimonios |
-| `users/` | Panel de gestión de usuarios |
-| `webhooks/` | Configuración de endpoints webhook |
-| `analytics/` | Visualización de métricas |
-| `feature-flags/` | UI de toggles de funcionalidades |
+- `apps/web/src/features/testimonials/`: pantalla activa de `/admin/testimonials`, creación y moderación.
+- `apps/web/src/app/admin/`: composición de rutas y pantallas administrativas aún no migradas a features.
+- `apps/web/src/hooks/use-session.ts`: mecanismo de sesión usado por las rutas activas.
 
 ---
 

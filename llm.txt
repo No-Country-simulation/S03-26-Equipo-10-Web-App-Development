@@ -17,7 +17,7 @@ package_manager: npm (workspaces, npm ci obligatorio en CI)
 backend: NestJS 11
 orm: Prisma 6.5+
 database: PostgreSQL 18
-frontend: Next.js 15 (App Router, React 19)
+frontend: Next.js 15 (App Router, React 18)
 styles: Tailwind CSS v3 + Radix UI + next-themes
 queue: BullMQ + Redis 7
 infra: Docker Compose
@@ -77,7 +77,7 @@ testimonials/
   lifecycle: draft → pending → approved → published | rejected
   controllers: TestimonialsController, TagsController, CategoriesController, PublicTestimonialsController
   services: TestimonialsService, TagsService, CategoriesService, ScoringService
-  imports: AnalyticsModule, FeatureFlagsModule, WebhooksModule, CloudModule, TenantsModule
+  imports: AnalyticsModule, CloudModule, TenantsModule
   dtos: CreateTestimonialDto, UpdateTestimonialDto, ModerateTestimonialDto,
         PublicTestimonialsQueryDto, UploadImageDto, AttachVideoDto, SubmitPublicTestimonialDto
   constraints: content min 10 chars, rating 1-5
@@ -103,13 +103,10 @@ feature-flags/
 health/
   endpoints: GET /api/v1/health (liveness), GET /api/v1/health/ready (readiness with Prisma)
 
-## FRONTEND FEATURES (apps/web/src/features/)
-auth/          → login, register, session management
-testimonials/  → admin dashboard, moderation queue, CRUD
-users/         → user management panel
-webhooks/      → webhook endpoint configuration UI
-analytics/     → charts and metrics visualization
-feature-flags/ → per-tenant toggle management UI
+## FRONTEND FEATURE STATUS
+apps/web/src/features/testimonials/ → active /admin/testimonials screen, creation and moderation UI
+apps/web/src/app/admin/             → remaining active admin routes; migrate only when implemented
+apps/web/src/hooks/use-session.ts   → current session mechanism shared by active routes
 
 ## DATABASE ENTITIES
 tenants, users, roles, permissions, role_permissions,

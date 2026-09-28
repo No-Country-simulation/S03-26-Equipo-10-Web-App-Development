@@ -53,10 +53,6 @@ describe('TestimonialsService', () => {
     getTenantByPublicSlug: jest.fn(),
   };
 
-  const mockEventEmitter = {
-    emit: jest.fn(),
-  };
-
   const mockAnalyticsRepo = {
     getTestimonialMetrics: jest.fn(),
   };
@@ -86,7 +82,6 @@ describe('TestimonialsService', () => {
       mockRepo as any,
       mockCategoryRepo as any,
       mockTenantsService as any,
-      mockEventEmitter as any,
       mockAnalyticsRepo as any,
       mockCloudinaryService as any,
       mockYoutubeService as any,

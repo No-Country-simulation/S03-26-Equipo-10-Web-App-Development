@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { WebhooksModule } from '../../webhooks/webhooks.module';
+import { WebhooksModule } from '../../webhooks';
 import { CloudinaryService } from './cloudinary.service';
 import { YoutubeService } from './youtube.service';
 

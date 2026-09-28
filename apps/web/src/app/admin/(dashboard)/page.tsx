@@ -6,7 +6,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { TestimonialRecord, TenantUser } from '@/lib/api';
 import { MessageSquareQuote, Users, Clock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TestimonialModal } from '@/components/testimonials/TestimonialModal';
+import { TestimonialModal } from '@/features/testimonials';
 
 export default function AdminOverviewPage() {
   const { session, fetchApi, isAdmin } = useSession();

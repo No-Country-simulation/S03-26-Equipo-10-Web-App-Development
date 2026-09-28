@@ -1,7 +1,7 @@
 import { UnauthorizedException, ConflictException, Injectable } from '@nestjs/common';
 import { AuthRepository } from '../repositories/auth.repository';
 import { JwtTokenService } from './jwt-token.service';
-import { PasswordService } from '../../shared/hashing/password.service';
+import { PasswordService } from '../../shared/hashing';
 import { LoginAttemptsService } from './login-attempts.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterAdminDto } from '../dto/register-admin.dto';

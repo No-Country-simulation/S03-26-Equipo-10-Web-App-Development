@@ -1,11 +1,9 @@
 import { NotFoundException, ConflictException, ForbiddenException, BadRequestException, Injectable } from '@nestjs/common';
-import { TenantsService } from '../../tenants/services/tenants.service';
+import { TenantsService } from '../../tenants';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AnalyticsRepository } from '../../analytics/repositories/analytics.repository';
-import { CloudinaryService } from '../../shared/cloud/cloudinary.service';
-import { YoutubeService } from '../../shared/cloud/youtube.service';
+import { AnalyticsService } from '../../analytics';
+import { CloudinaryService, YoutubeService } from '../../shared/cloud';
 import { CacheService } from '../../../common/services/cache.service';
 import { VALID_TRANSITIONS, TestimonialStatus } from '../entities/testimonial.model';
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
@@ -26,8 +24,7 @@ export class TestimonialsService {
     private readonly repo: TestimonialRepository,
     private readonly categoryRepo: CategoryRepository,
     private readonly tenantsService: TenantsService,
-    private readonly eventEmitter: EventEmitter2,
-    private readonly analyticsRepo: AnalyticsRepository,
+    private readonly analyticsService: AnalyticsService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly youtubeService: YoutubeService,
     private readonly cache: CacheService,
@@ -162,7 +159,7 @@ export class TestimonialsService {
   }
 
   async getTestimonialMetrics(tenantId: string, testimonialId: string) {
-    return this.analyticsRepo.getTestimonialMetrics(tenantId, testimonialId);
+    return this.analyticsService.getTestimonialMetrics(tenantId, testimonialId);
   }
 
   async listTestimonials(tenantId: string) {

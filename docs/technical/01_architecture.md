@@ -379,7 +379,7 @@ async createTestimonial(@Body() dto: CreateTestimonialDto, @Headers('Idempotency
 | **Cache + Colas** | Redis | 7.x | Velocidad, estructuras de datos, BullMQ se integra perfectamente | Memcached (solo cache), RabbitMQ (más pesado para MVP) |
 | **Queue / Worker** | BullMQ | 4.x | Basado en Redis, soporte nativo para reintentos, backoff, eventos | Agenda, Bee-Queue (menos funcionalidades) |
 | **API Specification** | OpenAPI 3.1 (Swagger) | - | Generación automática con NestJS, UI interactiva | GraphQL (sobre‐ingeniería para MVP) |
-| **Frontend Framework** | Next.js + React | 14.x | SSR/CSR según necesidad, routing automático, buen rendimiento | React puro (más configuración), Vue (menor ecosistema) |
+| **Frontend Framework** | Next.js 15 (App Router) + React 18 | 15.5.x / 18.3.x | SSR/CSR según necesidad, routing automático, buen rendimiento | React puro (más configuración), Vue (menor ecosistema) |
 | **Frontend Language** | TypeScript | 5.x | Type safety, mejor mantenimiento, compartir tipos con backend | JavaScript |
 | **Styling** | Tailwind CSS | 3.x | Utility‑first, consistencia, rápido desarrollo | CSS Modules, SASS (más manual) |
 | **Testing Backend** | Jest | 29.x | Estándar, integración con NestJS | Mocha, Vitest (compatible pero menos soporte) |
@@ -638,43 +638,20 @@ export class TestimonialCache {
 
 ```bash
 testimonial-cms/
-├── apps/                                 # Aplicaciones desplegables
-│   ├── api/                              # Backend principal (NestJS)
-│   │   ├── src/
-│   │   │   ├── modules/                  # Módulos funcionales
-│   │   │   │   ├── auth/
-│   │   │   │   ├── tenants/
-│   │   │   │   ├── testimonials/
-│   │   │   │   ├── analytics/
-│   │   │   │   ├── webhooks/
-│   │   │   │   ├── feature-flags/
-│   │   │   │   └── shared/                # Módulos compartidos
-│   │   │   ├── common/                     # Utilidades, guards, interceptores
-│   │   │   ├── config/                      # Configuración (env, etc.)
-│   │   │   └── main.ts
-│   │   ├── test/
-│   │   └── package.json
-│   └── worker/                            # Worker de procesamiento asíncrono
-│       ├── src/
-│       └── package.json
-├── packages/                              # (Legacy/Vácío) Código compartido entre backend y worker
-├── frontend/                               # Aplicación Next.js
-│   ├── app/
-│   ├── components/
-│   ├── lib/
-│   └── package.json
-├── docs/                                   # Documentación técnica
-│   ├── 01_architecture.md                   # Este documento
-│   ├── diccionario_de_datos.md
-│   └── adr/                                 # Architecture Decision Records
-├── infra/                                   # Infraestructura como código
-│   ├── terraform/
-│   └── kubernetes/
-├── scripts/                                 # Scripts de utilidad
-├── docker-compose.yml                       # Desarrollo local
-├── .env.example
+├── apps/
+│   ├── api/src/modules/                 # NestJS: módulos y APIs públicas index.ts
+│   └── web/src/
+│       ├── app/                         # Next.js: routing y composición
+│       └── features/testimonials/       # Pantalla activa de /admin/testimonials
+├── docs/
+├── infra/
+├── scripts/
+├── docker-compose.yml
+├── package-lock.json
 └── README.md
 ```
+
+Los módulos de API que comparten proveedores publican solo los necesarios mediante `index.ts`; sus repositorios y servicios internos no se importan desde otros módulos. `AnalyticsService` expone métricas al módulo de testimonios y comprueba la publicación de un testimonio dentro de su propio repositorio. ESLint rechaza imports a implementaciones privadas y entre `apps/api` y `apps/web`.
 
 ---
 

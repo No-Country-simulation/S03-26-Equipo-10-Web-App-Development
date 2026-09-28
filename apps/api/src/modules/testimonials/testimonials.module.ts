@@ -1,6 +1,5 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { WebhooksModule } from '../webhooks/webhooks.module';
-import { TenantsModule } from '../tenants/tenants.module';
+import { Module } from '@nestjs/common';
+import { TenantsModule } from '../tenants';
 import { CategoryRepository } from './repositories/category.repository';
 import { TestimonialRepository } from './repositories/testimonial.repository';
 import { TagRepository } from './repositories/tag.repository';
@@ -14,13 +13,12 @@ import { TagsController } from './controllers/tags.controller';
 import { CategoriesController } from './controllers/categories.controller';
 import { PublicTestimonialsController } from './controllers/public-testimonials.controller';
 
-import { CloudModule } from '../shared/cloud/cloud.module';
-import { AnalyticsModule } from '../analytics/analytics.module';
-import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
+import { CloudModule } from '../shared/cloud';
+import { AnalyticsModule } from '../analytics';
 import { ScoringService } from './services/scoring.service';
 
 @Module({
-  imports: [AnalyticsModule, FeatureFlagsModule, WebhooksModule, CloudModule, TenantsModule],
+  imports: [AnalyticsModule, CloudModule, TenantsModule],
   controllers: [
     TestimonialsController,
     TagsController,

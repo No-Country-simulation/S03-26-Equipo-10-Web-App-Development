@@ -22,6 +22,14 @@ export interface TestimonialMetrics {
 export class AnalyticsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async isPublishedTestimonial(tenantId: string, testimonialId: string): Promise<boolean> {
+    const row = await this.prisma.testimonial.findFirst({
+      where: { id: testimonialId, tenantId, status: { code: 'published' } },
+      select: { id: true },
+    });
+    return row !== null;
+  }
+
   async getDashboard(tenantId: string): Promise<DashboardData> {
     const [counts, rawEvents] = await Promise.all([
       this.prisma.analyticsEvent.groupBy({

@@ -31,6 +31,22 @@ export default [
           varsIgnorePattern: '^_',
         },
       ],
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            regex: '^(?:\\.\\./)+(?:auth|users|tenants|testimonials|webhooks|analytics|api-keys|feature-flags|shared)/(?:[^/]+/)*(?:services|repositories|controllers|dto|entities|utils)/',
+            message: 'Importá desde la API pública del módulo, no desde su implementación interna.',
+          },
+          {
+            regex: '^(?:\\.\\./)+shared/(?:[^/]+/)*[^/]+\\.service$',
+            message: 'Importá el servicio compartido desde su API pública.',
+          },
+          {
+            regex: '^(?:\\.\\./)+(?:web)(?:/|$)|^@testimonial-cms/web(?:/|$)|^apps/web/',
+            message: 'La API no puede importar código del workspace web.',
+          },
+        ],
+      }],
     },
   },
 ];
