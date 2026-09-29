@@ -38,6 +38,12 @@ jobs:
         run: npm install --global npm@11.19.0
       - name: Install dependencies
         run: npm ci
+      - name: Verify lockfile is unchanged
+        run: git diff --exit-code -- package-lock.json
+      - name: Audit high and critical vulnerabilities
+        run: npm audit --audit-level=high
+      - name: Verify registry signatures
+        run: npm audit signatures
       - name: Generate Prisma client
         run: npm run db:generate --workspace @testimonial-cms/api
       - name: Apply migrations to disposable CI database
@@ -58,3 +64,25 @@ jobs:
         run: docker build --file apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=http://127.0.0.1:4000/api/v1 --tag testimonial-cms-web:ci .
       - name: Smoke test production images
         run: bash scripts/ci-smoke-containers.sh
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Review new dependencies
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan changed commits for secrets
+        uses: trufflesecurity/trufflehog@f714bf454f350590f4a24c3ddb1aef02c35bf5b6 # v3.97.5
+        with:
+          version: 3.97.5
+          extra_args: --results=verified,unknown

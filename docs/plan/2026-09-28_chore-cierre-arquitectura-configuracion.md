@@ -1,7 +1,7 @@
 # Plan HITL: cierre de arquitectura y configuración
 
 **Fecha de inicio:** 2026-09-28  
-**Estado global:** Fase 2 implementada localmente; verificación de CI y ACK pendientes antes de fase 3
+**Estado global:** Fase 3 implementada localmente; verificación real de CI y ACK pendientes antes de fase 4
 
 ## Contexto y restricciones
 
@@ -35,14 +35,21 @@
 
 **Verificación:** YAML válido, `bash -n` y `git diff --check` sin errores. Typecheck y build de API pasan; lint pasa con dos advertencias anteriores. Los tests locales de API pasan (69) y las cinco pruebas PostgreSQL quedan omitidas por falta de una base descartable local. Al simular CI sin `TEST_DATABASE_URL`, la suite falla como exige el guard. No hay Docker ni Podman local, así que el arranque de imágenes y la ejecución real de las cinco pruebas quedan pendientes del job de CI. Tampoco se ejecutó una restauración de datos: requiere el host y el volumen anterior del operador.
 
-**Review humano (ACK):** Pendiente para avanzar a fase 3.
+**Review humano (ACK):** Recibido el 2026-09-28 mediante «Continua con la fase 3ç».
 **Commit sugerido:** `ci(containers): verificá PostgreSQL 18 y el arranque de ambas imágenes`.
 
-### `[Pendiente]` Fase 3: seguridad de dependencias
+### `[Completada localmente]` Fase 3: seguridad de dependencias
 
 - Aprobar scripts de instalación por paquete y versión; resolver `strict-peer-deps`.
 - Remediar vulnerabilidades altas y críticas, verificar firmas y auditar secretos y cambios de dependencias en CI.
 - Documentar excepciones de gravedad menor y `overrides` con condición de retiro.
+
+**Implementación:** npm 11 exige `strict-peer-deps` y `strict-allow-scripts`; `allowScripts` aprueba por versión seis paquetes necesarios y deniega la telemetría de `@scarf/scarf`. Se actualizaron dependencias directas vulnerables dentro de NestJS 11 y Next.js 15, se renovó el árbol transitorio y se fijó PostCSS corregido para conservar React 18. CI comprueba lockfile, auditoría alta/crítica y firmas; en PR revisa nuevas dependencias y en commits escanea secretos, con acciones nuevas fijadas por SHA y permisos de lectura. Motivos, condiciones de retiro y hallazgos restantes están en `docs/operations/05_dependency_security.md`.
+
+**Verificación:** `npm ci --offline` completó con npm 11.19.0 y dejó idéntico el SHA-256 del lockfile (`17075484edd0727fb1178f989baa4a7b63c8353da29713965075f1e3f0cfa715`). `npm install-scripts ls` quedó vacío. Typecheck, lint, 69 tests API y 12 web, build API y build web pasan; las cinco pruebas PostgreSQL siguen omitidas localmente. El build web requirió salir del sandbox y definir `NEXT_PUBLIC_API_URL`. Lint conserva dos advertencias previas en API y veinte en web. `npm audit --audit-level=high` y `npm audit signatures` pasan; auditoría completa: 0 críticas, 0 altas, 2 moderadas de Vitest y 0 bajas. YAML y `git diff --check` válidos. Los jobs nuevos de Dependency Review y TruffleHog, las pruebas PostgreSQL y las imágenes aún requieren una ejecución real de GitHub Actions; no se ejecutó Docker localmente.
+
+**Review humano (ACK):** Pendiente para avanzar a fase 4.
+**Commit sugerido:** `chore(security): corregí dependencias y exigí controles de cadena de suministro`.
 
 ### `[Pendiente]` Fase 4: capas de API
 
