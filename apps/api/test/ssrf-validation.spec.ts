@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
+import { InvalidInputError } from '../src/common/errors/application.error';
+
 import { assertPublicUrl } from '../src/modules/webhooks/utils/assert-public-url';
 
 describe('assertPublicUrl (SSRF Prevention)', () => {
@@ -25,7 +26,7 @@ describe('assertPublicUrl (SSRF Prevention)', () => {
   ];
 
   it.each(blocked)('blocks private URL: %s', (url) => {
-    expect(() => assertPublicUrl(url)).toThrow(BadRequestException);
+    expect(() => assertPublicUrl(url)).toThrow(InvalidInputError);
   });
 
   it.each(allowed)('allows public URL: %s', (url) => {
@@ -33,12 +34,12 @@ describe('assertPublicUrl (SSRF Prevention)', () => {
   });
 
   it('rejects non-HTTP protocols', () => {
-    expect(() => assertPublicUrl('ftp://example.com/hook')).toThrow(BadRequestException);
-    expect(() => assertPublicUrl('file:///etc/passwd')).toThrow(BadRequestException);
+    expect(() => assertPublicUrl('ftp://example.com/hook')).toThrow(InvalidInputError);
+    expect(() => assertPublicUrl('file:///etc/passwd')).toThrow(InvalidInputError);
   });
 
   it('rejects malformed URLs', () => {
-    expect(() => assertPublicUrl('not-a-url')).toThrow(BadRequestException);
-    expect(() => assertPublicUrl('')).toThrow(BadRequestException);
+    expect(() => assertPublicUrl('not-a-url')).toThrow(InvalidInputError);
+    expect(() => assertPublicUrl('')).toThrow(InvalidInputError);
   });
 });

@@ -16,6 +16,8 @@ import { PublicTestimonialsController } from './controllers/public-testimonials.
 import { CloudModule } from '../shared/cloud';
 import { AnalyticsModule } from '../analytics';
 import { ScoringService } from './services/scoring.service';
+import { TransitionTestimonialUseCase } from './use-cases/transition-testimonial.use-case';
+import { CreateTestimonialUseCase } from './use-cases/create-testimonial.use-case';
 
 @Module({
   imports: [AnalyticsModule, CloudModule, TenantsModule],
@@ -33,6 +35,8 @@ import { ScoringService } from './services/scoring.service';
     TagsService,
     CategoriesService,
     ScoringService,
+    TransitionTestimonialUseCase,
+    CreateTestimonialUseCase,
   ],
   exports: [TestimonialsService],
 })

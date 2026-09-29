@@ -1,4 +1,5 @@
-import { NotFoundException, Injectable, Logger } from '@nestjs/common';
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable, Logger } from '@nestjs/common';
 import { WebhookRepository } from '../repositories/webhook.repository';
 import { CreateWebhookDto, UpdateWebhookDto } from '../dto/webhook.dto';
 import { HttpWebhookDispatcher } from './http-webhook-dispatcher';
@@ -26,7 +27,7 @@ export class WebhooksService {
 
   async deleteWebhook(tenantId: string, webhookId: string) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
-    if (!webhook) throw new NotFoundException('Webhook not found');
+    if (!webhook) throw new NotFoundError('Webhook not found');
 
     await this.webhookRepo.remove(tenantId, webhookId);
     return { id: webhookId, deleted: true };
@@ -86,7 +87,7 @@ export class WebhooksService {
 
   async listWebhookDeliveries(tenantId: string, webhookId: string) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
-    if (!webhook) throw new NotFoundException('Webhook not found');
+    if (!webhook) throw new NotFoundError('Webhook not found');
 
     const deliveries = await this.webhookRepo.findDeliveries(webhookId);
     return {
@@ -105,13 +106,13 @@ export class WebhooksService {
 
   async getWebhook(tenantId: string, webhookId: string) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
-    if (!webhook) throw new NotFoundException('Webhook not found');
+    if (!webhook) throw new NotFoundError('Webhook not found');
     return webhook;
   }
 
   async testWebhook(tenantId: string, webhookId: string) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
-    if (!webhook) throw new NotFoundException('Webhook not found');
+    if (!webhook) throw new NotFoundError('Webhook not found');
 
     const payload = {
       eventType: webhook.eventCode,
@@ -125,7 +126,7 @@ export class WebhooksService {
 
   async updateWebhook(tenantId: string, webhookId: string, dto: UpdateWebhookDto) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
-    if (!webhook) throw new NotFoundException('Webhook not found');
+    if (!webhook) throw new NotFoundError('Webhook not found');
 
     if (dto.url) {
       assertPublicUrl(dto.url);

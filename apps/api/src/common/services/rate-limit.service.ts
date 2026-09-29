@@ -1,4 +1,5 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { RateLimitedError } from '../errors/application.error';
 
 interface RateLimitBucket {
   count: number;
@@ -25,21 +26,7 @@ export class RateLimitService {
     }
 
     if (existing.count >= limit) {
-      throw new HttpException(
-        {
-          code: 'TOO_MANY_REQUESTS',
-          message,
-          details: {
-            limit,
-            windowSeconds,
-            retryAfterSeconds: Math.max(
-              1,
-              Math.ceil((existing.resetAtMs - now) / 1000),
-            ),
-          },
-        },
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+      throw new RateLimitedError(message, 'TOO_MANY_REQUESTS');
     }
 
     existing.count += 1;

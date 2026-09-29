@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
 export interface WebhookView {
@@ -77,7 +78,7 @@ export class WebhookRepository {
     isActive?: boolean;
   }): Promise<WebhookView> {
     const event = await this.prisma.webhookEvent.findUnique({ where: { code: params.eventCode } });
-    if (!event) throw new NotFoundException('Webhook event not found');
+    if (!event) throw new NotFoundError('Webhook event not found');
 
     const created = await this.prisma.webhook.create({
       data: {
@@ -110,7 +111,7 @@ export class WebhookRepository {
     let eventId: number | undefined;
     if (params.eventCode) {
       const event = await this.prisma.webhookEvent.findUnique({ where: { code: params.eventCode } });
-      if (!event) throw new NotFoundException('Webhook event not found');
+      if (!event) throw new NotFoundError('Webhook event not found');
       eventId = event.id;
     }
 

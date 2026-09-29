@@ -1,4 +1,5 @@
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../src/common/errors/application.error';
+
 import { AnalyticsService } from '../src/modules/analytics/services/analytics.service';
 
 describe('AnalyticsService', () => {
@@ -57,6 +58,6 @@ describe('AnalyticsService', () => {
         { testimonialId: 'missing', eventType: 'click' },
         '127.0.0.1',
       ),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toThrow(NotFoundError);
   });
 });

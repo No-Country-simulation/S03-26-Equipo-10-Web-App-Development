@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UserView } from '../entities/user.model';
+import { InternalError } from '../../../common/errors/application.error';
 
 @Injectable()
 export class UserRepository {
@@ -41,7 +42,7 @@ export class UserRepository {
     roleCode: string;
   }): Promise<UserView> {
     const role = await this.prisma.role.findUnique({ where: { code: params.roleCode } });
-    if (!role) throw new Error(`Role not found: ${params.roleCode}`);
+    if (!role) throw new InternalError(`Role not found: ${params.roleCode}`);
 
     const user = await this.prisma.user.create({
       data: {

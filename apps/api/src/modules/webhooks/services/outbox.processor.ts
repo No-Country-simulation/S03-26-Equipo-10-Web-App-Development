@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { OutboxService } from './outbox.service';
+import { OutboxRepository } from '../repositories/outbox.repository';
 
 export interface OutboxHandler {
   handle(event: {
@@ -18,7 +18,7 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly intervalMs = 3000;
   private handler?: OutboxHandler;
 
-  constructor(private readonly outboxService: OutboxService) {}
+  constructor(private readonly outboxService: OutboxRepository) {}
 
   setHandler(handler: OutboxHandler) {
     this.handler = handler;

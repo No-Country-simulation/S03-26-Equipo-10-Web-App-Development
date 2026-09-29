@@ -7,6 +7,13 @@ import {
 import { Logger } from 'nestjs-pino';
 import { Observable, tap } from 'rxjs';
 import type { RequestContext } from '../interfaces/auth-context.interface';
+import { ApplicationError } from '../errors/application.error';
+import { getRequestScope } from '../request-context.storage';
+
+const applicationStatus: Record<ApplicationError['kind'], number> = {
+  invalid_input: 400, unauthorized: 401, forbidden: 403,
+  not_found: 404, conflict: 409, rate_limited: 429, internal: 500,
+};
 
 /**
  * Interceptor para registrar las peticiones HTTP entrantes.
@@ -31,13 +38,14 @@ export class LoggingInterceptor implements NestInterceptor {
       route?: { path: string };
       requestContext?: RequestContext;
       user?: { tenantId?: string };
+      apiKey?: { tenantId?: string };
     }>();
 
     const { method, url } = request;
     // OBS-F4: Ruta parametrizada de baja cardinalidad (ej. "/api/v1/testimonials/:id")
     const route = request.route?.path ?? url;
-    const traceId = request.requestContext?.correlationId;
-    const tenantId = request.user?.tenantId;
+    const traceId = getRequestScope()?.correlationId ?? request.requestContext?.correlationId;
+    const tenantId = getRequestScope()?.tenantId ?? request.user?.tenantId ?? request.apiKey?.tenantId;
     const startTime = Date.now();
 
     return next.handle().pipe(
@@ -59,7 +67,9 @@ export class LoggingInterceptor implements NestInterceptor {
         },
         error: (error: unknown) => {
           const durationMs = Date.now() - startTime;
-          const statusCode = (error as { status?: number })?.status ?? 500;
+          const statusCode = error instanceof ApplicationError
+            ? applicationStatus[error.kind]
+            : (error as { status?: number })?.status ?? 500;
           const errorCode =
             (error as { code?: string })?.code ?? 'UNHANDLED_EXCEPTION';
           const errorMessage =

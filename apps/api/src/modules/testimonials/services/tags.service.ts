@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { TagRepository } from '../repositories/tag.repository';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CreateTagDto, UpdateTagDto } from '../dto/tag.dto';
@@ -20,7 +21,7 @@ export class TagsService {
 
   async getTag(tenantId: string, tagId: string) {
     const tag = await this.tagRepo.findById(tenantId, tagId);
-    if (!tag) throw new NotFoundException('Tag not found');
+    if (!tag) throw new NotFoundError('Tag not found');
     return tag;
   }
 
@@ -30,33 +31,33 @@ export class TagsService {
 
   async update(tenantId: string, tagId: string, dto: UpdateTagDto) {
     const tag = await this.tagRepo.findById(tenantId, tagId);
-    if (!tag) throw new NotFoundException('Tag not found');
+    if (!tag) throw new NotFoundError('Tag not found');
     return this.tagRepo.update(tenantId, tagId, dto.name);
   }
 
   async remove(tenantId: string, tagId: string) {
     const tag = await this.tagRepo.findById(tenantId, tagId);
-    if (!tag) throw new NotFoundException('Tag not found');
+    if (!tag) throw new NotFoundError('Tag not found');
     await this.tagRepo.remove(tenantId, tagId);
     return { id: tagId, deleted: true };
   }
 
   async attach(tenantId: string, testimonialId: string, tagId: string) {
     const testimonial = await this.testimonialRepo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (!testimonial) throw new NotFoundError('Testimonial not found');
 
     const tag = await this.tagRepo.findById(tenantId, tagId);
-    if (!tag) throw new NotFoundException('Tag not found');
+    if (!tag) throw new NotFoundError('Tag not found');
 
     await this.tagRepo.attachToTestimonial(tenantId, testimonialId, tagId);
   }
 
   async detach(tenantId: string, testimonialId: string, tagId: string) {
     const testimonial = await this.testimonialRepo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (!testimonial) throw new NotFoundError('Testimonial not found');
 
     const tag = await this.tagRepo.findById(tenantId, tagId);
-    if (!tag) throw new NotFoundException('Tag not found');
+    if (!tag) throw new NotFoundError('Tag not found');
 
     await this.tagRepo.detachFromTestimonial(tenantId, testimonialId, tagId);
   }

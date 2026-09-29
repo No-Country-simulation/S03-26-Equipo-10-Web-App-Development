@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TagView } from '../entities/tag.model';
 
@@ -66,7 +67,7 @@ export class TagRepository {
     await this.prisma.$transaction(async tx => {
       const testimonial = await tx.testimonial.findFirst({ where: { id: testimonialId, tenantId }, select: { id: true } });
       const tag = await tx.tag.findFirst({ where: { id: tagId, tenantId }, select: { id: true } });
-      if (!testimonial || !tag) throw new NotFoundException('Testimonial or tag not found');
+      if (!testimonial || !tag) throw new NotFoundError('Testimonial or tag not found');
       await tx.testimonialTag.upsert({
         where: { testimonialId_tagId: { testimonialId, tagId } },
         update: {},

@@ -8,6 +8,18 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import type { ApiRequest, RequestContext } from '../interfaces/auth-context.interface';
+import { ApplicationError, type ApplicationErrorKind } from '../errors/application.error';
+import { getRequestScope } from '../request-context.storage';
+
+const statusByKind: Record<ApplicationErrorKind, number> = {
+  invalid_input: HttpStatus.BAD_REQUEST,
+  unauthorized: HttpStatus.UNAUTHORIZED,
+  forbidden: HttpStatus.FORBIDDEN,
+  not_found: HttpStatus.NOT_FOUND,
+  conflict: HttpStatus.CONFLICT,
+  rate_limited: HttpStatus.TOO_MANY_REQUESTS,
+  internal: HttpStatus.INTERNAL_SERVER_ERROR,
+};
 
 /**
  * Filtro global de excepciones que implementa el estándar RFC 9457 Problem Details.
@@ -28,19 +40,24 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const request = context.getRequest<ApiRequest>();
 
     const requestContext = request.requestContext as RequestContext | undefined;
-    const traceId = requestContext?.correlationId
+    const traceId = getRequestScope()?.correlationId
+      ?? requestContext?.correlationId
       ?? request.header('x-correlation-id')
       ?? 'unknown';
 
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof ApplicationError
+        ? statusByKind[exception.kind]
+        : exception instanceof HttpException
+          ? exception.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const payload =
       exception instanceof HttpException ? exception.getResponse() : undefined;
 
-    const errorCode = this.resolveErrorCode(status, payload);
+    const errorCode = exception instanceof ApplicationError && exception.code
+      ? exception.code
+      : this.resolveErrorCode(status, payload);
 
     // OBS-F1+H-14: Loguear 5xx con contexto completo para observabilidad.
     // Los 4xx son errores de cliente y no representan fallas del sistema.
@@ -52,7 +69,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
           path: request.url,
           method: request.method,
           traceId,
-          tenantId: request.user?.tenantId,
+          tenantId: getRequestScope()?.tenantId ?? request.user?.tenantId ?? request.apiKey?.tenantId,
           statusCode: status,
         },
         'Unhandled server error',

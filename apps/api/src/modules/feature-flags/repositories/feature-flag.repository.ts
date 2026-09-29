@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { IFeatureFlagEvaluator } from '../../../common/interfaces/feature-flag-evaluator.interface';
 
@@ -66,7 +67,7 @@ export class FeatureFlagRepository implements IFeatureFlagEvaluator {
 
   async setFlag(tenantId: string, flagName: string, enabled: boolean): Promise<FeatureFlagSetResult> {
     const flag = await this.prisma.featureFlag.findUnique({ where: { name: flagName } });
-    if (!flag) throw new NotFoundException('Feature flag not found');
+    if (!flag) throw new NotFoundError('Feature flag not found');
 
     const assignment = await this.prisma.tenantFeatureFlag.upsert({
       where: {

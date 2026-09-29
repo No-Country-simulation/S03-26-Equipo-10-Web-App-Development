@@ -1,4 +1,5 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictError, InternalError, NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
@@ -149,7 +150,7 @@ export class TestimonialRepository {
         },
       });
       if (updated.count !== 1) {
-        throw new ConflictException('Testimonial status changed before this transition');
+        throw new ConflictError('Testimonial status changed before this transition');
       }
       const row = await tx.testimonial.findFirstOrThrow({
         where: { id, tenantId, statusId },
@@ -316,7 +317,7 @@ export class TestimonialRepository {
       where: { code },
     });
     if (!status) {
-      throw new Error(`Missing testimonial status: ${code}`);
+      throw new InternalError(`Missing testimonial status: ${code}`);
     }
     return status.id;
   }
@@ -329,18 +330,18 @@ export class TestimonialRepository {
   ): Promise<void> {
     if (categoryId) {
       const category = await client.category.findFirst({ where: { id: categoryId, tenantId }, select: { id: true } });
-      if (!category) throw new NotFoundException('Category not found');
+      if (!category) throw new NotFoundError('Category not found');
     }
     if (tagIds) {
       const uniqueIds = [...new Set(tagIds)];
       const count = await client.tag.count({ where: { id: { in: uniqueIds }, tenantId } });
-      if (count !== uniqueIds.length) throw new NotFoundException('Tag not found');
+      if (count !== uniqueIds.length) throw new NotFoundError('Tag not found');
     }
   }
 
   private rethrowConditionalWriteConflict(error: unknown): never {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      throw new ConflictException('Testimonial changed before this update');
+      throw new ConflictError('Testimonial changed before this update');
     }
     throw error;
   }

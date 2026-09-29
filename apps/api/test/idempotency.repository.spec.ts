@@ -1,6 +1,6 @@
-import { IdempotencyService } from '../src/common/services/idempotency.service';
+import { IdempotencyRepository } from '../src/common/repositories/idempotency.repository';
 
-describe('IdempotencyService', () => {
+describe('IdempotencyRepository', () => {
   const findUnique = jest.fn();
   const upsert = jest.fn();
 
@@ -11,19 +11,19 @@ describe('IdempotencyService', () => {
     },
   } as any;
 
-  let service: IdempotencyService;
+  let repository: IdempotencyRepository;
 
   beforeEach(() => {
     findUnique.mockReset();
     upsert.mockReset();
-    service = new IdempotencyService(prismaMock);
+    repository = new IdempotencyRepository(prismaMock);
   });
 
   it('returns null when key is not cached', async () => {
     findUnique.mockResolvedValueOnce(null);
 
     await expect(
-      service.get({
+      repository.get({
         key: 'idem-1',
         tenantId: 'tenant-1',
         method: 'POST',
@@ -38,7 +38,7 @@ describe('IdempotencyService', () => {
     findUnique.mockResolvedValueOnce({ responseBody: { ok: true }, statusCode: 201 });
 
     await expect(
-      service.get({
+      repository.get({
         key: 'idem-2',
         tenantId: 'tenant-1',
         method: 'POST',
@@ -50,7 +50,7 @@ describe('IdempotencyService', () => {
   it('upserts idempotent response payload', async () => {
     upsert.mockResolvedValueOnce({});
 
-    await service.save({
+    await repository.save({
       key: 'idem-3',
       tenantId: 'tenant-1',
       method: 'POST',

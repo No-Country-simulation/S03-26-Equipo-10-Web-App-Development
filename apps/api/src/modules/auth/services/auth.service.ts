@@ -1,4 +1,5 @@
-import { UnauthorizedException, ConflictException, Injectable } from '@nestjs/common';
+import { UnauthorizedError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { AuthRepository } from '../repositories/auth.repository';
 import { JwtTokenService } from './jwt-token.service';
 import { PasswordService } from '../../shared/hashing';
@@ -35,7 +36,7 @@ export class AuthService {
    *
    * @param dto Objeto con email y contraseña.
    * @returns Datos del usuario y el nuevo par de tokens.
-   * @throws {UnauthorizedException} Si las credenciales son inválidas o la cuenta está desactivada.
+   * @throws {UnauthorizedError} Si las credenciales son inválidas o la cuenta está desactivada.
    */
   async login(dto: LoginDto) {
     // Verifica que el usuario no esté bloqueado temporalmente por intentos fallidos
@@ -44,10 +45,10 @@ export class AuthService {
     const user = await this.authRepo.findUserByEmail(dto.email);
     if (!user) {
       this.loginAttempts.registerFailure(dto.email);
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedError('Invalid credentials');
     }
-    if (!user.isActive) throw new UnauthorizedException('Account is disabled');
-    if (!user.tenantIsActive) throw new UnauthorizedException('Tenant is disabled');
+    if (!user.isActive) throw new UnauthorizedError('Account is disabled');
+    if (!user.tenantIsActive) throw new UnauthorizedError('Tenant is disabled');
 
     const validPassword = await this.passwordService.verifyPassword(
       dto.password,
@@ -55,7 +56,7 @@ export class AuthService {
     );
     if (!validPassword) {
       this.loginAttempts.registerFailure(dto.email);
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedError('Invalid credentials');
     }
 
     this.loginAttempts.clear(dto.email);
@@ -81,11 +82,11 @@ export class AuthService {
   async refreshSession(refreshToken: string) {
     const tokenHash = this.tokenService.hashToken(refreshToken);
     const record = await this.authRepo.findValidRefreshToken(tokenHash);
-    if (!record) throw new UnauthorizedException('Invalid or expired refresh token');
+    if (!record) throw new UnauthorizedError('Invalid or expired refresh token');
 
     const user = record.user;
-    if (!user.isActive) throw new UnauthorizedException('Account is disabled');
-    if (!user.tenantIsActive) throw new UnauthorizedException('Tenant is disabled');
+    if (!user.isActive) throw new UnauthorizedError('Account is disabled');
+    if (!user.tenantIsActive) throw new UnauthorizedError('Tenant is disabled');
 
     // Rotate: revoke old, create new
     await this.authRepo.revokeRefreshToken(record.id);
@@ -97,27 +98,16 @@ export class AuthService {
    *
    * @param dto Datos del nuevo tenant y credenciales del admin.
    * @returns Datos del usuario creado y sus tokens de sesión.
-   * @throws {ConflictException} Si el nombre del tenant o el email ya están en uso.
+   * @throws {ConflictError} Si el nombre del tenant o el email ya están en uso.
    */
   async registerAdmin(dto: RegisterAdminDto) {
     const passwordHash = await this.passwordService.hashPassword(dto.password);
 
-    let user;
-    try {
-      user = await this.authRepo.createTenantAndAdmin({
-        tenantName: dto.tenantName,
-        email: dto.email,
-        passwordHash,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'TENANT_NAME_EXISTS') {
-        throw new ConflictException('A tenant with this name already exists');
-      }
-      if (error instanceof Error && error.message === 'EMAIL_EXISTS') {
-        throw new ConflictException('A user with this email already exists');
-      }
-      throw error;
-    }
+    const user = await this.authRepo.createTenantAndAdmin({
+      tenantName: dto.tenantName,
+      email: dto.email,
+      passwordHash,
+    });
 
     return this.createSessionResponse(user);
   }

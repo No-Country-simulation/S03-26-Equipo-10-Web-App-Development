@@ -1,7 +1,7 @@
 # Plan HITL: cierre de arquitectura y configuración
 
 **Fecha de inicio:** 2026-09-28  
-**Estado global:** Fase 3 implementada localmente; verificación real de CI y ACK pendientes antes de fase 4
+**Estado global:** Fase 4 completada localmente; verificación real de CI de fases previas y ACK para fase 5 pendientes
 
 ## Contexto y restricciones
 
@@ -48,13 +48,20 @@
 
 **Verificación:** `npm ci --offline` completó con npm 11.19.0 y dejó idéntico el SHA-256 del lockfile (`17075484edd0727fb1178f989baa4a7b63c8353da29713965075f1e3f0cfa715`). `npm install-scripts ls` quedó vacío. Typecheck, lint, 69 tests API y 12 web, build API y build web pasan; las cinco pruebas PostgreSQL siguen omitidas localmente. El build web requirió salir del sandbox y definir `NEXT_PUBLIC_API_URL`. Lint conserva dos advertencias previas en API y veinte en web. `npm audit --audit-level=high` y `npm audit signatures` pasan; auditoría completa: 0 críticas, 0 altas, 2 moderadas de Vitest y 0 bajas. YAML y `git diff --check` válidos. Los jobs nuevos de Dependency Review y TruffleHog, las pruebas PostgreSQL y las imágenes aún requieren una ejecución real de GitHub Actions; no se ejecutó Docker localmente.
 
-**Review humano (ACK):** Pendiente para avanzar a fase 4.
+**Review humano (ACK):** Recibido el 2026-09-28 mediante «Continua con la fase 4».
 **Commit sugerido:** `chore(security): corregí dependencias y exigí controles de cadena de suministro`.
 
-### `[Pendiente]` Fase 4: capas de API
+### `[Completada localmente]` Fase 4: capas de API
 
 - Desacoplar errores de negocio e infraestructura de HTTP, mapearlos en la frontera, preservar contratos públicos y aislar Prisma.
 - Extraer casos de uso para operaciones con reglas reales, reforzar el contexto autenticado de tenant, aplicar correlación con `AsyncLocalStorage` y proteger límites con lint.
+
+**Implementación:** Repositorios, servicios y validadores de los módulos activos lanzan errores internos tipados, que `ApiExceptionFilter` traduce a los mismos estados, códigos y campos Problem Details. La persistencia del outbox y de idempotencia pasó a repositorios; los guards verifican credenciales mediante `CredentialRepository`. Los casos de uso `CreateTestimonialUseCase` y `TransitionTestimonialUseCase` concentran reglas y delegan en las transacciones existentes del repositorio. El contexto por solicitud usa `AsyncLocalStorage`; JWT debe coincidir con el tenant del usuario verificado, API key asigna su tenant después de la consulta y feature flags ya no aceptan `x-tenant-id` como fuente. El lint bloquea excepciones HTTP en servicios y repositorios, Prisma en aplicación y guards, y NestJS o Prisma en entidades.
+
+**Verificación:** `typecheck`, lint, tests y build de API pasan con Node 24.21.0 y npm 11.19.0. Hay 87 tests aprobados, incluidos los nuevos de Problem Details, aislamiento de tenant, credenciales, correlación y logs; quedan cinco pruebas PostgreSQL omitidas localmente por falta de base descartable, configuradas como obligatorias en CI. Lint informa una advertencia de seguridad preexistente en `webhooks.service.ts` y cero errores. Se comprobó con ESLint que imports prohibidos disparan la regla. `git diff --check` pasa. La ejecución real de CI, las pruebas PostgreSQL y los contenedores siguen pendientes de un runner con esos servicios.
+
+**Review humano (ACK):** Pendiente para avanzar a fase 5.
+**Commit sugerido:** `refactor(api): separá errores HTTP y aislá los casos de uso y el tenant`.
 
 ### `[Pendiente]` Fase 5: capas de web
 

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { CategoryRepository } from '../repositories/category.repository';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/category.dto';
 
@@ -18,7 +19,7 @@ export class CategoriesService {
 
   async getCategory(tenantId: string, categoryId: string) {
     const category = await this.categoryRepo.findById(tenantId, categoryId);
-    if (!category) throw new NotFoundException('Category not found');
+    if (!category) throw new NotFoundError('Category not found');
     return category;
   }
 
@@ -28,13 +29,13 @@ export class CategoriesService {
 
   async update(tenantId: string, categoryId: string, dto: UpdateCategoryDto) {
     const category = await this.categoryRepo.findById(tenantId, categoryId);
-    if (!category) throw new NotFoundException('Category not found');
+    if (!category) throw new NotFoundError('Category not found');
     return this.categoryRepo.update(tenantId, categoryId, dto.name);
   }
 
   async remove(tenantId: string, categoryId: string) {
     const category = await this.categoryRepo.findById(tenantId, categoryId);
-    if (!category) throw new NotFoundException('Category not found');
+    if (!category) throw new NotFoundError('Category not found');
     await this.categoryRepo.remove(tenantId, categoryId);
     return { id: categoryId, deleted: true };
   }

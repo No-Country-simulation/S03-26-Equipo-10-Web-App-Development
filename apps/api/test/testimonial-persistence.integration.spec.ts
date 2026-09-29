@@ -1,4 +1,5 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictError } from '../src/common/errors/application.error';
+
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../src/modules/database/prisma.service';
@@ -97,7 +98,7 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
     });
     const foreignTag = await prisma.tag.create({ data: { tenantId: otherTenantId, name: `foreign-${randomUUID()}` } });
 
-    await expect(repo.updateStatus(otherTenantId, created.id, 'draft', 'pending')).rejects.toThrow(ConflictException);
+    await expect(repo.updateStatus(otherTenantId, created.id, 'draft', 'pending')).rejects.toThrow(ConflictError);
     await expect(repo.updateFields(otherTenantId, created.id, { content: 'Intrusion' }, 'draft')).rejects.toThrow();
     await expect(repo.updateMedia(otherTenantId, created.id, 'draft', { imageUrl: 'https://example.com/x' })).rejects.toThrow();
     await expect(repo.updateFields(tenantId, created.id, { tagIds: [foreignTag.id] }, 'draft')).rejects.toThrow();

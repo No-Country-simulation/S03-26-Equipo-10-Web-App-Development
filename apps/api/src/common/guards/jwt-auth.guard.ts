@@ -6,15 +6,16 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../../modules/database/prisma.service';
+import { CredentialRepository } from '../repositories/credential.repository';
 import type { AppConfig } from '../../config/app.config';
-import type { ApiRequest, JwtPayload, RoleCode } from '../interfaces/auth-context.interface';
+import type { ApiRequest, JwtPayload } from '../interfaces/auth-context.interface';
+import { setAuthenticatedTenant } from '../request-context.storage';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService,
+    private readonly credentials: CredentialRepository,
     private readonly configService: ConfigService,
   ) {}
 
@@ -44,30 +45,15 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Invalid access token');
     }
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      include: {
-        tenant: true,
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
+    const user = await this.credentials.findActiveUser(payload.sub);
 
-    if (!user || !user.isActive || !user.tenant.isActive) {
+    if (!user || user.tenantId !== payload.tenantId) {
       throw new UnauthorizedException('Inactive user or tenant');
     }
 
-    request.user = {
-      userId: user.id,
-      email: user.email,
-      tenantId: user.tenantId,
-      tenantName: user.tenant.name,
-      roles: user.roles.map((entry) => entry.role.code as RoleCode),
-      isActive: user.isActive,
-    };
+    request.user = user;
+
+    setAuthenticatedTenant(user.tenantId);
 
     return true;
   }

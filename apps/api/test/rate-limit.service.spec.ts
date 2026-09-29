@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { RateLimitedError } from '../src/common/errors/application.error';
 import { RateLimitService } from '../src/common/services/rate-limit.service';
 
 describe('RateLimitService', () => {
@@ -20,16 +20,11 @@ describe('RateLimitService', () => {
       service.assertWithinLimit('ip:2', 1, 60, 'Custom limit reached');
       fail('Expected service to throw');
     } catch (error) {
-      expect(error).toBeInstanceOf(HttpException);
-      const exception = error as HttpException;
-      expect(exception.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
-      expect(exception.getResponse()).toEqual(
-        expect.objectContaining({
-          code: 'TOO_MANY_REQUESTS',
-          message: 'Custom limit reached',
-        }),
-      );
+      expect(error).toBeInstanceOf(RateLimitedError);
+      const exception = error as RateLimitedError;
+      expect(exception.kind).toBe('rate_limited');
+      expect(exception.code).toBe('TOO_MANY_REQUESTS');
+      expect(exception.message).toBe('Custom limit reached');
     }
   });
 });
-

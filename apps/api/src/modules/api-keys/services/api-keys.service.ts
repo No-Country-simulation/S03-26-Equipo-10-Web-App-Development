@@ -1,4 +1,5 @@
-import { NotFoundException, Injectable } from '@nestjs/common';
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import { ApiKeyRepository } from '../repositories/api-key.repository';
 import { CreateApiKeyDto, RotateApiKeyDto } from '../dto/api-key.dto';
@@ -25,13 +26,13 @@ export class ApiKeysService {
 
   async getApiKey(tenantId: string, apiKeyId: string) {
     const key = await this.apiKeyRepo.findById(tenantId, apiKeyId);
-    if (!key) throw new NotFoundException('API key not found');
+    if (!key) throw new NotFoundError('API key not found');
     return key;
   }
 
   async revokeApiKey(tenantId: string, apiKeyId: string) {
     const current = await this.apiKeyRepo.findById(tenantId, apiKeyId);
-    if (!current) throw new NotFoundException('API key not found');
+    if (!current) throw new NotFoundError('API key not found');
 
     await this.apiKeyRepo.revoke(tenantId, apiKeyId);
     return { id: apiKeyId, revoked: true };
@@ -39,7 +40,7 @@ export class ApiKeysService {
 
   async rotateApiKey(tenantId: string, apiKeyId: string, dto: RotateApiKeyDto) {
     const current = await this.apiKeyRepo.findById(tenantId, apiKeyId);
-    if (!current) throw new NotFoundException('API key not found');
+    if (!current) throw new NotFoundError('API key not found');
 
     const rawApiKey = `tms_${randomBytes(24).toString('hex')}`;
     const keyHash = createHash('sha256').update(rawApiKey).digest('hex');

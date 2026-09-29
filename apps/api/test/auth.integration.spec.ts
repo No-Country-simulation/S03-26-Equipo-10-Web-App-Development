@@ -1,4 +1,5 @@
-import { UnauthorizedException, ConflictException } from '@nestjs/common';
+import { ConflictError, UnauthorizedError } from '../src/common/errors/application.error';
+
 import { PasswordService } from '../src/modules/shared/hashing/password.service';
 import { LoginAttemptsService } from '../src/modules/auth/services/login-attempts.service';
 import { AuthService } from '../src/modules/auth/services/auth.service';
@@ -82,8 +83,8 @@ describe('Auth Flow (Integration)', () => {
       expect(authRepo.createRefreshToken).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw ConflictException for duplicate tenant name', async () => {
-      authRepo.createTenantAndAdmin.mockRejectedValue(new Error('TENANT_NAME_EXISTS'));
+    it('should throw ConflictError for duplicate tenant name', async () => {
+      authRepo.createTenantAndAdmin.mockRejectedValue(new ConflictError('A tenant with this name already exists'));
 
       await expect(
         authService.registerAdmin({
@@ -91,11 +92,11 @@ describe('Auth Flow (Integration)', () => {
           email: 'new@acme.com',
           password: 'SecurePassword123!',
         }),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(ConflictError);
     });
 
-    it('should throw ConflictException for duplicate email', async () => {
-      authRepo.createTenantAndAdmin.mockRejectedValue(new Error('EMAIL_EXISTS'));
+    it('should throw ConflictError for duplicate email', async () => {
+      authRepo.createTenantAndAdmin.mockRejectedValue(new ConflictError('A user with this email already exists'));
 
       await expect(
         authService.registerAdmin({
@@ -103,7 +104,7 @@ describe('Auth Flow (Integration)', () => {
           email: 'admin@acme.com',
           password: 'SecurePassword123!',
         }),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(ConflictError);
     });
   });
 
@@ -124,12 +125,12 @@ describe('Auth Flow (Integration)', () => {
       expect(authRepo.createRefreshToken).toHaveBeenCalledTimes(1);
     });
 
-    it('should throw UnauthorizedException for invalid refresh token', async () => {
+    it('should throw UnauthorizedError for invalid refresh token', async () => {
       authRepo.findValidRefreshToken.mockResolvedValue(null);
 
       await expect(
         authService.refreshSession('invalid-token'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(UnauthorizedError);
     });
 
     it('should reject refresh for disabled accounts', async () => {
@@ -140,7 +141,7 @@ describe('Auth Flow (Integration)', () => {
 
       await expect(
         authService.refreshSession('valid-token'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(UnauthorizedError);
     });
 
     it('should reject refresh for disabled tenants', async () => {
@@ -151,7 +152,7 @@ describe('Auth Flow (Integration)', () => {
 
       await expect(
         authService.refreshSession('valid-token'),
-      ).rejects.toThrow(UnauthorizedException);
+      ).rejects.toThrow(UnauthorizedError);
     });
   });
 

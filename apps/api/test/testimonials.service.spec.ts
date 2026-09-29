@@ -1,6 +1,9 @@
-import { ConflictException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ConflictError, ForbiddenError, NotFoundError } from '../src/common/errors/application.error';
+
 import { TestimonialsService } from '../src/modules/testimonials/services/testimonials.service';
 import { VALID_TRANSITIONS, TestimonialView } from '../src/modules/testimonials/entities/testimonial.model';
+import { TransitionTestimonialUseCase } from '../src/modules/testimonials/use-cases/transition-testimonial.use-case';
+import { CreateTestimonialUseCase } from '../src/modules/testimonials/use-cases/create-testimonial.use-case';
 
 describe('VALID_TRANSITIONS', () => {
   it('defines correct transitions for each status', () => {
@@ -86,6 +89,8 @@ describe('TestimonialsService', () => {
       mockCloudinaryService as any,
       mockYoutubeService as any,
       mockCacheService as any,
+      new TransitionTestimonialUseCase(mockRepo as any, mockCacheService as any),
+      new CreateTestimonialUseCase(mockRepo as any, mockCategoryRepo as any),
     );
   });
 
@@ -156,8 +161,8 @@ describe('TestimonialsService', () => {
     const draft = makeView({ status: 'draft' });
 
     mockRepo.findById.mockResolvedValue(draft);
-    await expect(service.approveTestimonial('tenant-1', 'test-1')).rejects.toThrow(ConflictException);
-    await expect(service.publishTestimonial('tenant-1', 'test-1')).rejects.toThrow(ConflictException);
+    await expect(service.approveTestimonial('tenant-1', 'test-1')).rejects.toThrow(ConflictError);
+    await expect(service.publishTestimonial('tenant-1', 'test-1')).rejects.toThrow(ConflictError);
   });
 
   it('allows rejection from pending', async () => {
@@ -178,7 +183,7 @@ describe('TestimonialsService', () => {
 
     await expect(
       service.updateTestimonial('tenant-1', 'test-1', { userId: 'user-1', roles: ['admin'] }, { authorName: 'Changed' }),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toThrow(ConflictError);
   });
 
   it('validates rating bounds on create', async () => {
@@ -188,7 +193,7 @@ describe('TestimonialsService', () => {
         content: 'Invalid rating test content here.',
         rating: 0,
       }),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toThrow(ConflictError);
 
     await expect(
       service.createTestimonial('tenant-1', 'user-1', {
@@ -196,12 +201,12 @@ describe('TestimonialsService', () => {
         content: 'Invalid rating test content here.',
         rating: 6,
       }),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toThrow(ConflictError);
   });
 
-  it('throws NotFoundException when testimonial not found', async () => {
+  it('throws NotFoundError when testimonial not found', async () => {
     mockRepo.findById.mockResolvedValue(null);
-    await expect(service.getTestimonial('tenant-1', 'nonexistent')).rejects.toThrow(NotFoundException);
+    await expect(service.getTestimonial('tenant-1', 'nonexistent')).rejects.toThrow(NotFoundError);
   });
 
   it('lists public testimonials by slug', async () => {
@@ -230,8 +235,8 @@ describe('TestimonialsService', () => {
     const otherEditor = { userId: 'unauthorized-user', roles: ['editor'] };
 
     // Other editor should fail
-    await expect(service.updateTestimonial('tenant-1', 'test-1', otherEditor, { content: 'x' })).rejects.toThrow(ForbiddenException);
-    await expect(service.removeTestimonial('tenant-1', 'test-1', otherEditor)).rejects.toThrow(ForbiddenException);
+    await expect(service.updateTestimonial('tenant-1', 'test-1', otherEditor, { content: 'x' })).rejects.toThrow(ForbiddenError);
+    await expect(service.removeTestimonial('tenant-1', 'test-1', otherEditor)).rejects.toThrow(ForbiddenError);
 
     // Admin should succeed
     mockRepo.updateFields.mockResolvedValue({ ...testimonial, content: 'x' });

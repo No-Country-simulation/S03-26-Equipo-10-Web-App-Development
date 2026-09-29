@@ -26,10 +26,8 @@ export class FeatureFlagGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<ApiRequest & { apiKey?: { tenantId: string } }>();
-    
-    // Extract tenantId from JWT user session, API Key session, or fallback to header
-    const tenantId = request.user?.tenantId ?? request.apiKey?.tenantId ?? (request.headers['x-tenant-id'] as string);
+    const request = context.switchToHttp().getRequest<ApiRequest>();
+    const tenantId = request.user?.tenantId ?? request.apiKey?.tenantId;
     
     if (!tenantId) {
       throw new ForbiddenException('Tenant ID is required for feature flag evaluation');

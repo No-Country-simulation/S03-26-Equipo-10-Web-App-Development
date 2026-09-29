@@ -1,11 +1,13 @@
-import { NotFoundException, ConflictException, ForbiddenException, BadRequestException, Injectable } from '@nestjs/common';
+import { ConflictError, ForbiddenError, InvalidInputError, NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { TenantsService } from '../../tenants';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
 import { AnalyticsService } from '../../analytics';
 import { CloudinaryService, YoutubeService } from '../../shared/cloud';
 import { CacheService } from '../../../common/services/cache.service';
-import { VALID_TRANSITIONS, TestimonialStatus } from '../entities/testimonial.model';
+import { TransitionTestimonialUseCase } from '../use-cases/transition-testimonial.use-case';
+import { CreateTestimonialUseCase } from '../use-cases/create-testimonial.use-case';
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
 
 /**
@@ -28,6 +30,8 @@ export class TestimonialsService {
     private readonly cloudinaryService: CloudinaryService,
     private readonly youtubeService: YoutubeService,
     private readonly cache: CacheService,
+    private readonly transition: TransitionTestimonialUseCase,
+    private readonly create: CreateTestimonialUseCase,
   ) { }
 
   /**
@@ -41,54 +45,23 @@ export class TestimonialsService {
    * @param tenantId - ID del inquilino propietario. Usado para aislamiento (Row-level multi-tenancy).
    * @param creatorUserId - ID del usuario que lo crea.
    * @param dto - Datos validados del testimonio.
-   * @throws {ConflictException} Si el rating no está entre 1 y 5.
-   * @throws {NotFoundException} Si la categoría proporcionada no existe o no pertenece al tenant.
+   * @throws {ConflictError} Si el rating no está entre 1 y 5.
+   * @throws {NotFoundError} Si la categoría proporcionada no existe o no pertenece al tenant.
    * @returns El testimonio creado (en estado 'draft' por defecto).
    */
   async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
-    if (dto.rating < 1 || dto.rating > 5) {
-      throw new ConflictException('Rating must be between 1 and 5');
-    }
-
-    if (dto.categoryId) {
-      const category = await this.categoryRepo.findById(tenantId, dto.categoryId);
-      if (!category) {
-        throw new NotFoundException('Category not found');
-      }
-    }
-
-    return this.repo.createWithEvent({
-      tenantId,
-      createdById: creatorUserId,
-      authorName: dto.authorName,
-      content: dto.content,
-      rating: dto.rating,
-      ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
-      ...(dto.tagIds !== undefined && { tagIds: dto.tagIds }),
-    }, 'draft', {
-      eventType: 'testimonial.created',
-      payload: testimonial => ({
-        id: testimonial.id,
-        authorName: testimonial.authorName,
-        content: testimonial.content,
-        rating: testimonial.rating,
-        status: testimonial.status,
-        imageUrl: testimonial.imageUrl,
-        videoUrl: testimonial.videoUrl,
-        createdAt: testimonial.createdAt,
-      }),
-    });
+    return this.create.execute(tenantId, creatorUserId, dto);
   }
 
   async getTestimonial(tenantId: string, testimonialId: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (!testimonial) throw new NotFoundError('Testimonial not found');
     return testimonial;
   }
 
   async getPublicTestimonial(tenantId: string, testimonialId: string) {
     const testimonial = await this.repo.findPublishedById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (!testimonial) throw new NotFoundError('Testimonial not found');
     return testimonial;
   }
 
@@ -107,14 +80,14 @@ export class TestimonialsService {
    * 
    * @param slug - Slug público único del Tenant.
    * @param dto - Datos del testimonio público.
-   * @throws {ForbiddenException} Si el formulario público del inquilino está desactivado.
+   * @throws {ForbiddenError} Si el formulario público del inquilino está desactivado.
    * @returns El testimonio creado en estado 'pending'.
    */
   async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
 
     if (!tenant.isPublicFormEnabled) {
-      throw new ForbiddenException('This form is currently closed');
+      throw new ForbiddenError('This form is currently closed');
     }
 
     const testimonial = await this.repo.createWithEvent({
@@ -146,7 +119,7 @@ export class TestimonialsService {
     }
 
     const updated = await this.repo.findById(tenant.id, testimonial.id);
-    if (!updated) throw new NotFoundException('Testimonial not found');
+    if (!updated) throw new NotFoundError('Testimonial not found');
     return updated;
   }
 
@@ -222,23 +195,23 @@ export class TestimonialsService {
 
   async updateTestimonial(tenantId: string, testimonialId: string, user: { userId: string; roles: string[] }, dto: UpdateTestimonialDto) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (!testimonial) throw new NotFoundError('Testimonial not found');
 
     if (testimonial.status === 'published') {
-      throw new ConflictException('Published testimonial cannot be edited');
+      throw new ConflictError('Published testimonial cannot be edited');
     }
 
     if (!user.roles.includes('admin') && user.roles.includes('editor') && testimonial.createdById !== user.userId) {
-      throw new ForbiddenException('Editors can only edit their own testimonials');
+      throw new ForbiddenError('Editors can only edit their own testimonials');
     }
 
     if (dto.rating !== undefined && (dto.rating < 1 || dto.rating > 5)) {
-      throw new ConflictException('Rating must be between 1 and 5');
+      throw new ConflictError('Rating must be between 1 and 5');
     }
 
     if (dto.categoryId) {
       const category = await this.categoryRepo.findById(tenantId, dto.categoryId);
-      if (!category) throw new NotFoundException('Category not found');
+      if (!category) throw new NotFoundError('Category not found');
     }
 
     return this.repo.updateFields(tenantId, testimonialId, {
@@ -261,13 +234,13 @@ export class TestimonialsService {
    * @param tenantId - ID del inquilino.
    * @param testimonialId - ID del testimonio a actualizar.
    * @param imageBase64 - Imagen en formato Base64 a subir.
-   * @throws {ConflictException} Si el testimonio ya está publicado (inmutable).
+   * @throws {ConflictError} Si el testimonio ya está publicado (inmutable).
    */
   async uploadImage(tenantId: string, testimonialId: string, imageBase64: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (!testimonial) throw new NotFoundError('Testimonial not found');
     if (testimonial.status === 'published') {
-      throw new ConflictException('Cannot modify media of a published testimonial');
+      throw new ConflictError('Cannot modify media of a published testimonial');
     }
 
     const result = await this.cloudinaryService.uploadImage(imageBase64);
@@ -284,18 +257,18 @@ export class TestimonialsService {
    * @param tenantId - ID del inquilino.
    * @param testimonialId - ID del testimonio.
    * @param videoUrl - URL válida de YouTube.
-   * @throws {BadRequestException} Si la URL no pertenece a YouTube.
+   * @throws {InvalidInputError} Si la URL no pertenece a YouTube.
    */
   async attachVideo(tenantId: string, testimonialId: string, videoUrl: string) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (!testimonial) throw new NotFoundError('Testimonial not found');
     if (testimonial.status === 'published') {
-      throw new ConflictException('Cannot modify media of a published testimonial');
+      throw new ConflictError('Cannot modify media of a published testimonial');
     }
 
     const youtubePattern = /(?:youtube\.com|youtu\.be)/;
     if (!youtubePattern.test(videoUrl)) {
-      throw new BadRequestException('Only YouTube URLs are supported');
+      throw new InvalidInputError('Only YouTube URLs are supported');
     }
 
     const metadata = await this.youtubeService.getVideoMetadata(videoUrl);
@@ -309,10 +282,10 @@ export class TestimonialsService {
 
   async removeTestimonial(tenantId: string, testimonialId: string, user: { userId: string; roles: string[] }) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
+    if (!testimonial) throw new NotFoundError('Testimonial not found');
 
     if (!user.roles.includes('admin') && user.roles.includes('editor') && testimonial.createdById !== user.userId) {
-      throw new ForbiddenException('Editors can only delete their own testimonials');
+      throw new ForbiddenError('Editors can only delete their own testimonials');
     }
 
     await this.repo.remove(tenantId, testimonialId);
@@ -320,27 +293,15 @@ export class TestimonialsService {
   }
 
   async submitTestimonial(tenantId: string, testimonialId: string) {
-    const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
-
-    this.assertTransition(testimonial.status, 'pending');
-    return this.repo.updateStatus(tenantId, testimonialId, testimonial.status, 'pending');
+    return this.transition.execute(tenantId, testimonialId, 'pending');
   }
 
   async approveTestimonial(tenantId: string, testimonialId: string) {
-    const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
-
-    this.assertTransition(testimonial.status, 'approved');
-    return this.repo.updateStatus(tenantId, testimonialId, testimonial.status, 'approved');
+    return this.transition.execute(tenantId, testimonialId, 'approved');
   }
 
   async rejectTestimonial(tenantId: string, testimonialId: string, reason: string) {
-    const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
-
-    this.assertTransition(testimonial.status, 'rejected');
-    return this.repo.updateStatus(tenantId, testimonialId, testimonial.status, 'rejected', { moderationNotes: reason || null });
+    return this.transition.execute(tenantId, testimonialId, 'rejected', reason);
   }
 
   /**
@@ -353,41 +314,10 @@ export class TestimonialsService {
    * 
    * @param tenantId - ID del inquilino.
    * @param testimonialId - ID del testimonio a publicar.
-   * @throws {ConflictException} Si la transición de estado no es válida.
+   * @throws {ConflictError} Si la transición de estado no es válida.
    * @returns El testimonio actualizado.
    */
   async publishTestimonial(tenantId: string, testimonialId: string) {
-    const testimonial = await this.repo.findById(tenantId, testimonialId);
-    if (!testimonial) throw new NotFoundException('Testimonial not found');
-
-    this.assertTransition(testimonial.status, 'published');
-    const updated = await this.repo.updateStatus(tenantId, testimonialId, testimonial.status, 'published', { publishedAt: new Date() }, {
-      eventType: 'testimonial.published',
-      payload: updated => ({
-        id: updated.id,
-        authorName: updated.authorName,
-        content: updated.content,
-        rating: updated.rating,
-        score: updated.score,
-        imageUrl: updated.imageUrl,
-        videoUrl: updated.videoUrl,
-        videoTitle: updated.videoTitle,
-        videoThumbnailUrl: updated.videoThumbnailUrl,
-        publishedAt: updated.publishedAt,
-        createdAt: updated.createdAt,
-      }),
-    });
-
-    // Invalidate public listing cache for this tenant since published set changed
-    this.cache.invalidateByPrefix(`public:${tenantId}:`);
-
-    return updated;
-  }
-
-  private assertTransition(from: TestimonialStatus, to: TestimonialStatus): void {
-    const allowed = VALID_TRANSITIONS[from];
-    if (!allowed.includes(to)) {
-      throw new ConflictException(`Invalid status transition: ${from} → ${to}`);
-    }
+    return this.transition.execute(tenantId, testimonialId, 'published');
   }
 }

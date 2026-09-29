@@ -49,4 +49,77 @@ export default [
       }],
     },
   },
+  {
+    files: ['src/modules/**/entities/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: "ImportDeclaration[source.value=/^@nestjs\\//]",
+          message: 'El dominio no puede depender de NestJS.',
+        },
+        {
+          selector: "ImportDeclaration[source.value=/^@prisma\\//]",
+          message: 'El dominio no puede depender de Prisma.',
+        },
+        {
+          selector: "ImportDeclaration[source.value=/\\/(?:repositories|services|controllers|dto)\\//]",
+          message: 'El dominio no puede importar capas externas.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/modules/**/{services,repositories,use-cases,utils}/**/*.ts', 'src/common/services/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: "ImportDeclaration[source.value='@nestjs/common'] ImportSpecifier[imported.name=/Exception$/]",
+          message: 'Usá errores internos y dejá la traducción HTTP al filtro global.',
+        },
+        {
+          selector: "ImportDeclaration[source.value='@nestjs/common'] ImportSpecifier[imported.name='HttpStatus']",
+          message: 'Los estados HTTP pertenecen a la capa de transporte.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/modules/**/{services,use-cases}/**/*.ts', 'src/common/services/**/*.ts'],
+    ignores: ['src/modules/health/**'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: "ImportDeclaration[source.value='@nestjs/common'] ImportSpecifier[imported.name=/Exception$/]",
+          message: 'Usá errores internos y dejá la traducción HTTP al filtro global.',
+        },
+        {
+          selector: "ImportDeclaration[source.value='@nestjs/common'] ImportSpecifier[imported.name='HttpStatus']",
+          message: 'Los estados HTTP pertenecen a la capa de transporte.',
+        },
+        {
+          selector: "ImportDeclaration[source.value=/^@prisma\\//]",
+          message: 'La aplicación debe acceder a datos mediante repositorios.',
+        },
+        {
+          selector: "ImportDeclaration[source.value=/\\/database\\/prisma.service$/]",
+          message: 'La aplicación debe acceder a Prisma mediante repositorios.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/common/guards/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: "ImportDeclaration[source.value=/^@prisma\\//]",
+          message: 'La capa de transporte y aplicación debe acceder a datos mediante repositorios.',
+        },
+        {
+          selector: "ImportDeclaration[source.value=/\\/database\\/prisma.service$/]",
+          message: 'La capa de transporte y aplicación debe acceder a Prisma mediante repositorios.',
+        },
+      ],
+    },
+  },
 ];

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { FeatureFlagRepository } from "../repositories/feature-flag.repository";
 
 @Injectable()
@@ -14,7 +15,7 @@ export class FeatureFlagsService {
     async getFeatureFlag(tenantId: string, flagName: string) {
         const flag = await this.featureFlagRepo.findByName(tenantId, flagName);
         if (!flag) {
-            throw new NotFoundException(`Feature flag '${flagName}' not found`);
+            throw new NotFoundError(`Feature flag '${flagName}' not found`);
         }
         return flag;
     }

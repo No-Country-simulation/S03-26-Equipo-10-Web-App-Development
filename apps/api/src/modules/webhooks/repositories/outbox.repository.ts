@@ -9,7 +9,7 @@ export interface OutboxEventInput {
 }
 
 @Injectable()
-export class OutboxService {
+export class OutboxRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async createEvent(event: OutboxEventInput): Promise<void> {

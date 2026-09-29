@@ -1,4 +1,5 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConflictError, InternalError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import type { RoleCode } from '../../../common/interfaces/auth-context.interface';
@@ -78,13 +79,13 @@ export class AuthRepository {
       await this.ensureCatalogsInTx(tx as unknown as PrismaClient);
 
       const existingTenant = await tx.tenant.findUnique({ where: { name: params.tenantName } });
-      if (existingTenant) throw new Error('TENANT_NAME_EXISTS');
+      if (existingTenant) throw new ConflictError('A tenant with this name already exists');
 
       const existingUser = await tx.user.findUnique({ where: { email: params.email } });
-      if (existingUser) throw new Error('EMAIL_EXISTS');
+      if (existingUser) throw new ConflictError('A user with this email already exists');
 
       const adminRole = await tx.role.findUnique({ where: { code: 'admin' } });
-      if (!adminRole) throw new InternalServerErrorException('Admin role is missing');
+      if (!adminRole) throw new InternalError('Admin role is missing');
 
       const tenant = await tx.tenant.create({ data: { name: params.tenantName, isActive: true } });
       const user = await tx.user.create({

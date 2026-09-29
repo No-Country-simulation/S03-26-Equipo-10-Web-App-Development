@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { OutboxService } from './outbox.service';
+import { OutboxRepository } from '../repositories/outbox.repository';
 
 /** Tipo semántico para eventos internos de webhook emitidos via EventEmitter2. */
 interface WebhookDomainEvent {
@@ -11,7 +11,7 @@ interface WebhookDomainEvent {
 
 @Injectable()
 export class WebhookEventsListener {
-  constructor(private readonly outbox: OutboxService) {}
+  constructor(private readonly outbox: OutboxRepository) {}
 
   @OnEvent('testimonial.created')
   async handleTestimonialCreated(event: WebhookDomainEvent) {

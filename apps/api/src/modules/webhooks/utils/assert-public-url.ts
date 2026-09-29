@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
+import { InvalidInputError } from '../../../common/errors/application.error';
+
 
 /**
  * Validates that a webhook URL does not target private/internal networks (SSRF prevention).
@@ -9,11 +10,11 @@ export function assertPublicUrl(url: string): void {
   try {
     parsed = new URL(url);
   } catch {
-    throw new BadRequestException('Invalid webhook URL');
+    throw new InvalidInputError('Invalid webhook URL');
   }
 
   if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new BadRequestException('Webhook URL must use HTTP or HTTPS');
+    throw new InvalidInputError('Webhook URL must use HTTP or HTTPS');
   }
 
   const hostname = parsed.hostname.toLowerCase();
@@ -32,7 +33,7 @@ export function assertPublicUrl(url: string): void {
 
   for (const pattern of blockedPatterns) {
     if (pattern.test(hostname)) {
-      throw new BadRequestException(
+      throw new InvalidInputError(
         'Webhook URL must not target private or internal networks',
       );
     }

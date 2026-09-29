@@ -1,4 +1,5 @@
-import { ConflictException, NotFoundException, Injectable } from "@nestjs/common";
+import { ConflictError, NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { UserRepository } from "../repositories/user.repository";
 import { PasswordService } from '../../shared/hashing';
 import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
@@ -14,11 +15,11 @@ export class UsersService {
      * Crea un nuevo usuario en la base de datos tras verificar que el email no exista.
      * @param tenantId ID del tenant al que pertenecerá el usuario.
      * @param dto DTO con los datos del usuario (email, password, rol).
-     * @throws {ConflictException} Si el email ya está registrado.
+     * @throws {ConflictError} Si el email ya está registrado.
      */
     async createUser(tenantId: string, dto: CreateUserDto) {
         const existing = await this.userRepo.findByEmail(dto.email);
-        if (existing) throw new ConflictException('Email already exists');
+        if (existing) throw new ConflictError('Email already exists');
 
         const passwordHash = await this.passwordService.hashPassword(dto.password);
 
@@ -34,11 +35,11 @@ export class UsersService {
      * Elimina permanentemente a un usuario asegurando que pertenezca al tenant correcto.
      * @param tenantId ID del tenant.
      * @param userId ID del usuario a eliminar.
-     * @throws {NotFoundException} Si el usuario no existe o no pertenece al tenant.
+     * @throws {NotFoundError} Si el usuario no existe o no pertenece al tenant.
      */
     async deleteUser(tenantId: string, userId: string) {
         const user = await this.userRepo.findById(tenantId, userId);
-        if (!user) throw new NotFoundException('User not found');
+        if (!user) throw new NotFoundError('User not found');
 
         await this.userRepo.remove(tenantId, userId);
         return { id: userId, deleted: true };
@@ -48,11 +49,11 @@ export class UsersService {
      * Retorna la información de un usuario específico.
      * @param tenantId ID del tenant.
      * @param userId ID del usuario.
-     * @throws {NotFoundException} Si el usuario no existe.
+     * @throws {NotFoundError} Si el usuario no existe.
      */
     async getUser(tenantId: string, userId: string) {
         const user = await this.userRepo.findById(tenantId, userId);
-        if (!user) throw new NotFoundException('User not found');
+        if (!user) throw new NotFoundError('User not found');
         return user;
     }
 
@@ -73,11 +74,11 @@ export class UsersService {
      * @param tenantId ID del tenant.
      * @param userId ID del usuario a modificar.
      * @param dto Campos a actualizar.
-     * @throws {NotFoundException} Si el usuario no existe.
+     * @throws {NotFoundError} Si el usuario no existe.
      */
     async updateUser(tenantId: string, userId: string, dto: UpdateUserDto) {
         const user = await this.userRepo.findById(tenantId, userId);
-        if (!user) throw new NotFoundException('User not found');
+        if (!user) throw new NotFoundError('User not found');
 
         let passwordHash: string | undefined;
         if (dto.password) {

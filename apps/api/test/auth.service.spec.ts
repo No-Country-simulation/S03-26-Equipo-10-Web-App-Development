@@ -1,4 +1,5 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedError } from '../src/common/errors/application.error';
+
 import { PasswordService } from '../src/modules/shared/hashing/password.service';
 import { LoginAttemptsService } from '../src/modules/auth/services/login-attempts.service';
 import { AuthService } from '../src/modules/auth/services/auth.service';
@@ -78,7 +79,7 @@ describe('AuthService', () => {
 
     await expect(
       useCase.login({ email: 'admin@acme.com', password: 'Wrong123!' }),
-    ).rejects.toThrow(UnauthorizedException);
+    ).rejects.toThrow(UnauthorizedError);
   });
 
   it('rejects if user not found', async () => {
@@ -86,7 +87,7 @@ describe('AuthService', () => {
 
     await expect(
       useCase.login({ email: 'nobody@acme.com', password: 'Admin123!' }),
-    ).rejects.toThrow(UnauthorizedException);
+    ).rejects.toThrow(UnauthorizedError);
   });
 
   it('rejects disabled accounts', async () => {
@@ -95,7 +96,7 @@ describe('AuthService', () => {
 
     await expect(
       useCase.login({ email: 'admin@acme.com', password: 'Admin123!' }),
-    ).rejects.toThrow(UnauthorizedException);
+    ).rejects.toThrow(UnauthorizedError);
   });
 });
 

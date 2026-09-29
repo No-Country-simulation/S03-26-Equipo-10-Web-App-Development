@@ -20,6 +20,7 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { UsersModule } from './modules/users/users.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { getRequestScope } from './common/request-context.storage';
 
 @Module({
   imports: [
@@ -51,8 +52,11 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
         },
         // Inyectar traceId y tenantId automáticamente en cada log HTTP
         customProps: (req: object) => ({
-          traceId: (req as { requestContext?: { correlationId?: string } }).requestContext?.correlationId,
-          tenantId: (req as { user?: { tenantId?: string } }).user?.tenantId,
+          traceId: getRequestScope()?.correlationId
+            ?? (req as { requestContext?: { correlationId?: string } }).requestContext?.correlationId,
+          tenantId: getRequestScope()?.tenantId
+            ?? (req as { user?: { tenantId?: string }; apiKey?: { tenantId?: string } }).user?.tenantId
+            ?? (req as { apiKey?: { tenantId?: string } }).apiKey?.tenantId,
         }),
       },
     }),
@@ -84,5 +88,4 @@ export class AppModule implements NestModule {
     consumer.apply(CsrfMiddleware).forRoutes('*');
   }
 }
-
 

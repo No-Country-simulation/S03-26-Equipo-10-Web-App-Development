@@ -1,4 +1,4 @@
-import { HttpException } from '@nestjs/common';
+import { RateLimitedError } from '../src/common/errors/application.error';
 import { LoginAttemptsService } from '../src/modules/auth/services/login-attempts.service';
 
 describe('LoginAttemptsService', () => {
@@ -14,7 +14,7 @@ describe('LoginAttemptsService', () => {
     }
 
     expect(() => service.assertNotBlocked('admin@test.com')).toThrow(
-      HttpException,
+      RateLimitedError,
     );
   });
 
@@ -25,4 +25,3 @@ describe('LoginAttemptsService', () => {
     expect(() => service.assertNotBlocked('admin@test.com')).not.toThrow();
   });
 });
-

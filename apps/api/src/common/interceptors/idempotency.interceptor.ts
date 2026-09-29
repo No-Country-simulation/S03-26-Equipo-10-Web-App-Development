@@ -9,7 +9,7 @@ import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { IDEMPOTENT_KEY } from '../decorators/idempotent.decorator';
 import type { ApiRequest } from '../interfaces/auth-context.interface';
-import { IdempotencyService } from '../services/idempotency.service';
+import { IdempotencyRepository } from '../repositories/idempotency.repository';
 
 /**
  * Interceptor para asegurar la idempotencia de las peticiones HTTP.
@@ -21,7 +21,7 @@ import { IdempotencyService } from '../services/idempotency.service';
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(
     private readonly reflector: Reflector,
-    private readonly idempotencyService: IdempotencyService,
+    private readonly idempotencyRepository: IdempotencyRepository,
   ) {}
 
   /**
@@ -63,7 +63,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const path = request.route?.path ?? request.path;
 
     // Busca en Redis/Cache si ya existe una respuesta previa para esta llave
-    const cached = await this.idempotencyService.get({
+    const cached = await this.idempotencyRepository.get({
       key,
       tenantId,
       method: request.method,
@@ -79,7 +79,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
     // Cache miss: Ejecuta el controlador y guarda la respuesta
     return next.handle().pipe(
       tap(async body => {
-        await this.idempotencyService.save({
+        await this.idempotencyRepository.save({
           key,
           tenantId,
           method: request.method,

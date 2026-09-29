@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { NotFoundError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 import { AnalyticsRepository } from '../repositories/analytics.repository';
 import { TenantsService } from '../../tenants';
 
@@ -29,7 +30,7 @@ export class AnalyticsService {
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
     const published = await this.analyticsRepo.isPublishedTestimonial(tenant.id, event.testimonialId);
     if (!published) {
-      throw new NotFoundException('Published testimonial not found for this tenant');
+      throw new NotFoundError('Published testimonial not found for this tenant');
     }
     return this.trackEvent(tenant.id, {
       eventType: event.eventType,

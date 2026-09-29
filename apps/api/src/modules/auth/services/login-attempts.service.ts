@@ -1,4 +1,5 @@
-import { Injectable, HttpException } from '@nestjs/common';
+import { RateLimitedError } from '../../../common/errors/application.error';
+import { Injectable } from '@nestjs/common';
 
 interface AttemptState {
   count: number;
@@ -14,7 +15,7 @@ export class LoginAttemptsService {
   assertNotBlocked(email: string) {
     const state = this.attempts.get(email.toLowerCase());
     if (state?.blockedUntil && state.blockedUntil > Date.now()) {
-      throw new HttpException('Account temporarily locked', 429);
+      throw new RateLimitedError('Account temporarily locked');
     }
   }
 

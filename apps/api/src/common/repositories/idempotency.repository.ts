@@ -20,7 +20,7 @@ export interface IdempotentResponse {
 }
 
 @Injectable()
-export class IdempotencyService {
+export class IdempotencyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async get(input: IdempotencyLookupInput): Promise<IdempotentResponse | null> {
