@@ -37,6 +37,18 @@ variable "private_db_subnet_cidrs" {
   }
 }
 
+variable "web_container_port" {
+  type = number
+}
+
+variable "api_container_port" {
+  type = number
+}
+
+variable "db_port" {
+  type = number
+}
+
 variable "tags" {
   type = map(string)
 }

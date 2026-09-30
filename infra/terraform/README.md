@@ -7,6 +7,7 @@ Infraestructura real para desplegar `testimonial-cms` en AWS con:
 - `PostgreSQL` en RDS Multi-AZ y subredes privadas.
 - `ECR`, `Route53`, `ACM`, `Secrets Manager`, `CloudWatch Logs`.
 - estado remoto Terraform en `S3 + DynamoDB`.
+- ACL de egreso en subredes de aplicación para bloquear redes internas habituales; el transporte de webhooks bloquea además DNS privado, redirecciones e IMDS.
 
 ## Estructura
 
@@ -91,3 +92,9 @@ Terraform deja listo el task definition del servicio `api`. Antes de promover tr
 - `npm run db:migrate --workspace @testimonial-cms/api`
 
 Los datos necesarios para lanzar esa tarea quedan expuestos como outputs de Terraform.
+
+## Ventana de destinos HTTP legados
+
+En el primer despliegue que incorpora el cierre SSRF, fijar `webhook_legacy_http_started_at` a la fecha y hora UTC real (`YYYY-MM-DDTHH:mm:ssZ`) en la configuración del entorno. El valor debe ser idéntico para todas las réplicas y permanecer inmutable durante los 30 días. Si no se establece, el envío a destinos HTTP legados falla cerrado. Las altas y cambios solo aceptan HTTPS.
+
+La ACL de las subredes privadas de aplicación es stateless y se asocia después de crear sus reglas. Validar primero en staging la salud de ambos ALB, PostgreSQL, DNS, CloudWatch y salida HTTPS. AWS no permite filtrar IMDS ni Route 53 Resolver con ACL de VPC; el transporte de webhooks deniega sus IP antes de abrir el socket. Ver [runbook de SSRF](../../docs/operations/08_webhook_ssrf_rollout.md).

@@ -3,7 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { WebhookRepository } from '../repositories/webhook.repository';
 import { CreateWebhookDto, UpdateWebhookDto } from '../dto/webhook.dto';
 import { HttpWebhookDispatcher } from './http-webhook-dispatcher';
-import { assertPublicUrl } from '../utils/assert-public-url';
+import { WebhookDestinationPolicy } from './webhook-destination-policy';
+import type { WebhookView } from '../repositories/webhook.repository';
 
 @Injectable()
 export class WebhooksService {
@@ -12,10 +13,11 @@ export class WebhooksService {
   constructor(
     private readonly webhookRepo: WebhookRepository,
     private readonly dispatcher: HttpWebhookDispatcher,
+    private readonly destinationPolicy: WebhookDestinationPolicy,
   ) {}
 
   async createWebhook(tenantId: string, dto: CreateWebhookDto) {
-    assertPublicUrl(dto.url);
+    await this.destinationPolicy.validateNewUrl(dto.url);
     return this.webhookRepo.create({
       tenantId,
       url: dto.url,
@@ -58,9 +60,7 @@ export class WebhooksService {
     const results = await Promise.allSettled(
       configured.map((webhook) =>
         this.dispatcher.dispatch(
-          webhook.id,
-          webhook.url,
-          webhook.secret,
+          webhook,
           {
             eventType: event.eventType,
             tenantId: event.tenantId,
@@ -76,7 +76,7 @@ export class WebhooksService {
     // Loguear fallos individuales sin propagar — at-least-once lo maneja el outbox
     for (const [i, result] of results.entries()) {
       if (result.status === 'rejected') {
-        const webhookId = configured[i]?.id ?? 'unknown';
+        const webhookId = configured.at(i)?.id ?? 'unknown';
         this.logger.warn(
           { webhookId, outboxEventId: event.id, reason: result.reason },
           'Webhook dispatch failed for one endpoint',
@@ -99,7 +99,7 @@ export class WebhooksService {
   async listWebhooks(tenantId: string) {
     const webhooks = await this.webhookRepo.findByTenant(tenantId);
     return {
-      items: webhooks,
+      items: webhooks.map(webhook => this.withLegacyNotice(webhook)),
       meta: { total: webhooks.length, page: 1, limit: webhooks.length },
     };
   }
@@ -121,7 +121,7 @@ export class WebhooksService {
       sentAt: new Date().toISOString(),
     };
 
-    return this.dispatcher.dispatch(webhook.id, webhook.url, webhook.secret, payload);
+    return this.dispatcher.dispatch(webhook, payload);
   }
 
   async updateWebhook(tenantId: string, webhookId: string, dto: UpdateWebhookDto) {
@@ -129,7 +129,7 @@ export class WebhooksService {
     if (!webhook) throw new NotFoundError('Webhook not found');
 
     if (dto.url) {
-      assertPublicUrl(dto.url);
+      await this.destinationPolicy.validateNewUrl(dto.url);
     }
 
     return this.webhookRepo.update(tenantId, webhookId, {
@@ -138,5 +138,16 @@ export class WebhooksService {
       ...(dto.secret !== undefined && { secret: dto.secret }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     });
+  }
+
+  private withLegacyNotice(webhook: WebhookView) {
+    const legacyHttp = new URL(webhook.url).protocol === 'http:';
+    return {
+      ...webhook,
+      legacyHttp: legacyHttp ? {
+        deadlineAt: this.destinationPolicy.legacyHttpDeadline(webhook.createdAt)?.toISOString() ?? null,
+        canDeliver: this.destinationPolicy.allowsLegacyHttp(webhook.createdAt),
+      } : null,
+    };
   }
 }

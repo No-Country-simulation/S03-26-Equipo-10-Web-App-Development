@@ -5,6 +5,7 @@ export interface AppConfig {
   port: number;
   corsOrigin: string;
   trustedProxyHops: number;
+  webhookLegacyHttpStartedAt: string | null;
   jwt: {
     secret: string;
     accessExpiresIn: string;
@@ -25,6 +26,11 @@ export interface AppConfig {
 export const appConfigValidationSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(process.env.NODE_ENV === 'production' ? 1 : 0),
+  WEBHOOK_LEGACY_HTTP_STARTED_AT: z.union([
+    z.literal(''),
+    z.iso.datetime({ offset: false, local: false })
+      .refine(value => !Number.isNaN(Date.parse(value))),
+  ]).default(''),
   CORS_ORIGIN: z.string().url().refine((value) => {
     if (!URL.canParse(value)) return false;
     const origin = new URL(value);
@@ -59,6 +65,7 @@ export const appConfig = registerAs('app', (): AppConfig => ({
   port: Number(process.env.PORT ?? 4000),
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
   trustedProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? (process.env.NODE_ENV === 'production' ? 1 : 0)),
+  webhookLegacyHttpStartedAt: process.env.WEBHOOK_LEGACY_HTTP_STARTED_AT || null,
   jwt: {
     secret: process.env.JWT_SECRET!,
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',

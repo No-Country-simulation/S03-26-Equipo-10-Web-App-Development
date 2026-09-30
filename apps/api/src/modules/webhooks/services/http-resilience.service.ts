@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
 import { LoggerService } from './logger.service';
+import { WebhookDestinationPolicy } from './webhook-destination-policy';
 
 export interface RetryOptions {
   timeoutMs?: number;
   retries?: number;
   baseDelayMs?: number;
   circuitKey: string;
+  allowLegacyHttp?: boolean;
 }
 
 interface CircuitState {
@@ -23,6 +25,8 @@ const CIRCUIT_THRESHOLD = 3;
 export class HttpResilienceService {
   private readonly logger = new LoggerService();
   private readonly circuits = new Map<string, CircuitState>();
+
+  constructor(private readonly destinationPolicy: WebhookDestinationPolicy) {}
 
   async request<T>(
     url: string,
@@ -83,10 +87,17 @@ export class HttpResilienceService {
     let lastError: unknown;
 
     while (attempt <= retries) {
+      const agent = this.destinationPolicy.createAgent(url, options.allowLegacyHttp);
       try {
         const response = await axios.post(url, body, {
           headers,
           timeout: timeoutMs,
+          httpAgent: agent,
+          httpsAgent: agent,
+          proxy: false,
+          maxRedirects: 0,
+          maxContentLength: 64 * 1024,
+          responseType: 'text',
           // Acepta cualquier status < 500 — el caller decide qué es éxito
           validateStatus: (status) => status < 500,
         });
@@ -109,6 +120,8 @@ export class HttpResilienceService {
         }
 
         await this.sleep(this.jitteredBackoff(baseDelayMs, attempt));
+      } finally {
+        agent.destroy();
       }
     }
 

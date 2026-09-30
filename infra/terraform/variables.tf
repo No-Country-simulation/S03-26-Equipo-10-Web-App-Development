@@ -74,6 +74,18 @@ variable "api_image_tag" {
   default     = "latest"
 }
 
+variable "webhook_legacy_http_started_at" {
+  description = "UTC del primer despliegue compatible; habilita HTTP solo para destinos anteriores durante 30 días. Null lo deshabilita."
+  type        = string
+  default     = null
+  nullable    = true
+
+  validation {
+    condition     = var.webhook_legacy_http_started_at == null || can(regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", var.webhook_legacy_http_started_at))
+    error_message = "webhook_legacy_http_started_at must be a UTC timestamp such as 2026-09-30T12:00:00Z."
+  }
+}
+
 variable "web_container_port" {
   description = "Port exposed by the web container."
   type        = number

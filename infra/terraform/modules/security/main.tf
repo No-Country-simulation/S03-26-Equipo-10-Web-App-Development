@@ -7,13 +7,6 @@ resource "aws_security_group" "web_ecs" {
   description = "Allow traffic from the web ALB to the web service"
   vpc_id      = var.vpc_id
 
-  ingress {
-    from_port       = var.web_container_port
-    to_port         = var.web_container_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.web_alb.id]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0
@@ -24,17 +17,18 @@ resource "aws_security_group" "web_ecs" {
   tags = merge(var.tags, { Name = "${var.name_prefix}-web-ecs-sg" })
 }
 
+resource "aws_vpc_security_group_ingress_rule" "web_ecs_from_alb" {
+  security_group_id            = aws_security_group.web_ecs.id
+  referenced_security_group_id = aws_security_group.web_alb.id
+  from_port                    = var.web_container_port
+  to_port                      = var.web_container_port
+  ip_protocol                  = "tcp"
+}
+
 resource "aws_security_group" "api_ecs" {
   name        = "${var.name_prefix}-api-ecs"
   description = "Allow traffic from the api ALB to the api service"
   vpc_id      = var.vpc_id
-
-  ingress {
-    from_port       = var.api_container_port
-    to_port         = var.api_container_port
-    protocol        = "tcp"
-    security_groups = [aws_security_group.api_alb.id]
-  }
 
   egress {
     from_port   = 0
@@ -44,6 +38,14 @@ resource "aws_security_group" "api_ecs" {
   }
 
   tags = merge(var.tags, { Name = "${var.name_prefix}-api-ecs-sg" })
+}
+
+resource "aws_vpc_security_group_ingress_rule" "api_ecs_from_alb" {
+  security_group_id            = aws_security_group.api_ecs.id
+  referenced_security_group_id = aws_security_group.api_alb.id
+  from_port                    = var.api_container_port
+  to_port                      = var.api_container_port
+  ip_protocol                  = "tcp"
 }
 
 resource "aws_security_group" "rds" {

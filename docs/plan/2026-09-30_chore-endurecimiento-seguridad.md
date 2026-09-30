@@ -1,7 +1,7 @@
 # Plan HITL: endurecimiento de Testimonial CMS
 
 **Fecha de inicio:** 2026-09-30  
-**Estado global:** Fase 1 actual; Fase 6 del plan de arquitectura pausada  
+**Estado global:** Fase 2 actual; Fase 6 del plan de arquitectura pausada
 **Skills:** `api-key-security-engineering`, `node-backend-engineering`, `web-security-engineering`, `webhook-architecture-engineering`
 
 ## Contexto y restricciones
@@ -15,7 +15,7 @@
 
 ## Fases
 
-### `[Actual]` Fase 1: restablecer HTTP y la base de verificación
+### `[Completada localmente]` Fase 1: restablecer HTTP y la base de verificación
 
 - Diagnosticar el fallo previo del job `Test` de CI y documentar si está resuelto o qué evidencia falta.
 - Corregir el CSRF global: login, registro, formulario público y clientes Bearer deben funcionar. Validar `Origin` para mutaciones de navegador sin sesión; reservar el token CSRF para mutaciones autenticadas por cookie.
@@ -30,11 +30,21 @@
 
 **Commit sugerido:** `fix(api): restablecé CSRF y resolvé el fallo del outbox en CI`.
 
-### `[Pendiente]` Fase 2: cerrar SSRF
+**Review humano (ACK):** Recibido mediante «Continua con la fase 2»; Fase 1 versionada en `813f2ca`. CI con PostgreSQL aún requiere nueva ejecución.
+
+### `[Actual]` Fase 2: cerrar SSRF
 
 - Exigir HTTPS en altas y cambios de destino. En cada conexión, validar todas las IP A/AAAA resueltas, bloquear redes internas/reservadas, fijar la IP validada y desactivar redirecciones y proxies implícitos.
 - Restringir el egreso en infraestructura para bloquear redes internas y metadata. Los destinos HTTP existentes pueden continuar 30 días solo si su IP pasa la validación; registrar el legado y avisar al tenant.
 - Probar DNS privado, rebinding, IPv6 y redirecciones. **Salida:** ninguna conexión a destinos internos.
+
+**Implementación local para revisión:** Altas y cambios de URL exigen HTTPS; el transporte resuelve todas las direcciones A/AAAA al abrir cada socket, rechaza si alguna no es pública y fija una IP aprobada. Axios no sigue redirecciones ni usa proxies implícitos. Los destinos HTTP creados antes del primer despliegue compatible pueden enviarse durante 30 días si se configura la fecha UTC; el transporte sigue validando sus IP. El administrador ve el plazo y el estado en el listado, y cada uso deja un log sin payload ni secreto. Terraform añade una ACL de egreso a las subredes privadas de aplicación y separa dos reglas de ingreso de security groups para romper un ciclo de dependencias existente. Ver `docs/operations/08_webhook_ssrf_rollout.md` para el despliegue.
+
+**Límite de infraestructura:** AWS indica que las ACL de VPC no filtran IMDS ni Route 53 Resolver. La validación en el socket bloquea metadata para este flujo; el bloqueo de redes ordinarias queda reforzado por la ACL. La aplicación real de Terraform y la conectividad de staging siguen pendientes de una fase de despliegue autorizada. Sin `WEBHOOK_LEGACY_HTTP_STARTED_AT`, los destinos HTTP fallan cerrados; la fecha debe registrarse al primer despliegue compatible.
+
+**Verificación local:** API: 125 pruebas aprobadas en 24 suites, incluidas pruebas de sockets locales para rebinding y redirección; cinco pruebas PostgreSQL omitidas por falta de una base descartable. Web: 19 pruebas aprobadas en 10 suites. Typecheck, lint y build de API y web aprobados; el build web se ejecutó con `NEXT_PUBLIC_API_URL` de prueba. Lint web conserva 12 advertencias preexistentes fuera de esta fase. `terraform fmt -check` de los archivos modificados y `terraform validate` pasaron en una copia temporal con proveedores instalados; este último mantiene una advertencia preexistente sobre `required_providers` del módulo de certificado. No se ejecutaron `terraform apply`, migraciones ni verificaciones de staging/CI.
+
+**Commit sugerido:** `fix(webhooks): cerrá SSRF y prepará el egreso restringido`.
 
 ### `[Pendiente]` Fase 3: garantizar entregas mediante PostgreSQL
 

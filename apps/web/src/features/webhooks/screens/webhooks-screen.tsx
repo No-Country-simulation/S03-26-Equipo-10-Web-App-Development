@@ -18,6 +18,7 @@ export type WebhookView = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  legacyHttp?: { deadlineAt: string | null; canDeliver: boolean } | null;
 };
 
 export default function WebhooksPage() {
@@ -31,7 +32,7 @@ export default function WebhooksPage() {
     setLoading(true);
     try {
       const res = await listWebhooks(fetchApi);
-      setWebhooks(res.data || []);
+      setWebhooks(res.data.items);
     } catch { /* handled */ } finally {
       setLoading(false);
     }
@@ -109,7 +110,7 @@ export default function WebhooksPage() {
         <form onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-4">
           <div className="grid gap-2 sm:col-span-2">
             <Label className="font-body text-[10px] font-bold uppercase tracking-widest">URL de Destino</Label>
-            <Input name="url" type="url" required className="h-10 bg-transparent" placeholder="https://api.miproyecto.com/webhooks/..." />
+            <Input name="url" type="url" pattern="https://.*" required className="h-10 bg-transparent" placeholder="https://api.miproyecto.com/webhooks/..." />
           </div>
           <div className="grid gap-2 sm:col-span-2">
             <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Secret KEY (Opcional, Hmac)</Label>
@@ -141,6 +142,11 @@ export default function WebhooksPage() {
         </div>
       ) : (
         <div className="overflow-x-auto">
+          {webhooks.some(w => w.legacyHttp) && (
+            <p role="alert" className="mb-4 border border-amber-500/50 bg-amber-500/10 p-3 font-body text-sm">
+              Los destinos HTTP existentes deben migrarse a HTTPS. Después del plazo de 30 días dejarán de recibir eventos.
+            </p>
+          )}
           <table className="w-full">
             <thead>
               <tr className="border-b">
@@ -155,6 +161,13 @@ export default function WebhooksPage() {
                 <tr key={w.id} className="border-b border-foreground/5 transition-colors hover:bg-card">
                   <td className="py-4 pr-4 font-body text-sm font-medium text-foreground flex items-center gap-2 max-w-[200px] truncate">
                     <Webhook className="h-4 w-4 shrink-0 text-muted-foreground"/> {w.url}
+                    {w.legacyHttp && (
+                      <span className="block text-xs text-amber-600">
+                        {w.legacyHttp.canDeliver
+                          ? `HTTP legado: migrá a HTTPS antes del ${w.legacyHttp.deadlineAt ?? 'plazo configurado'}`
+                          : 'HTTP legado: envío bloqueado; migrá a HTTPS'}
+                      </span>
+                    )}
                   </td>
                   <td className="py-4 pr-4">
                     <span className="inline-block border px-2 py-0.5 font-mono text-[10px] bg-muted/20">
