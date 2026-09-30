@@ -2,6 +2,7 @@ import { TestimonialsService } from '../services/testimonials.service';
 import { Controller, Get, Post, Body, Param, Query, UseGuards, Req, Res } from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
 import { RateLimit } from '../../../common/decorators/rate-limit.decorator';
+import { CsrfMode } from '../../../common/decorators/csrf-mode.decorator';
 import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
 import { RateLimitGuard } from '../../../common/guards/rate-limit.guard';
 import { PublicTestimonialsQueryDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
@@ -57,6 +58,7 @@ export class PublicTestimonialsController {
   }
 
   @Post(':slug/submit')
+  @CsrfMode('origin')
   @UseGuards(RateLimitGuard) // No ApiKeyGuard since it's truly public via slug
   @RateLimit({ limit: 3, windowSeconds: 86400, scope: 'ip' }) // 3 submits per 24 hours per IP
   async submit(

@@ -19,7 +19,8 @@ export class RateLimitGuard implements CanActivate {
       ]) ?? { limit: 120, windowSeconds: 60, scope: 'ip' as const };
 
     const request = context.switchToHttp().getRequest<ApiRequest>();
-    const ip = this.resolveIp(request);
+    // Express calcula request.ip con la política de proxies confiables del servidor.
+    const ip = request.ip ?? request.socket.remoteAddress ?? 'unknown';
     const key =
       config.scope === 'ip-api-key'
         ? `${ip}:${request.apiKey?.apiKeyId ?? 'anon'}`
@@ -36,12 +37,4 @@ export class RateLimitGuard implements CanActivate {
     return true;
   }
 
-  private resolveIp(request: ApiRequest): string {
-    const forwarded = request.header('x-forwarded-for');
-    if (forwarded) {
-      return forwarded.split(',')[0]?.trim() ?? 'unknown';
-    }
-
-    return request.socket.remoteAddress ?? request.ip ?? 'unknown';
-  }
 }

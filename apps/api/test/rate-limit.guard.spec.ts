@@ -19,7 +19,7 @@ describe('RateLimitGuard', () => {
     (rateLimitServiceMock.assertWithinLimit as jest.Mock).mockReset();
   });
 
-  it('uses x-forwarded-for and api key in ip-api-key scope', () => {
+  it('uses the IP resolved by Express rather than an untrusted X-Forwarded-For', () => {
     (reflectorMock.getAllAndOverride as jest.Mock).mockReturnValue({
       limit: 10,
       windowSeconds: 60,
@@ -46,11 +46,10 @@ describe('RateLimitGuard', () => {
     expect(guard.canActivate(context)).toBe(true);
 
     expect(rateLimitServiceMock.assertWithinLimit).toHaveBeenCalledWith(
-      'POST:/public/analytics/events:10.10.10.10:ak_123',
+      'POST:/public/analytics/events:127.0.0.1:ak_123',
       10,
       60,
       'Rate limit exceeded for POST /public/analytics/events',
     );
   });
 });
-

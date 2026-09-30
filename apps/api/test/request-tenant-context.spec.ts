@@ -45,6 +45,25 @@ describe('authenticated tenant context', () => {
     });
   });
 
+  it('verifies the explicit Bearer token before an ambient access cookie', async () => {
+    const jwt = { verifyAsync: jest.fn().mockResolvedValue({ sub: 'user-1', tenantId: 'tenant-1' }) };
+    const credentials = { findActiveUser: jest.fn().mockResolvedValue({
+      userId: 'user-1', email: 'a@example.com', tenantId: 'tenant-1', isActive: true,
+      tenantName: 'Tenant', roles: [],
+    }) };
+    const config = { getOrThrow: () => ({ jwt: { secret: 'test-secret' } }) };
+    const guard = new JwtAuthGuard(jwt as any, credentials as any, config as any);
+    const request = {
+      cookies: { accessToken: 'cookie-token' },
+      header: (name: string) => name === 'authorization' ? 'Bearer bearer-token' : undefined,
+    };
+
+    await runWithRequestScope({ requestId: 'req', correlationId: 'trace' }, async () => {
+      await expect(guard.canActivate(context(request))).resolves.toBe(true);
+    });
+    expect(jwt.verifyAsync).toHaveBeenCalledWith('bearer-token', { secret: 'test-secret' });
+  });
+
   it('propagates a verified tenant and keeps concurrent request scopes separate', async () => {
     const tasks = ['tenant-a', 'tenant-b'].map(tenantId =>
       runWithRequestScope({ requestId: tenantId, correlationId: `trace-${tenantId}` }, async () => {

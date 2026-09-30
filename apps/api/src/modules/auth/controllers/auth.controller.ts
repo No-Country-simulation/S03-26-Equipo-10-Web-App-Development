@@ -3,6 +3,7 @@ import { Body, Controller, Get, Post, UseGuards, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RateLimit } from '../../../common/decorators/rate-limit.decorator';
+import { CsrfMode } from '../../../common/decorators/csrf-mode.decorator';
 import { Idempotent } from '../../../common/decorators/idempotent.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../../../common/guards/rate-limit.guard';
@@ -28,6 +29,7 @@ export class AuthController {
    * @returns El usuario y los tokens para el cliente Bearer; también establece cookies HTTP Only.
    */
   @Post('register-admin')
+  @CsrfMode('origin')
   @Idempotent()
   @RateLimit({ limit: 10, windowSeconds: 60, scope: 'ip' })
   async registerAdmin(@Body() dto: RegisterAdminDto, @Res({ passthrough: true }) res: Response) {
@@ -45,6 +47,7 @@ export class AuthController {
    * @returns El usuario y los tokens para el cliente Bearer; también establece cookies HTTP Only.
    */
   @Post('login')
+  @CsrfMode('origin')
   @RateLimit({ limit: 5, windowSeconds: 60, scope: 'ip' })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(dto);
@@ -60,6 +63,7 @@ export class AuthController {
    * @param res Objeto Response de Express.
    */
   @Post('refresh')
+  @CsrfMode('origin')
   @RateLimit({ limit: 20, windowSeconds: 60, scope: 'ip' })
   async refresh(@Body() dto: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.refreshSession(dto.refreshToken);
@@ -72,6 +76,7 @@ export class AuthController {
    * y limpiando las cookies del navegador.
    */
   @Post('logout')
+  @CsrfMode('origin')
   async logout(@Body() dto: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(dto.refreshToken);
     res.clearCookie('accessToken');

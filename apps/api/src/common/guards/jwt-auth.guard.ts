@@ -22,15 +22,11 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<ApiRequest & { cookies: Record<string, string> }>();
     
-    // Extracción Híbrida: Cookie (primario) o Header Bearer (fallback)
-    let token = request.cookies?.['accessToken'];
-    
-    if (!token) {
-      const authorization = request.header('authorization');
-      if (authorization?.startsWith('Bearer ')) {
-        token = authorization.slice('Bearer '.length);
-      }
-    }
+    // Bearer explícito tiene precedencia: CSRF se decide por la misma credencial.
+    const authorization = request.header('authorization');
+    const token = authorization?.startsWith('Bearer ')
+      ? authorization.slice('Bearer '.length)
+      : request.cookies?.['accessToken'];
 
     if (!token) {
       throw new UnauthorizedException('Missing authentication token');

@@ -22,6 +22,14 @@
 - Configurar proxies confiables y derivar la IP efectiva sin aceptar el primer `X-Forwarded-For` proporcionado por un cliente no confiable.
 - Cubrir estos recorridos con pruebas HTTP reales. **Salida:** CI identifica o resuelve su fallo previo y las mutaciones legítimas dejan de recibir 403 por CSRF.
 
+**Implementación local para revisión:** El guard global clasifica rutas anónimas, rutas con API key y mutaciones de sesión; valida `Origin`/Fetch Metadata y exige token CSRF en mutaciones con cookie de acceso. Bearer explícito tiene precedencia también en `JwtAuthGuard`. La IP de rate limit usa `request.ip` de Express con `TRUST_PROXY_HOPS` (0 en acceso directo, 1 por defecto en producción detrás de Nginx/ALB). Los payloads de outbox se serializan a JSON dentro de la transacción.
+
+**Diagnóstico de CI:** El [run #8](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/36652248245) falló únicamente en dos casos PostgreSQL de `testimonial-persistence.integration.spec.ts`: Prisma aceptó un `BigInt` que las pruebas esperaban que abortara la escritura de testimonio/publicación y outbox. La serialización JSON explícita corrige la causa antes de insertar el evento; queda por observar una nueva ejecución de CI con PostgreSQL.
+
+**Verificación local:** Typecheck, lint (0 errores, una advertencia previa), build y suite API pasan; 97 pruebas aprobadas y cinco PostgreSQL omitidas por falta de base descartable local. Ocho pruebas nuevas de HTTP, preferencia Bearer y payload cubren las rutas y el fallo diagnosticado. No se atribuye estado verde a CI ni a PostgreSQL hasta un nuevo run.
+
+**Commit sugerido:** `fix(api): restablecé CSRF y resolvé el fallo del outbox en CI`.
+
 ### `[Pendiente]` Fase 2: cerrar SSRF
 
 - Exigir HTTPS en altas y cambios de destino. En cada conexión, validar todas las IP A/AAAA resueltas, bloquear redes internas/reservadas, fijar la IP validada y desactivar redirecciones y proxies implícitos.

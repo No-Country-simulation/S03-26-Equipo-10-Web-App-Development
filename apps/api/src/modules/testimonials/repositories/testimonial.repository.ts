@@ -81,7 +81,7 @@ export class TestimonialRepository {
         data: {
           tenantId: data.tenantId,
           eventType: event.eventType,
-          payload: event.payload(view) as Prisma.InputJsonValue,
+          payload: this.toJsonPayload(event.payload(view)),
           status: 'pending',
           attempts: 0,
         },
@@ -162,7 +162,7 @@ export class TestimonialRepository {
           data: {
             tenantId,
             eventType: event.eventType,
-            payload: event.payload(view) as Prisma.InputJsonValue,
+            payload: this.toJsonPayload(event.payload(view)),
             status: 'pending',
             attempts: 0,
           },
@@ -310,6 +310,12 @@ export class TestimonialRepository {
         });
       }
     });
+  }
+
+  private toJsonPayload(payload: Record<string, unknown>): Prisma.InputJsonValue {
+    // Un payload no JSON (por ejemplo BigInt) debe abortar la misma transacción
+    // que escribe el testimonio: nunca confirmar el dato sin evento durable.
+    return JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue;
   }
 
   private async resolveStatusId(code: TestimonialStatus, client: Prisma.TransactionClient | PrismaService = this.prisma): Promise<number> {

@@ -35,6 +35,10 @@ async function bootstrap() {
     throw new Error('Missing app configuration — verificá que ConfigModule.forRoot() esté cargando app.config correctamente.');
   }
 
+  // Confiar solo en los saltos del ingress controlado; nunca leer XFF a mano.
+  // La API debe permanecer inaccesible directamente cuando este valor sea > 0.
+  app.getHttpAdapter().getInstance().set('trust proxy', appConfig.trustedProxyHops);
+
   // Configuración de CORS basada en la configuración de entorno
   app.enableCors({
     origin: [appConfig.corsOrigin],
