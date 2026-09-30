@@ -14,29 +14,27 @@ sequenceDiagram
     actor U as Usuario (Editor/Admin)
     participant API as API Gateway (NestJS)
     participant DB as PostgreSQL
-    participant Redis as Redis Queue (BullMQ)
-    participant Worker as Worker Service (BullMQ)
+    participant Worker as OutboxProcessor (NestJS)
     participant Ext as URL Externa (Webhook)
 
-    U->>API: POST /api/v1/testimonials { data }
+    U->>API: POST /api/v1/testimonials/:id/publish
     
     rect rgb(230, 240, 255)
     Note over API,DB: Transacción ACID
     API->>DB: BEGIN
-    API->>DB: INSERT INTO testimonials (status: 'published')
+    API->>DB: UPDATE testimonials SET status = 'published'
     API->>DB: INSERT INTO outbox_events (type: 'testimonial.published', status: 'pending')
     API->>DB: COMMIT
     end
 
-    API-->>U: 201 Created (Testimonio generado)
+    API-->>U: 200 OK (Testimonio publicado)
 
-    Note over Worker,DB: Proceso Asíncrono Desacoplado
-    loop Cada intervalo (Pooling/Listen)
+    Note over Worker,DB: Polling cada 3 segundos en la API
+    loop Cada intervalo
         Worker->>DB: SELECT * FROM outbox_events WHERE status = 'pending'
         DB-->>Worker: Devuelve eventos
     end
 
-    Worker->>Redis: Encola trabajo de envío de Webhook
     Worker->>DB: UPDATE outbox_events SET status = 'processing'
     
     Worker->>Ext: POST /webhook (Payload del evento, firmado con HMAC)
@@ -47,7 +45,7 @@ sequenceDiagram
         Worker->>DB: INSERT INTO webhook_deliveries (status: 'success')
     else Envío Fallido o Timeout
         Ext--xWorker: 500 Error / Timeout
-        Worker->>Redis: Programa reintento (Exponential Backoff)
+        Worker->>DB: Programa próximo intento en outbox_events
         Worker->>DB: INSERT INTO webhook_deliveries (status: 'failed')
     end
 ```
@@ -68,17 +66,17 @@ sequenceDiagram
     Note over Admin,DB: Fase 1: Emisión de la API Key
     Admin->>AdminApp: Click en "Generar API Key"
     AdminApp->>API: POST /api/v1/api-keys
-    API->>API: Genera Key cruda (ej. tkn_abc123)
-    API->>API: Hashea la Key (bcrypt)
+    API->>API: Genera Key aleatoria tms_ + 24 bytes
+    API->>API: Calcula SHA-256 de la Key
     API->>DB: INSERT INTO api_keys (key_hash, tenant_id)
-    API-->>AdminApp: 201 Created { key: "tkn_abc123" }
+    API-->>AdminApp: 201 Created { apiKey: "tms_..." }
     AdminApp-->>Admin: Muestra la Key (Solo una vez)
 
     Note over Client,DB: Fase 2: Consumo Externo
-    Client->>API: GET /api/v1/public/testimonials<br/>Header: X-API-Key: tkn_abc123
-    API->>DB: Busca api_keys activas por tenant
-    DB-->>API: Devuelve hashes
-    API->>API: Verifica si bcrypt_compare(tkn_abc123, hash) == true
+    Client->>API: GET /api/v1/public/testimonials<br/>Authorization: Bearer tms_...
+    API->>API: Calcula SHA-256 de la Key presentada
+    API->>DB: Busca api_keys activas por hash
+    DB-->>API: Devuelve tenant asociado
     
     alt API Key Válida
         API->>DB: SELECT * FROM testimonials WHERE status = 'published'
@@ -105,14 +103,14 @@ sequenceDiagram
     Next->>API: POST /api/v1/auth/login
     API->>DB: Busca usuario por email
     DB-->>API: Usuario + password_hash
-    API->>API: Verifica password (bcrypt)
+    API->>API: Verifica password con scrypt
     
     alt Credenciales Válidas
         API->>API: Genera AccessToken (JWT, exp: 15m)
         API->>API: Genera RefreshToken (Opaque, exp: 7d)
         API->>DB: Guarda RefreshToken hasheado
-        API-->>Next: 200 OK { accessToken, refreshToken }
-        Next->>Next: Guarda en HttpOnly Cookies
+        API-->>Next: 200 OK { user, tokens } y Set-Cookie HTTP Only
+        Next->>Next: Guarda la sesión Bearer actual en localStorage
         Next-->>U: Redirige al Dashboard
     else Credenciales Inválidas
         API-->>Next: 401 Unauthorized
@@ -124,7 +122,7 @@ sequenceDiagram
 
 ## 2. Perspectiva de Despliegue (Infraestructura)
 
-El siguiente diagrama muestra la arquitectura de despliegue objetivo (Cloud/Kubernetes o Docker Swarm) y las redes involucradas, cumpliendo el Nivel de "Deployment" del modelo C4.
+El siguiente diagrama muestra una arquitectura de despliegue objetivo (Cloud/Kubernetes o Docker Swarm), no el Compose actual. BullMQ y la caché Redis distribuida todavía no están implementados en la API; el outbox actual se procesa por polling PostgreSQL dentro de NestJS.
 
 ```mermaid
 flowchart TB
@@ -162,7 +160,7 @@ flowchart TB
             end
             
             subgraph DataStores["Bases de Datos Administradas"]
-                PG[(PostgreSQL 16<br/>Primaria / Multi-AZ)]
+                PG[(PostgreSQL 18<br/>Primaria / Multi-AZ)]
                 REDIS[(Redis 7<br/>Cache & BullMQ)]
             end
         end

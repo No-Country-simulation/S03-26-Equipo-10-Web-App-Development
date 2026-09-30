@@ -1,6 +1,6 @@
 # Seguridad de dependencias
 
-**Revisión:** 2026-09-28 · Node 24.21.0 · npm 11.19.0 · React 18.
+**Revisión:** 2026-09-29 · Node 24.21.0 · npm 11.19.0 · React 18.
 
 ## Instalación y scripts
 
@@ -22,6 +22,6 @@ Los overrides son temporales. Al actualizar una dependencia que los arrastra, pr
 
 ## Hallazgos pendientes
 
-La auditoría del 2026-09-28, después de `npm ci`, reportó **0 críticas, 0 altas, 2 moderadas y 0 bajas**. Las dos moderadas corresponden a `vitest@3.2.7` y `@vitest/mocker@3.2.7` por [GHSA-82fw-gwwq-j7x9](https://github.com/advisories/GHSA-82fw-gwwq-j7x9). Son herramientas de pruebas en `devDependencies`; el fix sugerido por npm es Vitest 5.0.2, que cambia de versión mayor. Revisar la migración y repetir los tests web antes de actualizar. El informe es una medición puntual: CI repetirá la auditoría en cada ejecución y fallará si aparece una alerta alta o crítica.
+La auditoría repetida el 2026-09-29 reportó **0 críticas, 0 altas, 4 moderadas y 0 bajas**. Dos avisos corresponden a `vitest@3.2.7` y `@vitest/mocker@3.2.7` por [GHSA-82fw-gwwq-j7x9](https://github.com/advisories/GHSA-82fw-gwwq-j7x9); npm propone Vitest 5.0.2, una actualización mayor que requiere repetir las pruebas web. Los otros dos afectan `@nestjs/swagger@11.4.7` y su dependencia `js-yaml` por [GHSA-r3ph-w7gj-g6xm](https://github.com/advisories/GHSA-r3ph-w7gj-g6xm); npm propone Swagger 12.0.2, también una actualización mayor que requiere validar API y OpenAPI. No se aplicó `npm audit fix --force`. El informe es una medición puntual: CI repetirá la auditoría en cada ejecución y fallará si aparece una alerta alta o crítica.
 
-La comprobación local `npm audit signatures` terminó con `invalid: 0` y `missing: 0`. La ejecución de estos controles en GitHub Actions queda por validar en un run real del workflow.
+La comprobación local del 2026-09-29 con `npm audit signatures` verificó firmas de registry para 1313 paquetes y attestations para 142. La ejecución de estos controles en GitHub Actions queda por validar en un run real del workflow.

@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-09-20
+# Última actualización: 2026-09-29
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -12,26 +12,27 @@ license: MIT (educational project)
 team: Equipo 10 — No Country simulation
 
 ## STACK
-runtime: Node.js 24 LTS
-package_manager: npm (workspaces, npm ci obligatorio en CI)
+runtime: Node.js 24.21.0 LTS
+package_manager: npm 11.19.0 (workspaces, npm ci obligatorio en CI)
 backend: NestJS 11
 orm: Prisma 6.5+
 database: PostgreSQL 18
 frontend: Next.js 15 (App Router, React 18)
 styles: Tailwind CSS v3 + Radix UI + next-themes
-queue: BullMQ + Redis 7
+outbox: polling PostgreSQL cada 3 s en la API; BullMQ no implementado
+redis: servicio disponible en Compose, sin uso desde la API actual
 infra: Docker Compose
 ci: GitHub Actions (husky pre-commit)
 
 ## ARCHITECTURE
 pattern: Modular Monolith, N-Tier (NestJS standard layers)
 communication_sync: REST /api/v1/ (NestJS controllers)
-communication_async: Transactional Outbox → BullMQ → HTTP POST
-multi_tenant_strategy: Row-Level isolation (tenant_id FK in all tables)
-auth_strategy: JWT Access (15min, HttpOnly cookie) + Refresh Token Rotation (7d, path-scoped)
+communication_async: Transactional Outbox → polling PostgreSQL → HTTP POST
+multi_tenant_strategy: aislamiento lógico en consultas por tenant_id; sin PostgreSQL RLS
+auth_strategy: JWT Access (15min, HttpOnly cookie y token en respuesta para Bearer web) + Refresh Token Rotation (7d, path-scoped)
 rbac_roles: admin, editor
-api_public_auth: API Keys (HMAC-SHA256 hashed + pepper, prefix+publicId+secret format)
-webhook_security: HMAC-SHA256 signed, timingSafeEqual verified, anti-replay TTL
+api_public_auth: API Keys aleatorias tms_ + 24 bytes; hash SHA-256 sin pepper en la implementación actual
+webhook_security: firma HMAC-SHA256 saliente cuando hay secret; verificación entrante y anti-replay no implementados
 
 ## MONOREPO LAYOUT
 apps/api/              → @testimonial-cms/api
@@ -63,7 +64,7 @@ auth/
   guards: JwtAuthGuard, RateLimitGuard
   decorators: @CurrentUser, @RateLimit, @Idempotent
   dtos: LoginDto, RefreshTokenDto, RegisterAdminDto (nestjs-zod)
-  strategy: JWT HttpOnly cookie, refresh token rotation
+  strategy: JWT HttpOnly cookie y Bearer en web, refresh token rotation
 
 users/
   responsibilities: CRUD users, RBAC assignment
@@ -87,15 +88,15 @@ webhooks/
   services: WebhooksService, OutboxService, OutboxProcessor, WebhookOutboxHandler,
             HttpWebhookDispatcher, HttpResilienceService, WebhookEventsListener,
             WebhooksBootstrapService, LoggerService
-  delivery: at-least-once, exponential backoff, DLQ
-  security: HMAC-SHA256 signature, timingSafeEqual verification
+  delivery: at-least-once mediante polling PostgreSQL, reintentos y estado de fallo
+  security: HMAC-SHA256 en entregas salientes cuando el webhook tiene secret
 
 analytics/
   responsibilities: impression tracking, click events, widget analytics
 
 api-keys/
-  storage: never plaintext; HMAC-SHA256(secret, pepper), stored hash only
-  format: prefix + publicId + secret
+  storage: never plaintext; SHA-256 de clave aleatoria (HMAC/pepper pendiente)
+  format: prefijo tms_ + 24 bytes aleatorios en hexadecimal
 
 feature-flags/
   scope: per-tenant toggles, no redeploy required
@@ -108,19 +109,19 @@ apps/web/src/features/             → active admin, auth and public screens plu
 apps/web/src/app/admin/            → route composition for active screens
 apps/web/src/hooks/use-session.ts   → current session mechanism shared by active routes
 
-## DATABASE ENTITIES
-tenants, users, roles, permissions, role_permissions,
-testimonials, testimonial_media, tags, testimonial_tags, categories,
-api_keys, webhook_endpoints, outbox_events,
-feature_flags, analytics_events, widget_configs, embed_codes, collection_forms
+## DATABASE ENTITIES (Prisma models)
+Tenant, User, Role, Permission, RolePermission, UserRole, RefreshToken,
+Testimonial, TestimonialStatus, TestimonialTag, Tag, Category,
+AnalyticsEvent, AnalyticsEventType, Webhook, WebhookEvent, WebhookDelivery,
+FeatureFlag, TenantFeatureFlag, ApiKey, OutboxEvent, IdempotencyKey, AuditLog
 
 ## BUSINESS INVARIANTS
 BR-VAL-001: testimonial content >= 10 chars
 BR-VAL-002: rating integer 1-5
 BR-FLOW-001: lifecycle draft→pending→approved→published|rejected (no skip, no revert published)
-BR-SEC-001: all queries scoped by tenant_id, zero cross-tenant
+BR-SEC-001: queries and writes for tenant-owned resources scoped by tenant_id
 BR-SEC-002: API Keys never stored plaintext
-BR-WEB-001: webhook delivery at-least-once, HMAC signed
+BR-WEB-001: webhook delivery at-least-once, HMAC signed when secret configured
 BR-WEB-002: outbox_events written in same DB transaction as domain event
 
 ## ADRs

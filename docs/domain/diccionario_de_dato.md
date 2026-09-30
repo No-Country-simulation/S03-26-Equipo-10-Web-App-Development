@@ -2,8 +2,8 @@
 
 **Proyecto:** Testimonial CMS  
 **Dominio:** Plataforma SaaS multi‑inquilino para la gestión, moderación y distribución de testimonios con embeds, API pública, analítica, webhooks y scoring.  
-**Motor de Base de Datos:** PostgreSQL 16  
-**Arquitecto Responsable:** [TU_NOMBRE]
+**Motor de Base de Datos:** PostgreSQL 18
+**Alcance:** modelo conceptual; el esquema efectivo se consulta en `apps/api/prisma/schema.prisma`.
 
 ---
 

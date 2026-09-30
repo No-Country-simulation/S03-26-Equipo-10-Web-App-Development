@@ -35,12 +35,12 @@
 
 | Categoría | Tecnología | Versión | Propósito |
 |-----------|-----------|---------|-----------|
-| **Backend Framework**| NestJS | 10.x | API REST principal bajo Clean Architecture |
-| **Frontend/Admin** | Next.js | 14.x | Panel de control e interfaces (React) |
-| **Database** | PostgreSQL | 16 | Persistencia relacional de datos central |
-| **ORM** | Prisma | 5.x | Acceso a datos tipo-seguro y migraciones |
-| **Caché & Colas** | Redis | 7 | Almacenamiento rápido en memoria |
-| **Job Queue** | BullMQ | - | Procesamiento asíncrono (Outbox, webhooks) |
+| **Backend Framework**| NestJS | 11.x | API REST modular por capas |
+| **Frontend/Admin** | Next.js + React | 15.x / 18.x | Panel de control e interfaces |
+| **Database** | PostgreSQL | 18 | Persistencia relacional y outbox |
+| **ORM** | Prisma | 6.5+ | Acceso a datos y migraciones |
+| **Outbox** | Polling en la API | cada 3 s | Entrega de webhooks desde PostgreSQL |
+| **Redis** | Disponible en Compose | 7 | Reservado para uso futuro |
 | **Runtime** | Node.js | 24.21.0 | Entorno de ejecución de servidor |
 | **Deployment** | Docker + Compose | - | Containerización |
 
@@ -51,7 +51,7 @@ Testimonial CMS es una plataforma que resuelve el problema de la gestión disper
 - ✅ Facilita la **distribución ágil** mediante widgets insertables en sitios externos
 - ✅ Proporciona integraciones vía **Webhooks** resilientes usando el Patrón Outbox
 - ✅ **Modera testimonios** con flujos de aprobación y estados internos
-- ✅ Implementa **Clean Architecture** (Hexagonal/Onion) estricta en el backend
+- ✅ Separa controladores, reglas de aplicación y repositorios en módulos de NestJS
 - ✅ Expone una **API pública** documentada para desarrolladores
 - ✅ Rastrea **Analíticas de visualización** y clicks en los widgets
 
@@ -63,10 +63,9 @@ graph TB
     Tenant["🏢 Empresa / Tenant<br>(Admin Panel)"] -->|Configura y Modera| API
     
     API --> DB[("💾 PostgreSQL<br>(Prisma)")]
-    API --> Cache[("⚡ Redis")]
-    API --> Worker["⏳ Outbox Worker<br>(BullMQ)"]
+    API --> Worker["⏳ Outbox Processor<br>(polling)"]
     
-    Worker -->|Lee pending events| DB
+    Worker -->|Lee eventos pendientes| DB
     Worker -->|POST /webhook| Webhook["🔗 Sistemas de Terceros<br>(Slack, CRM)"]
 
     style API fill:#E0234E,color:#fff
@@ -88,8 +87,8 @@ graph TB
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/tu-usuario/testimonial-cms.git
-cd testimonial-cms
+git clone https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development.git
+cd S03-26-Equipo-10-Web-App-Development
 
 # Usar la versión de npm definida por el proyecto
 npm install --global npm@11.19.0
@@ -135,7 +134,7 @@ Abre `http://localhost:3000` para el panel de administración y `http://localhos
 Si ya tenés un volumen de PostgreSQL 16, seguí primero la [guía de respaldo y restauración a PostgreSQL 18](docs/operations/04_postgresql_18_compose_upgrade.md). El Compose nuevo usa un volumen distinto y conserva el anterior.
 
 ```bash
-# Levantar infraestructura (DB)
+# Levantar servicios locales
 docker compose up -d
 
 # Ver logs
@@ -151,14 +150,8 @@ Ve a `http://localhost:3000/admin/register` para crear tu primer Tenant y usuari
 ```
 testimonial-cms/
 ├── apps/
-│   ├── api/                 # Backend NestJS (Clean Architecture)
-│   │   ├── src/
-│   │   │   ├── common/      # Utilidades globales, guards, interceptors
-│   │   │   ├── prisma/      # Servicio de base de datos
-│   │   │   ├── infrastructure/ # Adaptadores compartidos
-│   │   │   └── modules/     # Módulos de dominio (testimonials, auth)
-│   │   └── prisma/          # Esquemas y migraciones
-│   └── web/                 # Frontend Next.js
+│   ├── api/                 # NestJS: módulos, Prisma y migraciones
+│   └── web/                 # Next.js: app/ compone rutas; features/ contiene pantallas
 ├── docs/                    # Documentación extensa
 │   ├── adr/                 # Architectural Decision Records
 │   ├── technical/           # Documentación técnica
@@ -176,8 +169,8 @@ testimonial-cms/
 
 El sistema notifica a servicios externos de manera segura:
 1. **Configuración**: El tenant registra una URL de webhook.
-2. **Procesamiento**: Al aprobarse un testimonio, se inserta transaccionalmente un evento en `outbox_events`.
-3. **Despacho**: Un worker (`BullMQ`) lee el evento y hace un POST seguro. Garantiza "Al menos una entrega" (At-least-once delivery) y reintentos ante fallas.
+2. **Procesamiento**: La creación y publicación de testimonios insertan el evento en `outbox_events` dentro de la misma transacción.
+3. **Despacho**: El procesador de la API consulta PostgreSQL periódicamente y entrega el evento por HTTP con reintentos.
 
 ## 🧪 Testing
 
@@ -195,20 +188,20 @@ npm run test --workspace @testimonial-cms/web
 ### Test funcional del flujo
 
 Flujo esperado:
-1. Cliente hace POST `/api/v1/testimonials` → Se guarda en estado `pending`.
-2. Admin aprueba en panel → Estado cambia a `published`.
-3. Worker dispara webhook configurado.
+1. El formulario público envía POST `/api/v1/public/testimonials/:slug/submit` → se guarda en `pending`.
+2. El admin aprueba (`approved`) y luego publica (`published`) el testimonio.
+3. El procesador de outbox entrega el webhook configurado.
 
 ## 📊 Endpoints de la API
 
-### `POST /api/v1/testimonials`
-Recibe un testimonio desde un widget público.
+### `POST /api/v1/public/testimonials/:slug/submit`
+Recibe un testimonio del formulario público del tenant. La ruta administrativa `POST /api/v1/testimonials` requiere autenticación y crea un borrador.
 
 **Request:**
 ```json
 {
   "content": "Excelente servicio, lo recomiendo al 100%.",
-  "author_name": "Facundo",
+  "authorName": "Cliente de ejemplo",
   "rating": 5
 }
 ```
@@ -218,43 +211,28 @@ Recibe un testimonio desde un widget público.
 {
   "success": true,
   "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440002",
-    "status": "pending",
-    "created_at": "2026-04-25T14:00:00Z"
+    "status": "success",
+    "id": "550e8400-e29b-41d4-a716-446655440002"
   }
 }
 ```
 
-### `GET /api/v1/health`
-Verifica conexión a Postgres y Redis.
+### `GET /api/v1/health/live` y `GET /api/v1/health/ready`
+Liveness comprueba el proceso; readiness verifica la conexión a PostgreSQL.
 
 ## 🛡️ Controles y Limitaciones
 
-### Row-Level Security (Multi-tenant)
-- Estricto aislamiento de datos: todas las consultas filtran por el `tenant_id` en el request.
-- No hay cruce de información entre empresas.
+### Aislamiento lógico multi-tenant
+- Las consultas de recursos del tenant filtran por el `tenantId` obtenido de credenciales verificadas.
+- PostgreSQL Row-Level Security no está configurado; el aislamiento depende de las consultas y sus pruebas.
 
 ### Rate Limiting y Validación
 - Límites de peticiones API con Guards de NestJS.
-- Entradas públicas sanitizadas con DTOs y `class-validator` para evitar inyecciones.
+- Entradas validadas con DTOs basados en Zod.
 
 ## 🔐 Variables de Entorno
 
-Edita los archivos `.env` basándote en `.env.example`:
-
-```bash
-# Postgres DB
-POSTGRES_DB=testimonial_cms
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=change-this-local-password
-POSTGRES_PORT=5432
-DATABASE_URL=postgresql://postgres:change-this-local-password@localhost:5432/testimonial_cms?schema=public
-
-# API y Web
-WEB_PORT=3000
-API_PORT=4000
-NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
-```
+Completá los archivos locales a partir de `.env.example`, `apps/api/.env.example` y `apps/web/.env.example`. La [guía de setup](docs/collaboration/04_setup.md) describe qué archivo usa cada proceso y qué variables son obligatorias.
 
 ## 📈 Roadmap
 
@@ -263,13 +241,13 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
 - [x] Módulo Auth y Tenant provisioning
 - [x] Patrón Outbox para Webhooks
 - [x] Documentación 360 y modelado Mermaid
-- [ ] Panel de control Frontend (Next.js)
+- [x] Panel de control Frontend (Next.js)
 - [ ] Widgets embeddables en React/VanillaJS
 - [ ] Analíticas avanzadas de impresiones
 
 ## 🤝 Contribuir
 
-Pull requests son bienvenidos. Asegúrate de correr `npm run format` y `npm run lint` antes de realizar un commit.
+Pull requests son bienvenidos. Ejecutá `npm run typecheck`, `npm run lint` y `npm test` antes de abrir uno; consultá la [guía de contribución](docs/collaboration/01_contributing.md).
 
 ## 📄 Licencia
 

@@ -1,5 +1,7 @@
 # Arquitectura Técnica
 
+**Estado implementado (2026-09-29):** La API usa un outbox transaccional en PostgreSQL, procesado por polling dentro del proceso NestJS. La caché de testimonios es local en memoria. Redis está definido en Compose, pero BullMQ y una caché distribuida aún no forman parte de la API. Los diagramas de despliegue multinodo describen una evolución posible y no una topología verificada.
+
 ## 1. Visión General (C4 Model - Level 1)
 
 ### 1.1. Diagrama de Contexto del Sistema
@@ -26,7 +28,7 @@ flowchart TD
         S4[Servicio de Analítica]
         S5[Servicio de Webhooks]
         S6[(PostgreSQL<br/>Base de datos principal)]
-        S7[(Redis<br/>Cache + Colas)]
+        S7[(Caché local<br/>en memoria)]
         S8[(Cloudinary<br/>Almacenamiento multimedia)]
     end
 
@@ -43,7 +45,6 @@ flowchart TD
     S3 --> S6
     S3 --> S7
     S4 --> S6
-    S5 --> S7
     S5 --> S6
 
     S3 -.->|Subida de imágenes/videos| E2
@@ -57,7 +58,7 @@ flowchart TD
 |----------|-------|
 | **Nombre del Sistema** | Testimonial CMS |
 | **Tipo de Arquitectura** | Modular monolito con Arquitectura N-Tier (Capas estándar de NestJS) enfocada en simplicidad pragmática asíncrona, preparado para microservicios futuros |
-| **Patrón de Comunicación** | REST síncrono + eventos asíncronos mediante outbox pattern y colas (BullMQ + Redis) |
+| **Patrón de Comunicación** | REST síncrono + outbox transaccional procesado mediante polling PostgreSQL |
 | **Usuarios Concurrentes Esperados** | 200+ (pico) / 50+ (promedio) por tenant |
 | **Transacciones por Segundo (TPS)** | 50+ lectura / 10+ escritura |
 | **Disponibilidad Objetivo (SLA)** | 99.9% (≤ 8.76h downtime/año) |
@@ -74,9 +75,9 @@ flowchart TD
 |----------|--------------------------|---------------------|---------------|---------|
 | **Estilo Arquitectónico** | Monolito / Microservicios / Serverless | Modular monolito (NestJS) con capas claras y posible desacople futuro | Simplicidad inicial, pero con separación de dominios que permite escalar servicios de forma independiente si es necesario. | Menor complejidad operativa ahora, preparado para crecimiento. |
 | **Framework Backend** | Express.js / Fastify / NestJS | NestJS | Provee arquitectura por defecto (módulos, controladores, servicios), inyección de dependencias y soporte nativo para los patrones que necesitamos (guards, interceptores, etc.). | Curva de aprendizaje, pero mejora mantenibilidad en equipo. |
-| **Base de Datos** | PostgreSQL / MySQL / MongoDB | PostgreSQL 16 | Requerimos ACID, relaciones y consistencia fuerte para testimonios, analítica y eventos. Soporte JSONB para flexibilidad. | Integridad referencial garantizada. |
-| **Cache** | Redis / Memcached / in‑memory | Redis 7 | Estructuras de datos avanzadas, soporte para colas (BullMQ), persistencia opcional y alta disponibilidad. | Complejidad de operación adicional, pero necesaria para escalar. |
-| **Message Queue / Colas** | RabbitMQ / Kafka / AWS SQS / BullMQ | BullMQ (sobre Redis) | Suficiente para volumen proyectado, se integra naturalmente con Redis y Node.js. Soporte para retry, backoff, etc. | Escala hasta cierto punto, pero para MVP es ideal. |
+| **Base de Datos** | PostgreSQL / MySQL / MongoDB | PostgreSQL 18 | Requerimos ACID, relaciones y consistencia fuerte para testimonios, analítica y eventos. Soporte JSONB para flexibilidad. | Integridad referencial garantizada. |
+| **Cache** | Redis / Memcached / in‑memory | Caché local en memoria (actual); Redis 7 reservado | Evita dependencia de red en despliegue simple. | No comparte entradas entre instancias; requiere rediseño para escalado horizontal. |
+| **Procesamiento asíncrono** | RabbitMQ / Kafka / AWS SQS / BullMQ / polling | Polling de `outbox_events` (actual); BullMQ evaluable a futuro | Mantiene la transacción de negocio y evento en PostgreSQL. | El procesador comparte ciclo de vida con la API. |
 | **API Design** | REST / GraphQL / gRPC | REST con OpenAPI | Simplicidad, madurez, herramientas de documentación y consumo universal. | Versionado y evolución controlada. |
 | **Autenticación** | OAuth2 / JWT / Sesiones | JWT + Refresh Tokens (rotación y hashing) | Stateless, fácil de escalar, compatible con frontends modernos. Refresh tokens almacenados con hash para seguridad adicional. | Necesidad de revocación y rotación. |
 | **Multi‑tenancy** | Base de datos separada / Schema por tenant / Fila por tenant | Fila por tenant (tenant_id en cada tabla) | Simplifica la administración y permite compartir recursos. Aislamiento lógico a nivel de aplicación. | Requiere cuidado en queries para no filtrar datos entre tenants. |
@@ -84,37 +85,22 @@ flowchart TD
 | **Feature Flags** | Configuración hardcodeada / DB / LaunchDarkly | Tabla `feature_flags` y `tenant_feature_flags` en DB | Control dinámico por tenant sin redeploy, preparado para A/B testing y despliegues graduales. | Impacto mínimo en complejidad. |
 | **Analítica** | Almacenamiento en el mismo servicio / Servicio separado / Eventos en DB | Eventos en tabla `analytics_events` + procesamiento asíncrono | Simplicidad para MVP, permite reportes y cálculo de scoring con consultas SQL. | Puede convertirse en cuello de botella con muchos eventos; se migrará a sistema dedicado en el futuro. |
 
-### 2.2. Trade-offs Explícitos (Análisis CAP)
+### 2.2. Trade-offs de la implementación actual
 
-```mermaid
-quadrantChart
-    title Trade-offs Arquitectónicos (Teorema CAP)
-    x-axis "Consistencia (C)" --> "Disponibilidad (A)"
-    y-axis "Partición Tolerante (P)" --> "No Partición Tolerante"
-    quadrant-1 "CP: Consistencia + Partición"
-    quadrant-2 "AP: Disponibilidad + Partición"
-    quadrant-3 "CA: Consistencia + Disponibilidad"
-    quadrant-4 "Compromiso Balanceado"
-    "Base de Datos Principal": [0.85, 0.9]
-    "Cache Redis": [0.3, 0.8]
-    "Message Queue (BullMQ)": [0.4, 0.85]
-    "API Gateway": [0.6, 0.7]
-```
-
-**Análisis detallado:**
-
-| Componente | Elección CAP | Razonamiento | Consecuencia |
-|------------|--------------|--------------|--------------|
-| **Base de Datos (PostgreSQL)** | **CP** (Consistencia + Partición) | Los testimonios y su estado deben ser consistentes; no podemos tener duplicados o estados contradictorios. | En caso de partición de red, la base puede volverse no disponible para escrituras en algunas réplicas, pero priorizamos consistencia. |
-| **Cache (Redis)** | **AP** (Disponibilidad + Partición) | Usado para mejorar rendimiento; si falla, podemos servir datos de la BD (aunque más lento). Toleramos inconsistencia temporal. | Lecturas pueden devolver datos desactualizados (stale) hasta que se invalide la caché. |
-| **Message Queue (BullMQ + Redis)** | **AP** (Disponibilidad + Partición) | Las colas deben aceptar mensajes aunque haya fallos en los consumidores. Priorizamos disponibilidad sobre consistencia. | Mensajes pueden duplicarse; requerimos idempotencia en los handlers. |
-| **API Gateway (NestJS)** | **CA** (Consistencia + Disponibilidad) | No mantiene estado crítico; podemos escalarlo horizontalmente. Sacrificamos tolerancia a particiones porque si el gateway se cae, todo el sistema es inaccesible (mitigado con múltiples instancias). | Alta disponibilidad mediante balanceo y replicación. |
+| Componente | Decisión | Consecuencia |
+| --- | --- | --- |
+| PostgreSQL | Estado de testimonios y outbox comparten transacción. | Si la base no está disponible, no se aceptan nuevas escrituras y readiness falla. |
+| Caché local | `CacheService` guarda respuestas con TTL dentro de cada proceso. | Una réplica no comparte entradas ni invalidaciones con otra; el escalado horizontal requiere otra estrategia. |
+| Outbox por polling | `OutboxProcessor` lee eventos de PostgreSQL cada 3 s y reintenta entregas fallidas. | No requiere Redis para entregar webhooks, pero la concurrencia entre réplicas necesita verificación específica. |
+| API NestJS | Controladores y procesador viven en el mismo servicio. | Su disponibilidad y la entrega de webhooks comparten ciclo de vida. |
 
 ---
 
 ## 3. Arquitectura de Alto Nivel (C4 Model - Level 2)
 
 ### 3.1. Diagrama de Contenedores
+
+Este diagrama incluye componentes objetivo (SDK embebible, CDN, Redis y worker BullMQ). El despliegue actual se describe en el estado implementado al inicio del documento y en `docker-compose.yml`.
 
 ```mermaid
 flowchart TD
@@ -370,21 +356,23 @@ async createTestimonial(@Body() dto: CreateTestimonialDto, @Headers('Idempotency
 
 ### 5.1. Matriz de Tecnologías
 
+La matriz siguiente enumera el software implementado. Las topologías con BullMQ o Kubernetes en otras secciones son diseños objetivo.
+
 | Capa/Componente | Tecnología | Versión | Justificación | Alternativas Descartadas |
 |-----------------|------------|---------|---------------|--------------------------|
 | **Runtime** | Node.js | 24.21.0 LTS | Amplia adopción, ecosistema maduro, async/await nativo | Python, Go, Java |
-| **Framework Backend** | NestJS | 10.x | Arquitectura por defecto, DI, modularidad, soporte para microservicios y colas | Express (más libertad pero menos estructura), Fastify |
-| **Base de Datos** | PostgreSQL | 16 | ACID, JSONB, robustez, comunidad | MySQL (menor soporte JSON), MongoDB (sin ACID fuerte) |
-| **ORM** | Prisma | 5.x | Type‑safe, auto‑generadas queries, migraciones fáciles | TypeORM, Sequelize (menor type safety) |
-| **Cache + Colas** | Redis | 7.x | Velocidad, estructuras de datos, BullMQ se integra perfectamente | Memcached (solo cache), RabbitMQ (más pesado para MVP) |
-| **Queue / Worker** | BullMQ | 4.x | Basado en Redis, soporte nativo para reintentos, backoff, eventos | Agenda, Bee-Queue (menos funcionalidades) |
-| **API Specification** | OpenAPI 3.1 (Swagger) | - | Generación automática con NestJS, UI interactiva | GraphQL (sobre‐ingeniería para MVP) |
+| **Framework Backend** | NestJS | 11.2.x | DI y módulos por dominio | Express, Fastify |
+| **Base de Datos** | PostgreSQL | 18 | ACID, JSONB y outbox transaccional | MySQL, MongoDB |
+| **ORM** | Prisma | 6.5.0 | Acceso tipado y migraciones | TypeORM, Sequelize |
+| **Caché de API** | `CacheService` local | TTL de 60 s | Consultas repetidas en una instancia | Redis compartido para escala futura |
+| **Outbox** | `OutboxProcessor` en NestJS | polling de 3 s | Reintentos respaldados por PostgreSQL | BullMQ evaluable a futuro |
+| **API Specification** | Swagger/OpenAPI | `@nestjs/swagger` 11.4.x | Documentación de endpoints | GraphQL |
 | **Frontend Framework** | Next.js 15 (App Router) + React 18 | 15.5.x / 18.3.x | SSR/CSR según necesidad, routing automático, buen rendimiento | React puro (más configuración), Vue (menor ecosistema) |
 | **Frontend Language** | TypeScript | 5.x | Type safety, mejor mantenimiento, compartir tipos con backend | JavaScript |
 | **Styling** | Tailwind CSS | 3.x | Utility‑first, consistencia, rápido desarrollo | CSS Modules, SASS (más manual) |
-| **Testing Backend** | Jest | 29.x | Estándar, integración con NestJS | Mocha, Vitest (compatible pero menos soporte) |
-| **Testing Frontend** | React Testing Library + Playwright | - | Unitarias + E2E | Cypress, Selenium |
-| **CI/CD** | GitHub Actions | - | Integrado con GitHub, YAML simple, matrix builds | GitLab CI, CircleCI |
+| **Testing Backend** | Jest | 30.2.0 | Pruebas unitarias e integración PostgreSQL | Mocha, Vitest |
+| **Testing Frontend** | Vitest + React Testing Library | 3.2.7 | Pruebas de componentes y adaptadores | Playwright aún no implementado |
+| **CI/CD** | GitHub Actions | - | Suite completa para ambas apps | GitLab CI, CircleCI |
 | **Containerization** | Docker | 24.x | Portabilidad, desarrollo y producción consistentes | Podman, containerd |
 | **Orchestration** | Docker Compose (dev) / Kubernetes (futuro) | - | Para desarrollo local; producción planeada con K8s | AWS ECS (dependencia de nube) |
 | **Monitoring** | Prometheus + Grafana | - | Open source, comunidad activa, dashboards potentes | ELK, Datadog |

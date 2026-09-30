@@ -21,15 +21,16 @@
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| **Runtime** | Node.js LTS | 24.x |
+| **Runtime** | Node.js LTS | 24.21.0 |
 | **Backend** | NestJS | 11.x |
 | **ORM** | Prisma | 6.5+ |
 | **Base de datos** | PostgreSQL | 18+ |
 | **Frontend** | Next.js (App Router) | 15.x |
 | **UI** | React | 18.x |
 | **Estilos** | Tailwind CSS + Radix UI | v3 |
-| **Queue/Cache** | BullMQ + Redis | 7 |
-| **Package manager** | npm | 11.x |
+| **Outbox** | Polling PostgreSQL en la API | cada 3 s |
+| **Cache disponible** | Redis en Compose; no usado por la API actual | 7 |
+| **Package manager** | npm | 11.19.0 |
 | **Infraestructura** | Docker Compose | — |
 
 ---
@@ -37,10 +38,10 @@
 ## 3. Arquitectura (Resumen Ejecutivo)
 
 - **Patrón**: Modular Monolith, N-Tier (NestJS Layers)
-- **Comunicación**: REST síncrono (`/api/v1/`) + eventos asíncronos (Transactional Outbox → BullMQ)
-- **Multi-tenant**: Row-Level isolation via `tenant_id` FK en todas las tablas
-- **Auth**: JWT + Refresh Token Rotation + RBAC (`admin`, `editor`)
-- **Webhooks**: At-least-once delivery, firmados con HMAC-SHA256
+- **Comunicación**: REST síncrono (`/api/v1/`) + Transactional Outbox procesado mediante polling en la API
+- **Multi-tenant**: aislamiento lógico por `tenant_id` en las consultas de recursos del tenant; no hay política PostgreSQL RLS
+- **Auth**: JWT + Refresh Token Rotation + RBAC (`admin`, `editor`); cookies HTTP Only y tokens en el cuerpo para la sesión Bearer web
+- **Webhooks**: At-least-once delivery, firma HMAC-SHA256 saliente cuando hay secret
 
 ```
 Monorepo Root
@@ -103,7 +104,7 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 | `users/` | CRUD usuarios, asignación de roles RBAC |
 | `tenants/` | Provisioning de tenants, aislamiento row-level |
 | `testimonials/` | Lifecycle de testimonios, moderación, scoring, tags, categorías |
-| `webhooks/` | Outbox pattern, delivery HTTP, reintentos, HMAC signing |
+| `webhooks/` | Outbox transaccional, polling, delivery HTTP, reintentos, HMAC signing |
 | `analytics/` | Tracking de vistas y clicks en widgets |
 | `api-keys/` | Gestión de API Keys para acceso público |
 | `feature-flags/` | Feature toggles por tenant |
@@ -126,8 +127,8 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 - **Ciclo de vida del testimonio**: `draft → pending → approved → published | rejected`
 - **Contenido mínimo**: ≥ 10 caracteres, rating entre 1 y 5
 - **Aislamiento multi-tenant**: Toda query DEBE filtrar por `tenant_id`
-- **Webhook delivery**: At-least-once; firmado con HMAC-SHA256
-- **API Keys**: Hasheadas con HMAC-SHA256 + pepper; nunca en texto plano
+- **Webhook delivery**: At-least-once; firmado con HMAC-SHA256 si el webhook tiene secret
+- **API Keys**: la implementación actual guarda SHA-256 de claves aleatorias; no usa HMAC ni pepper. Ver brecha en la auditoría de arquitectura y configuración.
 
 ---
 
@@ -206,4 +207,4 @@ Al trabajar con un plan en `docs/plan/`:
 
 ---
 
-*Última actualización: 2026-09-20 — Versión del framework: SKL-PRO-001 v1.1.0*
+*Última actualización: 2026-09-29 — Versión del framework: SKL-PRO-001 v1.1.0*

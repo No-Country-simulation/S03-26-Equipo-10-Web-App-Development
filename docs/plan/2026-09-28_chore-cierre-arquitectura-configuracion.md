@@ -1,7 +1,7 @@
 # Plan HITL: cierre de arquitectura y configuración
 
 **Fecha de inicio:** 2026-09-28  
-**Estado global:** Fase 5 completada localmente; fase 6 pendiente de ACK y verificaciones reales de CI de fases previas pendientes
+**Estado global:** Fase 6 en ejecución; ownership y verificaciones reales de CI pendientes
 
 ## Contexto y restricciones
 
@@ -73,10 +73,16 @@
 
 **Commit sugerido:** `refactor(web): trasladá pantallas activas y validá contratos por feature`.
 
-### `[Pendiente]` Fase 6: ownership y cierre
+### `[Actual]` Fase 6: ownership y cierre
 
 - El administrador de GitHub crea `@No-Country-simulation/testimonial-cms-maintainers`, asigna miembros y acceso de escritura; entonces se agrega `CODEOWNERS`.
 - Sincronizar documentación y registrar evidencias y excepciones justificadas de las tres skills.
+
+**Review humano (ACK):** Recibido el 2026-09-29 mediante «Continua con la fase 6». El usuario indicó dejar ownership pendiente por ahora. La sesión local de `gh` tiene un token inválido; no se pueden verificar ni cambiar equipos o reglas de revisión remotos desde esta sesión.
+
+**Auditoría en curso:** Se actualizaron `AGENTS.md`, `llm.txt`, README, arquitectura, flujos, diccionario, setup y contribución para separar la implementación actual de diseños objetivo. La auditoría por skill y los pasos de activación de ownership están en `docs/operations/06_architecture_configuration_audit.md`. La nueva auditoría npm pasó el umbral alto/crítico y firmas; hay cuatro vulnerabilidades moderadas documentadas. El último run público de CI (#8, commit `2fddacd`) pasó instalación, auditoría, firmas, migraciones descartables, typecheck y lint, pero falló en `Test`; por ello build y smoke tests de contenedores no se ejecutaron. Los runs #5-#7 fallaron también en `Test`. El usuario ofreció compartir el log autenticado para diagnosticarlo. No se declara el cierre integral.
+
+**Commit sugerido para la documentación y auditoría local:** `docs(architecture): actualizá el estado real y registrá la auditoría de cierre`.
 
 ## Criterios finales
 
