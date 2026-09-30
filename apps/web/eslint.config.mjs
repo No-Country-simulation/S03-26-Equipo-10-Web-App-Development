@@ -14,10 +14,25 @@ const config = [
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [{
-          regex: '^(?:\\.\\./)+(?:api)(?:/|$)|^@testimonial-cms/api(?:/|$)|^apps/api/',
+          regex: '^(?:\\.\\./)+(?:apps/)?api/(?:src|prisma)(?:/|$)|^@testimonial-cms/api(?:/|$)|^apps/api/',
           message: 'Web no puede importar código del workspace API.',
         }],
       }],
+    },
+  },
+  {
+    files: ['src/app/**/*.{ts,tsx}', 'src/features/**/{screens,components}/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: "CallExpression[callee.name='fetch']",
+          message: 'Las rutas y pantallas deben acceder a NestJS mediante un adaptador de feature.',
+        },
+        {
+          selector: "ImportDeclaration[source.value='@/lib/api'] ImportSpecifier[imported.name='requestApi']",
+          message: 'Importá el adaptador de la feature en lugar del cliente HTTP directamente.',
+        },
+      ],
     },
   },
 ];

@@ -1,7 +1,7 @@
 # Plan HITL: cierre de arquitectura y configuración
 
 **Fecha de inicio:** 2026-09-28  
-**Estado global:** Fase 4 completada localmente; verificación real de CI de fases previas y ACK para fase 5 pendientes
+**Estado global:** Fase 5 completada localmente; fase 6 pendiente de ACK y verificaciones reales de CI de fases previas pendientes
 
 ## Contexto y restricciones
 
@@ -60,12 +60,18 @@
 
 **Verificación:** `typecheck`, lint, tests y build de API pasan con Node 24.21.0 y npm 11.19.0. Hay 87 tests aprobados, incluidos los nuevos de Problem Details, aislamiento de tenant, credenciales, correlación y logs; quedan cinco pruebas PostgreSQL omitidas localmente por falta de base descartable, configuradas como obligatorias en CI. Lint informa una advertencia de seguridad preexistente en `webhooks.service.ts` y cero errores. Se comprobó con ESLint que imports prohibidos disparan la regla. `git diff --check` pasa. La ejecución real de CI, las pruebas PostgreSQL y los contenedores siguen pendientes de un runner con esos servicios.
 
-**Review humano (ACK):** Pendiente para avanzar a fase 5.
+**Review humano (ACK):** Recibido el 2026-09-29 mediante «Continua la fase 5».
 **Commit sugerido:** `refactor(api): separá errores HTTP y aislá los casos de uso y el tenant`.
 
-### `[Pendiente]` Fase 5: capas de web
+### `[Completada localmente]` Fase 5: capas de web
 
 - Llevar la lógica de rutas activas a features y adaptar/validar los contratos HTTP por feature sin cambiar sesión, URLs ni flujos visibles.
+
+**Implementación:** Las rutas activas de administración, autenticación y testimonios públicos quedaron como composición en `app/`; las pantallas y formularios de login y registro viven en `features/`. Los adaptadores por feature validan con Zod las cargas útiles de NestJS y conservan el cliente HTTP y el mecanismo de sesión existentes. La lista pública interpreta el envelope paginado de la API. Se corrigió una incompatibilidad previa del login: los controladores de autenticación vuelven a incluir los tokens generados en el cuerpo de login, registro y refresh, además de establecer las cookies, para que la sesión Bearer actual pueda persistirlos. ESLint bloquea llamadas HTTP directas desde las pantallas y los imports entre workspaces.
+
+**Verificación:** Typecheck, lint, tests y build de web pasan; 19 pruebas web cubren adaptadores, login, creación y moderación, listado y filtros, y formulario público. Lint registra 12 advertencias sin errores. Typecheck, lint, tests y build de API pasan tras el ajuste del contrato: 88 pruebas aprobadas y cinco pruebas PostgreSQL omitidas localmente por falta de base descartable. Se verificó que ESLint rechaza imports entre apps y `fetch` desde pantallas y acepta el import del adaptador de feature. `git diff --check` pasa. No se hizo una prueba E2E de navegador contra la API real; la ejecución de CI con PostgreSQL y los contenedores sigue pendiente de un runner apto.
+
+**Commit sugerido:** `refactor(web): trasladá pantallas activas y validá contratos por feature`.
 
 ### `[Pendiente]` Fase 6: ownership y cierre
 

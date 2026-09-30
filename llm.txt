@@ -104,8 +104,8 @@ health/
   endpoints: GET /api/v1/health (liveness), GET /api/v1/health/ready (readiness with Prisma)
 
 ## FRONTEND FEATURE STATUS
-apps/web/src/features/testimonials/ → active /admin/testimonials screen, creation and moderation UI
-apps/web/src/app/admin/             → remaining active admin routes; migrate only when implemented
+apps/web/src/features/             → active admin, auth and public screens plus validated API adapters
+apps/web/src/app/admin/            → route composition for active screens
 apps/web/src/hooks/use-session.ts   → current session mechanism shared by active routes
 
 ## DATABASE ENTITIES

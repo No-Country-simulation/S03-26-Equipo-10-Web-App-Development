@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Star, Loader2, PenLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { listCategories, listTags } from '@/features/catalog/api';
+import { createTestimonial } from '../api';
 
 interface CreateTestimonialModalProps {
   open: boolean;
@@ -42,8 +44,8 @@ export function CreateTestimonialModal({
       if (!open) return;
       try {
         const [catRes, tagRes] = await Promise.all([
-          fetchApi<{id: string, name: string}[]>('/categories'),
-          fetchApi<{id: string, name: string}[]>('/tags')
+          listCategories(fetchApi),
+          listTags(fetchApi),
         ]);
         setCategories(catRes.data);
         setAllTags(tagRes.data);
@@ -66,15 +68,12 @@ export function CreateTestimonialModal({
 
     setSubmitting(true);
     try {
-      await fetchApi('/testimonials', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          authorName, 
-          content, 
-          rating,
-          categoryId: categoryId || undefined,
-          tagIds: tagIds.length > 0 ? tagIds : undefined
-        }),
+      await createTestimonial(fetchApi, {
+        authorName,
+        content,
+        rating,
+        categoryId: categoryId || undefined,
+        tagIds: tagIds.length > 0 ? tagIds : undefined,
       });
       resetForm();
       onCreated();

@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Youtube, Image as ImageIcon, Loader2, Edit3, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { listCategories, listTags } from '@/features/catalog/api';
+import { attachTestimonialImage, attachTestimonialVideo, transitionTestimonial, updateTestimonial } from '../api';
 
 interface TestimonialModalProps {
   testimonial: TestimonialRecord | null;
@@ -53,8 +55,8 @@ export function TestimonialModal({
       if (!open) return;
       try {
         const [catRes, tagRes] = await Promise.all([
-          fetchApi<{id: string, name: string}[]>('/categories'),
-          fetchApi<{id: string, name: string}[]>('/tags')
+          listCategories(fetchApi),
+          listTags(fetchApi),
         ]);
         setCategories(catRes.data);
         setAllTags(tagRes.data);
@@ -84,10 +86,7 @@ export function TestimonialModal({
     if (!testimonial) return;
     setStatusLoading(true);
     try {
-      await fetchApi(`/testimonials/${testimonial.id}/${action}`, {
-        method: 'POST',
-        body: body ? JSON.stringify(body) : undefined,
-      });
+      await transitionTestimonial(fetchApi, testimonial.id, action, body);
       onUpdated();
       setRejectMode(false);
     } catch (err) {
@@ -101,10 +100,7 @@ export function TestimonialModal({
     if (!videoUrl.trim() || !testimonial) return;
     setLoadingVideo(true);
     try {
-      await fetchApi(`/testimonials/${testimonial.id}/video`, {
-        method: 'POST',
-        body: JSON.stringify({ videoUrl }),
-      });
+      await attachTestimonialVideo(fetchApi, testimonial.id, videoUrl);
       setVideoUrl('');
       onUpdated();
     } catch (e) {
@@ -124,10 +120,7 @@ export function TestimonialModal({
       reader.onloadend = async () => {
         const base64 = reader.result as string;
         try {
-          await fetchApi(`/testimonials/${testimonial.id}/image`, {
-            method: 'POST',
-            body: JSON.stringify({ imageBase64: base64 }),
-          });
+          await attachTestimonialImage(fetchApi, testimonial.id, base64);
           onUpdated();
         } catch (err) {
           alert('Error subiendo imagen: ' + (err instanceof Error ? err.message : String(err)));
@@ -145,14 +138,11 @@ export function TestimonialModal({
     if (!testimonial) return;
     setStatusLoading(true);
     try {
-      await fetchApi(`/testimonials/${testimonial.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          authorName: editAuthor,
-          content: editContent,
-          categoryId: editCategoryId,
-          tagIds: editTagIds,
-        }),
+      await updateTestimonial(fetchApi, testimonial.id, {
+        authorName: editAuthor,
+        content: editContent,
+        categoryId: editCategoryId,
+        tagIds: editTagIds,
       });
       setIsEditing(false);
       onUpdated();

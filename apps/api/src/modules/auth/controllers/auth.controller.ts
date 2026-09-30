@@ -25,7 +25,7 @@ export class AuthController {
    * Registra un nuevo administrador junto con su propio Tenant (inquilino).
    * @param dto Datos de registro (nombre del tenant, email, contraseña).
    * @param res Objeto Response de Express para establecer cookies HTTP Only.
-   * @returns El usuario recién creado.
+   * @returns El usuario y los tokens para el cliente Bearer; también establece cookies HTTP Only.
    */
   @Post('register-admin')
   @Idempotent()
@@ -33,7 +33,7 @@ export class AuthController {
   async registerAdmin(@Body() dto: RegisterAdminDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.registerAdmin(dto);
     this.setAuthCookies(res, result.tokens);
-    return { user: result.user };
+    return result;
   }
 
   /**
@@ -42,14 +42,14 @@ export class AuthController {
    * 
    * @param dto Credenciales del usuario.
    * @param res Objeto Response de Express.
-   * @returns Los datos del usuario autenticado.
+   * @returns El usuario y los tokens para el cliente Bearer; también establece cookies HTTP Only.
    */
   @Post('login')
   @RateLimit({ limit: 5, windowSeconds: 60, scope: 'ip' })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(dto);
     this.setAuthCookies(res, result.tokens);
-    return { user: result.user };
+    return result;
   }
 
   /**
@@ -64,7 +64,7 @@ export class AuthController {
   async refresh(@Body() dto: RefreshTokenDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.refreshSession(dto.refreshToken);
     this.setAuthCookies(res, result.tokens);
-    return { user: result.user };
+    return result;
   }
 
   /**

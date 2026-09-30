@@ -642,7 +642,7 @@ testimonial-cms/
 │   ├── api/src/modules/                 # NestJS: módulos y APIs públicas index.ts
 │   └── web/src/
 │       ├── app/                         # Next.js: routing y composición
-│       └── features/testimonials/       # Pantalla activa de /admin/testimonials
+│       └── features/                    # Pantallas activas y adaptadores API por feature
 ├── docs/
 ├── infra/
 ├── scripts/
@@ -654,6 +654,8 @@ testimonial-cms/
 Los módulos de API que comparten proveedores publican solo los necesarios mediante `index.ts`; sus repositorios y servicios internos no se importan desde otros módulos. `AnalyticsService` expone métricas al módulo de testimonios y comprueba la publicación de un testimonio dentro de su propio repositorio. ESLint rechaza imports a implementaciones privadas y entre `apps/api` y `apps/web`.
 
 En la API, repositorios y lógica de aplicación usan errores internos tipados; `ApiExceptionFilter` los traduce a Problem Details. Prisma queda en repositorios, salvo el indicador de salud que consulta la base para readiness. Los guards verifican credenciales mediante `CredentialRepository` y la idempotencia se persiste mediante `IdempotencyRepository`. Los casos de uso de creación y transición de testimonios coordinan reglas, escritura condicional y outbox; el repositorio ejecuta la transacción. `RequestContextMiddleware` inicia un contexto `AsyncLocalStorage` con identificadores de solicitud y correlación; los guards asignan el tenant al contexto únicamente tras verificar JWT o API key. ESLint impide excepciones HTTP en lógica y repositorios, acceso directo a Prisma desde aplicación y guards, y dependencias de NestJS o Prisma en entidades de dominio.
+
+En web, `app/` compone las rutas activas de administración, autenticación y captura/listado público. Sus pantallas y lógica viven en `features/`. Cada feature mantiene un adaptador que invoca el cliente HTTP o `useSession().fetchApi` y valida la carga útil con Zod antes de entregarla a la UI. Las rutas preparatorias sin lógica siguen siendo páginas simples de `app/`. El lint impide llamadas `fetch` directas desde páginas y pantallas.
 
 ---
 

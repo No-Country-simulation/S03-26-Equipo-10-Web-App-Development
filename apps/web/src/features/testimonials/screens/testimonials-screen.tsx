@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, Search } from 'lucide-react';
 import { TestimonialModal } from '../components/TestimonialModal';
 import { CreateTestimonialModal } from '../components/CreateTestimonialModal';
+import { listTestimonials } from '../api';
 
 export function TestimonialsScreen() {
   const { session, fetchApi } = useSession();
@@ -27,7 +28,7 @@ export function TestimonialsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchApi<TestimonialRecord[]>('/testimonials');
+      const res = await listTestimonials(fetchApi);
       setTestimonials(res.data);
     } catch { /* handled */ } finally {
       setLoading(false);

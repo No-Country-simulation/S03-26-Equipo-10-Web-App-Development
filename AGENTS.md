@@ -113,8 +113,8 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 
 ### Frontend
 
-- `apps/web/src/features/testimonials/`: pantalla activa de `/admin/testimonials`, creación y moderación.
-- `apps/web/src/app/admin/`: composición de rutas y pantallas administrativas aún no migradas a features.
+- `apps/web/src/features/`: pantallas y adaptadores HTTP de administración, autenticación y páginas públicas activas.
+- `apps/web/src/app/`: composición de rutas; las rutas preparatorias simples permanecen en `app/`.
 - `apps/web/src/hooks/use-session.ts`: mecanismo de sesión usado por las rutas activas.
 
 ---

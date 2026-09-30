@@ -3,10 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TestimonialsScreen } from './testimonials-screen';
 
-const { fetchApi } = vi.hoisted(() => ({ fetchApi: vi.fn() }));
+const { fetchApi, session } = vi.hoisted(() => ({
+  fetchApi: vi.fn(),
+  session: { user: { id: 'admin' } },
+}));
 
 vi.mock('@/hooks/use-session', () => ({
-  useSession: () => ({ session: { user: { id: 'admin' } }, fetchApi, isAdmin: true }),
+  useSession: () => ({ session, fetchApi, isAdmin: true }),
 }));
 
 const records = [
@@ -17,10 +20,12 @@ const records = [
 describe('TestimonialsScreen', () => {
   beforeEach(() => {
     fetchApi.mockReset();
-    fetchApi.mockImplementation(async (path: string) => {
-      if (path === '/testimonials') return { data: records };
-      if (path === '/categories' || path === '/tags') return { data: [] };
-      return { data: {} };
+    fetchApi.mockImplementation(async (path: string, init?: RequestInit) => {
+      if (path === '/testimonials' && init?.method === 'POST') return { success: true, data: records[0] };
+      if (path === '/testimonials') return { success: true, data: records };
+      if (path.endsWith('/approve')) return { success: true, data: records[1] };
+      if (path === '/categories' || path === '/tags') return { success: true, data: [] };
+      return { success: true, data: {} };
     });
   });
 
