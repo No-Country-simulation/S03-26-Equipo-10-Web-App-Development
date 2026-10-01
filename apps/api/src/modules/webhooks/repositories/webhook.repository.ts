@@ -10,6 +10,7 @@ export interface WebhookView {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt: Date | null;
 }
 
 export interface WebhookDeliveryView {
@@ -22,6 +23,14 @@ export interface WebhookDeliveryView {
   errorMessage: string | null;
   createdAt: Date;
   updatedAt: Date;
+  attemptHistory: Array<{
+    attemptNo: number;
+    status: string;
+    responseCode: number | null;
+    errorMessage: string | null;
+    startedAt: Date;
+    completedAt: Date | null;
+  }>;
 }
 
 export interface WebhookWithSecret extends WebhookView {
@@ -47,6 +56,7 @@ export class WebhookRepository {
       isActive: w.isActive,
       createdAt: w.createdAt,
       updatedAt: w.updatedAt,
+      deletedAt: w.deletedAt,
     }));
   }
 
@@ -67,6 +77,7 @@ export class WebhookRepository {
       isActive: w.isActive,
       createdAt: w.createdAt,
       updatedAt: w.updatedAt,
+      deletedAt: w.deletedAt,
     };
   }
 
@@ -99,6 +110,7 @@ export class WebhookRepository {
       isActive: created.isActive,
       createdAt: created.createdAt,
       updatedAt: created.updatedAt,
+      deletedAt: created.deletedAt,
     };
   }
 
@@ -134,16 +146,21 @@ export class WebhookRepository {
       isActive: updated.isActive,
       createdAt: updated.createdAt,
       updatedAt: updated.updatedAt,
+      deletedAt: updated.deletedAt,
     };
   }
 
   async remove(tenantId: string, webhookId: string): Promise<void> {
-    await this.prisma.webhook.delete({ where: { id: webhookId, tenantId } });
+    await this.prisma.webhook.update({
+      where: { id: webhookId, tenantId },
+      data: { isActive: false, deletedAt: new Date() },
+    });
   }
 
   async findDeliveries(webhookId: string): Promise<WebhookDeliveryView[]> {
     const deliveries = await this.prisma.webhookDelivery.findMany({
       where: { webhookId },
+      include: { attemptHistory: { orderBy: { startedAt: 'desc' }, take: 20 } },
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
@@ -158,56 +175,15 @@ export class WebhookRepository {
       errorMessage: d.errorMessage,
       createdAt: d.createdAt,
       updatedAt: d.updatedAt,
+      attemptHistory: d.attemptHistory.map(attempt => ({
+        attemptNo: attempt.attemptNo,
+        status: attempt.status,
+        responseCode: attempt.responseCode,
+        errorMessage: attempt.errorMessage,
+        startedAt: attempt.startedAt,
+        completedAt: attempt.completedAt,
+      })),
     }));
   }
 
-  async createDelivery(params: {
-    webhookId: string;
-    outboxEventId?: string;
-    status: string;
-    attempts: number;
-    responseCode?: number;
-    responseBody?: string;
-    errorMessage?: string;
-  }) {
-    const delivery = await this.prisma.webhookDelivery.create({
-      data: {
-        webhookId: params.webhookId,
-        ...(params.outboxEventId !== undefined && { outboxEventId: params.outboxEventId }),
-        status: params.status,
-        attempts: params.attempts,
-        ...(params.responseCode !== undefined && { responseCode: params.responseCode }),
-        ...(params.responseBody !== undefined && { responseBody: params.responseBody }),
-        ...(params.errorMessage !== undefined && { errorMessage: params.errorMessage }),
-      },
-    });
-
-    return {
-      id: delivery.id,
-      status: delivery.status,
-      responseCode: delivery.responseCode,
-    };
-  }
-
-  async findActiveByEvent(tenantId: string, eventCode: string): Promise<WebhookWithSecret[]> {
-    const webhooks = await this.prisma.webhook.findMany({
-      where: {
-        tenantId,
-        isActive: true,
-        event: { code: eventCode },
-      },
-      include: { event: true },
-    });
-
-    return webhooks.map((w) => ({
-      id: w.id,
-      tenantId: w.tenantId,
-      url: w.url,
-      eventCode: w.event.code,
-      secret: w.secret,
-      isActive: w.isActive,
-      createdAt: w.createdAt,
-      updatedAt: w.updatedAt,
-    }));
-  }
 }

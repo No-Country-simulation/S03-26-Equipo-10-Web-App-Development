@@ -1,97 +1,86 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { OutboxRepository } from '../repositories/outbox.repository';
-
-export interface OutboxHandler {
-  handle(event: {
-    id: string;
-    tenantId: string;
-    eventType: string;
-    payload: unknown;
-    attempts: number;
-  }): Promise<void>;
-}
+import { OutboxRepository, type ClaimedDelivery } from '../repositories/outbox.repository';
+import { HttpWebhookDispatcher } from './http-webhook-dispatcher';
 
 @Injectable()
 export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutboxProcessor.name);
   private timer?: NodeJS.Timeout;
+  private running = false;
   private readonly intervalMs = 3000;
-  private handler?: OutboxHandler;
+  private readonly concurrency = 5;
 
-  constructor(private readonly outboxService: OutboxRepository) {}
+  constructor(
+    private readonly outbox: OutboxRepository,
+    private readonly dispatcher: HttpWebhookDispatcher,
+  ) {}
 
-  setHandler(handler: OutboxHandler) {
-    this.handler = handler;
-  }
-
-  onModuleInit() {
+  onModuleInit(): void {
     this.timer = setInterval(() => {
-      void this.process();
+      void this.process().catch(error => this.logger.error('Outbox poll failed', error));
     }, this.intervalMs);
   }
 
-  onModuleDestroy() {
-    if (this.timer) {
-      clearInterval(this.timer);
-    }
+  onModuleDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
   }
 
   async process(): Promise<void> {
-    if (!this.handler) return;
-
-    const events = await this.outboxService.acquirePending();
-    if (events.length === 0) return;
-
-    // OBS-F7: Métricas de saturación del batch — detecta atasco del outbox (OBS-10)
-    const startTime = Date.now();
-    let processed = 0;
-    let failed = 0;
-
-    for (const event of events) {
-      try {
-        await this.handler.handle({
-          id: event.id,
-          tenantId: event.tenantId,
-          eventType: event.eventType,
-          payload: event.payload,
-          attempts: event.attempts,
-        });
-
-        await this.outboxService.markProcessed(event.id);
-        processed++;
-      } catch (error) {
-        failed++;
-        await this.outboxService.markFailed(
-          event.id,
-          event.attempts + 1,
-          error instanceof Error ? error.message : 'Unknown outbox failure',
-        );
-
-        this.logger.warn(
-          {
-            event: 'outbox.delivery_failed',
-            outboxEventId: event.id,
-            eventType: event.eventType,
-            tenantId: event.tenantId,
-            attempts: event.attempts + 1,
-            reason: error instanceof Error ? error.message : 'Unknown error',
-          },
-          'Outbox event delivery failed',
-        );
+    if (this.running) return;
+    this.running = true;
+    const startedAt = Date.now();
+    try {
+      await this.outbox.initializePending(25);
+      await this.outbox.recoverExpired(25);
+      const claimed = await this.outbox.claimDue(this.concurrency);
+      const results = await Promise.allSettled(claimed.map(claim => this.deliver(claim)));
+      for (const [index, result] of results.entries()) {
+        if (result.status === 'rejected') {
+          this.logger.warn({
+            deliveryId: claimed.at(index)?.id,
+            reason: result.reason instanceof Error ? result.reason.message : 'Unknown delivery error',
+          }, 'Delivery attempt could not be completed; lease will recover it');
+        }
       }
+      if (claimed.length) {
+        this.logger.log({
+          event: 'outbox.batch_completed',
+          batchSize: claimed.length,
+          failed: results.filter(result => result.status === 'rejected').length,
+          durationMs: Date.now() - startedAt,
+        }, 'Outbox batch processed');
+      }
+    } finally {
+      this.running = false;
     }
+  }
 
-    // Telemetría del ciclo de polling para detectar acumulación o atasco
-    const durationMs = Date.now() - startTime;
-    this.logger.log(
-      {
-        event: 'outbox.batch_completed',
-        batchSize: events.length,
-        processed,
-        failed,
-        durationMs,
-      },
-      'Outbox batch processed',
-    );
+  private async deliver(claim: ClaimedDelivery): Promise<void> {
+    const context = await this.outbox.getDeliveryContext(claim.id);
+    if (!context?.outboxEvent) {
+      await this.outbox.completeAttempt(claim, { status: null, errorMessage: 'Delivery context missing' });
+      return;
+    }
+    const webhook = {
+      id: context.webhook.id,
+      tenantId: context.webhook.tenantId,
+      url: context.destinationUrl,
+      eventCode: context.webhook.event.code,
+      secret: context.webhook.secret,
+      isActive: context.webhook.isActive,
+      createdAt: context.webhook.createdAt,
+      updatedAt: context.webhook.updatedAt,
+      deletedAt: context.webhook.deletedAt,
+    };
+    const event = context.outboxEvent;
+    const result = await this.dispatcher.dispatch(webhook, {
+      eventType: event.eventType,
+      tenantId: event.tenantId,
+      payload: event.payload,
+      outboxEventId: event.id,
+      sentAt: event.createdAt.toISOString(),
+    }, event.id);
+    const accepted = await this.outbox.completeAttempt(claim, result);
+    if (!accepted) this.logger.warn({ deliveryId: claim.id }, 'Stale delivery result discarded');
   }
 }

@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 
 import { WebhooksController } from './controllers/webhooks.controller';
 import { WebhooksService } from './services/webhooks.service';
-import { WebhookOutboxHandler, WebhooksBootstrapService } from './services/webhook-outbox-handler.service';
 import { OutboxRepository } from './repositories/outbox.repository';
 import { OutboxProcessor } from './services/outbox.processor';
 import { HttpWebhookDispatcher } from './services/http-webhook-dispatcher';
@@ -23,8 +22,6 @@ import { WebhookRepository } from './repositories/webhook.repository';
     LoggerService,
     OutboxRepository,
     OutboxProcessor,
-    WebhookOutboxHandler,
-    WebhooksBootstrapService,
     WebhooksService,
     WebhookEventsListener,
   ],

@@ -1,18 +1,16 @@
 import { NotFoundError } from '../../../common/errors/application.error';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { WebhookRepository } from '../repositories/webhook.repository';
 import { CreateWebhookDto, UpdateWebhookDto } from '../dto/webhook.dto';
-import { HttpWebhookDispatcher } from './http-webhook-dispatcher';
 import { WebhookDestinationPolicy } from './webhook-destination-policy';
 import type { WebhookView } from '../repositories/webhook.repository';
+import { OutboxRepository } from '../repositories/outbox.repository';
 
 @Injectable()
 export class WebhooksService {
-  private readonly logger = new Logger(WebhooksService.name);
-
   constructor(
     private readonly webhookRepo: WebhookRepository,
-    private readonly dispatcher: HttpWebhookDispatcher,
+    private readonly outbox: OutboxRepository,
     private readonly destinationPolicy: WebhookDestinationPolicy,
   ) {}
 
@@ -33,56 +31,6 @@ export class WebhooksService {
 
     await this.webhookRepo.remove(tenantId, webhookId);
     return { id: webhookId, deleted: true };
-  }
-
-  /**
-   * Despacha un evento del outbox a todos los webhooks activos configurados.
-   *
-   * H-11: Usa Promise.allSettled para despachar en paralelo.
-   * Cada webhook es independiente — un fallo no debe bloquear ni cancelar los demás.
-   */
-  async dispatchOutboxEvent(event: {
-    id: string;
-    tenantId: string;
-    eventType: string;
-    payload: unknown;
-    attempts: number;
-  }) {
-    const configured = await this.webhookRepo.findActiveByEvent(
-      event.tenantId,
-      event.eventType,
-    );
-
-    if (configured.length === 0) return;
-
-    const sentAt = new Date().toISOString();
-
-    const results = await Promise.allSettled(
-      configured.map((webhook) =>
-        this.dispatcher.dispatch(
-          webhook,
-          {
-            eventType: event.eventType,
-            tenantId: event.tenantId,
-            payload: event.payload,
-            outboxEventId: event.id,
-            sentAt,
-          },
-          event.id,
-        ),
-      ),
-    );
-
-    // Loguear fallos individuales sin propagar — at-least-once lo maneja el outbox
-    for (const [i, result] of results.entries()) {
-      if (result.status === 'rejected') {
-        const webhookId = configured.at(i)?.id ?? 'unknown';
-        this.logger.warn(
-          { webhookId, outboxEventId: event.id, reason: result.reason },
-          'Webhook dispatch failed for one endpoint',
-        );
-      }
-    }
   }
 
   async listWebhookDeliveries(tenantId: string, webhookId: string) {
@@ -112,21 +60,26 @@ export class WebhooksService {
 
   async testWebhook(tenantId: string, webhookId: string) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
-    if (!webhook) throw new NotFoundError('Webhook not found');
+    if (!webhook || webhook.deletedAt) throw new NotFoundError('Webhook not found');
 
     const payload = {
-      eventType: webhook.eventCode,
-      tenantId,
       test: true,
-      sentAt: new Date().toISOString(),
     };
+    const id = await this.outbox.createEvent({
+      tenantId, eventType: webhook.eventCode, payload, targetWebhookId: webhook.id,
+    });
+    return { id, status: 'accepted' };
+  }
 
-    return this.dispatcher.dispatch(webhook, payload);
+  async replayDead(tenantId: string, webhookId: string, deliveryId: string) {
+    const replayed = await this.outbox.replayDead(tenantId, webhookId, deliveryId);
+    if (!replayed) throw new NotFoundError('Dead webhook delivery not found');
+    return { id: deliveryId, status: 'pending' };
   }
 
   async updateWebhook(tenantId: string, webhookId: string, dto: UpdateWebhookDto) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
-    if (!webhook) throw new NotFoundError('Webhook not found');
+    if (!webhook || webhook.deletedAt) throw new NotFoundError('Webhook not found');
 
     if (dto.url) {
       await this.destinationPolicy.validateNewUrl(dto.url);

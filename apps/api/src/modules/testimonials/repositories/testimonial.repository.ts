@@ -2,6 +2,7 @@ import { ConflictError, InternalError, NotFoundError } from '../../../common/err
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { enqueueWebhookEvent } from '../../webhooks';
 import { TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
 
 export interface PublishedFilters {
@@ -77,14 +78,10 @@ export class TestimonialRepository {
         include: testimonialInclude,
       });
       const view = this.toView(created);
-      await tx.outboxEvent.create({
-        data: {
-          tenantId: data.tenantId,
-          eventType: event.eventType,
-          payload: this.toJsonPayload(event.payload(view)),
-          status: 'pending',
-          attempts: 0,
-        },
+      await enqueueWebhookEvent(tx, {
+        tenantId: data.tenantId,
+        eventType: event.eventType,
+        payload: this.toJsonPayload(event.payload(view)) as Record<string, unknown>,
       });
       return view;
     });
@@ -158,14 +155,10 @@ export class TestimonialRepository {
       });
       const view = this.toView(row);
       if (event) {
-        await tx.outboxEvent.create({
-          data: {
-            tenantId,
-            eventType: event.eventType,
-            payload: this.toJsonPayload(event.payload(view)),
-            status: 'pending',
-            attempts: 0,
-          },
+        await enqueueWebhookEvent(tx, {
+          tenantId,
+          eventType: event.eventType,
+          payload: this.toJsonPayload(event.payload(view)) as Record<string, unknown>,
         });
       }
       return view;

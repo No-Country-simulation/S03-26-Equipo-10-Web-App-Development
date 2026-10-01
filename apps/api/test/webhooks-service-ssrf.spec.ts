@@ -2,7 +2,7 @@ import type { ConfigService } from '@nestjs/config';
 import { WebhooksService } from '../src/modules/webhooks/services/webhooks.service';
 import { WebhookDestinationPolicy } from '../src/modules/webhooks/services/webhook-destination-policy';
 import type { WebhookRepository } from '../src/modules/webhooks/repositories/webhook.repository';
-import type { HttpWebhookDispatcher } from '../src/modules/webhooks/services/http-webhook-dispatcher';
+import type { OutboxRepository } from '../src/modules/webhooks/repositories/outbox.repository';
 
 describe('WebhooksService SSRF boundary', () => {
   const policy = new WebhookDestinationPolicy({
@@ -18,11 +18,13 @@ describe('WebhooksService SSRF boundary', () => {
     findById: jest.fn().mockResolvedValue(legacy),
     findByTenant: jest.fn().mockResolvedValue([legacy]),
   } as unknown as WebhookRepository;
-  const service = new WebhooksService(repo, {} as HttpWebhookDispatcher, policy);
+  const outbox = { createEvent: jest.fn().mockResolvedValue('event-id'), replayDead: jest.fn() } as unknown as OutboxRepository;
+  const service = new WebhooksService(repo, outbox, policy);
 
   beforeEach(() => {
     (repo.create as jest.Mock).mockClear();
     (repo.update as jest.Mock).mockClear();
+    (outbox.createEvent as jest.Mock).mockClear();
   });
 
   it('rechaza HTTP en altas y cambios antes de escribir', async () => {
@@ -41,6 +43,16 @@ describe('WebhooksService SSRF boundary', () => {
     expect(list.items[0]).toMatchObject({
       id: 'webhook',
       legacyHttp: { deadlineAt: '2026-10-30T12:00:00.000Z' },
+    });
+  });
+
+  it('encola el envío de prueba para un solo destino y confirma aceptación', async () => {
+    await expect(service.testWebhook('tenant', 'webhook')).resolves.toEqual({
+      id: 'event-id', status: 'accepted',
+    });
+    expect(outbox.createEvent).toHaveBeenCalledWith({
+      tenantId: 'tenant', eventType: 'testimonial.created',
+      payload: { test: true }, targetWebhookId: 'webhook',
     });
   });
 });

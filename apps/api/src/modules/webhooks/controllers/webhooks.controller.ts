@@ -4,7 +4,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -69,11 +72,23 @@ export class WebhooksController {
   }
 
   @Post(':webhook_id/test')
+  @HttpCode(HttpStatus.ACCEPTED)
   @Idempotent()
   test(
     @CurrentTenantId() tenantId: string,
     @Param('webhook_id') webhookId: string,
   ) {
     return this.webhooksService.testWebhook(tenantId, webhookId);
+  }
+
+  @Post(':webhook_id/deliveries/:delivery_id/replay')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Idempotent()
+  replay(
+    @CurrentTenantId() tenantId: string,
+    @Param('webhook_id', ParseUUIDPipe) webhookId: string,
+    @Param('delivery_id', ParseUUIDPipe) deliveryId: string,
+  ) {
+    return this.webhooksService.replayDead(tenantId, webhookId, deliveryId);
   }
 }

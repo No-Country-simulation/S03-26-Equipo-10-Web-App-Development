@@ -9,6 +9,7 @@ export interface RetryOptions {
   baseDelayMs?: number;
   circuitKey: string;
   allowLegacyHttp?: boolean;
+  skipCircuit?: boolean;
 }
 
 interface CircuitState {
@@ -77,7 +78,7 @@ export class HttpResilienceService {
     headers: Record<string, string>,
     options: RetryOptions,
   ): Promise<{ status: number; body: string }> {
-    this.assertCircuit(options.circuitKey);
+    if (!options.skipCircuit) this.assertCircuit(options.circuitKey);
 
     const timeoutMs = options.timeoutMs ?? 5000;
     const retries = options.retries ?? 2;
@@ -98,11 +99,11 @@ export class HttpResilienceService {
           maxRedirects: 0,
           maxContentLength: 64 * 1024,
           responseType: 'text',
-          // Acepta cualquier status < 500 — el caller decide qué es éxito
-          validateStatus: (status) => status < 500,
+          // El ledger decide si 2xx, 4xx o 5xx finalizan o reintentan.
+          validateStatus: () => true,
         });
 
-        this.resetCircuit(options.circuitKey);
+        if (!options.skipCircuit) this.resetCircuit(options.circuitKey);
 
         return {
           status: response.status,
@@ -113,7 +114,7 @@ export class HttpResilienceService {
         attempt += 1;
 
         if (attempt > retries) {
-          this.markFailure(options.circuitKey);
+          if (!options.skipCircuit) this.markFailure(options.circuitKey);
           // H-06: Preservar la causa original del error (RF-24)
           const message = error instanceof AxiosError ? error.message : 'Unexpected delivery error';
           throw new Error(message, { cause: error });
@@ -125,7 +126,7 @@ export class HttpResilienceService {
       }
     }
 
-    this.markFailure(options.circuitKey);
+    if (!options.skipCircuit) this.markFailure(options.circuitKey);
     throw lastError;
   }
 

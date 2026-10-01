@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, Trash2, Webhook, Zap, ShieldAlert } from 'lucide-react';
-import { createWebhook, deleteWebhook, listWebhooks, testWebhook } from '../api';
+import { createWebhook, deleteWebhook, listWebhookDeliveries, listWebhooks, replayWebhookDelivery, testWebhook } from '../api';
 
 export type WebhookView = {
   id: string;
@@ -18,7 +18,16 @@ export type WebhookView = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   legacyHttp?: { deadlineAt: string | null; canDeliver: boolean } | null;
+};
+
+type DeliveryView = {
+  id: string;
+  status: string;
+  attempts: number;
+  responseCode: number | null;
+  createdAt: string;
 };
 
 export default function WebhooksPage() {
@@ -27,6 +36,8 @@ export default function WebhooksPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [selectedWebhookId, setSelectedWebhookId] = useState<string | null>(null);
+  const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,9 +83,29 @@ export default function WebhooksPage() {
   async function handleTest(id: string) {
     try {
       await testWebhook(fetchApi, id);
-      alert('Evento de prueba enviado correctamente a la URL suscrita.');
+      alert('Evento de prueba encolado. Revisá el historial para ver el resultado de la entrega.');
     } catch (err) {
       alert(`Error enviando prueba: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function showDeliveries(webhookId: string) {
+    try {
+      const res = await listWebhookDeliveries(fetchApi, webhookId);
+      setSelectedWebhookId(webhookId);
+      setDeliveries(res.data.items);
+    } catch (err) {
+      alert(`Error cargando entregas: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function replayDelivery(deliveryId: string) {
+    if (!selectedWebhookId) return;
+    try {
+      await replayWebhookDelivery(fetchApi, selectedWebhookId, deliveryId);
+      await showDeliveries(selectedWebhookId);
+    } catch (err) {
+      alert(`Error reenviando entrega: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -138,7 +169,7 @@ export default function WebhooksPage() {
         </div>
       ) : webhooks.length === 0 ? (
         <div className="border border-dashed p-12 text-center">
-          <p className="font-body text-sm text-muted-foreground">No tienes webhooks activos configurados.</p>
+          <p className="font-body text-sm text-muted-foreground">No hay destinos webhook configurados.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -177,25 +208,63 @@ export default function WebhooksPage() {
                   <td className="py-4 pr-4">
                     <span className={cn(
                       'inline-block px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
-                      w.isActive ? 'bg-green-500/20 text-green-600' : 'bg-muted text-muted-foreground'
+                      w.isActive && !w.deletedAt ? 'bg-green-500/20 text-green-600' : 'bg-muted text-muted-foreground'
                     )}>
-                      {w.isActive ? 'Activo' : 'Pausado'}
+                      {w.deletedAt ? 'Archivado' : w.isActive ? 'Activo' : 'Pausado'}
                     </span>
                   </td>
                   <td className="py-4 text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => handleTest(w.id)} className="text-blue-500 hover:bg-blue-500/10 hover:text-blue-500">
-                        <Zap className="h-4 w-4" />
+                      {!w.deletedAt && (
+                        <Button variant="ghost" size="sm" onClick={() => handleTest(w.id)} className="text-blue-500 hover:bg-blue-500/10 hover:text-blue-500">
+                          <Zap className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => void showDeliveries(w.id)}>
+                        Historial
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleRemove(w.id)} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {!w.deletedAt && (
+                        <Button variant="ghost" size="sm" onClick={() => handleRemove(w.id)} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {selectedWebhookId && (
+            <section className="mt-6 border bg-card p-4" aria-label="Historial de entregas">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-body text-sm font-bold">Entregas recientes</h2>
+                <Button variant="ghost" size="sm" onClick={() => void showDeliveries(selectedWebhookId)}>
+                  Actualizar
+                </Button>
+              </div>
+              {deliveries.length === 0 ? (
+                <p className="font-body text-sm text-muted-foreground">Todavía no hay entregas.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {deliveries.map(delivery => (
+                    <li key={delivery.id} className="flex flex-wrap items-center gap-3 border-b py-2 font-body text-sm">
+                      <span className={delivery.status === 'dead' ? 'font-bold text-destructive' : ''}>
+                        {delivery.status}
+                      </span>
+                      <span>{delivery.attempts} intento(s)</span>
+                      <span>HTTP {delivery.responseCode ?? 'sin respuesta'}</span>
+                      <time dateTime={delivery.createdAt}>{new Date(delivery.createdAt).toLocaleString()}</time>
+                      {delivery.status === 'dead' && (
+                        <Button variant="outline" size="sm" onClick={() => void replayDelivery(delivery.id)}>
+                          Reenviar
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
         </div>
       )}
     </>

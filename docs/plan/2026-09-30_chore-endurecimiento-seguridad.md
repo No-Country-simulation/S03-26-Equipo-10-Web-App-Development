@@ -1,7 +1,7 @@
 # Plan HITL: endurecimiento de Testimonial CMS
 
 **Fecha de inicio:** 2026-09-30  
-**Estado global:** Fase 2 actual; Fase 6 del plan de arquitectura pausada
+**Estado global:** Fase 3 actual; Fase 6 del plan de arquitectura pausada
 **Skills:** `api-key-security-engineering`, `node-backend-engineering`, `web-security-engineering`, `webhook-architecture-engineering`
 
 ## Contexto y restricciones
@@ -32,7 +32,7 @@
 
 **Review humano (ACK):** Recibido mediante «Continua con la fase 2»; Fase 1 versionada en `813f2ca`. CI con PostgreSQL aún requiere nueva ejecución.
 
-### `[Actual]` Fase 2: cerrar SSRF
+### `[Completada localmente]` Fase 2: cerrar SSRF
 
 - Exigir HTTPS en altas y cambios de destino. En cada conexión, validar todas las IP A/AAAA resueltas, bloquear redes internas/reservadas, fijar la IP validada y desactivar redirecciones y proxies implícitos.
 - Restringir el egreso en infraestructura para bloquear redes internas y metadata. Los destinos HTTP existentes pueden continuar 30 días solo si su IP pasa la validación; registrar el legado y avisar al tenant.
@@ -46,12 +46,22 @@
 
 **Commit sugerido:** `fix(webhooks): cerrá SSRF y prepará el egreso restringido`.
 
-### `[Pendiente]` Fase 3: garantizar entregas mediante PostgreSQL
+**Review humano (ACK):** Recibido mediante «Continua con la fase 3»; Fase 2 versionada en `37636f3`.
+
+### `[Actual]` Fase 3: garantizar entregas mediante PostgreSQL
 
 - Crear una entrega lógica única por `(evento, destino)` y un historial de intentos. Adquirir trabajo con `FOR UPDATE SKIP LOCKED`, lease recuperable y concurrencia limitada.
 - Ejecutar una llamada HTTP por intento con timeout: 2xx confirma; 408/429/5xx y red reintentan con backoff exponencial y full jitter; 4xx definitivos terminan. Tras 10 intentos o 72 horas, estado `dead` visible y reenvío administrativo.
 - Marcar el outbox `processed` solo cuando todas las entregas tengan resultado terminal registrado. El envío de prueba también pasa por outbox y responde `202`.
 - Probar dos procesadores, crash y destino 503. **Salida:** no se pierden eventos ni se duplica la entrega lógica.
+
+**Implementación local:** El productor crea el evento y sus entregas en una transacción. El ledger mantiene una fila única por evento y destino, una tabla separada de intentos, URL congelada, adquisición con `SKIP LOCKED`, lease con token de fencing, recuperación de leases vencidos y concurrencia máxima de cinco por réplica. Un intento ejecuta una sola llamada HTTP; 408/429/5xx y errores de red reintentan con full jitter, mientras que 4xx definitivos terminan. El presupuesto es de diez intentos o 72 horas; `dead` queda visible y permite reenvío administrativo. El envío de prueba se encola y responde `202`. Los destinos eliminados se archivan para conservar el historial. Ver [contrato del módulo](../modules/api-webhooks.md) y [procedimiento de corte](../operations/09_webhook_delivery_cutover.md).
+
+**Verificación local:** Migraciones de expansión y corte aplicadas únicamente a PostgreSQL 18 descartable; backfill con datos sintéticos verificado (dos entregas lógicas, tres intentos históricos y un evento reabierto). Suite API: 27 suites y 152 pruebas aprobadas, incluidas pruebas PostgreSQL de dos procesadores, lease vencido, resultado tardío, 503, agotamiento, reenvío y destino archivado. Web: 10 archivos y 19 pruebas aprobadas. Typecheck de API y web, lint de API y build de API aprobados; build de web aprobado con las 12 advertencias de lint preexistentes. No se aplicaron migraciones a bases persistentes ni se verificó staging/producción.
+
+**ACK adicional:** Recibido para modificar `apps/api/prisma/schema.prisma`; no incluye autorización para ejecutar migraciones en bases persistentes.
+
+**Commit sugerido:** `fix(webhooks): garantizá entregas con ledger y leases en PostgreSQL`.
 
 ### `[Pendiente]` Fase 4: compartir límites y caché
 

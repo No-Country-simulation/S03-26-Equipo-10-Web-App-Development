@@ -1,150 +1,33 @@
-# Módulo: Webhooks (`apps/api/src/modules/webhooks/`)
-# Código: SKL-PRO-001 — Nivel 3, Especificación Técnica
-# Última actualización: 2026-09-18
-# ADR de referencia: docs/adr/0002-patron-outbox-para-eventos-y-webhooks.md
+# Módulo de webhooks
 
----
+**Estado:** implementación local de la Fase 3 del [plan HITL](../plan/2026-09-30_chore-endurecimiento-seguridad.md). La migración y el despliegue persistente requieren revisión separada.
 
-## 1. Responsabilidad
+## Escritura y entrega
 
-Implementa el **Patrón Transactional Outbox** para entrega confiable de eventos a sistemas externos. Garantiza **At-Least-Once Delivery** con firma HMAC-SHA256. Es el módulo más crítico para la integridad de las integraciones.
+El productor escribe el cambio de dominio, un `outbox_events` y una entrega lógica por destino activo en la **misma transacción PostgreSQL**. La pareja `(outbox_event_id, webhook_id)` es única y cada entrega guarda la URL de destino vigente al crearse. Los cambios posteriores de URL solo afectan eventos nuevos. Los eventos anteriores a esta versión, sin entregas inicializadas, se recuperan mediante un inicializador transaccional que usa `FOR UPDATE SKIP LOCKED`.
 
----
+El procesador consulta entregas `pending` cuyo `next_retry_at` haya vencido. Cada adquisición usa `FOR UPDATE SKIP LOCKED`, incrementa el contador e inserta un registro en `webhook_delivery_attempts` antes de hacer HTTP. Procesa como máximo cinco entregas a la vez por instancia. Un token de lease identifica al propietario del intento; un resultado tardío no puede sobrescribir el estado si el lease venció y otro worker lo adquirió. Los intentos interrumpidos quedan en el historial.
 
-## 2. Arquitectura del Módulo
+Cada intento hace **una sola llamada HTTP** con timeout de cinco segundos. 2xx confirma; 408, 429, 5xx y errores de red se reprograman con backoff exponencial y full jitter. Otros 4xx y 3xx terminan como `dead`. El presupuesto es de diez intentos o 72 horas por ciclo. Un administrador puede reenviar una entrega `dead`, lo que abre un presupuesto nuevo sin borrar el historial. `outbox_events.status` pasa a `processed` solo cuando todas las entregas están en `success` o `dead`. `dead` es un resultado terminal visible, no un éxito de transporte.
 
-```
-Módulo Productor (ej: TestimonialsModule)
-  └── WebhookOutboxHandler.emit('event.name', payload)
-        └── OutboxService.save()  ← escribe en outbox_events (MISMA transacción)
+La semántica es **at least once**: un receptor puede recibir un POST y el emisor perder su respuesta antes de confirmar el intento. El header `X-TMS-Event-Id` mantiene el ID estable de evento para deduplicación. La firma versionada y la ventana anti-replay se completan en la Fase 7; durante la compatibilidad se conserva `X-Signature` cuando el destino tiene secreto.
 
-OutboxProcessor (BullMQ Job)
-  └── Lee outbox_events WHERE status = 'pending'
-  └── HttpWebhookDispatcher.dispatch()
-        ├── HttpResilienceService (timeouts, backoff, circuit breaker)
-        └── POST endpoint externo (firmado con HMAC-SHA256)
-  └── Actualiza outbox_events.status → 'delivered' | 'failed'
+## Endpoints de administración
 
-WebhookEventsListener
-  └── Escucha eventos del EventEmitter de NestJS
-  └── Ruta alternativa de entrada para eventos internos
+Todos exigen sesión autenticada, rol `admin` y tenant actual.
 
-WebhooksBootstrapService
-  └── Re-encola pending events al iniciar la aplicación (recovery)
-```
+| Método | Ruta | Resultado |
+| --- | --- | --- |
+| `GET` | `/api/v1/webhooks` | Destinos del tenant |
+| `POST` | `/api/v1/webhooks` | Crea un destino HTTPS |
+| `PATCH` | `/api/v1/webhooks/:webhook_id` | Modifica un destino |
+| `DELETE` | `/api/v1/webhooks/:webhook_id` | Archiva el destino; permanece visible para consultar entregas e intentos |
+| `GET` | `/api/v1/webhooks/:webhook_id/deliveries` | Estado e intentos recientes |
+| `POST` | `/api/v1/webhooks/:webhook_id/test` | Encola una prueba solo para ese destino; responde `202` con ID de evento |
+| `POST` | `/api/v1/webhooks/:webhook_id/deliveries/:delivery_id/replay` | Reabre una entrega `dead` del tenant; responde `202` |
 
----
+## Datos y despliegue
 
-## 3. Endpoints de Gestión
+La migración `20260930000000_webhook_delivery_expand` añade columnas y la tabla de intentos sin romper los escritores antiguos. El corte `20260930000001_webhook_delivery_cutover` deduplica filas históricas, crea la unicidad y reabre eventos que la versión anterior marcó `processed` aunque una entrega había fallado. Antes del **corte**, drenar todos los procesadores antiguos; sus escrituras duplicadas ya no son compatibles con el índice único. Después se activa la versión nueva. Las columnas legadas permanecen durante la ventana de rollback, pero un rollback del procesador exige el mismo corte coordinado y no debe iniciar workers antiguos con el índice único vigente. El backfill con datos sintéticos y la suite de concurrencia se prueban en PostgreSQL 18 descartable. No ejecutar `prisma migrate deploy` ni aplicar estas migraciones a una base persistente sin autorización separada.
 
-| Método | Ruta | Descripción | Guard |
-|--------|------|-------------|-------|
-| `GET` | `/api/v1/webhooks` | Lista webhook endpoints del tenant | `JwtAuthGuard` |
-| `POST` | `/api/v1/webhooks` | Registra nuevo endpoint webhook | `JwtAuthGuard` |
-| `PATCH` | `/api/v1/webhooks/:id` | Actualiza URL o configuración | `JwtAuthGuard` |
-| `DELETE` | `/api/v1/webhooks/:id` | Elimina endpoint webhook | `JwtAuthGuard` |
-
----
-
-## 4. Servicios
-
-| Servicio | Responsabilidad |
-|----------|----------------|
-| `WebhooksService` | CRUD de `webhook_endpoints` por tenant |
-| `OutboxService` | Escritura de eventos en `outbox_events` (producer) |
-| `OutboxProcessor` | Job BullMQ que procesa eventos pendientes (consumer) |
-| `WebhookOutboxHandler` | Orquestador: recibe eventos de dominio y los persiste en outbox |
-| `WebhooksBootstrapService` | Recovery: re-encola eventos `pending` al arrancar |
-| `HttpWebhookDispatcher` | Realiza el POST HTTP al endpoint externo |
-| `HttpResilienceService` | Timeouts, reintentos con backoff exponencial, circuit breaker |
-| `WebhookEventsListener` | Listener de EventEmitter interno de NestJS |
-| `LoggerService` | Logging estructurado específico del módulo |
-
----
-
-## 5. Tabla `outbox_events`
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `id` | UUID | PK |
-| `tenant_id` | UUID | FK → tenants |
-| `event_type` | TEXT | Ej: `testimonial.published` |
-| `payload` | JSONB | Datos del evento |
-| `status` | ENUM | `pending` \| `delivered` \| `failed` |
-| `attempts` | INT | Número de intentos de entrega |
-| `last_error` | TEXT | Último mensaje de error |
-| `created_at` | TIMESTAMPTZ | — |
-| `delivered_at` | TIMESTAMPTZ | Timestamp de entrega exitosa |
-
----
-
-## 6. Seguridad de Webhooks
-
-### Firma HMAC-SHA256
-
-```
-signature = HMAC-SHA256(signingSecret, rawBody)
-header: X-Webhook-Signature: sha256=<hex>
-```
-
-**Verificación en el consumer externo**:
-```typescript
-const expected = crypto
-  .createHmac('sha256', secret)
-  .update(rawBody)
-  .digest('hex');
-const isValid = crypto.timingSafeEqual(
-  Buffer.from(`sha256=${expected}`),
-  Buffer.from(receivedSignature)
-);
-```
-
-> ⚠️ Usar siempre `timingSafeEqual`. El operador `===` es vulnerable a timing attacks.
-
-### Anti-replay
-
-Incluir `timestamp` en el payload. El consumer DEBE rechazar eventos con `timestamp` > 5 minutos de diferencia con `Date.now()`.
-
----
-
-## 7. Política de Reintentos
-
-```
-Intento 1: inmediato
-Intento 2: +30s
-Intento 3: +2min
-Intento 4: +8min
-Intento 5: +30min
-> 5 intentos fallidos → status = 'failed' → DLQ (Dead Letter Queue)
-```
-
-Implementado en `HttpResilienceService` con exponential backoff y full jitter.
-
----
-
-## 8. Eventos Soportados
-
-| Evento | Producido por | Payload principal |
-|--------|---------------|-------------------|
-| `testimonial.published` | TestimonialsModule | `{ testimonialId, tenantId, authorName, content, rating, publishedAt }` |
-
-*(Agregar nuevos eventos aquí al implementarlos)*
-
----
-
-## 9. Reglas de Negocio Aplicables
-
-| ID | Regla |
-|----|-------|
-| `BR-WEB-001` | At-least-once delivery garantizado |
-| `BR-WEB-002` | `outbox_events` escrito en la misma transacción DB que el evento de dominio |
-| `BR-WEB-003` | Todos los POST firmados con HMAC-SHA256 del signing secret del tenant |
-| `BR-SEC-001` | Queries de endpoints filtradas por `tenant_id` |
-
----
-
-## 10. Historial de Cambios
-
-| Fecha | Cambio |
-|-------|--------|
-| 2026-09-18 | Spec inicial creada (SKL-PRO-001) |
+Los límites del cliente HTTP, la defensa SSRF y la ventana de HTTP legado están descritos en [la guía SSRF](../operations/08_webhook_ssrf_rollout.md). Métricas, alertas y retiro de columnas legadas pertenecen a la Fase 8.

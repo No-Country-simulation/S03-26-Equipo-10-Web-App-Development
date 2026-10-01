@@ -74,4 +74,24 @@ describe('webhook delivery network boundary', () => {
       await close(target);
     }
   });
+
+  it('hace una sola llamada ante 503 y devuelve el código al ledger', async () => {
+    let hits = 0;
+    const server = createServer((_req, res) => {
+      hits += 1;
+      res.writeHead(503);
+      res.end('temporal');
+    });
+    const port = await listen(server);
+    try {
+      const transport = new HttpResilienceService(new LocalTransportPolicy(config));
+      const response = await transport.postText(`http://hooks.example.test:${port}/hook`, '{}', {}, {
+        circuitKey: '503', allowLegacyHttp: true, retries: 0, skipCircuit: true,
+      });
+      expect(response.status).toBe(503);
+      expect(hits).toBe(1);
+    } finally {
+      await close(server);
+    }
+  });
 });
