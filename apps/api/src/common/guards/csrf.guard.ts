@@ -1,16 +1,17 @@
 import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import { timingSafeEqual } from 'node:crypto';
 import { Request } from 'express';
 import type { AppConfig } from '../../config/app.config';
 import { CSRF_MODE_KEY, type CsrfMode } from '../decorators/csrf-mode.decorator';
+import { SessionCsrfService } from '../services/session-csrf.service';
 
 @Injectable()
 export class CsrfGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
+    private readonly sessionCsrf: SessionCsrfService,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -27,6 +28,11 @@ export class CsrfGuard implements CanActivate {
       return true;
     }
     if (mode === 'api-key') return true;
+    if (mode === 'refresh') {
+      this.assertAllowedOrigin(request);
+      if (request.header('x-auth-mode') === 'cookie') this.assertSessionToken(request);
+      return true;
+    }
 
     // El guard JWT usa primero el Bearer explícito. No hay credencial ambiental
     // que un sitio ajeno pueda adjuntar por sí solo a este tipo de petición.
@@ -37,20 +43,15 @@ export class CsrfGuard implements CanActivate {
     if (!request.cookies?.['accessToken']) return true;
 
     this.assertAllowedOrigin(request);
-    const csrfCookie = request.cookies['csrfToken'];
-    const csrfHeader = request.header('x-csrf-token');
+    this.assertSessionToken(request);
+    return true;
+  }
 
-    if (!csrfCookie || !csrfHeader) {
-      throw new ForbiddenException('Missing CSRF token');
-    }
-
-    const cookieBytes = Buffer.from(csrfCookie);
-    const headerBytes = Buffer.from(csrfHeader);
-    if (cookieBytes.length !== headerBytes.length || !timingSafeEqual(cookieBytes, headerBytes)) {
+  private assertSessionToken(request: Request): void {
+    const refreshToken = request.cookies?.['refreshToken'];
+    if (!refreshToken || !this.sessionCsrf.verify(refreshToken, request.header('x-csrf-token'))) {
       throw new ForbiddenException('Invalid CSRF token');
     }
-
-    return true;
   }
 
   private assertAllowedOrigin(request: Request): void {

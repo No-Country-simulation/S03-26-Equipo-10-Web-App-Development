@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { RegisterAdminForm } from '@/features/auth/components/register-admin-form';
 import { registerAdmin } from '../api';
-import { saveSession } from '@/lib/session-store';
+import { clearLegacySession } from '@/lib/session-store';
 
 export default function AdminRegisterPage() {
   const router = useRouter();
@@ -13,7 +13,8 @@ export default function AdminRegisterPage() {
     email: string;
     password: string;
   }) {
-    saveSession(await registerAdmin(payload));
+    await registerAdmin(payload);
+    clearLegacySession();
     router.push('/admin');
   }
 

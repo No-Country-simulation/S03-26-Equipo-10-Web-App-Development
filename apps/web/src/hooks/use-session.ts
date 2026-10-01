@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { SessionPayload, requestApi, ApiError } from '@/lib/api';
-import { getStoredSession, saveSession, clearSession } from '@/lib/session-store';
+import { SessionPayload, ApiError } from '@/lib/api';
+import { authenticatedRequest, recoverSession, logout as logoutApi, clearSessionMemory } from '@/features/auth/api';
+import { clearLegacySession } from '@/lib/session-store';
 
 /**
  * Hook de React para gestionar la sesión del usuario en el cliente.
@@ -18,22 +19,14 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
   const router = useRouter();
 
   useEffect(() => {
-    const stored = getStoredSession();
-    if (!stored) {
-      setLoading(false);
-      if (redirectTo) {
-        router.replace(redirectTo);
-      }
-      return;
-    }
-    setSession(stored);
-    setLoading(false);
+    let active = true;
+    void recoverSession().then(restored => {
+      if (active) setSession(restored);
+    }).catch(() => {
+      if (active && redirectTo) router.replace(redirectTo);
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [redirectTo, router]);
-
-  const authHeaders = useCallback(() => {
-    if (!session) return {};
-    return { Authorization: `Bearer ${session.tokens.accessToken}` };
-  }, [session]);
 
   /**
    * Envuelve requestApi para inyectar automáticamente el token Bearer
@@ -43,13 +36,11 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
     async <T,>(path: string, init: RequestInit = {}) => {
       if (!session) throw new Error('No session');
       try {
-        return await requestApi<T>(path, {
-          ...init,
-          headers: { ...authHeaders(), ...(init.headers ?? {}) } as Record<string, string>,
-        });
+        return await authenticatedRequest<T>(path, init);
       } catch (err) {
         if (err instanceof ApiError && err.status === 401) {
-          clearSession();
+          clearLegacySession();
+          clearSessionMemory();
           setSession(null);
           if (redirectTo) {
             router.replace(redirectTo);
@@ -58,14 +49,15 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
         throw err;
       }
     },
-    [session, authHeaders, router, redirectTo],
+    [session, router, redirectTo],
   );
 
   /**
-   * Cierra la sesión en el cliente (limpia localStorage) y redirige.
+   * Revoca la familia en la API, limpia la entrada legada y redirige.
    */
-  const logout = useCallback(() => {
-    clearSession();
+  const logout = useCallback(async () => {
+    try { await logoutApi(); } catch { /* Local UI still closes if the cookie has expired. */ }
+    clearLegacySession();
     setSession(null);
     router.replace(redirectTo || '/'); // Fallback to '/' if redirectTo is null
   }, [router, redirectTo]);
@@ -77,5 +69,5 @@ export function useSession({ redirectTo = '/admin/login' }: { redirectTo?: strin
 
   const isAdmin = hasRole('admin');
 
-  return { session, loading, fetchApi, logout, hasRole, isAdmin, authHeaders };
+  return { session, loading, fetchApi, logout, hasRole, isAdmin };
 }

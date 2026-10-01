@@ -43,7 +43,8 @@ export class JwtAuthGuard implements CanActivate {
 
     const user = await this.credentials.findActiveUser(payload.sub);
 
-    if (!user || user.tenantId !== payload.tenantId) {
+    if (!user || user.tenantId !== payload.tenantId ||
+      (payload.sid && !(await this.credentials.isActiveRefreshSession(payload.sid, payload.sub)))) {
       throw new UnauthorizedException('Inactive user or tenant');
     }
 

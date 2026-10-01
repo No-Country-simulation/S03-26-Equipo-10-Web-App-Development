@@ -60,6 +60,11 @@ export class AuthService {
     }
 
     await this.loginAttempts.clear(dto.email);
+    if (this.passwordService.needsRehash(user.passwordHash)) {
+      await this.authRepo.upgradePasswordHash(
+        user.id, user.passwordHash, await this.passwordService.hashPassword(dto.password),
+      );
+    }
     return this.createSessionResponse(user);
   }
 
@@ -69,7 +74,7 @@ export class AuthService {
    */
   async logout(refreshToken: string) {
     const tokenHash = this.tokenService.hashToken(refreshToken);
-    await this.authRepo.revokeRefreshTokenByHash(tokenHash);
+    await this.authRepo.revokeSessionFamilyByHash(tokenHash);
   }
 
   /**
@@ -81,16 +86,27 @@ export class AuthService {
    */
   async refreshSession(refreshToken: string) {
     const tokenHash = this.tokenService.hashToken(refreshToken);
-    const record = await this.authRepo.findValidRefreshToken(tokenHash);
+    const record = await this.authRepo.findRefreshTokenByHash(tokenHash);
     if (!record) throw new UnauthorizedError('Invalid or expired refresh token');
 
     const user = record.user;
     if (!user.isActive) throw new UnauthorizedError('Account is disabled');
     if (!user.tenantIsActive) throw new UnauthorizedError('Tenant is disabled');
 
-    // Rotate: revoke old, create new
-    await this.authRepo.revokeRefreshToken(record.id);
-    return this.createSessionResponse(user);
+    const nextRefreshToken = this.tokenService.generateRefreshToken();
+    const familyId = await this.authRepo.rotateRefreshToken(
+      tokenHash, this.tokenService.hashToken(nextRefreshToken), this.tokenService.getRefreshExpiresAt(),
+    );
+    return this.buildSessionResponse(user, familyId, nextRefreshToken);
+  }
+
+  async assertActiveRefreshToken(refreshToken: string): Promise<void> {
+    const record = await this.authRepo.findRefreshTokenByHash(this.tokenService.hashToken(refreshToken));
+    if (!record || record.revoked || record.expiresAt <= new Date() ||
+      record.familyRevokedAt || (record.familyExpiresAt && record.familyExpiresAt <= new Date()) ||
+      !record.user.isActive || !record.user.tenantIsActive) {
+      throw new UnauthorizedError('Invalid or expired refresh token');
+    }
   }
 
   /**
@@ -117,19 +133,21 @@ export class AuthService {
    * Centraliza la lógica que antes se duplicaba en login(), refreshSession() y registerAdmin().
    */
   private async createSessionResponse(user: AuthUserBase) {
+    const refreshToken = this.tokenService.generateRefreshToken();
+    const familyId = await this.authRepo.createRefreshSession(
+      user.id, this.tokenService.hashToken(refreshToken), this.tokenService.getRefreshExpiresAt(),
+    );
+    return this.buildSessionResponse(user, familyId, refreshToken);
+  }
+
+  private async buildSessionResponse(user: AuthUserBase, familyId: string, refreshToken: string) {
     const accessToken = await this.tokenService.signAccessToken({
       sub: user.id,
       email: user.email,
       tenantId: user.tenantId,
       roles: user.roles,
+      sid: familyId,
     });
-
-    const refreshToken = this.tokenService.generateRefreshToken();
-    await this.authRepo.createRefreshToken(
-      user.id,
-      this.tokenService.hashToken(refreshToken),
-      this.tokenService.getRefreshExpiresAt(),
-    );
 
     return {
       user: {

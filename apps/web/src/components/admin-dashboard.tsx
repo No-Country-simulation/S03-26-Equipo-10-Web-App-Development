@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ApiError, requestApi, SessionPayload, TenantUser, TestimonialRecord } from '../lib/api';
-import { clearSession, getStoredSession } from '../lib/session-store';
+import { ApiError, SessionPayload, TenantUser, TestimonialRecord } from '../lib/api';
+import { authenticatedRequest, recoverSession, logout as logoutApi } from '@/features/auth/api';
+import { clearLegacySession } from '../lib/session-store';
 
 interface CreateUserPayload {
   email: string;
@@ -19,39 +20,28 @@ export function AdminDashboard() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    const storedSession = getStoredSession();
-    setSession(storedSession);
-
-    if (!storedSession) {
-      setLoading(false);
-      return;
-    }
-
-    void loadDashboard(storedSession.tokens.accessToken);
+    void recoverSession().then(restored => {
+      setSession(restored);
+      return loadDashboard();
+    }).catch(() => { setLoading(false); });
   }, []);
 
-  async function loadDashboard(accessToken: string) {
+  async function loadDashboard() {
     setLoading(true);
     setError(null);
 
     try {
       const [meResponse, usersResponse, testimonialsResponse] = await Promise.all([
-        requestApi<SessionPayload['user']>('/auth/me', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }),
-        requestApi<TenantUser[]>('/users', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }),
-        requestApi<TestimonialRecord[]>('/testimonials', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }),
+        authenticatedRequest<{ user: SessionPayload['user'] }>('/auth/me'),
+        authenticatedRequest<TenantUser[]>('/users'),
+        authenticatedRequest<TestimonialRecord[]>('/testimonials'),
       ]);
 
       setSession(current =>
         current
           ? {
               ...current,
-              user: meResponse.data,
+              user: meResponse.data.user,
             }
           : current,
       );
@@ -59,7 +49,7 @@ export function AdminDashboard() {
       setTestimonials(testimonialsResponse.data);
     } catch (dashboardError) {
       if (dashboardError instanceof ApiError && dashboardError.status === 401) {
-        clearSession();
+        clearLegacySession();
         setSession(null);
       }
       setError(
@@ -79,21 +69,19 @@ export function AdminDashboard() {
 
     setCreating(true);
     try {
-      await requestApi<TenantUser>('/users', {
+      await authenticatedRequest<TenantUser>('/users', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.tokens.accessToken}`,
-        },
         body: JSON.stringify(payload),
       });
-      await loadDashboard(session.tokens.accessToken);
+      await loadDashboard();
     } finally {
       setCreating(false);
     }
   }
 
   function handleLogout() {
-    clearSession();
+    void logoutApi().catch(() => undefined);
+    clearLegacySession();
     setSession(null);
     setUsers([]);
     setTestimonials([]);
@@ -133,7 +121,7 @@ export function AdminDashboard() {
         {loading ? <div className="notice" style={{ marginTop: '1rem' }}>Cargando...</div> : null}
         {error ? <div className="notice error" style={{ marginTop: '1rem' }}>{error}</div> : null}
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => void loadDashboard(session.tokens.accessToken)}>
+          <button type="button" onClick={() => void loadDashboard()}>
             Refrescar datos
           </button>
           <button className="secondary" type="button" onClick={handleLogout}>

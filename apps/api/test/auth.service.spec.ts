@@ -6,16 +6,19 @@ import { AuthService } from '../src/modules/auth/services/auth.service';
 import { AuthRepository } from '../src/modules/auth/repositories/auth.repository';
 import { JwtTokenService } from '../src/modules/auth/services/jwt-token.service';
 import type { UserWithAuth } from '../src/modules/auth/repositories/auth.repository';
+import { randomBytes, scrypt as scryptCallback } from 'node:crypto';
+import { promisify } from 'node:util';
 
 function createMockAuthRepo(): jest.Mocked<AuthRepository> {
   return {
     findUserByEmail: jest.fn(),
     findUserById: jest.fn(),
     createTenantAndAdmin: jest.fn(),
-    createRefreshToken: jest.fn(),
-    findValidRefreshToken: jest.fn(),
-    revokeRefreshToken: jest.fn(),
-    revokeRefreshTokenByHash: jest.fn(),
+    createRefreshSession: jest.fn().mockResolvedValue('session-1'),
+    findRefreshTokenByHash: jest.fn(),
+    rotateRefreshToken: jest.fn(),
+    revokeSessionFamilyByHash: jest.fn(),
+    upgradePasswordHash: jest.fn(),
     ensureCatalogs: jest.fn(),
   } as unknown as jest.Mocked<AuthRepository>;
 }
@@ -74,7 +77,7 @@ describe('AuthService', () => {
 
     expect(result.user.email).toBe('admin@acme.com');
     expect(result.tokens.accessToken).toBe('access-token');
-    expect(authRepo.createRefreshToken).toHaveBeenCalled();
+    expect(authRepo.createRefreshSession).toHaveBeenCalled();
   });
 
   it('rejects invalid credentials', async () => {
@@ -84,6 +87,17 @@ describe('AuthService', () => {
     await expect(
       useCase.login({ email: 'admin@acme.com', password: 'Wrong123!' }),
     ).rejects.toThrow(UnauthorizedError);
+  });
+
+  it('upgrades a verified scrypt password without replacing a concurrent change', async () => {
+    const salt = randomBytes(16).toString('hex');
+    const digest = await promisify(scryptCallback)('Admin123!', salt, 64) as Buffer;
+    const oldHash = `${salt}:${digest.toString('hex')}`;
+    authRepo.findUserByEmail.mockResolvedValue(createTestUser({ passwordHash: oldHash }));
+    await useCase.login({ email: 'admin@acme.com', password: 'Admin123!' });
+    expect(authRepo.upgradePasswordHash).toHaveBeenCalledWith(
+      'user-1', oldHash, expect.stringMatching(/^\$argon2id\$/),
+    );
   });
 
   it('rejects if user not found', async () => {
@@ -103,4 +117,3 @@ describe('AuthService', () => {
     ).rejects.toThrow(UnauthorizedError);
   });
 });
-

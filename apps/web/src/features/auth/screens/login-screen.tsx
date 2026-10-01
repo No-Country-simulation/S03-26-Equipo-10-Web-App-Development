@@ -3,13 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { LoginForm } from '@/features/auth/components/login-form';
 import { login } from '../api';
-import { saveSession } from '@/lib/session-store';
+import { clearLegacySession } from '@/lib/session-store';
 
 export default function AdminLoginPage() {
   const router = useRouter();
 
   async function handleLogin(payload: { email: string; password: string }) {
-    saveSession(await login(payload));
+    await login(payload);
+    clearLegacySession();
     router.push('/admin');
   }
 

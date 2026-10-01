@@ -18,10 +18,11 @@ function createMockAuthRepo(): jest.Mocked<AuthRepository> {
     findUserByEmail: jest.fn(),
     findUserById: jest.fn(),
     createTenantAndAdmin: jest.fn(),
-    createRefreshToken: jest.fn(),
-    findValidRefreshToken: jest.fn(),
-    revokeRefreshToken: jest.fn(),
-    revokeRefreshTokenByHash: jest.fn(),
+    createRefreshSession: jest.fn().mockResolvedValue('session-1'),
+    findRefreshTokenByHash: jest.fn(),
+    rotateRefreshToken: jest.fn().mockResolvedValue('session-1'),
+    revokeSessionFamilyByHash: jest.fn(),
+    upgradePasswordHash: jest.fn(),
     ensureCatalogs: jest.fn(),
   } as unknown as jest.Mocked<AuthRepository>;
 }
@@ -87,7 +88,7 @@ describe('Auth Flow (Integration)', () => {
       expect(result.tokens.accessToken).toBe('access-token');
       expect(result.tokens.refreshToken).toBe('refresh-token-hex');
       expect(authRepo.createTenantAndAdmin).toHaveBeenCalledTimes(1);
-      expect(authRepo.createRefreshToken).toHaveBeenCalledTimes(1);
+      expect(authRepo.createRefreshSession).toHaveBeenCalledTimes(1);
     });
 
     it('should throw ConflictError for duplicate tenant name', async () => {
@@ -118,8 +119,10 @@ describe('Auth Flow (Integration)', () => {
   describe('Refresh Token Rotation', () => {
     it('should rotate refresh tokens and return new ones', async () => {
       const user = createTestUser();
-      authRepo.findValidRefreshToken.mockResolvedValue({
+      authRepo.findRefreshTokenByHash.mockResolvedValue({
         id: 'rt-1',
+        familyId: 'session-1', familyRevokedAt: null, familyExpiresAt: new Date('2026-12-31'),
+        revoked: false, expiresAt: new Date('2026-12-31'),
         user,
       });
 
@@ -127,13 +130,11 @@ describe('Auth Flow (Integration)', () => {
 
       expect(result.user.email).toBe('admin@acme.com');
       expect(result.tokens.accessToken).toBe('access-token');
-      // Verify old token was revoked and new one was created (rotation)
-      expect(authRepo.revokeRefreshToken).toHaveBeenCalledWith('rt-1');
-      expect(authRepo.createRefreshToken).toHaveBeenCalledTimes(1);
+      expect(authRepo.rotateRefreshToken).toHaveBeenCalledWith('hashed-token', 'hashed-token', expect.any(Date));
     });
 
     it('should throw UnauthorizedError for invalid refresh token', async () => {
-      authRepo.findValidRefreshToken.mockResolvedValue(null);
+      authRepo.findRefreshTokenByHash.mockResolvedValue(null);
 
       await expect(
         authService.refreshSession('invalid-token'),
@@ -141,8 +142,10 @@ describe('Auth Flow (Integration)', () => {
     });
 
     it('should reject refresh for disabled accounts', async () => {
-      authRepo.findValidRefreshToken.mockResolvedValue({
+      authRepo.findRefreshTokenByHash.mockResolvedValue({
         id: 'rt-1',
+        familyId: 'session-1', familyRevokedAt: null, familyExpiresAt: new Date('2026-12-31'),
+        revoked: false, expiresAt: new Date('2026-12-31'),
         user: createTestUser({ isActive: false }),
       });
 
@@ -152,8 +155,10 @@ describe('Auth Flow (Integration)', () => {
     });
 
     it('should reject refresh for disabled tenants', async () => {
-      authRepo.findValidRefreshToken.mockResolvedValue({
+      authRepo.findRefreshTokenByHash.mockResolvedValue({
         id: 'rt-1',
+        familyId: 'session-1', familyRevokedAt: null, familyExpiresAt: new Date('2026-12-31'),
+        revoked: false, expiresAt: new Date('2026-12-31'),
         user: createTestUser({ tenantIsActive: false }),
       });
 
@@ -165,12 +170,12 @@ describe('Auth Flow (Integration)', () => {
 
   describe('Logout Flow', () => {
     it('should revoke the refresh token on logout', async () => {
-      authRepo.revokeRefreshTokenByHash.mockResolvedValue(undefined);
+      authRepo.revokeSessionFamilyByHash.mockResolvedValue(undefined);
 
       await authService.logout('some-refresh-token');
 
       expect(tokenService.hashToken).toHaveBeenCalledWith('some-refresh-token');
-      expect(authRepo.revokeRefreshTokenByHash).toHaveBeenCalledWith('hashed-token');
+      expect(authRepo.revokeSessionFamilyByHash).toHaveBeenCalledWith('hashed-token');
     });
   });
 

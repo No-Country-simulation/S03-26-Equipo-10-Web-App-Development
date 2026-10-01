@@ -90,6 +90,16 @@
 - Rotar refresh de forma atómica por familia; detectar reutilización, revocar familia y auditar. Logout revoca y borra cookies con sus atributos originales. Migrar scrypt a Argon2id al login, manteniendo verificación anterior durante la transición.
 - **Salida:** ningún token nuevo persiste en JavaScript; carreras de refresh producen una sola rotación válida.
 
+**Implementación local:** La web usa `X-Auth-Mode: cookie`, `credentials: include`, mantiene solo usuario y CSRF en memoria, recupera la sesión por cookie y consume una vez el refresh token legado de `localStorage` mediante `/auth/upgrade-session`. Login, registro y refresh en modo cookie devuelven solo usuario; Bearer explícito mantiene tokens en el cuerpo y no establece cookies. `GET /auth/csrf` emite un HMAC ligado al refresh cookie; las mutaciones por cookie lo envían en `x-csrf-token`. El CSRF aleatorio no vinculado se retiró. Las sesiones nuevas tienen una familia; la rotación reclama e inserta dentro de una transacción, y un replay revoca la familia y se audita. Logout revoca y limpia cookies con sus atributos. Las contraseñas nuevas usan Argon2id asincrónico de Node 24 y un hash scrypt verificado se actualiza al login. Ver [módulo](../modules/api-auth.md) y [corte](../operations/11_cookie_session_rollout.md).
+
+**Compatibilidad y ACK:** El modo implícito y `/auth/upgrade-session` duran 30 días desde `AUTH_LEGACY_STARTED_AT`; en producción, sin esa fecha se exige modo explícito. Se recibió el ACK adicional para modificar `apps/api/prisma/schema.prisma`. No se aplicó ninguna migración a una base persistente. El esquema de expansión conserva `family_id` nullable para réplicas antiguas y rollback compatible.
+
+**Verificación local:** La migración pasó en PostgreSQL 18 descartable. Con dos refresh tokens sintéticos previos, el backfill creó dos familias, sin huérfanos y con ambos estados de revocación correctos. La suite API aprobó 31 suites y 158 pruebas con PostgreSQL/Redis descartables, incluidas una carrera entre dos conexiones, replay auditado y un recorrido HTTP real de cookies, CSRF, refresh, logout y Bearer. La web aprobó 21 pruebas en 11 archivos, incluidas actualización de `localStorage` y CSRF. Typecheck de API/web, lint de API sin advertencias y builds de API/web pasaron; web mantiene 11 advertencias preexistentes. El log HTTP redacta cookies de respuesta y headers CSRF. No se verificaron CI remoto, navegador E2E, staging ni producción.
+
+**Límite de seguridad:** Un replay concurrente provoca una sola inserción nueva y revoca la familia, incluida la credencial recién rotada. La web comparte una promesa de refresh para evitar ese choque dentro de una pestaña; una carrera entre pestañas puede requerir nuevo login. El retiro del lector legado se difiere hasta cumplidos 30 días y observar ausencia de uso.
+
+**Commit sugerido:** `feat(auth): migrá la sesión web a cookies HttpOnly`.
+
 ### `[Pendiente]` Fase 6: rediseñar API keys
 
 - Generar `ak_<entorno>_<publicId>_<secret de 32 bytes>`; buscar por public ID único, guardar HMAC-SHA-256 con pepper versionado externo, comparar en tiempo constante. Incluir expiración, estado, propietario y scopes `testimonials:read` y `analytics:write`.

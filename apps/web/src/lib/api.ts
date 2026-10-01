@@ -19,11 +19,7 @@ export interface SessionPayload {
     tenantName: string;
     roles: string[];
     isActive: boolean;
-    createdAt: string;
-  };
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
+    createdAt?: string;
   };
 }
 
@@ -147,12 +143,12 @@ export async function requestApi<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<ApiEnvelope<T>> {
+  const headers = new Headers(init.headers);
+  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
+    credentials: 'include',
+    headers,
     cache: 'no-store',
   });
 

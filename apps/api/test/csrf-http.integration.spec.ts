@@ -4,10 +4,10 @@ import { Controller, Post, Req } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
 import type { INestApplication } from '@nestjs/common';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request } from 'express';
 import request from 'supertest';
 import { CsrfGuard } from '../src/common/guards/csrf.guard';
-import { CsrfMiddleware } from '../src/common/middleware/csrf.middleware';
+import { SessionCsrfService } from '../src/common/services/session-csrf.service';
 import { RateLimitGuard } from '../src/common/guards/rate-limit.guard';
 import { ApiKeyGuard } from '../src/common/guards/api-key.guard';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
@@ -35,6 +35,7 @@ describe('CSRF y proxy por HTTP', () => {
     registerAdmin: jest.fn().mockResolvedValue({ user: { id: 'user' }, tokens: { accessToken: 'access', refreshToken: 'refresh' } }),
     refreshSession: jest.fn().mockResolvedValue({ user: { id: 'user' }, tokens: { accessToken: 'access', refreshToken: 'refresh' } }),
     logout: jest.fn().mockResolvedValue(undefined),
+    assertActiveRefreshToken: jest.fn().mockResolvedValue(undefined),
   };
 
   beforeAll(async () => {
@@ -42,7 +43,11 @@ describe('CSRF y proxy por HTTP', () => {
       controllers: [AuthController, PublicTestimonialsController, PublicAnalyticsController, ProtectedController],
       providers: [
         { provide: APP_GUARD, useClass: CsrfGuard },
-        { provide: ConfigService, useValue: { getOrThrow: () => ({ corsOrigin: 'https://web.example.test' }) } },
+        { provide: ConfigService, useValue: { getOrThrow: () => ({
+          corsOrigin: 'https://web.example.test', authLegacyStartedAt: null,
+          jwt: { secret: 'test-only-placeholder-with-at-least-32-characters' },
+        }) } },
+        SessionCsrfService,
         { provide: AuthService, useValue: auth },
         { provide: TestimonialsService, useValue: { submitPublicTestimonial: async () => ({ id: 'testimonial' }) } },
         { provide: AnalyticsService, useValue: { trackEvent: async () => ({ ok: true }), trackPublicEventBySlug: async () => ({ ok: true }) } },
@@ -56,8 +61,6 @@ describe('CSRF y proxy por HTTP', () => {
 
     app = module.createNestApplication();
     app.use(cookieParser());
-    const csrfMiddleware = new CsrfMiddleware();
-    app.use((req: Request, res: Response, next: NextFunction) => csrfMiddleware.use(req, res, next));
     await app.init();
   });
 
@@ -107,19 +110,23 @@ describe('CSRF y proxy por HTTP', () => {
   });
 
   it('permite Bearer y exige token CSRF cuando la sesión depende de cookie', async () => {
+    const token = app.get(SessionCsrfService).tokenFor('refresh-token');
     await request(app.getHttpServer()).post('/protected')
       .set('Authorization', 'Bearer explicit-token').set('Cookie', 'accessToken=cookie-token')
       .send({}).expect(201);
     await request(app.getHttpServer()).post('/protected')
-      .set('Cookie', 'accessToken=cookie-token; csrfToken=token')
+      .set('Cookie', 'accessToken=cookie-token; refreshToken=refresh-token')
       .send({}).expect(403);
     await request(app.getHttpServer()).post('/protected')
-      .set('Cookie', 'accessToken=cookie-token; csrfToken=token')
+      .set('Cookie', 'accessToken=cookie-token; refreshToken=refresh-token')
       .set('x-csrf-token', 'wrong').send({}).expect(403);
     await request(app.getHttpServer()).post('/protected')
       .set('Origin', 'https://web.example.test')
-      .set('Cookie', 'accessToken=cookie-token; csrfToken=token')
-      .set('x-csrf-token', 'token').send({}).expect(201);
+      .set('Cookie', 'accessToken=cookie-token; refreshToken=refresh-token')
+      .set('x-csrf-token', token).send({}).expect(201);
+    const csrfResponse = await request(app.getHttpServer()).get('/auth/csrf')
+      .set('Cookie', 'refreshToken=refresh-token').expect(200);
+    expect(csrfResponse.body.csrfToken).toBe(token);
   });
 
   it('ignora X-Forwarded-For directo y usa el último salto al confiar en un proxy', async () => {

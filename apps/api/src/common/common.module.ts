@@ -13,6 +13,7 @@ import { CredentialRepository } from './repositories/credential.repository';
 import { RateLimitService } from './services/rate-limit.service';
 import { CacheService } from './services/cache.service';
 import { RedisStoreService } from './services/redis-store.service';
+import { SessionCsrfService } from './services/session-csrf.service';
 import type { AppConfig } from '../config/app.config';
 
 @Global()
@@ -38,6 +39,7 @@ import type { AppConfig } from '../config/app.config';
     RateLimitService,
     CacheService,
     RedisStoreService,
+    SessionCsrfService,
   ],
   exports: [
     JwtModule,
@@ -52,6 +54,7 @@ import type { AppConfig } from '../config/app.config';
     RateLimitService,
     CacheService,
     RedisStoreService,
+    SessionCsrfService,
   ],
 })
 export class CommonModule {}

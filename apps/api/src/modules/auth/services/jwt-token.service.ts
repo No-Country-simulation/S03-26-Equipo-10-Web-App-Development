@@ -10,6 +10,7 @@ export interface TokenPayload {
   email: string;
   tenantId: string;
   roles: string[];
+  sid?: string;
 }
 
 @Injectable()

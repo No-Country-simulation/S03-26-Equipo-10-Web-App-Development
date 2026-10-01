@@ -1,4 +1,4 @@
-import { ConflictError, InternalError } from '../../../common/errors/application.error';
+import { ConflictError, InternalError, UnauthorizedError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
@@ -140,23 +140,37 @@ export class AuthRepository {
     });
   }
 
-  async createRefreshToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
-    await this.prisma.refreshToken.create({
-      data: { userId, tokenHash, expiresAt },
+  async upgradePasswordHash(userId: string, oldHash: string, newHash: string): Promise<void> {
+    await this.prisma.user.updateMany({
+      where: { id: userId, passwordHash: oldHash },
+      data: { passwordHash: newHash },
     });
   }
 
-  async findValidRefreshToken(tokenHash: string): Promise<{
+  async createRefreshSession(userId: string, tokenHash: string, expiresAt: Date): Promise<string> {
+    const family = await this.prisma.refreshSession.create({
+      data: {
+        userId,
+        expiresAt,
+        tokens: { create: { userId, tokenHash, expiresAt } },
+      },
+    });
+    return family.id;
+  }
+
+  async findRefreshTokenByHash(tokenHash: string): Promise<{
     id: string;
+    familyId: string | null;
+    familyRevokedAt: Date | null;
+    familyExpiresAt: Date | null;
+    revoked: boolean;
+    expiresAt: Date;
     user: UserWithAuth;
   } | null> {
-    const record = await this.prisma.refreshToken.findFirst({
-      where: {
-        tokenHash,
-        revoked: false,
-        expiresAt: { gt: new Date() },
-      },
+    const record = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
       include: {
+        family: true,
         user: {
           include: {
             tenant: true,
@@ -170,6 +184,11 @@ export class AuthRepository {
 
     return {
       id: record.id,
+      familyId: record.familyId,
+      familyRevokedAt: record.family?.revokedAt ?? null,
+      familyExpiresAt: record.family?.expiresAt ?? null,
+      revoked: record.revoked,
+      expiresAt: record.expiresAt,
       user: {
         id: record.user.id,
         email: record.user.email,
@@ -184,17 +203,72 @@ export class AuthRepository {
     };
   }
 
-  async revokeRefreshToken(tokenId: string): Promise<void> {
-    await this.prisma.refreshToken.update({
-      where: { id: tokenId },
-      data: { revoked: true },
+  async rotateRefreshToken(oldHash: string, newHash: string, expiresAt: Date): Promise<string> {
+    return this.prisma.$transaction(async tx => {
+      const claimed = await tx.refreshToken.updateMany({
+        where: { tokenHash: oldHash, revoked: false, expiresAt: { gt: new Date() } },
+        data: { revoked: true },
+      });
+      if (claimed.count !== 1) {
+        const replay = await tx.refreshToken.findUnique({
+          where: { tokenHash: oldHash },
+          select: { familyId: true, revoked: true, expiresAt: true, userId: true, user: { select: { tenantId: true } } },
+        });
+        if (replay?.revoked && replay.expiresAt > new Date() && replay.familyId) {
+          const revoked = await tx.refreshSession.updateMany({
+            where: { id: replay.familyId, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+          if (revoked.count) {
+            await tx.auditLog.create({ data: {
+              tenantId: replay.user.tenantId,
+              userId: replay.userId,
+              action: 'REFRESH_TOKEN_REUSE',
+              resourceType: 'refresh_session',
+              resourceId: replay.familyId,
+            } });
+          }
+        }
+        return null;
+      }
+
+      const old = await tx.refreshToken.findUniqueOrThrow({ where: { tokenHash: oldHash } });
+      let familyId = old.familyId;
+      if (!familyId) {
+        // Covers tokens issued by an old replica during a rolling deployment.
+        const family = await tx.refreshSession.create({ data: { userId: old.userId, expiresAt: old.expiresAt } });
+        familyId = family.id;
+        await tx.refreshToken.update({ where: { id: old.id }, data: { familyId } });
+      }
+      const family = await tx.refreshSession.findUnique({ where: { id: familyId } });
+      if (!family || family.revokedAt || family.expiresAt <= new Date()) {
+        return null;
+      }
+      await tx.refreshToken.create({ data: {
+        userId: old.userId,
+        familyId,
+        tokenHash: newHash,
+        expiresAt: new Date(Math.min(expiresAt.getTime(), family.expiresAt.getTime())),
+      } });
+      return familyId;
+    }).then(familyId => {
+      if (!familyId) throw new UnauthorizedError('Invalid or expired refresh token');
+      return familyId;
     });
   }
 
-  async revokeRefreshTokenByHash(tokenHash: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
-      where: { tokenHash, revoked: false },
-      data: { revoked: true },
+  async revokeSessionFamilyByHash(tokenHash: string): Promise<void> {
+    await this.prisma.$transaction(async tx => {
+      const token = await tx.refreshToken.findUnique({ where: { tokenHash } });
+      if (!token) return;
+      if (token.familyId) {
+        await tx.refreshSession.updateMany({
+          where: { id: token.familyId, revokedAt: null }, data: { revokedAt: new Date() },
+        });
+        await tx.refreshToken.updateMany({ where: { familyId: token.familyId, revoked: false }, data: { revoked: true } });
+      } else {
+        await tx.refreshToken.updateMany({ where: { id: token.id }, data: { revoked: true } });
+      }
     });
   }
 

@@ -23,6 +23,14 @@ export class CredentialRepository {
     };
   }
 
+  async isActiveRefreshSession(sessionId: string, userId: string): Promise<boolean> {
+    const session = await this.prisma.refreshSession.findFirst({
+      where: { id: sessionId, userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true },
+    });
+    return !!session;
+  }
+
   async findActiveApiKeyByHash(keyHash: string): Promise<{ apiKeyId: string; tenantId: string } | null> {
     const key = await this.prisma.apiKey.findFirst({
       where: { keyHash, isActive: true, tenant: { isActive: true } },

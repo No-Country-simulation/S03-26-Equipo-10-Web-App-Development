@@ -1,6 +1,5 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { CsrfMiddleware } from './common/middleware/csrf.middleware';
 import { CsrfGuard } from './common/guards/csrf.guard';
 import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
@@ -42,6 +41,8 @@ import { getRequestScope } from './common/request-context.storage';
           paths: [
             'req.headers.authorization',
             'req.headers.cookie',
+            'req.headers["x-csrf-token"]',
+            'res.headers["set-cookie"]',
             'req.body.password',
             'req.body.token',
             'req.body.apiKey',
@@ -83,9 +84,4 @@ import { getRequestScope } from './common/request-context.storage';
     },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CsrfMiddleware).forRoutes('*');
-  }
-}
-
+export class AppModule {}
