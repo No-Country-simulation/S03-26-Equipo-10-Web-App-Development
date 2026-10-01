@@ -40,11 +40,11 @@ export class AuthService {
    */
   async login(dto: LoginDto) {
     // Verifica que el usuario no esté bloqueado temporalmente por intentos fallidos
-    this.loginAttempts.assertNotBlocked(dto.email);
+    await this.loginAttempts.assertNotBlocked(dto.email);
 
     const user = await this.authRepo.findUserByEmail(dto.email);
     if (!user) {
-      this.loginAttempts.registerFailure(dto.email);
+      await this.loginAttempts.registerFailure(dto.email);
       throw new UnauthorizedError('Invalid credentials');
     }
     if (!user.isActive) throw new UnauthorizedError('Account is disabled');
@@ -55,11 +55,11 @@ export class AuthService {
       user.passwordHash,
     );
     if (!validPassword) {
-      this.loginAttempts.registerFailure(dto.email);
+      await this.loginAttempts.registerFailure(dto.email);
       throw new UnauthorizedError('Invalid credentials');
     }
 
-    this.loginAttempts.clear(dto.email);
+    await this.loginAttempts.clear(dto.email);
     return this.createSessionResponse(user);
   }
 

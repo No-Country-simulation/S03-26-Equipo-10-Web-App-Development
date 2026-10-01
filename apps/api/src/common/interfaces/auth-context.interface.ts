@@ -28,6 +28,6 @@ export interface RequestContext {
 export interface ApiRequest extends Request {
   tenantId?: string;
   user?: AuthenticatedUser;
-  apiKey?: { apiKeyId: string; tenantId: string };
+  apiKey?: { apiKeyId: string; tenantId: string; publicId?: string };
   requestContext?: RequestContext;
 }

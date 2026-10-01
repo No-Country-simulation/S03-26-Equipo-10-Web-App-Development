@@ -18,6 +18,7 @@ web_max_capacity           = 4
 api_desired_count          = 2
 api_min_capacity           = 2
 api_max_capacity           = 4
+redis_replica_count        = 1
 db_instance_class          = "db.t3.small"
 db_allocated_storage       = 50
 db_max_allocated_storage   = 200

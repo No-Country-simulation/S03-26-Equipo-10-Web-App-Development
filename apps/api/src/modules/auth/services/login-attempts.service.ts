@@ -1,38 +1,52 @@
-import { RateLimitedError } from '../../../common/errors/application.error';
+import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { RateLimitedError, UnavailableError } from '../../../common/errors/application.error';
+import { RedisStoreService } from '../../../common/services/redis-store.service';
 
-interface AttemptState {
-  count: number;
-  blockedUntil?: number;
-}
+const RECORD_FAILURE = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end
+return count`;
 
 @Injectable()
 export class LoginAttemptsService {
-  private readonly attempts = new Map<string, AttemptState>();
   private readonly maxAttempts = 5;
   private readonly blockWindowMs = 15 * 60 * 1000;
 
-  assertNotBlocked(email: string) {
-    const state = this.attempts.get(email.toLowerCase());
-    if (state?.blockedUntil && state.blockedUntil > Date.now()) {
-      throw new RateLimitedError('Account temporarily locked');
+  constructor(private readonly redis: RedisStoreService) {}
+
+  private key(email: string): string {
+    const digest = createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
+    return `login-attempts:v1:${digest}`;
+  }
+
+  async assertNotBlocked(email: string): Promise<void> {
+    try {
+      const count = await (await this.redis.connection()).get(this.key(email));
+      if (Number(count ?? 0) >= this.maxAttempts) {
+        throw new RateLimitedError('Account temporarily locked');
+      }
+    } catch (error) {
+      if (error instanceof RateLimitedError) throw error;
+      throw new UnavailableError('Login quota unavailable');
     }
   }
 
-  registerFailure(email: string) {
-    const key = email.toLowerCase();
-    const current = this.attempts.get(key) ?? { count: 0 };
-    const nextCount = current.count + 1;
-    const blockedUntil =
-      nextCount >= this.maxAttempts ? Date.now() + this.blockWindowMs : undefined;
-
-    this.attempts.set(key, {
-      count: blockedUntil ? 0 : nextCount,
-      ...(blockedUntil !== undefined && { blockedUntil }),
-    });
+  async registerFailure(email: string): Promise<void> {
+    try {
+      await (await this.redis.connection()).eval(RECORD_FAILURE, {
+        keys: [this.key(email)], arguments: [String(this.blockWindowMs)],
+      });
+    } catch {
+      throw new UnavailableError('Login quota unavailable');
+    }
   }
 
-  clear(email: string) {
-    this.attempts.delete(email.toLowerCase());
+  async clear(email: string): Promise<void> {
+    try {
+      await (await this.redis.connection()).del(this.key(email));
+    } catch {
+      throw new UnavailableError('Login quota unavailable');
+    }
   }
 }

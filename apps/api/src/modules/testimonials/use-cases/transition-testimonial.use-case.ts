@@ -41,7 +41,7 @@ export class TransitionTestimonialUseCase {
           }),
         },
       );
-      this.cache.invalidateByPrefix(`public:${tenantId}:`);
+      await this.cache.invalidateTenantPublic(tenantId);
       return updated;
     }
 

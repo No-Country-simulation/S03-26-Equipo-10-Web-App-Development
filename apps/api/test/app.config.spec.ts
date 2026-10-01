@@ -16,6 +16,7 @@ describe('application environment validation', () => {
     ['short JWT secret', { JWT_SECRET: 'short' }],
     ['blank JWT secret', { JWT_SECRET: ' '.repeat(32) }],
     ['wrong database protocol', { DATABASE_URL: 'https://localhost/database' }],
+    ['wrong Redis protocol', { REDIS_URL: 'http://localhost:6379' }],
     ['invalid CORS origin', { CORS_ORIGIN: 'not-an-origin' }],
     ['CORS URL with a path', { CORS_ORIGIN: 'https://example.com/internal' }],
     ['out-of-range port', { PORT: '70000' }],

@@ -1,5 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { createHash } from 'node:crypto';
+import { RateLimitedError } from '../errors/application.error';
 import { RATE_LIMIT_KEY, type RateLimitConfig } from '../decorators/rate-limit.decorator';
 import type { ApiRequest } from '../interfaces/auth-context.interface';
 import { RateLimitService } from '../services/rate-limit.service';
@@ -11,7 +13,7 @@ export class RateLimitGuard implements CanActivate {
     private readonly rateLimitService: RateLimitService,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const config =
       this.reflector.getAllAndOverride<RateLimitConfig>(RATE_LIMIT_KEY, [
         context.getHandler(),
@@ -21,20 +23,27 @@ export class RateLimitGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<ApiRequest>();
     // Express calcula request.ip con la política de proxies confiables del servidor.
     const ip = request.ip ?? request.socket.remoteAddress ?? 'unknown';
-    const key =
-      config.scope === 'ip-api-key'
-        ? `${ip}:${request.apiKey?.apiKeyId ?? 'anon'}`
-        : ip;
-
     const route = request.route?.path ?? request.path;
-    this.rateLimitService.assertWithinLimit(
-      `${request.method}:${route}:${key}`,
-      config.limit,
-      config.windowSeconds,
-      `Rate limit exceeded for ${request.method} ${route}`,
-    );
+    const prefix = `quota:v1:${request.method}:${route}`;
+    const opaque = (value: string) => createHash('sha256').update(value).digest('hex');
+    const keys = [`${prefix}:ip:${opaque(ip)}`];
+    const tenant = request.apiKey?.tenantId ?? request.user?.tenantId ?? request.tenantId;
+    const publicTenant = request.params?.slug;
+    if (tenant) keys.push(`${prefix}:tenant:${opaque(tenant)}`);
+    else if (typeof publicTenant === 'string') keys.push(`${prefix}:slug:${opaque(publicTenant)}`);
+    if (config.scope === 'ip-api-key' && request.apiKey) {
+      keys.push(`${prefix}:key:${opaque(request.apiKey.publicId ?? request.apiKey.apiKeyId)}`);
+    }
+    try {
+      await this.rateLimitService.assertWithinLimit(keys, config.limit, config.windowSeconds,
+        `Rate limit exceeded for ${request.method} ${route}`);
+    } catch (error) {
+      if (error instanceof RateLimitedError) throw error;
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+        throw new ServiceUnavailableException('Request quota unavailable');
+      }
+    }
 
     return true;
   }
-
 }

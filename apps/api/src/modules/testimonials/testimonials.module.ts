@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TenantsModule } from '../tenants';
+import { FeatureFlagsModule } from '../feature-flags/feature-flags.module';
 import { CategoryRepository } from './repositories/category.repository';
 import { TestimonialRepository } from './repositories/testimonial.repository';
 import { TagRepository } from './repositories/tag.repository';
@@ -20,7 +21,7 @@ import { TransitionTestimonialUseCase } from './use-cases/transition-testimonial
 import { CreateTestimonialUseCase } from './use-cases/create-testimonial.use-case';
 
 @Module({
-  imports: [AnalyticsModule, CloudModule, TenantsModule],
+  imports: [AnalyticsModule, CloudModule, TenantsModule, FeatureFlagsModule],
   controllers: [
     TestimonialsController,
     TagsController,

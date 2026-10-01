@@ -5,6 +5,7 @@ Infraestructura real para desplegar `testimonial-cms` en AWS con:
 - `web` en ECS Fargate detrás de CloudFront y ALB.
 - `api` en ECS Fargate detrás de ALB con TLS.
 - `PostgreSQL` en RDS Multi-AZ y subredes privadas.
+- `Redis 7` en ElastiCache, con TLS, AUTH y acceso solo desde la API; una réplica en producción.
 - `ECR`, `Route53`, `ACM`, `Secrets Manager`, `CloudWatch Logs`.
 - estado remoto Terraform en `S3 + DynamoDB`.
 - ACL de egreso en subredes de aplicación para bloquear redes internas habituales; el transporte de webhooks bloquea además DNS privado, redirecciones e IMDS.
@@ -27,6 +28,7 @@ infra/terraform/
 │   ├── ecs-service/
 │   ├── network/
 │   ├── rds/
+│   ├── redis/
 │   ├── secrets/
 │   └── security/
 └── *.tf                      # Root module compartido

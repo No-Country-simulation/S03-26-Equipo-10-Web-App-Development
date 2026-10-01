@@ -10,6 +10,7 @@ module "network" {
   web_container_port       = var.web_container_port
   api_container_port       = var.api_container_port
   db_port                  = 5432
+  redis_port               = 6379
   tags                     = local.common_tags
 }
 
@@ -28,6 +29,7 @@ module "security" {
   web_container_port = var.web_container_port
   api_container_port = var.api_container_port
   db_port            = 5432
+  redis_port         = 6379
   tags               = local.common_tags
 }
 
@@ -56,6 +58,23 @@ module "database" {
   tags                    = local.common_tags
 }
 
+resource "random_password" "redis_auth" {
+  length  = 40
+  special = false
+}
+
+module "redis" {
+  source = "./modules/redis"
+
+  name_prefix        = local.name_prefix
+  subnet_ids         = module.network.private_db_subnet_ids
+  security_group_ids = [module.security.redis_security_group_id]
+  node_type          = var.redis_node_type
+  replica_count      = var.redis_replica_count
+  auth_token         = random_password.redis_auth.result
+  tags               = local.common_tags
+}
+
 module "api_runtime_secret" {
   source = "./modules/secrets"
 
@@ -63,6 +82,7 @@ module "api_runtime_secret" {
   description = "Runtime secrets for ${local.name_prefix} api"
   secret_values = {
     DATABASE_URL             = local.database_url
+    REDIS_URL                = "rediss://:${random_password.redis_auth.result}@${module.redis.primary_endpoint_address}:6379"
     JWT_SECRET               = var.jwt_secret
     CLOUDINARY_UPLOAD_URL    = var.cloudinary_upload_url
     CLOUDINARY_UPLOAD_PRESET = var.cloudinary_upload_preset
@@ -122,7 +142,8 @@ module "web_alb" {
 }
 
 module "api_service" {
-  source = "./modules/ecs-service"
+  source     = "./modules/ecs-service"
+  depends_on = [module.redis, module.api_runtime_secret]
 
   cluster_arn        = module.ecs_cluster.cluster_arn
   cluster_name       = module.ecs_cluster.cluster_name
@@ -149,6 +170,7 @@ module "api_service" {
   })
   secrets = {
     DATABASE_URL             = "${module.api_runtime_secret.secret_arn}:DATABASE_URL::"
+    REDIS_URL                = "${module.api_runtime_secret.secret_arn}:REDIS_URL::"
     JWT_SECRET               = "${module.api_runtime_secret.secret_arn}:JWT_SECRET::"
     CLOUDINARY_UPLOAD_URL    = "${module.api_runtime_secret.secret_arn}:CLOUDINARY_UPLOAD_URL::"
     CLOUDINARY_UPLOAD_PRESET = "${module.api_runtime_secret.secret_arn}:CLOUDINARY_UPLOAD_PRESET::"

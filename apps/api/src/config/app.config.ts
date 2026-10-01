@@ -14,6 +14,7 @@ export interface AppConfig {
   database: {
     url: string;
   };
+  redis: { url: string };
   cloudinary: {
     uploadUrl: string;
     uploadPreset: string;
@@ -55,30 +56,35 @@ export const appConfigValidationSchema = z.object({
     'DATABASE_URL must be a PostgreSQL URL',
   ),
 
+  REDIS_URL: z.url().refine(value => ['redis:', 'rediss:'].includes(new URL(value).protocol),
+    'REDIS_URL must be a Redis URL').default('redis://127.0.0.1:6379'),
+
   CLOUDINARY_UPLOAD_URL: z.string().default(''),
   CLOUDINARY_UPLOAD_PRESET: z.string().default(''),
 
   YOUTUBE_API_KEY: z.string().default(''),
 });
 
-export const appConfig = registerAs('app', (): AppConfig => ({
-  port: Number(process.env.PORT ?? 4000),
-  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
-  trustedProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? (process.env.NODE_ENV === 'production' ? 1 : 0)),
-  webhookLegacyHttpStartedAt: process.env.WEBHOOK_LEGACY_HTTP_STARTED_AT || null,
-  jwt: {
-    secret: process.env.JWT_SECRET!,
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
-  },
-  database: {
-    url: process.env.DATABASE_URL!,
-  },
-  cloudinary: {
-    uploadUrl: process.env.CLOUDINARY_UPLOAD_URL ?? '',
-    uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET ?? '',
-  },
-  youtube: {
-    apiKey: process.env.YOUTUBE_API_KEY ?? '',
-  },
-}));
+export const appConfig = registerAs('app', (): AppConfig => {
+  if (process.env.NODE_ENV === 'production' && !process.env.REDIS_URL) {
+    throw new Error('REDIS_URL is required in production');
+  }
+  return {
+    port: Number(process.env.PORT ?? 4000),
+    corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    trustedProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? (process.env.NODE_ENV === 'production' ? 1 : 0)),
+    webhookLegacyHttpStartedAt: process.env.WEBHOOK_LEGACY_HTTP_STARTED_AT || null,
+    jwt: {
+      secret: process.env.JWT_SECRET!,
+      accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
+      refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
+    },
+    database: { url: process.env.DATABASE_URL! },
+    redis: { url: process.env.REDIS_URL ?? 'redis://127.0.0.1:6379' },
+    cloudinary: {
+      uploadUrl: process.env.CLOUDINARY_UPLOAD_URL ?? '',
+      uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET ?? '',
+    },
+    youtube: { apiKey: process.env.YOUTUBE_API_KEY ?? '' },
+  };
+});

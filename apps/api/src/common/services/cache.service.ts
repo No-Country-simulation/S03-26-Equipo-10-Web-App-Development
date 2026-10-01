@@ -1,100 +1,69 @@
-import { Injectable } from '@nestjs/common';
+import { randomUUID, createHash } from 'node:crypto';
+import { Injectable, Logger } from '@nestjs/common';
+import { RedisStoreService } from './redis-store.service';
 
-interface CacheEntry<T> {
-  data: T;
-  expiresAt: number;
-}
+const RELEASE_LOCK = `if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1]) end return 0`;
+const MAX_VALUE_BYTES = 256 * 1024;
 
-/**
- * Simple in-memory cache with TTL support and bounded size.
- * Designed for single-node deployments (no shared state between instances).
- *
- * H-09: Agrega MAX_ENTRIES para evitar crecimiento ilimitado en memoria.
- * Usa evicción FIFO cuando se alcanza el límite.
- */
 @Injectable()
 export class CacheService {
-  private readonly store = new Map<string, CacheEntry<unknown>>();
-  private readonly DEFAULT_TTL_MS = 60_000; // 60 seconds
-  /** Límite de entradas simultáneas. Previene memory leaks en servicios de larga vida. */
-  private readonly MAX_ENTRIES = 10_000;
+  private readonly logger = new Logger(CacheService.name);
 
-  /**
-   * Get a cached value by key. Returns null if expired or missing.
-   */
-  get<T>(key: string): T | null {
-    const entry = this.store.get(key);
-    if (!entry) return null;
+  constructor(private readonly redis: RedisStoreService) {}
 
-    if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
-      return null;
+  /** Una versión por tenant evita barrer claves y descarta escritores anteriores a publicar. */
+  async invalidateTenantPublic(tenantId: string): Promise<void> {
+    try {
+      const client = await this.redis.connection();
+      await client.incr(`public-cache-version:v1:${tenantId}`);
+    } catch (error) {
+      // La escritura de dominio ya confirmó. El TTL acota la posible vista antigua.
+      this.logger.error('Public cache invalidation failed', error);
     }
-
-    return entry.data as T;
   }
 
-  /**
-   * Set a value in the cache with an optional TTL in milliseconds.
-   * Si el store alcanza MAX_ENTRIES, evicta la entrada más antigua (FIFO).
-   */
-  set<T>(key: string, data: T, ttlMs?: number): void {
-    // Evicción FIFO cuando se alcanza el límite de capacidad
-    if (!this.store.has(key) && this.store.size >= this.MAX_ENTRIES) {
-      const oldestKey = this.store.keys().next().value;
-      if (oldestKey !== undefined) {
-        this.store.delete(oldestKey);
+  async getOrSetPublic<T>(tenantId: string, query: string, factory: () => Promise<T>, ttlMs = 60_000): Promise<T> {
+    let loading = false;
+    try {
+      const client = await this.redis.connection();
+      const version = await client.get(`public-cache-version:v1:${tenantId}`) ?? '0';
+      const queryHash = createHash('sha256').update(query).digest('hex');
+      const key = `public-cache:v1:${tenantId}:${version}:${queryHash}`;
+      const cached = await client.get(key);
+      if (cached !== null) return JSON.parse(cached) as T;
+
+      const lockKey = `${key}:lock`;
+      const token = randomUUID();
+      const locked = await client.set(lockKey, token, { NX: true, PX: 5000 });
+      if (locked === 'OK') {
+        try {
+          loading = true;
+          const value = await factory();
+          loading = false;
+          try {
+            const serialized = JSON.stringify(value);
+            if (Buffer.byteLength(serialized) <= MAX_VALUE_BYTES) {
+              await client.set(key, serialized, { PX: ttlMs });
+            }
+          } catch (error) {
+            this.logger.warn('Public cache write failed; returning computed value', error);
+          }
+          return value;
+        } finally {
+          await client.eval(RELEASE_LOCK, { keys: [lockKey], arguments: [token] }).catch(() => undefined);
+        }
       }
-    }
 
-    this.store.set(key, {
-      data,
-      expiresAt: Date.now() + (ttlMs ?? this.DEFAULT_TTL_MS),
-    });
-  }
-
-  /**
-   * Get a value from cache, or compute and cache it if missing/expired.
-   */
-  async getOrSet<T>(key: string, factory: () => Promise<T>, ttlMs?: number): Promise<T> {
-    const cached = this.get<T>(key);
-    if (cached !== null) return cached;
-
-    const data = await factory();
-    this.set(key, data, ttlMs);
-    return data;
-  }
-
-  /**
-   * Invalidate a specific cache key.
-   */
-  invalidate(key: string): void {
-    this.store.delete(key);
-  }
-
-  /**
-   * Invalidate all keys matching a prefix.
-   */
-  invalidateByPrefix(prefix: string): void {
-    for (const key of this.store.keys()) {
-      if (key.startsWith(prefix)) {
-        this.store.delete(key);
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        const waited = await client.get(key);
+        if (waited !== null) return JSON.parse(waited) as T;
       }
+    } catch (error) {
+      if (loading) throw error;
+      this.logger.warn('Public cache unavailable; loading from PostgreSQL', error);
     }
-  }
-
-  /**
-   * Clear all cached entries.
-   */
-  clear(): void {
-    this.store.clear();
-  }
-
-  /**
-   * Devuelve el número de entradas actualmente en caché.
-   * Útil para métricas y health checks.
-   */
-  get size(): number {
-    return this.store.size;
+    return factory();
   }
 }

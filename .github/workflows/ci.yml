@@ -14,7 +14,18 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres@127.0.0.1:5432/testimonial_cms_test?schema=public
       TEST_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/testimonial_cms_test?schema=public
+      REDIS_URL: redis://127.0.0.1:6379
+      TEST_REDIS_URL: redis://127.0.0.1:6379
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
       postgres:
         image: postgres:18-alpine
         env:

@@ -23,6 +23,21 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  redis:
+    image: redis:7-alpine
+    hostname: redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'no', '--save', '', '--maxmemory', '128mb', '--maxmemory-policy', 'noeviction']
+    networks:
+      - backend_network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
   pgadmin:
     image: dpage/pgadmin4:8.3
     hostname: pgadmin
@@ -52,12 +67,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - backend_network
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-change-this-local-password}@postgres:5432/${POSTGRES_DB:-testimonial_cms}?schema=public
       - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in the root .env file with at least 32 characters}
       - WEBHOOK_LEGACY_HTTP_STARTED_AT=${WEBHOOK_LEGACY_HTTP_STARTED_AT:-}
+      - REDIS_URL=redis://redis:6379
     deploy:
       resources:
         limits:

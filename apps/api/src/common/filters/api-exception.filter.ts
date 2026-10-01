@@ -19,6 +19,7 @@ const statusByKind: Record<ApplicationErrorKind, number> = {
   conflict: HttpStatus.CONFLICT,
   rate_limited: HttpStatus.TOO_MANY_REQUESTS,
   internal: HttpStatus.INTERNAL_SERVER_ERROR,
+  unavailable: HttpStatus.SERVICE_UNAVAILABLE,
 };
 
 /**

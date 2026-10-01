@@ -12,7 +12,7 @@ import { getRequestScope } from '../request-context.storage';
 
 const applicationStatus: Record<ApplicationError['kind'], number> = {
   invalid_input: 400, unauthorized: 401, forbidden: 403,
-  not_found: 404, conflict: 409, rate_limited: 429, internal: 500,
+  not_found: 404, conflict: 409, rate_limited: 429, internal: 500, unavailable: 503,
 };
 
 /**

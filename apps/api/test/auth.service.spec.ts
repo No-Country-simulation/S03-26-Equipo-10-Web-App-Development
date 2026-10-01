@@ -55,7 +55,11 @@ describe('AuthService', () => {
     authRepo = createMockAuthRepo();
     tokenService = createMockTokenService();
     passwordService = new PasswordService();
-    loginAttempts = new LoginAttemptsService();
+    loginAttempts = {
+      assertNotBlocked: jest.fn().mockResolvedValue(undefined),
+      registerFailure: jest.fn().mockResolvedValue(undefined),
+      clear: jest.fn().mockResolvedValue(undefined),
+    } as unknown as LoginAttemptsService;
     useCase = new AuthService(authRepo, tokenService, passwordService, loginAttempts);
   });
 

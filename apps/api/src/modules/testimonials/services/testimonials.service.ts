@@ -165,9 +165,10 @@ export class TestimonialsService {
     const limit = Math.min(100, Math.max(1, Number(query.limit ?? 20)));
 
     // Clave de caché para memorizar la respuesta y aligerar la base de datos
-    const cacheKey = `public:${tenantId}:${query.q ?? ''}:${query.tag ?? ''}:${query.category ?? ''}:${query.sort ?? ''}:${page}:${limit}`;
+    const cacheKey = JSON.stringify({ q: query.q ?? '', tag: query.tag ?? '',
+      category: query.category ?? '', sort: query.sort ?? '', page, limit });
 
-    return this.cache.getOrSet(cacheKey, async () => {
+    return this.cache.getOrSetPublic(tenantId, cacheKey, async () => {
       const result = await this.repo.findPublished(tenantId, {
         ...(query.q !== undefined && { q: query.q }),
         ...(query.tag !== undefined && { tag: query.tag }),

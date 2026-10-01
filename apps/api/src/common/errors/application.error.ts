@@ -6,7 +6,8 @@ export type ApplicationErrorKind =
   | 'not_found'
   | 'conflict'
   | 'rate_limited'
-  | 'internal';
+  | 'internal'
+  | 'unavailable';
 
 export class ApplicationError extends Error {
   constructor(
@@ -39,4 +40,7 @@ export class RateLimitedError extends ApplicationError {
 }
 export class InternalError extends ApplicationError {
   constructor(message: string) { super(message, 'internal'); }
+}
+export class UnavailableError extends ApplicationError {
+  constructor(message: string) { super(message, 'unavailable'); }
 }

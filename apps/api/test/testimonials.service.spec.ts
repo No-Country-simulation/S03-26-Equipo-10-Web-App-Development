@@ -71,9 +71,9 @@ describe('TestimonialsService', () => {
   const mockCacheService = {
     get: jest.fn().mockReturnValue(null),
     set: jest.fn(),
-    getOrSet: jest.fn().mockImplementation((_key: string, factory: () => Promise<unknown>) => factory()),
+    getOrSetPublic: jest.fn().mockImplementation((_tenant: string, _key: string, factory: () => Promise<unknown>) => factory()),
     invalidate: jest.fn(),
-    invalidateByPrefix: jest.fn(),
+    invalidateTenantPublic: jest.fn().mockResolvedValue(undefined),
     clear: jest.fn(),
   };
 
@@ -155,6 +155,7 @@ describe('TestimonialsService', () => {
     const publishResult = await service.publishTestimonial('tenant-1', 'test-1');
     expect(publishResult.status).toBe('published');
     expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'approved', 'published', expect.any(Object), expect.objectContaining({ eventType: 'testimonial.published' }));
+    expect(mockCacheService.invalidateTenantPublic).toHaveBeenCalledWith('tenant-1');
   });
 
   it('rejects invalid state transitions', async () => {

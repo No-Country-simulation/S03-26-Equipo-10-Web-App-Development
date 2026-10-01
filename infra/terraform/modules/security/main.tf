@@ -64,6 +64,22 @@ resource "aws_security_group" "rds" {
   tags = merge(var.tags, { Name = "${var.name_prefix}-rds-sg" })
 }
 
+resource "aws_security_group" "redis" {
+  name        = "${var.name_prefix}-redis"
+  description = "Allow Redis only from the api service"
+  vpc_id      = var.vpc_id
+  egress      = []
+
+  ingress {
+    from_port       = var.redis_port
+    to_port         = var.redis_port
+    protocol        = "tcp"
+    security_groups = [aws_security_group.api_ecs.id]
+  }
+
+  tags = merge(var.tags, { Name = "${var.name_prefix}-redis-sg" })
+}
+
 resource "aws_security_group" "web_alb" {
   name        = "${var.name_prefix}-web-alb"
   description = "Allow CloudFront to reach the web ALB over HTTP"

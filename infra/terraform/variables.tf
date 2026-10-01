@@ -122,6 +122,22 @@ variable "api_memory" {
   default     = 1024
 }
 
+variable "redis_node_type" {
+  description = "ElastiCache Redis 7 node class."
+  type        = string
+  default     = "cache.t4g.micro"
+}
+
+variable "redis_replica_count" {
+  description = "Number of Redis replicas; production should use at least one."
+  type        = number
+  default     = 0
+  validation {
+    condition     = var.redis_replica_count >= 0 && var.redis_replica_count <= 5
+    error_message = "redis_replica_count must be between 0 and 5."
+  }
+}
+
 variable "web_desired_count" {
   description = "Desired task count for web."
   type        = number

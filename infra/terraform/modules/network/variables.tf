@@ -49,6 +49,10 @@ variable "db_port" {
   type = number
 }
 
+variable "redis_port" {
+  type = number
+}
+
 variable "tags" {
   type = map(string)
 }

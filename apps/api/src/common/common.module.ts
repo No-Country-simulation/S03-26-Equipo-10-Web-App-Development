@@ -12,6 +12,7 @@ import { IdempotencyRepository } from './repositories/idempotency.repository';
 import { CredentialRepository } from './repositories/credential.repository';
 import { RateLimitService } from './services/rate-limit.service';
 import { CacheService } from './services/cache.service';
+import { RedisStoreService } from './services/redis-store.service';
 import type { AppConfig } from '../config/app.config';
 
 @Global()
@@ -36,6 +37,7 @@ import type { AppConfig } from '../config/app.config';
     CredentialRepository,
     RateLimitService,
     CacheService,
+    RedisStoreService,
   ],
   exports: [
     JwtModule,
@@ -46,8 +48,10 @@ import type { AppConfig } from '../config/app.config';
     IdempotencyInterceptor,
     LoggingInterceptor,
     IdempotencyRepository,
+    CredentialRepository,
     RateLimitService,
     CacheService,
+    RedisStoreService,
   ],
 })
 export class CommonModule {}

@@ -91,6 +91,18 @@ resource "aws_network_acl_rule" "app_out_postgres" {
   to_port        = var.db_port
 }
 
+resource "aws_network_acl_rule" "app_out_redis" {
+  for_each       = local.az_map
+  network_acl_id = aws_network_acl.private_app.id
+  rule_number    = 115 + index(var.availability_zones, each.key)
+  egress         = true
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = each.value.private_db_cidr
+  from_port      = var.redis_port
+  to_port        = var.redis_port
+}
+
 resource "aws_network_acl_rule" "app_out_dns_udp" {
   network_acl_id = aws_network_acl.private_app.id
   rule_number    = 120
@@ -145,6 +157,7 @@ resource "aws_network_acl_association" "private_app" {
     aws_network_acl_rule.app_in_udp_responses,
     aws_network_acl_rule.app_out_alb_responses,
     aws_network_acl_rule.app_out_postgres,
+    aws_network_acl_rule.app_out_redis,
     aws_network_acl_rule.app_out_dns_udp,
     aws_network_acl_rule.app_out_dns_tcp,
     aws_network_acl_rule.app_out_block_internal,

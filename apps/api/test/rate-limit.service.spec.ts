@@ -1,30 +1,34 @@
+import { randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import { RateLimitedError } from '../src/common/errors/application.error';
 import { RateLimitService } from '../src/common/services/rate-limit.service';
+import { RedisStoreService } from '../src/common/services/redis-store.service';
 
-describe('RateLimitService', () => {
-  let service: RateLimitService;
+const url = process.env.TEST_REDIS_URL;
+if (process.env.CI && !url) throw new Error('TEST_REDIS_URL is required in CI');
+const describeWithRedis = url ? describe : describe.skip;
 
-  beforeEach(() => {
-    service = new RateLimitService();
-  });
+describeWithRedis('RateLimitService across API replicas', () => {
+  const stores: RedisStoreService[] = [];
+  const make = () => {
+    const store = new RedisStoreService({ get: () => ({ redis: { url } }) } as unknown as ConfigService);
+    stores.push(store);
+    return new RateLimitService(store);
+  };
 
-  it('allows requests within configured window', () => {
-    expect(() => service.assertWithinLimit('ip:1', 2, 60)).not.toThrow();
-    expect(() => service.assertWithinLimit('ip:1', 2, 60)).not.toThrow();
-  });
+  afterAll(async () => { await Promise.all(stores.map(store => store.onModuleDestroy())); });
 
-  it('throws 429 when limit is exceeded', () => {
-    service.assertWithinLimit('ip:2', 1, 60);
-
-    try {
-      service.assertWithinLimit('ip:2', 1, 60, 'Custom limit reached');
-      fail('Expected service to throw');
-    } catch (error) {
-      expect(error).toBeInstanceOf(RateLimitedError);
-      const exception = error as RateLimitedError;
-      expect(exception.kind).toBe('rate_limited');
-      expect(exception.code).toBe('TOO_MANY_REQUESTS');
-      expect(exception.message).toBe('Custom limit reached');
-    }
+  it('shares atomic IP, tenant and key quotas between two processes', async () => {
+    const first = make();
+    const second = make();
+    const prefix = `test-quota:${randomUUID()}`;
+    const keys = [`${prefix}:ip`, `${prefix}:tenant`, `${prefix}:key`];
+    const calls = await Promise.allSettled(Array.from({ length: 12 }, (_, i) =>
+      (i % 2 ? first : second).assertWithinLimit(keys, 5, 60)));
+    expect(calls.filter(result => result.status === 'fulfilled')).toHaveLength(5);
+    expect(calls.filter(result => result.status === 'rejected' && result.reason instanceof RateLimitedError)).toHaveLength(7);
+    const client = await stores[0]!.connection();
+    expect(await client.pTTL(keys[0]!)).toBeGreaterThan(0);
+    await client.del(keys);
   });
 });

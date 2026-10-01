@@ -1,67 +1,58 @@
+import { randomUUID } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import { CacheService } from '../src/common/services/cache.service';
+import { RedisStoreService } from '../src/common/services/redis-store.service';
 
-describe('CacheService', () => {
-  let cache: CacheService;
+const url = process.env.TEST_REDIS_URL;
+if (process.env.CI && !url) throw new Error('TEST_REDIS_URL is required in CI');
+const describeWithRedis = url ? describe : describe.skip;
 
-  beforeEach(() => {
-    cache = new CacheService();
+describeWithRedis('CacheService across API replicas', () => {
+  const stores: RedisStoreService[] = [];
+  const make = () => {
+    const store = new RedisStoreService({ get: () => ({ redis: { url } }) } as unknown as ConfigService);
+    stores.push(store);
+    return new CacheService(store);
+  };
+  afterAll(async () => { await Promise.all(stores.map(store => store.onModuleDestroy())); });
+
+  it('shares a value, computes once and invalidates only the published tenant', async () => {
+    const first = make();
+    const second = make();
+    const tenant = randomUUID();
+    const otherTenant = randomUUID();
+    const factory = jest.fn().mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return { value: 1 };
+    });
+    const values = await Promise.all([
+      first.getOrSetPublic(tenant, 'page=1', factory),
+      second.getOrSetPublic(tenant, 'page=1', factory),
+    ]);
+    expect(values).toEqual([{ value: 1 }, { value: 1 }]);
+    expect(factory).toHaveBeenCalledTimes(1);
+    await first.getOrSetPublic(otherTenant, 'page=1', async () => ({ value: 7 }));
+    await first.invalidateTenantPublic(tenant);
+    expect(await second.getOrSetPublic(tenant, 'page=1', async () => ({ value: 2 }))).toEqual({ value: 2 });
+    expect(await second.getOrSetPublic(otherTenant, 'page=1', async () => ({ value: 8 }))).toEqual({ value: 7 });
   });
 
-  it('returns null for missing keys', () => {
-    expect(cache.get('missing')).toBeNull();
+  it('does not cache values larger than 256 KiB', async () => {
+    const cache = make();
+    const tenant = randomUUID();
+    const factory = jest.fn().mockResolvedValue('x'.repeat(300_000));
+    await cache.getOrSetPublic(tenant, 'large', factory);
+    await cache.getOrSetPublic(tenant, 'large', factory);
+    expect(factory).toHaveBeenCalledTimes(2);
   });
+});
 
-  it('stores and retrieves values', () => {
-    cache.set('key', { data: 42 });
-    expect(cache.get('key')).toEqual({ data: 42 });
-  });
-
-  it('expires entries after TTL', async () => {
-    cache.set('fast', 'value', 50); // 50ms TTL
-    expect(cache.get('fast')).toBe('value');
-
-    await new Promise(r => setTimeout(r, 60));
-    expect(cache.get('fast')).toBeNull();
-  });
-
-  it('getOrSet caches factory result', async () => {
-    const factory = jest.fn().mockResolvedValue('computed');
-
-    const first = await cache.getOrSet('key', factory);
-    const second = await cache.getOrSet('key', factory);
-
-    expect(first).toBe('computed');
-    expect(second).toBe('computed');
-    expect(factory).toHaveBeenCalledTimes(1); // Only called once
-  });
-
-  it('invalidates a specific key', () => {
-    cache.set('a', 1);
-    cache.set('b', 2);
-    cache.invalidate('a');
-
-    expect(cache.get('a')).toBeNull();
-    expect(cache.get('b')).toBe(2);
-  });
-
-  it('invalidates by prefix', () => {
-    cache.set('public:tenant-1:page1', 'data1');
-    cache.set('public:tenant-1:page2', 'data2');
-    cache.set('public:tenant-2:page1', 'data3');
-
-    cache.invalidateByPrefix('public:tenant-1:');
-
-    expect(cache.get('public:tenant-1:page1')).toBeNull();
-    expect(cache.get('public:tenant-1:page2')).toBeNull();
-    expect(cache.get('public:tenant-2:page1')).toBe('data3');
-  });
-
-  it('clears all entries', () => {
-    cache.set('x', 1);
-    cache.set('y', 2);
-    cache.clear();
-
-    expect(cache.get('x')).toBeNull();
-    expect(cache.get('y')).toBeNull();
+describe('CacheService fallback', () => {
+  it('reads PostgreSQL once when Redis is unavailable', async () => {
+    const redis = { connection: jest.fn().mockRejectedValue(new Error('Redis unavailable')) } as unknown as RedisStoreService;
+    const cache = new CacheService(redis);
+    const factory = jest.fn().mockResolvedValue({ value: 3 });
+    await expect(cache.getOrSetPublic(randomUUID(), 'page=1', factory)).resolves.toEqual({ value: 3 });
+    expect(factory).toHaveBeenCalledTimes(1);
   });
 });

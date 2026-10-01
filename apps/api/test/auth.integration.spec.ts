@@ -1,4 +1,4 @@
-import { ConflictError, UnauthorizedError } from '../src/common/errors/application.error';
+import { ConflictError, RateLimitedError, UnauthorizedError } from '../src/common/errors/application.error';
 
 import { PasswordService } from '../src/modules/shared/hashing/password.service';
 import { LoginAttemptsService } from '../src/modules/auth/services/login-attempts.service';
@@ -61,7 +61,14 @@ describe('Auth Flow (Integration)', () => {
     authRepo = createMockAuthRepo();
     tokenService = createMockTokenService();
     passwordService = new PasswordService();
-    loginAttempts = new LoginAttemptsService();
+    let failures = 0;
+    loginAttempts = {
+      assertNotBlocked: jest.fn().mockImplementation(async () => {
+        if (failures >= 5) throw new RateLimitedError('Account temporarily locked');
+      }),
+      registerFailure: jest.fn().mockImplementation(async () => { failures += 1; }),
+      clear: jest.fn().mockImplementation(async () => { failures = 0; }),
+    } as unknown as LoginAttemptsService;
     authService = new AuthService(authRepo, tokenService, passwordService, loginAttempts);
   });
 

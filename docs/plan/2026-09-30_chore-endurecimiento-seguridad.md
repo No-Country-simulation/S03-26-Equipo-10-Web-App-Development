@@ -1,7 +1,7 @@
 # Plan HITL: endurecimiento de Testimonial CMS
 
 **Fecha de inicio:** 2026-09-30  
-**Estado global:** Fase 3 actual; Fase 6 del plan de arquitectura pausada
+**Estado global:** Fase 5 actual; Fase 6 del plan de arquitectura pausada
 **Skills:** `api-key-security-engineering`, `node-backend-engineering`, `web-security-engineering`, `webhook-architecture-engineering`
 
 ## Contexto y restricciones
@@ -48,7 +48,7 @@
 
 **Review humano (ACK):** Recibido mediante «Continua con la fase 3»; Fase 2 versionada en `37636f3`.
 
-### `[Actual]` Fase 3: garantizar entregas mediante PostgreSQL
+### `[Completada localmente]` Fase 3: garantizar entregas mediante PostgreSQL
 
 - Crear una entrega lógica única por `(evento, destino)` y un historial de intentos. Adquirir trabajo con `FOR UPDATE SKIP LOCKED`, lease recuperable y concurrencia limitada.
 - Ejecutar una llamada HTTP por intento con timeout: 2xx confirma; 408/429/5xx y red reintentan con backoff exponencial y full jitter; 4xx definitivos terminan. Tras 10 intentos o 72 horas, estado `dead` visible y reenvío administrativo.
@@ -63,13 +63,27 @@
 
 **Commit sugerido:** `fix(webhooks): garantizá entregas con ledger y leases en PostgreSQL`.
 
-### `[Pendiente]` Fase 4: compartir límites y caché
+**Review humano (ACK):** Recibido mediante «Continua con la fase 4»; Fase 3 versionada en `3ae7e5c`.
+
+### `[Completada localmente]` Fase 4: compartir límites y caché
 
 - Incorporar Redis 7 en Compose y servicio administrado equivalente en despliegues con varias réplicas. Reemplazar los `Map` de login/rate limit por contadores atómicos con TTL y límites por IP confiable, tenant y public ID según ruta. Las mutaciones protegidas fallan cerradas si no se puede verificar la cuota.
 - Migrar caché pública a Redis con TTL, claves versionadas por tenant e invalidación al publicar; acotar valores y evitar recálculos simultáneos.
 - **Salida:** límites e invalidaciones funcionan entre dos instancias API.
 
-### `[Pendiente]` Fase 5: migrar sesión web a cookies HttpOnly
+**Implementación local:** `redis@6.3.0` conecta la API a Redis 7. Las cuotas por ruta/IP efectiva, tenant o slug y clave API usan Lua atómico con TTL; el contador de login usa una clave derivada del hash del correo. Las mutaciones con cuota responden 503 si Redis no puede verificarla. La caché pública usa claves versionadas por tenant, TTL de 60 segundos, tope de 256 KiB y lock entre réplicas; publicar incrementa la versión del tenant. Compose y CI incorporan Redis 7 descartable. Terraform prepara ElastiCache Redis OSS 7 privado con TLS, AUTH, `noeviction` y réplica en producción. Ver [operación](../operations/10_redis_quotas_cache.md).
+
+**Alcance de compatibilidad:** Las claves `tms_` aún carecen de public ID; la cuota usa su UUID persistido hasta la fase 6, cuando el guard preferirá `publicId`. Las lecturas pueden acudir a PostgreSQL si Redis falla; un fallo de invalidación posterior al commit puede dejar una respuesta antigua hasta el TTL. No se desplegó Redis ni se ejecutó Terraform `apply`.
+
+**ACK adicional:** Recibido para editar `docker-compose.yml` e `infra/terraform`; no autoriza aplicar cambios a infraestructura real.
+
+**Verificación local:** API: 29 suites y 151 pruebas aprobadas con PostgreSQL 18 y Redis 7 descartables. Una prueba HTTP alterna dos aplicaciones Nest y confirma 429 en la tercera mutación; otras pruebas comprueban bloqueo de login e invalidación de caché entre conexiones independientes. Web: 19 pruebas en 10 archivos. Typecheck, lint sin errores ni advertencias de API, builds de API y web, `npm ci --dry-run`, `docker compose config`, `terraform fmt -check` de archivos modificados y `terraform validate` en copia temporal pasaron. El build web conserva 12 advertencias preexistentes; Terraform conserva la advertencia anterior de `required_providers` del módulo de certificado. `npm audit --audit-level=high` pasó y reportó cuatro hallazgos moderados en dependencias ajenas a Redis. La imagen API arrancó tras excluir `*.tsbuildinfo` del contexto Docker y corregir dos dependencias Nest; readiness respondió OK, un login inválido respondió 401 con Redis y 503 al detener Redis. No se ejecutaron CI remoto, staging, producción ni `terraform apply`.
+
+**Commit sugerido:** `feat(api): compartí cuotas y caché pública mediante Redis`.
+
+**Review humano (ACK):** Recibido mediante «Vamos con la fase 5». Los cambios de Fase 4 permanecían sin commit en el árbol compartido al comenzar esta fase; separarlos al versionar.
+
+### `[Actual]` Fase 5: migrar sesión web a cookies HttpOnly
 
 - Conservar Bearer explícito. Para la web, `X-Auth-Mode: cookie` devuelve solo usuario en login/refresh; usar `credentials: include` y guardar solo usuario en memoria.
 - Añadir `GET /auth/csrf` con token vinculado criptográficamente a la sesión y header `x-csrf-token`. Consumir una vez el refresh legado de `localStorage`, establecer cookies y borrar el almacenamiento.
