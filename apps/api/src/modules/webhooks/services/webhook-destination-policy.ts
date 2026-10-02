@@ -21,10 +21,14 @@ export class WebhookDestinationPolicy {
   }
 
   legacyHttpDeadline(createdAt: Date): Date | null {
-    const startedAt = this.config.get<AppConfig>('app')?.webhookLegacyHttpStartedAt;
-    if (!startedAt) return null;
-    const start = new Date(startedAt).getTime();
+    const start = this.legacyHttpStartedAt()?.getTime();
+    if (start === undefined) return null;
     return createdAt.getTime() <= start ? new Date(start + LEGACY_WINDOW_MS) : null;
+  }
+
+  legacyHttpStartedAt(): Date | null {
+    const value = this.config.get<AppConfig>('app')?.webhookLegacyHttpStartedAt;
+    return value ? new Date(value) : null;
   }
 
   allowsLegacyHttp(createdAt: Date, now = Date.now()): boolean {

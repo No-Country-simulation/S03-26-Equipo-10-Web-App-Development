@@ -6,6 +6,11 @@ export interface AppConfig {
   corsOrigin: string;
   trustedProxyHops: number;
   webhookLegacyHttpStartedAt: string | null;
+  webhookSignatureLegacyStartedAt: string | null;
+  webhookSecrets: {
+    currentKeyVersion: number;
+    keys: Record<string, string>;
+  };
   authLegacyStartedAt: string | null;
   apiKeys: {
     environment: 'live' | 'test';
@@ -39,6 +44,24 @@ export const appConfigValidationSchema = z.object({
     z.iso.datetime({ offset: false, local: false })
       .refine(value => !Number.isNaN(Date.parse(value))),
   ]).default(''),
+  WEBHOOK_SIGNATURE_LEGACY_STARTED_AT: z.union([
+    z.literal(''),
+    z.iso.datetime({ offset: false, local: false })
+      .refine(value => !Number.isNaN(Date.parse(value))),
+  ]).default(''),
+  WEBHOOK_SECRET_CURRENT_VERSION: z.coerce.number().int().positive().default(1),
+  WEBHOOK_SECRET_KEYS_JSON: z.string().default('').refine(value => {
+    if (!value) return process.env.NODE_ENV !== 'production';
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return false;
+      return Object.entries(parsed).length > 0 && Object.entries(parsed).every(([version, key]) => {
+        if (!/^[1-9]\d*$/.test(version) || typeof key !== 'string') return false;
+        const bytes = Buffer.from(key, 'base64url');
+        return bytes.length === 32 && bytes.toString('base64url') === key;
+      });
+    } catch { return false; }
+  }, 'WEBHOOK_SECRET_KEYS_JSON must map versions to 32-byte base64url keys'),
   AUTH_LEGACY_STARTED_AT: z.union([
     z.literal(''),
     z.iso.datetime({ offset: false, local: false })
@@ -102,6 +125,14 @@ export const appConfigValidationSchema = z.object({
         message: 'Current API key pepper version is missing' });
     }
   }
+  if (env.WEBHOOK_SECRET_KEYS_JSON) {
+    let keys: Record<string, string> = {};
+    try { keys = JSON.parse(env.WEBHOOK_SECRET_KEYS_JSON) as Record<string, string>; } catch { return; }
+    if (!keys[String(env.WEBHOOK_SECRET_CURRENT_VERSION)]) {
+      context.addIssue({ code: 'custom', path: ['WEBHOOK_SECRET_CURRENT_VERSION'],
+        message: 'Current webhook encryption key version is missing' });
+    }
+  }
 });
 
 export const appConfig = registerAs('app', (): AppConfig => {
@@ -111,11 +142,20 @@ export const appConfig = registerAs('app', (): AppConfig => {
   if (process.env.NODE_ENV === 'production' && !process.env.API_KEY_PEPPERS_JSON) {
     throw new Error('API_KEY_PEPPERS_JSON is required in production');
   }
+  if (process.env.NODE_ENV === 'production' && !process.env.WEBHOOK_SECRET_KEYS_JSON) {
+    throw new Error('WEBHOOK_SECRET_KEYS_JSON is required in production');
+  }
   return {
     port: Number(process.env.PORT ?? 4000),
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
     trustedProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? (process.env.NODE_ENV === 'production' ? 1 : 0)),
     webhookLegacyHttpStartedAt: process.env.WEBHOOK_LEGACY_HTTP_STARTED_AT || null,
+    webhookSignatureLegacyStartedAt: process.env.WEBHOOK_SIGNATURE_LEGACY_STARTED_AT || null,
+    webhookSecrets: {
+      currentKeyVersion: Number(process.env.WEBHOOK_SECRET_CURRENT_VERSION ?? 1),
+      keys: process.env.WEBHOOK_SECRET_KEYS_JSON
+        ? JSON.parse(process.env.WEBHOOK_SECRET_KEYS_JSON) as Record<string, string> : {},
+    },
     authLegacyStartedAt: process.env.AUTH_LEGACY_STARTED_AT || null,
     apiKeys: {
       environment: process.env.NODE_ENV === 'production' ? 'live' : 'test',

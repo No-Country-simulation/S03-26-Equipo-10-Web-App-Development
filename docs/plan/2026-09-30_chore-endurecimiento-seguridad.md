@@ -1,7 +1,7 @@
 # Plan HITL: endurecimiento de Testimonial CMS
 
 **Fecha de inicio:** 2026-09-30  
-**Estado global:** Fase 6 completada localmente, pendiente de revisión humana; Fase 6 del plan de arquitectura pausada
+**Estado global:** Fase 7 completada localmente, pendiente de revisión humana; Fase 6 del plan de arquitectura pausada
 **Skills:** `api-key-security-engineering`, `node-backend-engineering`, `web-security-engineering`, `webhook-architecture-engineering`
 
 ## Contexto y restricciones
@@ -116,11 +116,21 @@
 
 **Commit sugerido:** `feat(api-keys): incorporá credenciales versionadas con scopes y rotación segura`.
 
-### `[Pendiente]` Fase 7: contrato y secretos de webhooks
+**Review humano (ACK):** Recibido mediante «Continua con la fase 7»; los cambios de Fase 6 ya estaban versionados al comenzar esta fase.
+
+### `[Completada localmente]` Fase 7: contrato y secretos de webhooks
 
 - Secreto independiente por destino, revelado único y cifrado con clave versionada de un gestor de secretos. Enviar ID de evento estable, versión de esquema y `X-TMS-Signature: t=<segundos>,v1=<HMAC>` sobre timestamp, punto y bytes exactos del body; documentar verificación y ventana de cinco minutos.
 - Mantener `X-Signature` 30 días para destinos legados con secreto. Avisar de destinos sin firma o HTTP y suspenderlos al vencer. No devolver secretos en GET; truncar y redactar cuerpos/errores antes de persistir.
 - **Salida:** firma, rotación con gracia, replay y ausencia de secretos en respuestas/logs probados.
+
+**Implementación local:** Cada alta genera un secreto independiente y lo revela una vez; el servidor cifra AES-256-GCM con clave versionada inyectada desde Secrets Manager y AAD por tenant/destino. La rotación revela un secreto nuevo y mantiene el anterior 24 horas, con bloqueo de una segunda rotación durante la gracia. Las entregas llevan ID estable, versión 1 y `X-TMS-Signature` sobre timestamp y bytes exactos del cuerpo; durante la gracia incluyen ambas firmas `v1`. El receptor debe verificar una ventana de cinco minutos y deduplicar por ID. `X-Signature` persiste solo durante 30 días para destinos firmados anteriores al corte. Los GET exponen metadatos y avisos de migración, nunca secretos. Los destinos HTTP o sin firma se suspenden al vencer su plazo. Cuerpos y errores de respuesta se redactan y acotan antes de persistirse. Ver [contrato](../modules/api-webhooks.md) y [operación](../operations/13_webhook_signing_rollout.md).
+
+**Migración y ACK adicional:** Se autorizaron los cambios de `apps/api/prisma/schema.prisma` e infraestructura. La migración de expansión pasó desde cero y sobre un esquema previo con un destino legado sintético en PostgreSQL 18 descartable; el backfill se ejecutó en esa copia, limpió el texto plano y dejó el secreto cifrado. El backfill de una base persistente, Terraform `apply` y despliegues siguen requiriendo autorizaciones separadas. Se conserva el lector legado para rollback compatible; el primer despliegue debe fijar `WEBHOOK_SIGNATURE_LEGACY_STARTED_AT` en UTC.
+
+**Verificación local:** API: 38 suites y 184 pruebas aprobadas con PostgreSQL 18 y Redis 7 descartables, incluyendo contrato HTTP, firma alterada, replay fuera de cinco minutos, doble firma en gracia, expiración de `X-Signature`, aislamiento entre tenants, suspensión y redacción en PostgreSQL/logs. Web: 21 pruebas en 11 archivos. Typecheck, lint y build API/web, `docker compose config`, `terraform fmt -check` y `terraform validate` en copia temporal pasaron. El build web conserva 11 advertencias previas; Terraform conserva la advertencia anterior de `required_providers` del módulo de certificado. No se verificaron CI remoto, staging ni producción.
+
+**Commit sugerido:** `feat(webhooks): firmá eventos y cifrá secretos por destino`.
 
 ### `[Pendiente]` Fase 8: límites, observabilidad y despliegue
 

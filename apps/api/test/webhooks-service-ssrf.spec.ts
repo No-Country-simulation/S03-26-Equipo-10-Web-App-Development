@@ -3,6 +3,7 @@ import { WebhooksService } from '../src/modules/webhooks/services/webhooks.servi
 import { WebhookDestinationPolicy } from '../src/modules/webhooks/services/webhook-destination-policy';
 import type { WebhookRepository } from '../src/modules/webhooks/repositories/webhook.repository';
 import type { OutboxRepository } from '../src/modules/webhooks/repositories/outbox.repository';
+import type { WebhookSecretService } from '../src/modules/webhooks/services/webhook-secret.service';
 
 describe('WebhooksService SSRF boundary', () => {
   const policy = new WebhookDestinationPolicy({
@@ -19,7 +20,10 @@ describe('WebhooksService SSRF boundary', () => {
     findByTenant: jest.fn().mockResolvedValue([legacy]),
   } as unknown as WebhookRepository;
   const outbox = { createEvent: jest.fn().mockResolvedValue('event-id'), replayDead: jest.fn() } as unknown as OutboxRepository;
-  const service = new WebhooksService(repo, outbox, policy);
+  const secrets = {
+    legacyDeadline: () => new Date('2026-10-30T12:00:00Z'), legacyAllowed: () => true,
+  } as unknown as WebhookSecretService;
+  const service = new WebhooksService(repo, outbox, policy, secrets);
 
   beforeEach(() => {
     (repo.create as jest.Mock).mockClear();

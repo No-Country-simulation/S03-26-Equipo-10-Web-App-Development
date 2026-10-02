@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:migrate:dev": "prisma migrate dev",
+    "webhooks:encrypt-legacy": "ts-node scripts/encrypt-legacy-webhook-secrets.ts",
     "test:cov": "jest --runInBand --coverage"
   },
   "dependencies": {

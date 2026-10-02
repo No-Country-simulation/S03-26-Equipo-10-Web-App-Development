@@ -1,10 +1,12 @@
-import { NotFoundError } from '../../../common/errors/application.error';
+import { ConflictError, NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { WebhookRepository } from '../repositories/webhook.repository';
 import { CreateWebhookDto, UpdateWebhookDto } from '../dto/webhook.dto';
 import { WebhookDestinationPolicy } from './webhook-destination-policy';
 import type { WebhookView } from '../repositories/webhook.repository';
 import { OutboxRepository } from '../repositories/outbox.repository';
+import { WebhookSecretService } from './webhook-secret.service';
 
 @Injectable()
 export class WebhooksService {
@@ -12,17 +14,24 @@ export class WebhooksService {
     private readonly webhookRepo: WebhookRepository,
     private readonly outbox: OutboxRepository,
     private readonly destinationPolicy: WebhookDestinationPolicy,
+    private readonly secrets: WebhookSecretService,
   ) {}
 
   async createWebhook(tenantId: string, dto: CreateWebhookDto) {
     await this.destinationPolicy.validateNewUrl(dto.url);
-    return this.webhookRepo.create({
+    const id = randomUUID();
+    const signingSecret = this.secrets.issue();
+    const encrypted = this.secrets.encrypt(tenantId, id, signingSecret);
+    const created = await this.webhookRepo.create({
+      id,
       tenantId,
       url: dto.url,
       eventCode: dto.eventCode,
-      ...(dto.secret !== undefined && { secret: dto.secret }),
+      secretCiphertext: encrypted.ciphertext,
+      secretKeyVersion: encrypted.keyVersion,
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     });
+    return { ...created, signingSecret };
   }
 
   async deleteWebhook(tenantId: string, webhookId: string) {
@@ -55,12 +64,12 @@ export class WebhooksService {
   async getWebhook(tenantId: string, webhookId: string) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
     if (!webhook) throw new NotFoundError('Webhook not found');
-    return webhook;
+    return this.withLegacyNotice(webhook);
   }
 
   async testWebhook(tenantId: string, webhookId: string) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
-    if (!webhook || webhook.deletedAt) throw new NotFoundError('Webhook not found');
+    if (!webhook || webhook.deletedAt || !webhook.isActive) throw new NotFoundError('Webhook not found');
 
     const payload = {
       test: true,
@@ -84,13 +93,45 @@ export class WebhooksService {
     if (dto.url) {
       await this.destinationPolicy.validateNewUrl(dto.url);
     }
+    if (dto.isActive && !webhook.hasSignature &&
+      !this.secrets.legacyAllowed(webhook.createdAt)) {
+      throw new ConflictError('Unsigned webhook must rotate its secret before activation');
+    }
+    if (dto.isActive && !dto.url && webhook.url.startsWith('http://') &&
+      !this.destinationPolicy.allowsLegacyHttp(webhook.createdAt)) {
+      throw new ConflictError('HTTP webhook must use HTTPS before activation');
+    }
 
-    return this.webhookRepo.update(tenantId, webhookId, {
+    const updated = await this.webhookRepo.update(tenantId, webhookId, {
       ...(dto.url !== undefined && { url: dto.url }),
       ...(dto.eventCode !== undefined && { eventCode: dto.eventCode }),
-      ...(dto.secret !== undefined && { secret: dto.secret }),
       ...(dto.isActive !== undefined && { isActive: dto.isActive }),
     });
+    return this.withLegacyNotice(updated);
+  }
+
+  async rotateSecret(tenantId: string, webhookId: string) {
+    const current = await this.webhookRepo.findSigningMaterial(tenantId, webhookId);
+    if (!current) throw new NotFoundError('Webhook not found');
+    if (current.previousSecretValidUntil && current.previousSecretValidUntil > new Date()) {
+      throw new ConflictError('Previous webhook secret is still in its grace period');
+    }
+    const oldSecret = current.secretCiphertext && current.secretKeyVersion
+      ? this.secrets.decrypt(tenantId, webhookId, {
+        ciphertext: current.secretCiphertext, keyVersion: current.secretKeyVersion,
+      }) : current.secret;
+    const signingSecret = this.secrets.issue();
+    const encrypted = this.secrets.encrypt(tenantId, webhookId, signingSecret);
+    const previous = oldSecret ? this.secrets.encrypt(tenantId, webhookId, oldSecret) : null;
+    const graceUntil = previous ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null;
+    const updated = await this.webhookRepo.rotateSecret({
+      tenantId, webhookId, expectedUpdatedAt: current.updatedAt,
+      ciphertext: encrypted.ciphertext, keyVersion: encrypted.keyVersion,
+      previousCiphertext: previous?.ciphertext ?? null,
+      previousKeyVersion: previous?.keyVersion ?? null,
+      graceUntil,
+    });
+    return { ...this.withLegacyNotice(updated), signingSecret };
   }
 
   private withLegacyNotice(webhook: WebhookView) {
@@ -101,6 +142,12 @@ export class WebhooksService {
         deadlineAt: this.destinationPolicy.legacyHttpDeadline(webhook.createdAt)?.toISOString() ?? null,
         canDeliver: this.destinationPolicy.allowsLegacyHttp(webhook.createdAt),
       } : null,
+      legacyUnsigned: !webhook.hasSignature ? {
+        deadlineAt: this.secrets.legacyDeadline(webhook.createdAt)?.toISOString() ?? null,
+        canDeliver: this.secrets.legacyAllowed(webhook.createdAt),
+      } : null,
+      legacySignatureUntil: webhook.hasSignature && this.secrets.legacyAllowed(webhook.createdAt)
+        ? this.secrets.legacyDeadline(webhook.createdAt)?.toISOString() ?? null : null,
     };
   }
 }

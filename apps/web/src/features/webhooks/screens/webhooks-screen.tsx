@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Plus, RefreshCw, Trash2, Webhook, Zap, ShieldAlert } from 'lucide-react';
-import { createWebhook, deleteWebhook, listWebhookDeliveries, listWebhooks, replayWebhookDelivery, testWebhook } from '../api';
+import { Plus, RefreshCw, Trash2, Webhook, Zap, ShieldAlert, Copy } from 'lucide-react';
+import { createWebhook, deleteWebhook, listWebhookDeliveries, listWebhooks, replayWebhookDelivery, rotateWebhookSecret, testWebhook } from '../api';
 
 export type WebhookView = {
   id: string;
@@ -19,7 +19,11 @@ export type WebhookView = {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
+  hasSignature: boolean;
+  signatureGraceUntil: string | null;
   legacyHttp?: { deadlineAt: string | null; canDeliver: boolean } | null;
+  legacyUnsigned?: { deadlineAt: string | null; canDeliver: boolean } | null;
+  legacySignatureUntil?: string | null;
 };
 
 type DeliveryView = {
@@ -38,6 +42,7 @@ export default function WebhooksPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [selectedWebhookId, setSelectedWebhookId] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
+  const [newSigningSecret, setNewSigningSecret] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,17 +61,28 @@ export default function WebhooksPage() {
     setCreateLoading(true);
     const fd = new FormData(e.currentTarget);
     try {
-      await createWebhook(fetchApi, {
+      const result = await createWebhook(fetchApi, {
         url: fd.get('url'),
         eventCode: fd.get('eventCode'),
-        secret: fd.get('secret') || undefined,
       });
+      setNewSigningSecret(result.data.signingSecret);
       setShowForm(false);
       void load();
     } catch (err) {
       alert(`Error al crear webhook: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setCreateLoading(false);
+    }
+  }
+
+  async function handleRotateSecret(id: string) {
+    if (!confirm('¿Rotar el secreto de firma? El anterior tendrá 24 horas de gracia.')) return;
+    try {
+      const result = await rotateWebhookSecret(fetchApi, id);
+      setNewSigningSecret(result.data.signingSecret);
+      void load();
+    } catch (err) {
+      alert(`Error al rotar el secreto: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -137,15 +153,22 @@ export default function WebhooksPage() {
         </Button>
       </DashboardHeader>
 
+      {newSigningSecret && (
+        <div role="status" className="mb-6 border-l-4 border-primary bg-primary/10 p-4">
+          <p className="font-body text-sm font-bold">Copiá el secreto de firma ahora. No volverá a mostrarse.</p>
+          <div className="mt-2 flex gap-2">
+            <code className="min-w-0 flex-1 overflow-x-auto border bg-background p-2 text-xs">{newSigningSecret}</code>
+            <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(newSigningSecret)}
+              aria-label="Copiar secreto de firma"><Copy className="h-4 w-4" /></Button>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <form onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-4">
           <div className="grid gap-2 sm:col-span-2">
             <Label className="font-body text-[10px] font-bold uppercase tracking-widest">URL de Destino</Label>
             <Input name="url" type="url" pattern="https://.*" required className="h-10 bg-transparent" placeholder="https://api.miproyecto.com/webhooks/..." />
-          </div>
-          <div className="grid gap-2 sm:col-span-2">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Secret KEY (Opcional, Hmac)</Label>
-            <Input name="secret" type="password" className="h-10 bg-transparent" placeholder="Llave de firma" />
           </div>
           <div className="grid gap-2 sm:col-span-2">
             <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Evento a Suscribir</Label>
@@ -173,9 +196,9 @@ export default function WebhooksPage() {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          {webhooks.some(w => w.legacyHttp) && (
+          {webhooks.some(w => w.legacyHttp || w.legacyUnsigned) && (
             <p role="alert" className="mb-4 border border-amber-500/50 bg-amber-500/10 p-3 font-body text-sm">
-              Los destinos HTTP existentes deben migrarse a HTTPS. Después del plazo de 30 días dejarán de recibir eventos.
+              Los destinos HTTP deben migrarse a HTTPS y los destinos sin firma deben rotar su secreto antes de su plazo de 30 días.
             </p>
           )}
           <table className="w-full">
@@ -197,6 +220,13 @@ export default function WebhooksPage() {
                         {w.legacyHttp.canDeliver
                           ? `HTTP legado: migrá a HTTPS antes del ${w.legacyHttp.deadlineAt ?? 'plazo configurado'}`
                           : 'HTTP legado: envío bloqueado; migrá a HTTPS'}
+                      </span>
+                    )}
+                    {w.legacyUnsigned && (
+                      <span className="block text-xs text-amber-600">
+                        {w.legacyUnsigned.canDeliver
+                          ? `Sin firma: rotá el secreto antes del ${w.legacyUnsigned.deadlineAt ?? 'plazo configurado'}`
+                          : 'Sin firma: envío bloqueado; rotá el secreto'}
                       </span>
                     )}
                   </td>
@@ -223,6 +253,11 @@ export default function WebhooksPage() {
                       <Button variant="ghost" size="sm" onClick={() => void showDeliveries(w.id)}>
                         Historial
                       </Button>
+                      {!w.deletedAt && (
+                        <Button variant="ghost" size="sm" onClick={() => void handleRotateSecret(w.id)}>
+                          Rotar secreto
+                        </Button>
+                      )}
                       {!w.deletedAt && (
                         <Button variant="ghost" size="sm" onClick={() => handleRemove(w.id)} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
                           <Trash2 className="h-4 w-4" />

@@ -1,4 +1,4 @@
-import { NotFoundError } from '../../../common/errors/application.error';
+import { ConflictError, NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 
@@ -11,6 +11,8 @@ export interface WebhookView {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  hasSignature: boolean;
+  signatureGraceUntil: Date | null;
 }
 
 export interface WebhookDeliveryView {
@@ -35,11 +37,30 @@ export interface WebhookDeliveryView {
 
 export interface WebhookWithSecret extends WebhookView {
   secret: string | null;
+  secretCiphertext: string | null;
+  secretKeyVersion: number | null;
+  previousSecretCiphertext: string | null;
+  previousSecretKeyVersion: number | null;
+  previousSecretValidUntil: Date | null;
 }
 
 @Injectable()
 export class WebhookRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  private view(w: {
+    id: string; tenantId: string; url: string; isActive: boolean; createdAt: Date;
+    updatedAt: Date; deletedAt: Date | null; secret: string | null;
+    secretCiphertext: string | null; previousSecretValidUntil: Date | null;
+    event: { code: string };
+  }): WebhookView {
+    return {
+      id: w.id, tenantId: w.tenantId, url: w.url, eventCode: w.event.code,
+      isActive: w.isActive, createdAt: w.createdAt, updatedAt: w.updatedAt,
+      deletedAt: w.deletedAt, hasSignature: !!(w.secretCiphertext || w.secret),
+      signatureGraceUntil: w.previousSecretValidUntil,
+    };
+  }
 
   async findByTenant(tenantId: string): Promise<WebhookView[]> {
     const webhooks = await this.prisma.webhook.findMany({
@@ -48,19 +69,10 @@ export class WebhookRepository {
       orderBy: { createdAt: 'desc' },
     });
 
-    return webhooks.map((w) => ({
-      id: w.id,
-      tenantId: w.tenantId,
-      url: w.url,
-      eventCode: w.event.code,
-      isActive: w.isActive,
-      createdAt: w.createdAt,
-      updatedAt: w.updatedAt,
-      deletedAt: w.deletedAt,
-    }));
+    return webhooks.map(w => this.view(w));
   }
 
-  async findById(tenantId: string, webhookId: string): Promise<WebhookWithSecret | null> {
+  async findById(tenantId: string, webhookId: string): Promise<WebhookView | null> {
     const w = await this.prisma.webhook.findFirst({
       where: { id: webhookId, tenantId },
       include: { event: true },
@@ -68,24 +80,24 @@ export class WebhookRepository {
 
     if (!w) return null;
 
-    return {
-      id: w.id,
-      tenantId: w.tenantId,
-      url: w.url,
-      eventCode: w.event.code,
-      secret: w.secret,
-      isActive: w.isActive,
-      createdAt: w.createdAt,
-      updatedAt: w.updatedAt,
-      deletedAt: w.deletedAt,
-    };
+    return this.view(w);
+  }
+
+  findSigningMaterial(tenantId: string, webhookId: string) {
+    return this.prisma.webhook.findFirst({
+      where: { id: webhookId, tenantId, deletedAt: null },
+      select: { id: true, tenantId: true, createdAt: true, updatedAt: true, secret: true,
+        secretCiphertext: true, secretKeyVersion: true, previousSecretValidUntil: true },
+    });
   }
 
   async create(params: {
+    id: string;
     tenantId: string;
     url: string;
     eventCode: string;
-    secret?: string;
+    secretCiphertext: string;
+    secretKeyVersion: number;
     isActive?: boolean;
   }): Promise<WebhookView> {
     const event = await this.prisma.webhookEvent.findUnique({ where: { code: params.eventCode } });
@@ -93,31 +105,24 @@ export class WebhookRepository {
 
     const created = await this.prisma.webhook.create({
       data: {
+        id: params.id,
         tenantId: params.tenantId,
         url: params.url,
         eventId: event.id,
-        secret: params.secret ?? null,
+        secret: null,
+        secretCiphertext: params.secretCiphertext,
+        secretKeyVersion: params.secretKeyVersion,
         isActive: params.isActive ?? true,
       },
       include: { event: true },
     });
 
-    return {
-      id: created.id,
-      tenantId: created.tenantId,
-      url: created.url,
-      eventCode: created.event.code,
-      isActive: created.isActive,
-      createdAt: created.createdAt,
-      updatedAt: created.updatedAt,
-      deletedAt: created.deletedAt,
-    };
+    return this.view(created);
   }
 
   async update(tenantId: string, webhookId: string, params: {
     url?: string;
     eventCode?: string;
-    secret?: string;
     isActive?: boolean;
   }): Promise<WebhookView> {
     let eventId: number | undefined;
@@ -131,23 +136,53 @@ export class WebhookRepository {
       where: { id: webhookId, tenantId },
       data: {
         ...(params.url !== undefined && { url: params.url }),
-        ...(params.secret !== undefined && { secret: params.secret }),
         ...(params.isActive !== undefined && { isActive: params.isActive }),
         ...(eventId !== undefined && { eventId }),
       },
       include: { event: true },
     });
 
-    return {
-      id: updated.id,
-      tenantId: updated.tenantId,
-      url: updated.url,
-      eventCode: updated.event.code,
-      isActive: updated.isActive,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
-      deletedAt: updated.deletedAt,
-    };
+    return this.view(updated);
+  }
+
+  async rotateSecret(params: {
+    tenantId: string; webhookId: string; expectedUpdatedAt: Date;
+    ciphertext: string; keyVersion: number;
+    previousCiphertext: string | null; previousKeyVersion: number | null;
+    graceUntil: Date | null;
+  }): Promise<WebhookView> {
+    const changed = await this.prisma.webhook.updateMany({
+      where: { id: params.webhookId, tenantId: params.tenantId,
+        updatedAt: params.expectedUpdatedAt, deletedAt: null },
+      data: {
+        secret: null, secretCiphertext: params.ciphertext, secretKeyVersion: params.keyVersion,
+        previousSecretCiphertext: params.previousCiphertext,
+        previousSecretKeyVersion: params.previousKeyVersion,
+        previousSecretValidUntil: params.graceUntil,
+      },
+    });
+    if (changed.count !== 1) throw new ConflictError('Webhook changed during secret rotation');
+    const updated = await this.findById(params.tenantId, params.webhookId);
+    if (!updated) throw new NotFoundError('Webhook not found');
+    return updated;
+  }
+
+  async suspendExpiredUnsigned(startedAt: Date): Promise<number> {
+    const result = await this.prisma.webhook.updateMany({
+      where: { createdAt: { lte: startedAt }, isActive: true, deletedAt: null,
+        secret: null, secretCiphertext: null },
+      data: { isActive: false },
+    });
+    return result.count;
+  }
+
+  async suspendExpiredHttp(startedAt: Date): Promise<number> {
+    const result = await this.prisma.webhook.updateMany({
+      where: { createdAt: { lte: startedAt }, url: { startsWith: 'http://', mode: 'insensitive' },
+        isActive: true, deletedAt: null },
+      data: { isActive: false },
+    });
+    return result.count;
   }
 
   async remove(tenantId: string, webhookId: string): Promise<void> {

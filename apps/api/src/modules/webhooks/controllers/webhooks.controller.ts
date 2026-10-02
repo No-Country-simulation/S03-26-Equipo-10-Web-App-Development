@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -39,11 +40,21 @@ export class WebhooksController {
   }
 
   @Post()
+  @Header('Cache-Control', 'no-store')
   create(
     @CurrentTenantId() tenantId: string,
     @Body() dto: CreateWebhookDto,
   ) {
     return this.webhooksService.createWebhook(tenantId, dto);
+  }
+
+  @Post(':webhook_id/rotate-secret')
+  @Header('Cache-Control', 'no-store')
+  rotateSecret(
+    @CurrentTenantId() tenantId: string,
+    @Param('webhook_id', ParseUUIDPipe) webhookId: string,
+  ) {
+    return this.webhooksService.rotateSecret(tenantId, webhookId);
   }
 
   @Patch(':webhook_id')

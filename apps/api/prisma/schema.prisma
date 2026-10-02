@@ -237,7 +237,12 @@ model Webhook {
   url        String
   eventId    Int               @map("event_id")
   isActive   Boolean           @default(true) @map("is_active")
-  secret     String?
+  secret     String?            // lector legado hasta completar el cifrado
+  secretCiphertext String?      @map("secret_ciphertext")
+  secretKeyVersion Int?         @map("secret_key_version")
+  previousSecretCiphertext String? @map("previous_secret_ciphertext")
+  previousSecretKeyVersion Int?    @map("previous_secret_key_version")
+  previousSecretValidUntil DateTime? @map("previous_secret_valid_until")
   createdAt  DateTime          @default(now()) @map("created_at")
   updatedAt  DateTime          @updatedAt @map("updated_at")
   deletedAt  DateTime?         @map("deleted_at")

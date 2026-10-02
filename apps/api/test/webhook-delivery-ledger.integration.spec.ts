@@ -5,6 +5,8 @@ import { OutboxRepository } from '../src/modules/webhooks/repositories/outbox.re
 import { WebhookRepository } from '../src/modules/webhooks/repositories/webhook.repository';
 import { OutboxProcessor } from '../src/modules/webhooks/services/outbox.processor';
 import { HttpWebhookDispatcher } from '../src/modules/webhooks/services/http-webhook-dispatcher';
+import type { WebhookSecretService } from '../src/modules/webhooks/services/webhook-secret.service';
+import type { WebhookDestinationPolicy } from '../src/modules/webhooks/services/webhook-destination-policy';
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 if (process.env.CI && !testDatabaseUrl) {
@@ -70,9 +72,11 @@ describeWithDatabase('webhook delivery ledger in PostgreSQL', () => {
       await new Promise(resolve => setTimeout(resolve, 30));
       return { status: 200, body: 'ok' };
     }) } as unknown as HttpWebhookDispatcher;
+    const secrets = { legacyStartedAt: () => null } as unknown as WebhookSecretService;
+    const policy = { legacyHttpStartedAt: () => null } as unknown as WebhookDestinationPolicy;
     await Promise.all([
-      new OutboxProcessor(repo, sender).process(),
-      new OutboxProcessor(otherRepo, sender).process(),
+      new OutboxProcessor(repo, sender, new WebhookRepository(prisma as PrismaService), secrets, policy).process(),
+      new OutboxProcessor(otherRepo, sender, new WebhookRepository(otherClient as PrismaService), secrets, policy).process(),
     ]);
     const deliveries = await prisma.webhookDelivery.findMany({ where: { outboxEventId }, include: { attemptHistory: true } });
     expect(deliveries).toHaveLength(2);
@@ -162,5 +166,27 @@ describeWithDatabase('webhook delivery ledger in PostgreSQL', () => {
     await repo.initializePending();
     expect(await prisma.webhookDelivery.count({ where: { outboxEventId: event.id } })).toBe(1);
     expect((await prisma.outboxEvent.findUniqueOrThrow({ where: { id: event.id } })).deliveriesInitializedAt).not.toBeNull();
+  });
+
+  it('redacta y trunca cuerpos y errores antes de persistir intentos', async () => {
+    const { tenantId } = await destination();
+    const outboxEventId = await repo.createEvent({ tenantId, eventType: eventCode, payload: {} });
+    const claims = await repo.claimDue(100);
+    const claim = claims.find(candidate => candidate.outboxEventId === outboxEventId)!;
+    expect(claim).toBeDefined();
+    for (const other of claims.filter(candidate => candidate.id !== claim.id)) {
+      await repo.completeAttempt(other, { status: 204 });
+    }
+    const secret = `whsec_${'a'.repeat(64)}`;
+    await repo.completeAttempt(claim, { status: 500,
+      body: `{"secret":"${secret}"}${'x'.repeat(3000)}`,
+      errorMessage: `Bearer ${secret} ${'y'.repeat(3000)}` });
+    const delivery = await prisma.webhookDelivery.findFirstOrThrow({ where: { outboxEventId },
+      include: { attemptHistory: true } });
+    for (const value of [delivery.responseBody, delivery.errorMessage,
+      delivery.attemptHistory[0]?.responseBody, delivery.attemptHistory[0]?.errorMessage]) {
+      expect(value).not.toContain(secret);
+      expect(value!.length).toBeLessThanOrEqual(2048);
+    }
   });
 });

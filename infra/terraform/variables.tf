@@ -86,6 +86,33 @@ variable "webhook_legacy_http_started_at" {
   }
 }
 
+variable "webhook_signature_legacy_started_at" {
+  description = "UTC del primer despliegue con firmas versionadas; X-Signature y destinos sin firma vencen a los 30 días."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "webhook_secret_current_version" {
+  description = "Versión actual de la clave AES-GCM para secretos de destinos webhook."
+  type        = number
+  default     = 1
+  validation {
+    condition     = var.webhook_secret_current_version >= 1
+    error_message = "The webhook secret key version must be positive."
+  }
+}
+
+variable "webhook_secret_keys_json" {
+  description = "Mapa JSON de versiones a claves AES-256-GCM; inyectar desde almacén seguro."
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = can(jsondecode(var.webhook_secret_keys_json))
+    error_message = "The webhook secret keys must be a JSON object."
+  }
+}
+
 variable "api_key_legacy_started_at" {
   description = "UTC del primer despliegue compatible de API keys; tms_ vence a los 30 días. Null lo bloquea en producción."
   type        = string

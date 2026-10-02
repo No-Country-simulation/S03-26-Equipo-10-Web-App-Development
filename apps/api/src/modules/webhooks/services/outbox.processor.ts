@@ -1,6 +1,9 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { OutboxRepository, type ClaimedDelivery } from '../repositories/outbox.repository';
 import { HttpWebhookDispatcher } from './http-webhook-dispatcher';
+import { WebhookRepository } from '../repositories/webhook.repository';
+import { WebhookSecretService } from './webhook-secret.service';
+import { WebhookDestinationPolicy } from './webhook-destination-policy';
 
 @Injectable()
 export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
@@ -13,6 +16,9 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly outbox: OutboxRepository,
     private readonly dispatcher: HttpWebhookDispatcher,
+    private readonly webhooks: WebhookRepository,
+    private readonly secrets: WebhookSecretService,
+    private readonly destinationPolicy: WebhookDestinationPolicy,
   ) {}
 
   onModuleInit(): void {
@@ -30,6 +36,14 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
     this.running = true;
     const startedAt = Date.now();
     try {
+      const signatureStart = this.secrets.legacyStartedAt();
+      if (signatureStart && Date.now() >= signatureStart.getTime() + 30 * 24 * 60 * 60 * 1000) {
+        await this.webhooks.suspendExpiredUnsigned(signatureStart);
+      }
+      const httpStart = this.destinationPolicy.legacyHttpStartedAt();
+      if (httpStart && Date.now() >= httpStart.getTime() + 30 * 24 * 60 * 60 * 1000) {
+        await this.webhooks.suspendExpiredHttp(httpStart);
+      }
       await this.outbox.initializePending(25);
       await this.outbox.recoverExpired(25);
       const claimed = await this.outbox.claimDue(this.concurrency);
@@ -67,6 +81,13 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
       url: context.destinationUrl,
       eventCode: context.webhook.event.code,
       secret: context.webhook.secret,
+      secretCiphertext: context.webhook.secretCiphertext,
+      secretKeyVersion: context.webhook.secretKeyVersion,
+      previousSecretCiphertext: context.webhook.previousSecretCiphertext,
+      previousSecretKeyVersion: context.webhook.previousSecretKeyVersion,
+      previousSecretValidUntil: context.webhook.previousSecretValidUntil,
+      hasSignature: !!(context.webhook.secret || context.webhook.secretCiphertext),
+      signatureGraceUntil: context.webhook.previousSecretValidUntil,
       isActive: context.webhook.isActive,
       createdAt: context.webhook.createdAt,
       updatedAt: context.webhook.updatedAt,
@@ -74,6 +95,8 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
     };
     const event = context.outboxEvent;
     const result = await this.dispatcher.dispatch(webhook, {
+      id: event.id,
+      schemaVersion: 1,
       eventType: event.eventType,
       tenantId: event.tenantId,
       payload: event.payload,

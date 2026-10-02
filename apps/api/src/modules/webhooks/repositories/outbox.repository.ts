@@ -6,6 +6,7 @@ import {
   DELIVERY_BUDGET_MS, DELIVERY_LEASE_MS, MAX_DELIVERY_ATTEMPTS,
   hasDeliveryBudget, isRetryableDelivery, retryDelayMs,
 } from '../services/delivery-retry-policy';
+import { redactDeliveryText } from '../utils/redact-delivery-text';
 
 export interface OutboxEventInput {
   tenantId: string;
@@ -238,8 +239,8 @@ export class OutboxRepository {
           nextRetryAt: retry ? new Date(now.getTime() + retryDelayMs(claim.retryBudgetAttempts)) : null,
           finishedAt: retry ? null : now,
           responseCode: result.status,
-          responseBody: result.body?.slice(0, 2048) ?? null,
-          errorMessage: result.errorMessage?.slice(0, 2048) ?? null,
+          responseBody: redactDeliveryText(result.body) ?? null,
+          errorMessage: redactDeliveryText(result.errorMessage) ?? null,
         },
       });
       if (updated.count !== 1) return false;
@@ -248,8 +249,8 @@ export class OutboxRepository {
         data: {
           status: success ? 'success' : 'failed',
           responseCode: result.status,
-          responseBody: result.body?.slice(0, 2048) ?? null,
-          errorMessage: result.errorMessage?.slice(0, 2048) ?? null,
+          responseBody: redactDeliveryText(result.body) ?? null,
+          errorMessage: redactDeliveryText(result.errorMessage) ?? null,
           completedAt: now,
         },
       });
