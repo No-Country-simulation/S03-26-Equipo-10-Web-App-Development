@@ -5,6 +5,8 @@ import { RateLimit } from '../../../common/decorators/rate-limit.decorator';
 import { CsrfMode } from '../../../common/decorators/csrf-mode.decorator';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
 import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
+import { ApiKeyScopesGuard } from '../../../common/guards/api-key-scopes.guard';
+import { RequireApiKeyScopes } from '../../../common/decorators/require-api-key-scopes.decorator';
 import { RateLimitGuard } from '../../../common/guards/rate-limit.guard';
 import { TrackAnalyticsEventDto } from '../dto/track-analytics-event.dto';
 
@@ -14,7 +16,8 @@ export class PublicAnalyticsController {
 
   @Post('events')
   @CsrfMode('api-key')
-  @UseGuards(ApiKeyGuard, RateLimitGuard)
+  @UseGuards(ApiKeyGuard, ApiKeyScopesGuard, RateLimitGuard)
+  @RequireApiKeyScopes('analytics:write')
   @Idempotent()
   @RateLimit({ limit: 60, windowSeconds: 60, scope: 'ip-api-key' })
   track(

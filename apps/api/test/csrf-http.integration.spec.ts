@@ -10,6 +10,7 @@ import { CsrfGuard } from '../src/common/guards/csrf.guard';
 import { SessionCsrfService } from '../src/common/services/session-csrf.service';
 import { RateLimitGuard } from '../src/common/guards/rate-limit.guard';
 import { ApiKeyGuard } from '../src/common/guards/api-key.guard';
+import { ApiKeyScopesGuard } from '../src/common/guards/api-key-scopes.guard';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { FeatureFlagGuard } from '../src/common/guards/feature-flag.guard';
 import { AuthController } from '../src/modules/auth/controllers/auth.controller';
@@ -55,6 +56,7 @@ describe('CSRF y proxy por HTTP', () => {
     })
       .overrideGuard(RateLimitGuard).useValue({ canActivate: () => true })
       .overrideGuard(ApiKeyGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ApiKeyScopesGuard).useValue({ canActivate: () => true })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .compile();
@@ -87,7 +89,7 @@ describe('CSRF y proxy por HTTP', () => {
     await request(app.getHttpServer()).post('/public/analytics/tenants/tenant/events')
       .set('Origin', 'https://web.example.test').send({ eventType: 'view' }).expect(201);
     await request(app.getHttpServer()).post('/public/analytics/events')
-      .set('x-api-key', 'test-key').send({ eventType: 'view' }).expect(201);
+      .set('Authorization', 'Bearer test-key').send({ eventType: 'view' }).expect(201);
   });
 
   it('rechaza Origin ajeno en mutaciones anónimas', async () => {

@@ -1,4 +1,5 @@
 import type { Request } from 'express';
+import type { ApiKeyEnvironment, ApiKeyScope } from '../services/api-key-crypto.service';
 
 export type RoleCode = 'admin' | 'editor';
 
@@ -29,6 +30,14 @@ export interface RequestContext {
 export interface ApiRequest extends Request {
   tenantId?: string;
   user?: AuthenticatedUser;
-  apiKey?: { apiKeyId: string; tenantId: string; publicId?: string };
+  apiKey?: {
+    apiKeyId: string;
+    tenantId: string;
+    ownerId: string | null;
+    publicId?: string;
+    scopes: ApiKeyScope[];
+    environment: ApiKeyEnvironment | 'legacy';
+    legacy: boolean;
+  };
   requestContext?: RequestContext;
 }

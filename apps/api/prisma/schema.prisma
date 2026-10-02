@@ -72,6 +72,7 @@ model User {
   roles               UserRole[]
   refreshTokens       RefreshToken[]
   refreshSessions     RefreshSession[]
+  apiKeysOwned        ApiKey[] @relation("api_key_owner")
   testimonialsCreated Testimonial[]  @relation("testimonial_created_by")
   auditLogs           AuditLog[]
 
@@ -318,19 +319,45 @@ model TenantFeatureFlag {
 }
 
 model ApiKey {
-  id         String    @id @default(uuid()) @db.Uuid
-  tenantId   String    @map("tenant_id") @db.Uuid
-  name       String
-  keyHash    String    @map("key_hash")
-  isActive   Boolean   @default(true) @map("is_active")
-  lastUsedAt DateTime? @map("last_used_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
-  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @map("tenant_id") @db.Uuid
+  ownerId          String?            @map("owner_id") @db.Uuid
+  name             String
+  keyHash          String?            @map("key_hash") // lector tms_ durante la transición
+  isActive         Boolean            @default(true) @map("is_active") // rollback legado
+  status           String             @default("ACTIVE")
+  scopes           String[]           @default([])
+  expiresAt        DateTime?          @map("expires_at")
+  revokedAt        DateTime?          @map("revoked_at")
+  rotationVersion  Int                @default(0) @map("rotation_version")
+  legacyValidUntil DateTime?          @map("legacy_valid_until")
+  lastUsedAt       DateTime?          @map("last_used_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  tenant           Tenant             @relation(fields: [tenantId], references: [id])
+  owner            User?              @relation("api_key_owner", fields: [ownerId], references: [id])
+  credentials      ApiKeyCredential[]
 
   @@index([tenantId], map: "idx_api_keys_tenant")
   @@index([keyHash], map: "idx_api_keys_hash")
   @@map("api_keys")
+}
+
+model ApiKeyCredential {
+  id            String   @id @default(uuid()) @db.Uuid
+  apiKeyId      String   @map("api_key_id") @db.Uuid
+  publicId      String   @unique(map: "uq_api_key_credentials_public_id") @map("public_id")
+  secretDigest  String   @map("secret_digest") @db.VarChar(64)
+  pepperVersion Int      @map("pepper_version")
+  environment   String
+  scopes        String[] @default([])
+  status        String   @default("ACTIVE")
+  expiresAt     DateTime? @map("expires_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  apiKey        ApiKey   @relation(fields: [apiKeyId], references: [id])
+
+  @@index([apiKeyId, createdAt], map: "idx_api_key_credentials_parent")
+  @@map("api_key_credentials")
 }
 
 model OutboxEvent {

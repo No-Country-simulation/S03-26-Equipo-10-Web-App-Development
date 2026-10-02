@@ -31,12 +31,34 @@ export class CredentialRepository {
     return !!session;
   }
 
-  async findActiveApiKeyByHash(keyHash: string): Promise<{ apiKeyId: string; tenantId: string } | null> {
-    const key = await this.prisma.apiKey.findFirst({
-      where: { keyHash, isActive: true, tenant: { isActive: true } },
+  findApiKeyCredential(publicId: string) {
+    return this.prisma.apiKeyCredential.findUnique({
+      where: { publicId }, include: { apiKey: { include: { tenant: true } } },
     });
-    if (!key) return null;
-    await this.prisma.apiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date() } });
-    return { apiKeyId: key.id, tenantId: key.tenantId };
+  }
+
+  findLegacyApiKey(keyHash: string) {
+    return this.prisma.apiKey.findFirst({
+      where: { keyHash }, include: { tenant: true },
+    });
+  }
+
+  async recordApiKeyUse(apiKeyId: string, tenantId: string, publicId: string | null, legacy: boolean): Promise<void> {
+    const now = new Date();
+    await this.prisma.$transaction(async tx => {
+      const touched = await tx.apiKey.updateMany({
+        where: { id: apiKeyId, tenantId, OR: [
+          { lastUsedAt: null }, { lastUsedAt: { lte: new Date(now.getTime() - 5 * 60 * 1000) } },
+        ] },
+        data: { lastUsedAt: now },
+      });
+      if (touched.count > 0) {
+        await tx.auditLog.create({ data: {
+          tenantId, action: legacy ? 'API_KEY_LEGACY_USED' : 'API_KEY_USED',
+          resourceType: 'api_key', resourceId: apiKeyId,
+          ...(publicId ? { metadata: { publicId } } : {}),
+        } });
+      }
+    });
   }
 }

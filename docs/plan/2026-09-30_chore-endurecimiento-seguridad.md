@@ -1,7 +1,7 @@
 # Plan HITL: endurecimiento de Testimonial CMS
 
 **Fecha de inicio:** 2026-09-30  
-**Estado global:** Fase 5 actual; Fase 6 del plan de arquitectura pausada
+**Estado global:** Fase 6 completada localmente, pendiente de revisión humana; Fase 6 del plan de arquitectura pausada
 **Skills:** `api-key-security-engineering`, `node-backend-engineering`, `web-security-engineering`, `webhook-architecture-engineering`
 
 ## Contexto y restricciones
@@ -83,7 +83,7 @@
 
 **Review humano (ACK):** Recibido mediante «Vamos con la fase 5». Los cambios de Fase 4 permanecían sin commit en el árbol compartido al comenzar esta fase; separarlos al versionar.
 
-### `[Actual]` Fase 5: migrar sesión web a cookies HttpOnly
+### `[Completada localmente]` Fase 5: migrar sesión web a cookies HttpOnly
 
 - Conservar Bearer explícito. Para la web, `X-Auth-Mode: cookie` devuelve solo usuario en login/refresh; usar `credentials: include` y guardar solo usuario en memoria.
 - Añadir `GET /auth/csrf` con token vinculado criptográficamente a la sesión y header `x-csrf-token`. Consumir una vez el refresh legado de `localStorage`, establecer cookies y borrar el almacenamiento.
@@ -100,11 +100,21 @@
 
 **Commit sugerido:** `feat(auth): migrá la sesión web a cookies HttpOnly`.
 
-### `[Pendiente]` Fase 6: rediseñar API keys
+**Review humano (ACK):** Recibido mediante «Avanza con la fase 6». Los cambios de Fase 5 fueron versionados en `a1d2b63`.
+
+### `[Completada localmente]` Fase 6: rediseñar API keys
 
 - Generar `ak_<entorno>_<publicId>_<secret de 32 bytes>`; buscar por public ID único, guardar HMAC-SHA-256 con pepper versionado externo, comparar en tiempo constante. Incluir expiración, estado, propietario y scopes `testimonials:read` y `analytics:write`.
 - Revelado único al crear/rotar; solapamiento de 24 horas y revocación inmediata sin caché de credenciales. Exigir scope y tenant en guards; auditar y limitar `lastUsedAt` a una actualización cada cinco minutos por clave.
 - Mantener permisos actuales de `tms_` por 30 días y luego rechazar. **Salida:** pruebas de scope, tenant, expiración, rotación, revocación y compatibilidad.
+
+**Implementación local:** Las claves nuevas usan 32 bytes aleatorios, public ID único y HMAC-SHA-256 con pepper versionado externo a PostgreSQL. La creación y rotación muestran el secreto una vez, con `Cache-Control: no-store`; los GET entregan metadatos. Cada credencial conserva sus scopes, por lo que la vieja no gana permisos al rotar. La gracia es de 24 horas, la revocación corta todas las credenciales de la clave lógica, y una versión de rotación impide dos rotaciones concurrentes válidas. El guard obtiene tenant y scopes del registro verificado en cada petición. El uso actualiza `lastUsedAt` y auditoría en una transacción como máximo una vez cada cinco minutos. Las claves `tms_` conservan sus permisos históricos durante 30 días desde `API_KEY_LEGACY_STARTED_AT`; en producción sin fecha se rechazan. Ver [módulo](../modules/api-api-keys.md) y [corte](../operations/12_api_key_rollout.md).
+
+**ACK adicional:** Recibido para editar `apps/api/prisma/schema.prisma`, `docker-compose.yml` e `infra/terraform`. No incluye autorización para migrar bases persistentes, aplicar Terraform ni desplegar.
+
+**Verificación local:** Migración de expansión aplicada a PostgreSQL 18 descartable desde cero y sobre dos claves legadas sintéticas, conservando el hash y convirtiendo la inactiva en `REVOKED`. Suite API: 35 suites y 174 pruebas aprobadas con PostgreSQL/Redis descartables, incluidos HTTP real, scopes, tenant, expiración original, carrera de rotación, auditoría y corte legado. Web: 21 pruebas en 11 archivos. Typecheck, lint y build de API y web aprobados; web mantiene 11 advertencias de lint preexistentes. `docker compose config` y `terraform fmt` pasaron; `terraform validate` pasó en una copia temporal con la advertencia preexistente de `required_providers` en el módulo de certificado. No se verificaron CI remoto, staging ni producción, y no se aplicaron migraciones a bases persistentes.
+
+**Commit sugerido:** `feat(api-keys): incorporá credenciales versionadas con scopes y rotación segura`.
 
 ### `[Pendiente]` Fase 7: contrato y secretos de webhooks
 

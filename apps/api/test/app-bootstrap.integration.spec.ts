@@ -6,10 +6,12 @@ describe('Nest application dependency graph', () => {
       DATABASE_URL: process.env.DATABASE_URL,
       JWT_SECRET: process.env.JWT_SECRET,
       REDIS_URL: process.env.REDIS_URL,
+      API_KEY_PEPPERS_JSON: process.env.API_KEY_PEPPERS_JSON,
     };
     process.env.DATABASE_URL = 'postgresql://postgres@127.0.0.1:5432/testimonial_cms_test';
     process.env.JWT_SECRET = 'test-only-placeholder-with-at-least-32-characters';
     process.env.REDIS_URL = 'redis://127.0.0.1:6379';
+    process.env.API_KEY_PEPPERS_JSON = JSON.stringify({ 1: Buffer.alloc(32, 7).toString('base64url') });
     try {
       const { AppModule } = await import('../src/app.module');
       const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -21,6 +23,8 @@ describe('Nest application dependency graph', () => {
       else process.env.JWT_SECRET = previous.JWT_SECRET;
       if (previous.REDIS_URL === undefined) delete process.env.REDIS_URL;
       else process.env.REDIS_URL = previous.REDIS_URL;
+      if (previous.API_KEY_PEPPERS_JSON === undefined) delete process.env.API_KEY_PEPPERS_JSON;
+      else process.env.API_KEY_PEPPERS_JSON = previous.API_KEY_PEPPERS_JSON;
     }
   });
 });

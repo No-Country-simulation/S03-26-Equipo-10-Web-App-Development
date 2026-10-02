@@ -8,13 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, KeyRound, Copy, Check, ShieldAlert } from 'lucide-react';
-import { createApiKey, listApiKeys, revokeApiKey } from '../api';
+import { createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '../api';
 
 export type ApiKeyView = {
   id: string;
   tenantId: string;
   name: string;
   isActive: boolean;
+  publicId: string | null;
+  scopes: Array<'testimonials:read' | 'analytics:write'>;
+  status: 'ACTIVE' | 'REVOKED' | 'EXPIRED';
+  legacy: boolean;
+  expiresAt: string | null;
+  legacyDeadline: string | null;
   lastUsedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -25,6 +31,7 @@ export default function ApiKeysPage() {
   const [apiKeys, setApiKeys] = useState<ApiKeyView[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [rotationTarget, setRotationTarget] = useState<ApiKeyView | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   
   // State to hold the newly generated raw token
@@ -50,9 +57,20 @@ export default function ApiKeysPage() {
     setCopied(false);
     const fd = new FormData(e.currentTarget);
     try {
-      const res = await createApiKey(fetchApi, fd.get('name'));
+      const expiry = fd.get('expiresAt');
+      const input = {
+        name: String(fd.get('name') ?? ''),
+        scopes: fd.getAll('scopes').map(String).filter((value): value is 'testimonials:read' | 'analytics:write' =>
+          value === 'testimonials:read' || value === 'analytics:write'),
+        ...(expiry ? { expiresAt: new Date(String(expiry)).toISOString() } : {}),
+      };
+      if (input.scopes.length === 0) throw new Error('Elegí al menos un permiso');
+      const res = rotationTarget
+        ? await rotateApiKey(fetchApi, rotationTarget.id, input)
+        : await createApiKey(fetchApi, input);
       setNewRawToken(res.data.apiKey);
       setShowForm(false);
+      setRotationTarget(null);
       void load();
     } catch (err) {
       alert(`Error al generar token: ${err instanceof Error ? err.message : String(err)}`);
@@ -69,6 +87,12 @@ export default function ApiKeysPage() {
     } catch (err) {
       alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  function startRotation(key: ApiKeyView) {
+    setRotationTarget(key);
+    setShowForm(true);
+    setNewRawToken(null);
   }
 
   const copyToClipboard = () => {
@@ -93,7 +117,7 @@ export default function ApiKeysPage() {
     <>
       <DashboardHeader title="API Keys" description="Gestiona los tokens de acceso para conectar aplicaciones externas.">
         <Button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setRotationTarget(null); setShowForm(!showForm); }}
           className="h-10 bg-primary px-6 font-body text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="mr-2 h-4 w-4" /> Generar Token
@@ -127,13 +151,22 @@ export default function ApiKeysPage() {
       )}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-3 items-end">
+        <form key={rotationTarget?.id ?? 'create'} onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-3 items-end">
           <div className="grid gap-2 sm:col-span-2">
             <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Nombre Descriptivo</Label>
-            <Input name="name" required className="h-10 bg-transparent" placeholder="Ej. Integración App Móvil, Servidor Nodejs..." minLength={2} />
+            <Input name="name" required defaultValue={rotationTarget?.name ?? ''} className="h-10 bg-transparent" placeholder="Ej. Integración App Móvil, Servidor Nodejs..." minLength={2} />
           </div>
+          <div className="grid gap-2">
+            <Label htmlFor="api-key-expiry" className="font-body text-[10px] font-bold uppercase tracking-widest">Expira (opcional)</Label>
+            <Input id="api-key-expiry" name="expiresAt" type="datetime-local" defaultValue={rotationTarget?.expiresAt?.slice(0, 16) ?? ''} className="h-10 bg-transparent" />
+          </div>
+          <fieldset className="sm:col-span-3 flex flex-wrap gap-4 text-sm">
+            <legend className="font-body text-[10px] font-bold uppercase tracking-widest mb-2">Permisos</legend>
+            <label className="flex items-center gap-2"><input type="checkbox" name="scopes" value="testimonials:read" defaultChecked={!rotationTarget || rotationTarget.legacy || rotationTarget.scopes.includes('testimonials:read')} /> Leer testimonios</label>
+            <label className="flex items-center gap-2"><input type="checkbox" name="scopes" value="analytics:write" defaultChecked={rotationTarget?.legacy || rotationTarget?.scopes.includes('analytics:write') || false} /> Escribir analítica</label>
+          </fieldset>
           <Button type="submit" disabled={createLoading} className="h-10 bg-primary font-body text-xs uppercase tracking-wider text-primary-foreground">
-            {createLoading ? 'Generando...' : 'Crear API Key'}
+            {createLoading ? 'Generando...' : rotationTarget ? 'Rotar API Key' : 'Crear API Key'}
           </Button>
         </form>
       )}
@@ -155,6 +188,7 @@ export default function ApiKeysPage() {
                 <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nombre</th>
                 <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Último Uso</th>
                 <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estado</th>
+                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Permisos y vencimiento</th>
                 <th className="pb-3 text-right font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Acciones</th>
               </tr>
             </thead>
@@ -163,6 +197,7 @@ export default function ApiKeysPage() {
                 <tr key={key.id} className="border-b border-foreground/5 transition-colors hover:bg-card">
                   <td className="py-4 pr-4 font-body text-sm font-medium text-foreground flex items-center gap-2">
                     <KeyRound className="h-4 w-4 text-muted-foreground"/> {key.name}
+                    <span className="text-xs text-muted-foreground">{key.publicId ?? 'tms_ legado'}</span>
                   </td>
                   <td className="py-4 pr-4 text-sm text-muted-foreground">
                     {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : 'Nunca'}
@@ -174,12 +209,18 @@ export default function ApiKeysPage() {
                     )}>
                       {key.isActive ? 'Activo' : 'Revocado'}
                     </span>
+                    {key.legacy && <p className="mt-1 text-xs text-amber-700">Clave legada: migrá antes de {key.legacyDeadline ? new Date(key.legacyDeadline).toLocaleString() : 'activar la ventana de 30 días'}.</p>}
+                  </td>
+                  <td className="py-4 pr-4 text-xs text-muted-foreground">
+                    {key.scopes.length ? key.scopes.join(', ') : 'Permisos legados'}
+                    <br />{key.expiresAt ? `Expira ${new Date(key.expiresAt).toLocaleString()}` : 'Sin vencimiento'}
                   </td>
                   <td className="py-4 text-right">
                     {key.isActive && (
-                      <Button variant="ghost" size="sm" onClick={() => handleRevoke(key.id)} className="text-destructive font-body text-xs tracking-wider uppercase hover:bg-destructive/10 hover:text-destructive">
-                        Revocar
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => startRotation(key)} className="font-body text-xs tracking-wider uppercase">Rotar</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleRevoke(key.id)} className="text-destructive font-body text-xs tracking-wider uppercase hover:bg-destructive/10 hover:text-destructive">Revocar</Button>
+                      </div>
                     )}
                   </td>
                 </tr>

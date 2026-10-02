@@ -5,6 +5,7 @@ const validEnvironment = {
   CORS_ORIGIN: 'http://localhost:3000',
   JWT_SECRET: 'test-only-placeholder-with-at-least-32-characters',
   DATABASE_URL: 'postgresql://test:test@localhost:5432/test?schema=public',
+  API_KEY_PEPPERS_JSON: JSON.stringify({ 1: Buffer.alloc(32, 7).toString('base64url') }),
 };
 
 describe('application environment validation', () => {
@@ -17,6 +18,10 @@ describe('application environment validation', () => {
     ['blank JWT secret', { JWT_SECRET: ' '.repeat(32) }],
     ['wrong database protocol', { DATABASE_URL: 'https://localhost/database' }],
     ['wrong Redis protocol', { REDIS_URL: 'http://localhost:6379' }],
+    ['invalid API key pepper JSON', { API_KEY_PEPPERS_JSON: '{' }],
+    ['missing current pepper version', { API_KEY_PEPPER_CURRENT_VERSION: '2' }],
+    ['short API key pepper', { API_KEY_PEPPERS_JSON: '{"1":"short"}' }],
+    ['invalid legacy API key UTC date', { API_KEY_LEGACY_STARTED_AT: '2026-10-01' }],
     ['invalid CORS origin', { CORS_ORIGIN: 'not-an-origin' }],
     ['CORS URL with a path', { CORS_ORIGIN: 'https://example.com/internal' }],
     ['out-of-range port', { PORT: '70000' }],

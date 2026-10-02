@@ -4,6 +4,8 @@ import { CurrentTenantId } from '../../../common/decorators/current-tenant.decor
 import { RateLimit } from '../../../common/decorators/rate-limit.decorator';
 import { CsrfMode } from '../../../common/decorators/csrf-mode.decorator';
 import { ApiKeyGuard } from '../../../common/guards/api-key.guard';
+import { ApiKeyScopesGuard } from '../../../common/guards/api-key-scopes.guard';
+import { RequireApiKeyScopes } from '../../../common/decorators/require-api-key-scopes.decorator';
 import { RateLimitGuard } from '../../../common/guards/rate-limit.guard';
 import { PublicTestimonialsQueryDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
 import { Request, Response } from 'express';
@@ -16,7 +18,8 @@ export class PublicTestimonialsController {
   constructor(private readonly testimonialsService: TestimonialsService) {}
 
   @Get()
-  @UseGuards(ApiKeyGuard, RateLimitGuard, FeatureFlagGuard)
+  @UseGuards(ApiKeyGuard, ApiKeyScopesGuard, RateLimitGuard, FeatureFlagGuard)
+  @RequireApiKeyScopes('testimonials:read')
   @RequireFeature('testimonials')
   @RateLimit({ limit: 120, windowSeconds: 60, scope: 'ip-api-key' })
   list(
@@ -37,7 +40,8 @@ export class PublicTestimonialsController {
   }
 
   @Get(':testimonial_id')
-  @UseGuards(ApiKeyGuard, RateLimitGuard, FeatureFlagGuard)
+  @UseGuards(ApiKeyGuard, ApiKeyScopesGuard, RateLimitGuard, FeatureFlagGuard)
+  @RequireApiKeyScopes('testimonials:read')
   @RequireFeature('testimonials')
   @RateLimit({ limit: 120, windowSeconds: 60, scope: 'ip-api-key' })
   getOne(

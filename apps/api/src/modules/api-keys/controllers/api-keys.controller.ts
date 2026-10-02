@@ -1,6 +1,8 @@
 import { ApiKeysService } from '../services/api-keys.service';
-import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Post, UseGuards } from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../../common/interfaces/auth-context.interface';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
@@ -26,27 +28,32 @@ export class ApiKeysController {
   }
 
   @Post()
+  @Header('Cache-Control', 'no-store')
   create(
     @CurrentTenantId() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateApiKeyDto,
   ) {
-    return this.apiKeysService.createApiKey(tenantId, dto);
+    return this.apiKeysService.createApiKey(tenantId, user.userId, dto);
   }
 
   @Post(':api_key_id/rotate')
+  @Header('Cache-Control', 'no-store')
   rotate(
     @CurrentTenantId() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('api_key_id') apiKeyId: string,
     @Body() dto: RotateApiKeyDto,
   ) {
-    return this.apiKeysService.rotateApiKey(tenantId, apiKeyId, dto);
+    return this.apiKeysService.rotateApiKey(tenantId, user.userId, apiKeyId, dto);
   }
 
   @Delete(':api_key_id')
   remove(
     @CurrentTenantId() tenantId: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('api_key_id') apiKeyId: string,
   ) {
-    return this.apiKeysService.revokeApiKey(tenantId, apiKeyId);
+    return this.apiKeysService.revokeApiKey(tenantId, user.userId, apiKeyId);
   }
 }

@@ -86,6 +86,33 @@ variable "webhook_legacy_http_started_at" {
   }
 }
 
+variable "api_key_legacy_started_at" {
+  description = "UTC del primer despliegue compatible de API keys; tms_ vence a los 30 días. Null lo bloquea en producción."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "api_key_pepper_current_version" {
+  description = "Versión del pepper usado para emitir API keys nuevas."
+  type        = number
+  default     = 1
+  validation {
+    condition     = var.api_key_pepper_current_version >= 1
+    error_message = "The API key pepper version must be positive."
+  }
+}
+
+variable "api_key_peppers_json" {
+  description = "Mapa JSON de versiones a peppers base64url; inyectar desde un almacén seguro, nunca desde tfvars versionados."
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = can(jsondecode(var.api_key_peppers_json))
+    error_message = "The API key peppers must be a JSON object."
+  }
+}
+
 variable "web_container_port" {
   description = "Port exposed by the web container."
   type        = number

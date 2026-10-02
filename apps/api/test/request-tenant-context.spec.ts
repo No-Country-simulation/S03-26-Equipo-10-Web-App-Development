@@ -78,10 +78,16 @@ describe('authenticated tenant context', () => {
   });
 
   it('sets tenant context from the verified API key row', async () => {
-    const credentials = { findActiveApiKeyByHash: jest.fn().mockResolvedValue({
-      apiKeyId: 'key-1', tenantId: 'verified-tenant',
-    }) };
-    const guard = new ApiKeyGuard(credentials as any);
+    const credentials = {
+      findLegacyApiKey: jest.fn().mockResolvedValue({
+        id: 'key-1', tenantId: 'verified-tenant', ownerId: null, status: 'ACTIVE',
+        isActive: true, expiresAt: null, legacyValidUntil: null, tenant: { isActive: true },
+      }),
+      recordApiKeyUse: jest.fn().mockResolvedValue(undefined),
+    };
+    const crypto = { parse: jest.fn().mockReturnValue(null), isLegacy: jest.fn().mockReturnValue(true),
+      legacyAllowed: jest.fn().mockReturnValue(true), legacyHash: jest.fn().mockReturnValue('hash') };
+    const guard = new ApiKeyGuard(credentials as any, crypto as any);
     const request = {
       header: (name: string) => name === 'authorization' ? 'Bearer secret' : undefined,
       headers: { 'x-tenant-id': 'other-tenant' },

@@ -84,6 +84,7 @@ module "api_runtime_secret" {
     DATABASE_URL             = local.database_url
     REDIS_URL                = "rediss://:${random_password.redis_auth.result}@${module.redis.primary_endpoint_address}:6379"
     JWT_SECRET               = var.jwt_secret
+    API_KEY_PEPPERS_JSON     = var.api_key_peppers_json
     CLOUDINARY_UPLOAD_URL    = var.cloudinary_upload_url
     CLOUDINARY_UPLOAD_PRESET = var.cloudinary_upload_preset
     YOUTUBE_API_KEY          = var.youtube_api_key
@@ -162,16 +163,20 @@ module "api_service" {
   log_retention_days = var.log_retention_in_days
   secret_arns        = [module.api_runtime_secret.secret_arn]
   environment_variables = merge({
-    PORT        = tostring(var.api_container_port)
-    NODE_ENV    = "production"
-    CORS_ORIGIN = "https://${local.app_domain_name}"
+    PORT                           = tostring(var.api_container_port)
+    NODE_ENV                       = "production"
+    CORS_ORIGIN                    = "https://${local.app_domain_name}"
+    API_KEY_PEPPER_CURRENT_VERSION = tostring(var.api_key_pepper_current_version)
     }, var.webhook_legacy_http_started_at == null ? {} : {
     WEBHOOK_LEGACY_HTTP_STARTED_AT = var.webhook_legacy_http_started_at
+    }, var.api_key_legacy_started_at == null ? {} : {
+    API_KEY_LEGACY_STARTED_AT = var.api_key_legacy_started_at
   })
   secrets = {
     DATABASE_URL             = "${module.api_runtime_secret.secret_arn}:DATABASE_URL::"
     REDIS_URL                = "${module.api_runtime_secret.secret_arn}:REDIS_URL::"
     JWT_SECRET               = "${module.api_runtime_secret.secret_arn}:JWT_SECRET::"
+    API_KEY_PEPPERS_JSON     = "${module.api_runtime_secret.secret_arn}:API_KEY_PEPPERS_JSON::"
     CLOUDINARY_UPLOAD_URL    = "${module.api_runtime_secret.secret_arn}:CLOUDINARY_UPLOAD_URL::"
     CLOUDINARY_UPLOAD_PRESET = "${module.api_runtime_secret.secret_arn}:CLOUDINARY_UPLOAD_PRESET::"
     YOUTUBE_API_KEY          = "${module.api_runtime_secret.secret_arn}:YOUTUBE_API_KEY::"
