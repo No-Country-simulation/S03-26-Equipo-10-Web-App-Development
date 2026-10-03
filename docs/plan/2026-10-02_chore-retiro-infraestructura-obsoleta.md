@@ -1,7 +1,7 @@
 # Plan HITL: retiro de infraestructura obsoleta y preparación de la demostración
 
 **Fecha de inicio:** 2026-10-02
-**Estado global:** En progreso; fase 2 lista para revisión
+**Estado global:** En progreso; fase 3 lista para revisión y ACK final pendiente
 
 ## Contexto y restricciones
 
@@ -21,7 +21,7 @@
 - **Salida:** plan y commit disponibles para revisión humana; ningún archivo de infraestructura o guía operativa retirado todavía.
 - **ACK:** recibido por instrucción expresa del usuario para continuar con la fase 2. Commit de la fase: 8f080c2.
 
-### `[Actual: lista para revisión]` Fase 2: retirar archivos y corregir documentación
+### `[Completada]` Fase 2: retirar archivos y corregir documentación
 
 - Eliminar los 52 archivos del árbol de IaC anterior y el placeholder de Kubernetes.
 - Sustituir las guías de infraestructura y despliegue AWS/Kubernetes por documentación del estado local y de CI, sin atribuir al proyecto recursos o controles no desplegados.
@@ -35,13 +35,21 @@
 
 **Commit sugerido:** `chore(infra): retirá IaC anterior y actualizá guías de despliegue`.
 
-**ACK:** pendiente antes de la fase 3.
+**ACK:** recibido mediante «Continua con la fase 3». Commit de la fase: 4b9eab5.
 
-### `[Pendiente]` Fase 3: verificar y cerrar
+### `[Actual: lista para revisión]` Fase 3: verificar y cerrar
 
 - Comprobar que no quedan archivos, rutas, menciones versionadas ni enlaces rotos asociados con la herramienta retirada; revisar que las guías distingan ejecución local, requisitos futuros y controles sin verificar.
 - Ejecutar `git diff --check` y comprobaciones documentales pertinentes. Ejecutar pruebas de aplicación solo si se modifica código ejecutable.
 - Registrar resultados y límites de la evidencia, proponer el commit de cierre y detenerse para ACK. La configuración real de Supabase, Vercel, API y Redis tendrá otro plan.
+
+**Verificación de cierre local:** el árbol y el índice versionados no contienen archivos, rutas ni menciones de la herramienta retirada, incluidos nombres de estado y variables asociados. Tampoco quedan enlaces a la ubicación retirada. Las guías vigentes separan Compose y CI de los requisitos futuros; no acreditan recursos AWS/Kubernetes, egreso de red, alertas o staging como activos. `git diff --check` y la comprobación de enlaces locales de los documentos afectados pasaron. No cambió código ejecutable, por lo que no se repitió la suite de aplicación ni se desplegó un entorno.
+
+**Límite de la auditoría:** una búsqueda general detectó 35 enlaces de ejemplo o preexistentes en otros documentos, sin relación con la infraestructura retirada. No constituyen evidencia de esta migración ni se corrigieron en este plan. La configuración real de Supabase, Vercel y del alojamiento de API/Redis sigue pendiente de un trabajo separado.
+
+**Commit sugerido:** `docs(infra): verificá el retiro y registrá el cierre local`.
+
+**ACK final:** pendiente.
 
 ## Criterios de aceptación
 

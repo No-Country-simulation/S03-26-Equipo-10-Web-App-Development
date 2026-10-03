@@ -102,7 +102,7 @@ flowchart TD
 
 #### Ley 25.326 (Protección de Datos Personales)
 
-| Artículo | Requisito | Control Técnico Implementado | Evidencia Requerida | Frecuencia de Verificación |
+| Artículo | Requisito | Control propuesto | Evidencia requerida | Verificación propuesta |
 |----------|-----------|------------------------------|---------------------|----------------------------|
 | **Art. 4** | Consentimiento informado para publicación de testimonios | - Checkbox explícito en formulario de creación<br>- Registro de timestamp de consentimiento<br>- API para revocación | - Captura de pantalla del formulario<br>- Logs de consentimiento<br>- Prueba de tiempo de revocación | Continua |
 | **Art. 5** | Calidad de los datos | - Validación de campos en frontend y backend<br>- Proceso de rectificación por parte del autor | - Esquema de validación<br>- Logs de ediciones por autores | Trimestral |
