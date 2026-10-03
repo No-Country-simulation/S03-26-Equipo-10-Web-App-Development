@@ -6,9 +6,11 @@ Infraestructura real para desplegar `testimonial-cms` en AWS con:
 - `api` en ECS Fargate detrás de ALB con TLS.
 - `PostgreSQL` en RDS Multi-AZ y subredes privadas.
 - `Redis 7` en ElastiCache, con TLS, AUTH y acceso solo desde la API; una réplica en producción.
-- `ECR`, `Route53`, `ACM`, `Secrets Manager`, `CloudWatch Logs`.
+- `ECR`, `Route53`, `ACM`, `Secrets Manager`, `CloudWatch Logs`, filtros de métricas y alarmas CloudWatch/SNS.
 - estado remoto Terraform en `S3 + DynamoDB`.
 - ACL de egreso en subredes de aplicación para bloquear redes internas habituales; el transporte de webhooks bloquea además DNS privado, redirecciones e IMDS.
+
+La API recibe `METRICS_TOKEN` aleatorio desde Secrets Manager. Configurar `alert_notification_email` en variables de despliegue fuera del repositorio y confirmar la suscripción SNS antes de usar las alarmas en producción. `otel_exporter_otlp_traces_endpoint` es opcional y debe apuntar a un receptor HTTPS accesible desde las tareas. Ver [procedimiento de fase 8](../../docs/operations/14_phase8_observability_rollout.md); Terraform aquí solo prepara recursos, no acredita que estén activos.
 
 ## Estructura
 

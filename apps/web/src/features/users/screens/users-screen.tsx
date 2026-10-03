@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, Trash2, Mail, ShieldAlert } from 'lucide-react';
 import { createUser, deleteUser, listUsers } from '../api';
+import { PageControls } from '@/features/shared/pagination';
 
 export type UserView = {
   id: string;
@@ -23,6 +24,8 @@ export type UserView = {
 export default function UsersPage() {
   const { session, fetchApi } = useSession();
   const [users, setUsers] = useState<UserView[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -30,12 +33,13 @@ export default function UsersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listUsers(fetchApi);
-      setUsers(res.data || []);
+      const res = await listUsers(fetchApi, page);
+      setUsers(res.data.items);
+      setTotal(res.data.meta.total);
     } catch { /* handled */ } finally {
       setLoading(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, page]);
 
   useEffect(() => { if (session) void load(); }, [session, load]);
 
@@ -180,6 +184,7 @@ export default function UsersPage() {
           </table>
         </div>
       )}
+      <PageControls page={page} total={total} limit={20} onChange={setPage} />
     </>
   );
 }

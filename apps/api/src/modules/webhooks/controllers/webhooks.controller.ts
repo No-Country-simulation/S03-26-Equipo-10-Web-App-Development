@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
@@ -19,6 +20,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CreateWebhookDto, UpdateWebhookDto } from '../dto/webhook.dto';
+import { parseAdminPage } from '../../../common/pagination/admin-page';
 
 @Controller('webhooks')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,8 +29,8 @@ export class WebhooksController {
   constructor(private readonly webhooksService: WebhooksService) {}
 
   @Get()
-  list(@CurrentTenantId() tenantId: string) {
-    return this.webhooksService.listWebhooks(tenantId);
+  list(@CurrentTenantId() tenantId: string, @Query() query: Record<string, unknown>) {
+    return this.webhooksService.listWebhooks(tenantId, parseAdminPage(query));
   }
 
   @Get(':webhook_id')
@@ -78,8 +80,9 @@ export class WebhooksController {
   deliveries(
     @CurrentTenantId() tenantId: string,
     @Param('webhook_id') webhookId: string,
+    @Query() query: Record<string, unknown>,
   ) {
-    return this.webhooksService.listWebhookDeliveries(tenantId, webhookId);
+    return this.webhooksService.listWebhookDeliveries(tenantId, webhookId, parseAdminPage(query));
   }
 
   @Post(':webhook_id/test')

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { deletedSchema, sessionRequest, type SessionFetch } from '@/lib/api/validated-response';
+import { pagePath } from '@/features/shared/pagination';
 
 const webhookSchema = z.object({
   id: z.string(), tenantId: z.string(), url: z.string(), eventCode: z.string(),
@@ -13,7 +14,7 @@ const webhookSchema = z.object({
 }).passthrough();
 const revealedWebhookSchema = webhookSchema.extend({ signingSecret: z.string() });
 
-export const listWebhooks = (fetchApi: SessionFetch) => sessionRequest(fetchApi, '/webhooks', z.object({
+export const listWebhooks = (fetchApi: SessionFetch, page = 1) => sessionRequest(fetchApi, pagePath('/webhooks', page), z.object({
   items: z.array(webhookSchema),
   meta: z.object({ total: z.number(), page: z.number(), limit: z.number() }),
 }));
@@ -37,8 +38,8 @@ const deliverySchema = z.object({
   })).optional(),
 }).passthrough();
 
-export const listWebhookDeliveries = (fetchApi: SessionFetch, webhookId: string) =>
-  sessionRequest(fetchApi, `/webhooks/${webhookId}/deliveries`, z.object({
+export const listWebhookDeliveries = (fetchApi: SessionFetch, webhookId: string, page = 1) =>
+  sessionRequest(fetchApi, pagePath(`/webhooks/${webhookId}/deliveries`, page), z.object({
     items: z.array(deliverySchema),
     meta: z.object({ total: z.number(), page: z.number(), limit: z.number() }),
   }));

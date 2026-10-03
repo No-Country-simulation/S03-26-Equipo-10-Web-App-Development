@@ -1,36 +1,26 @@
-# ADR 0002: Patrón Outbox Transaccional para Eventos y Webhooks
+# ADR 0002: PostgreSQL como fuente de verdad para eventos y webhooks
 
-**Fecha:** 2026-04-25  
+**Fecha:** 2026-04-25
+**Actualización:** 2026-10-02
 **Estado:** Aceptado
 
 ## Contexto
 
-El CMS de testimonios necesita notificar a sistemas de terceros (por ejemplo, canales de Slack o endpoints de clientes) cuando un testimonio es publicado, rechazado o recibe un voto. Estos eventos son enviados a través de *Webhooks*.
+Publicar o rechazar un testimonio puede generar notificaciones HTTP. Enviar dentro de la petición acoplaría la respuesta al destinatario y permitiría perder el evento si el proceso cae entre el commit de negocio y el POST.
 
-Si la API intenta enviar el webhook de forma síncrona durante la transacción principal:
-1. Retrasaría la respuesta al usuario.
-2. Si el sistema externo está caído, la petición HTTP fallaría, obligando a revertir la transacción completa en nuestra base de datos (o perdiendo la notificación del evento si no se revierte).
+El texto inicial de este ADR proponía BullMQ y un worker separado. La implementación y el plan HITL de seguridad eligieron PostgreSQL como único sistema de entrega durable. Redis 7 se usa para cuotas y caché pública compartida; una caída de Redis no debe alterar el ledger de entregas.
 
-## Decisión
+## Decisión implementada
 
-Hemos decidido implementar el patrón **Transactional Outbox**, apoyado por **BullMQ (Redis)** y un Worker de procesamiento asíncrono.
+1. La escritura de dominio, el evento de `outbox_events` y una entrega lógica por destino activo se confirman en la misma transacción PostgreSQL. La pareja `(evento, destino)` es única.
+2. `OutboxProcessor` corre dentro de cada réplica de la API y consulta PostgreSQL cada tres segundos. Adquiere entregas con `FOR UPDATE SKIP LOCKED`, lease recuperable y concurrencia acotada.
+3. Cada intento se registra por separado y hace una sola llamada HTTP con timeout. Los errores de red, 408, 429 y 5xx se reprograman con backoff exponencial y full jitter. Otros 4xx terminan; diez intentos o 72 horas llevan la entrega a `dead`.
+4. Un evento queda `processed` cuando todas sus entregas tienen un resultado terminal (`success` o `dead`) registrado. `dead` representa un fallo visible y reenviable por administración, nunca un éxito de transporte.
+5. Los destinatarios deduplican usando el ID estable del evento. La semántica es **at least once**: un POST puede haberse recibido aunque el emisor no haya llegado a confirmar la respuesta.
 
-## Implementación
+## Consecuencias
 
-1. Cuando ocurre un cambio de estado, se inserta o actualiza la entidad principal en la base de datos (Ej: `testimonials`).
-2. En la *misma transacción SQL*, se inserta un registro en la tabla `outbox_events` (ej: `{ type: 'testimonial.published', payload: {...} }`).
-3. La petición HTTP del usuario finaliza rápidamente con un código de éxito.
-4. Un proceso asíncrono (Worker) lee continuamente de `outbox_events` y encola los trabajos en Redis (BullMQ) para su distribución a los sistemas externos.
-5. BullMQ se encarga de reintentos (Exponential Backoff) si el webhook falla. Al tener éxito, el evento en el Outbox se marca como procesado.
-
-## Justificación
-
-- **Consistencia Garantizada:** Al escribir el evento en la misma base de datos relacional dentro de la misma transacción, garantizamos que si se guarda el testimonio, el evento se guardará sí o sí. No hay pérdida de eventos.
-- **Desacoplamiento:** La API principal no sabe ni le importa el tiempo que demore enviar el webhook o si este sistema está caído.
-- **Tolerancia a fallos:** El sistema externo puede estar caído horas; los eventos se acumularán en nuestra cola y se enviarán cuando se restablezca el servicio.
-
-## Consecuencias (Trade-offs)
-
-- **Positivas:** Sistema extremadamente resiliente. Respuesta inmediata al usuario. Imposibilidad de inconsistencias entre los datos guardados y los eventos disparados.
-- **Negativas:** Introduce complejidad arquitectónica (requiere un servicio *Worker*, tabla extra `outbox_events`, infraestructura de Redis y BullMQ).
-- **Mitigaciones:** Mantener el Worker como un proceso separado pero dentro del mismo monorepo para facilitar su despliegue y desarrollo.
+- PostgreSQL conserva la integridad del evento y del ledger sin coordinación adicional con Redis.
+- El polling comparte el ciclo de vida y los recursos de la API; los leases permiten recuperar trabajo tras una caída y distribuirlo entre réplicas.
+- Hay que monitorear la antigüedad del pendiente, intentos, fallos y entregas `dead`, y disponer de un procedimiento de reenvío. Ver `docs/modules/api-webhooks.md` y `docs/operations/14_phase8_observability_rollout.md`.
+- BullMQ, una cola Redis y un worker separado no forman parte de esta decisión ni del despliegue actual.

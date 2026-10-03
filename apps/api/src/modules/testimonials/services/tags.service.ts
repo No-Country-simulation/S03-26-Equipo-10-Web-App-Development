@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { TagRepository } from '../repositories/tag.repository';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CreateTagDto, UpdateTagDto } from '../dto/tag.dto';
+import type { AdminPage } from '../../../common/pagination/admin-page';
 
 @Injectable()
 export class TagsService {
@@ -11,11 +12,11 @@ export class TagsService {
     private readonly testimonialRepo: TestimonialRepository,
   ) {}
 
-  async list(tenantId: string) {
-    const tags = await this.tagRepo.findByTenant(tenantId);
+  async list(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+    const tags = await this.tagRepo.findByTenant(tenantId, page);
     return {
-      items: tags,
-      meta: { total: tags.length, page: 1, limit: tags.length },
+      items: tags.items,
+      meta: { total: tags.total, page: page.page, limit: page.limit },
     };
   }
 

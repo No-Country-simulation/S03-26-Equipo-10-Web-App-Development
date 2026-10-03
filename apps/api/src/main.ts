@@ -1,7 +1,7 @@
 import { ZodValidationPipe } from 'nestjs-zod';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { NextFunction, Request, Response, json, urlencoded } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
@@ -13,6 +13,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import type { AppConfig } from './config/app.config';
+import { boundedJsonBody, formBody } from './common/middleware/body-limits.middleware';
+import { MetricsService } from './common/observability/metrics.service';
 
 /**
  * Inicializa y arranca la aplicación NestJS.
@@ -23,7 +25,7 @@ import type { AppConfig } from './config/app.config';
  */
 async function bootstrap() {
   // Crea la instancia de la aplicación NestJS con logging en buffer
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, bodyParser: false });
   
   // Configura Pino como el logger principal
   app.useLogger(app.get(Logger));
@@ -45,9 +47,20 @@ async function bootstrap() {
     credentials: true,
   });
 
+  const metrics = app.get(MetricsService);
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const started = process.hrtime.bigint();
+    res.once('finish', () => {
+      const route = req.route?.path;
+      metrics.recordHttp(req.method, typeof route === 'string' ? route : 'unmatched',
+        res.statusCode, Number(process.hrtime.bigint() - started) / 1_000_000);
+    });
+    next();
+  });
+
   // Límites para peticiones JSON y URL encoded
-  app.use(json({ limit: '50mb' }));
-  app.use(urlencoded({ extended: true, limit: '50mb' }));
+  app.use(boundedJsonBody);
+  app.use(formBody);
 
   // Inicializa el contexto de la petición para poder acceder a datos del usuario
   // en cualquier capa de la aplicación (usando ALS)

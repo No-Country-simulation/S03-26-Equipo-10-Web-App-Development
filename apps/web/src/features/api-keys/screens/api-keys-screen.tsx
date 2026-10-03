@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, KeyRound, Copy, Check, ShieldAlert } from 'lucide-react';
 import { createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '../api';
+import { PageControls } from '@/features/shared/pagination';
 
 export type ApiKeyView = {
   id: string;
@@ -29,6 +30,8 @@ export type ApiKeyView = {
 export default function ApiKeysPage() {
   const { session, fetchApi } = useSession();
   const [apiKeys, setApiKeys] = useState<ApiKeyView[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [rotationTarget, setRotationTarget] = useState<ApiKeyView | null>(null);
@@ -41,12 +44,13 @@ export default function ApiKeysPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listApiKeys(fetchApi);
-      setApiKeys(res.data || []);
+      const res = await listApiKeys(fetchApi, page);
+      setApiKeys(res.data.items);
+      setTotal(res.data.meta.total);
     } catch { /* handled */ } finally {
       setLoading(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, page]);
 
   useEffect(() => { if (session) void load(); }, [session, load]);
 
@@ -229,6 +233,7 @@ export default function ApiKeysPage() {
           </table>
         </div>
       )}
+      <PageControls page={page} total={total} limit={20} onChange={setPage} />
     </>
   );
 }

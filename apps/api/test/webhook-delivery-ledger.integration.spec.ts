@@ -128,8 +128,8 @@ describeWithDatabase('webhook delivery ledger in PostgreSQL', () => {
     expect((await prisma.outboxEvent.findUniqueOrThrow({ where: { id: outboxEventId } })).status).toBe('processed');
     const webhooksRepo = new WebhookRepository(prisma as PrismaService);
     await webhooksRepo.remove(tenantId, webhooks[0]!.id);
-    expect((await webhooksRepo.findByTenant(tenantId))[0]?.deletedAt).not.toBeNull();
-    expect((await webhooksRepo.findDeliveries(webhooks[0]!.id))[0]?.status).toBe('dead');
+    expect((await webhooksRepo.findByTenant(tenantId)).items[0]?.deletedAt).not.toBeNull();
+    expect((await webhooksRepo.findDeliveries(webhooks[0]!.id)).items[0]?.status).toBe('dead');
     expect(await repo.replayDead(randomUUID(), webhooks[0]!.id, delivery.id)).toBe(false);
     expect(await repo.replayDead(tenantId, webhooks[0]!.id, delivery.id)).toBe(true);
     const replayClaim = (await repo.claimDue(1))[0]!;

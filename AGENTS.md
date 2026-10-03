@@ -29,7 +29,7 @@
 | **UI** | React | 18.x |
 | **Estilos** | Tailwind CSS + Radix UI | v3 |
 | **Outbox** | Polling PostgreSQL en la API | cada 3 s |
-| **Cache disponible** | Redis en Compose; no usado por la API actual | 7 |
+| **Cuotas y caché pública** | Redis compartido (Compose / ElastiCache preparado) | 7 |
 | **Package manager** | npm | 11.19.0 |
 | **Infraestructura** | Docker Compose | — |
 
@@ -40,8 +40,10 @@
 - **Patrón**: Modular Monolith, N-Tier (NestJS Layers)
 - **Comunicación**: REST síncrono (`/api/v1/`) + Transactional Outbox procesado mediante polling en la API
 - **Multi-tenant**: aislamiento lógico por `tenant_id` en las consultas de recursos del tenant; no hay política PostgreSQL RLS
-- **Auth**: JWT + Refresh Token Rotation + RBAC (`admin`, `editor`); cookies HTTP Only y tokens en el cuerpo para la sesión Bearer web
-- **Webhooks**: At-least-once delivery, firma HMAC-SHA256 saliente cuando hay secret
+- **Auth**: JWT + familias de refresh tokens + RBAC (`admin`, `editor`); cookies HttpOnly en la web y Bearer explícito para clientes API
+- **API keys**: HMAC-SHA-256 con pepper versionado para `ak_`; lector `tms_` temporal durante el corte
+- **Webhooks**: ledger y polling PostgreSQL con entrega at least once; firma versionada y secreto cifrado por destino
+- **Cuotas y caché**: Redis para contadores atómicos e invalidación por versión de tenant; no participa en la entrega durable
 
 ```
 Monorepo Root
@@ -127,8 +129,8 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 - **Ciclo de vida del testimonio**: `draft → pending → approved → published | rejected`
 - **Contenido mínimo**: ≥ 10 caracteres, rating entre 1 y 5
 - **Aislamiento multi-tenant**: Toda query DEBE filtrar por `tenant_id`
-- **Webhook delivery**: At-least-once; firmado con HMAC-SHA256 si el webhook tiene secret
-- **API Keys**: la implementación actual guarda SHA-256 de claves aleatorias; no usa HMAC ni pepper. Ver brecha en la auditoría de arquitectura y configuración.
+- **Webhook delivery**: At least once; los destinos nuevos usan firma `X-TMS-Signature` sobre los bytes exactos y secreto cifrado. Los destinos legados tienen una ventana de migración.
+- **API Keys**: `ak_` usa HMAC-SHA-256 con pepper externo y scopes; `tms_` permanece como lector legado temporal por 30 días desde el primer despliegue compatible.
 
 ---
 
@@ -207,4 +209,4 @@ Al trabajar con un plan en `docs/plan/`:
 
 ---
 
-*Última actualización: 2026-09-29 — Versión del framework: SKL-PRO-001 v1.1.0*
+*Última actualización: 2026-10-02 — Versión del framework: SKL-PRO-001 v1.1.0*

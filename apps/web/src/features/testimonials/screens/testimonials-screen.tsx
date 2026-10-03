@@ -11,10 +11,13 @@ import { Plus, RefreshCw, Search } from 'lucide-react';
 import { TestimonialModal } from '../components/TestimonialModal';
 import { CreateTestimonialModal } from '../components/CreateTestimonialModal';
 import { listTestimonials } from '../api';
+import { PageControls } from '@/features/shared/pagination';
 
 export function TestimonialsScreen() {
   const { session, fetchApi } = useSession();
   const [testimonials, setTestimonials] = useState<TestimonialRecord[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedTestimonial, setSelectedTestimonial] = useState<TestimonialRecord | null>(null);
@@ -28,12 +31,13 @@ export function TestimonialsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listTestimonials(fetchApi);
-      setTestimonials(res.data);
+      const res = await listTestimonials(fetchApi, page);
+      setTestimonials(res.data.items);
+      setTotal(res.data.meta.total);
     } catch { /* handled */ } finally {
       setLoading(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, page]);
 
   useEffect(() => { if (session) void load(); }, [session, load]);
 
@@ -228,6 +232,8 @@ export function TestimonialsScreen() {
           </table>
         </div>
       )}
+
+      <PageControls page={page} total={total} limit={20} onChange={setPage} />
 
       <CreateTestimonialModal
         open={createOpen}

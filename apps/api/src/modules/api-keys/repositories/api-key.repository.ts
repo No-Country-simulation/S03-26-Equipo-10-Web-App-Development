@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConflictError, ForbiddenError } from '../../../common/errors/application.error';
 import type { ApiKeyScope, IssuedApiKey } from '../../../common/services/api-key-crypto.service';
 import { PrismaService } from '../../database/prisma.service';
+import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
 
 export interface ApiKeyView {
   id: string;
@@ -63,13 +64,14 @@ export class ApiKeyRepository {
     };
   }
 
-  async findByTenant(tenantId: string): Promise<ApiKeyView[]> {
-    const keys = await this.prisma.apiKey.findMany({
+  async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: ApiKeyView[]; total: number }> {
+    const [keys, total] = await Promise.all([this.prisma.apiKey.findMany({
       where: { tenantId }, orderBy: { createdAt: 'desc' },
+      skip: pageOffset(page), take: page.limit,
       include: { credentials: { orderBy: { createdAt: 'desc' }, take: 1,
         select: { publicId: true, environment: true } } },
-    });
-    return keys.map(key => this.view(key));
+    }), this.prisma.apiKey.count({ where: { tenantId } })]);
+    return { items: keys.map(key => this.view(key)), total };
   }
 
   async findById(tenantId: string, apiKeyId: string): Promise<ApiKeyView | null> {

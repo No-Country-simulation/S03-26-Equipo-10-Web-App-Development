@@ -1,5 +1,7 @@
 # Observabilidad y Monitoreo
 
+> **Archivo de diseño histórico:** las secciones siguientes describen opciones y ejemplos previos; menciones a Winston, Loki, Jaeger, Promtail, Grafana o worker separado no afirman que estén desplegados. El contrato implementado de métricas, trazas, alertas preparadas y puertas de despliegue está en [Fase 8: observabilidad y despliegue gradual](14_phase8_observability_rollout.md). PostgreSQL conserva el ledger de webhooks y Redis se usa para cuotas y caché compartida.
+
 ## 1. Visión General y Principios
 
 ### 1.1. Los Tres Pilares de la Observabilidad

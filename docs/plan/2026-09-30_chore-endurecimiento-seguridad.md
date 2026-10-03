@@ -1,7 +1,7 @@
 # Plan HITL: endurecimiento de Testimonial CMS
 
 **Fecha de inicio:** 2026-09-30  
-**Estado global:** Fase 7 completada localmente, pendiente de revisión humana; Fase 6 del plan de arquitectura pausada
+**Estado global:** Fase 8 implementada localmente, pendiente de CI remoto, staging, producción y retiro legado; Fase 6 del plan de arquitectura pausada
 **Skills:** `api-key-security-engineering`, `node-backend-engineering`, `web-security-engineering`, `webhook-architecture-engineering`
 
 ## Contexto y restricciones
@@ -132,12 +132,22 @@
 
 **Commit sugerido:** `feat(webhooks): firmá eventos y cifrá secretos por destino`.
 
-### `[Pendiente]` Fase 8: límites, observabilidad y despliegue
+**Review humano (ACK):** Recibido mediante «Vamos con la fase 8»; cambios de Fase 7 versionados antes de comenzar esta fase.
+
+### `[Actual: verificación de despliegue pendiente]` Fase 8: límites, observabilidad y despliegue
 
 - JSON general de 1 MB e imágenes de 10 MB con validación del tamaño decodificado. Paginar administración; revisar reintentos Cloudinary/YouTube para no repetir 4xx ni registrar credenciales en URLs.
 - Instrumentar RED, lag del event loop, antigüedad de outbox, intentos, fallos, entregas `dead` y trazas OpenTelemetry con correlación. Alertar por `dead`, pendientes mayores de cinco minutos y fallos sostenidos.
 - Actualizar ADR, módulos, `AGENTS.md` y `llm.txt` según uso real de PostgreSQL/Redis. Verificar en staging y producción con despliegue gradual; retirar lectores, columnas y headers legados solo después de 30 días y de comprobar ausencia de uso.
 - **Salida:** evidencia de CI, staging, métricas, alertas y retiro de compatibilidad antes de declarar cierre.
+
+**Implementación local para revisión:** JSON general acotado a 1 MiB; rutas de imagen con cuerpo de 14 MiB para base64 y validación de 10 MiB decodificados. Listados administrativos paginados en API y web, con navegación adicional en selectores de categorías/etiquetas. Cloudinary exige URL HTTPS sin credenciales ni query; YouTube envía la clave en header; los 4xx definitivos no se reintentan. La API expone métricas Prometheus protegidas por token, RED HTTP, lag del event loop, estado del outbox e intentos; precarga OpenTelemetry en Node/Docker cuando se configura OTLP y correlaciona trace ID. Terraform prepara token en Secrets Manager, filtros CloudWatch, alarmas y SNS. El ADR 0002, arquitectura, módulos, `AGENTS.md`, `llm.txt` y el [runbook](../operations/14_phase8_observability_rollout.md) reflejan el uso real de PostgreSQL/Redis.
+
+**Verificación local:** Las siete migraciones se aplicaron solo a PostgreSQL 18 descartable con ACK explícito; Redis 7 fue descartable. API: 42 suites y 194 pruebas aprobadas, incluida paginación con aislamiento entre tenants, límites, reintentos y métricas. Web: 11 archivos y 21 pruebas aprobadas. Typecheck, lint sin errores de API/web, builds de API/web, `npm ci --dry-run`, imágenes Docker de ambas apps y smoke conjunto pasaron. El endpoint de métricas local respondió 404 sin token y 200 con token. `terraform fmt -check` y `terraform validate` en copia temporal pasaron; se corrigió la advertencia de provider ACM. El smoke reveló y corrigió que faltaba `X-Auth-Mode: bearer` en el login de CI. Web conserva 11 advertencias de lint anteriores a esta fase.
+
+**Pendiente para cerrar la fase:** un run nuevo de CI remoto sobre el commit, navegador E2E con API real en staging, aplicación autorizada de infraestructura/migraciones persistentes, verificación de métricas, trazas y entrega de las alarmas en staging, despliegue gradual en producción y retiro legado tras 30 días y ausencia de uso. No se ejecutó Terraform `apply`, no se desplegó ni se aplicaron migraciones a bases persistentes. `npm audit` no pudo completar por DNS/tiempo de espera del registro npm, incluso fuera del sandbox; el build Docker solo informó cuatro hallazgos moderados. El gate definitivo es CI remoto.
+
+**Commit sugerido:** `feat(api): instrumentá límites y observabilidad para el despliegue gradual`.
 
 ## Contratos y pruebas finales
 

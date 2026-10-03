@@ -44,7 +44,8 @@ export class LoggingInterceptor implements NestInterceptor {
     const { method, url } = request;
     // OBS-F4: Ruta parametrizada de baja cardinalidad (ej. "/api/v1/testimonials/:id")
     const route = request.route?.path ?? url;
-    const traceId = getRequestScope()?.correlationId ?? request.requestContext?.correlationId;
+    const traceId = getRequestScope()?.traceId ?? request.requestContext?.traceId
+      ?? getRequestScope()?.correlationId ?? request.requestContext?.correlationId;
     const tenantId = getRequestScope()?.tenantId ?? request.user?.tenantId ?? request.apiKey?.tenantId;
     const startTime = Date.now();
 

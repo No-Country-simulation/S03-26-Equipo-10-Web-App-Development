@@ -9,6 +9,8 @@ import { CacheService } from '../../../common/services/cache.service';
 import { TransitionTestimonialUseCase } from '../use-cases/transition-testimonial.use-case';
 import { CreateTestimonialUseCase } from '../use-cases/create-testimonial.use-case';
 import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
+import { validateImageBase64 } from '../utils/validate-image-base64';
+import type { AdminPage } from '../../../common/pagination/admin-page';
 
 /**
  * Servicio central para la gestión de Testimonios.
@@ -84,6 +86,7 @@ export class TestimonialsService {
    * @returns El testimonio creado en estado 'pending'.
    */
   async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
+    if (dto.imageBase64) validateImageBase64(dto.imageBase64);
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
 
     if (!tenant.isPublicFormEnabled) {
@@ -135,15 +138,15 @@ export class TestimonialsService {
     return this.analyticsService.getTestimonialMetrics(tenantId, testimonialId);
   }
 
-  async listTestimonials(tenantId: string) {
-    const items = await this.repo.findByTenant(tenantId);
+  async listTestimonials(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+    const { items, total } = await this.repo.findByTenant(tenantId, page);
 
     return {
       items,
       meta: {
-        total: items.length,
-        page: 1,
-        limit: items.length,
+        total,
+        page: page.page,
+        limit: page.limit,
       },
     };
   }
@@ -238,6 +241,7 @@ export class TestimonialsService {
    * @throws {ConflictError} Si el testimonio ya está publicado (inmutable).
    */
   async uploadImage(tenantId: string, testimonialId: string, imageBase64: string) {
+    validateImageBase64(imageBase64);
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundError('Testimonial not found');
     if (testimonial.status === 'published') {

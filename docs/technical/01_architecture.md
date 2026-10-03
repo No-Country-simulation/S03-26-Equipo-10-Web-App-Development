@@ -1,6 +1,6 @@
 # Arquitectura Técnica
 
-**Estado implementado (2026-09-29):** La API usa un outbox transaccional en PostgreSQL, procesado por polling dentro del proceso NestJS. La caché de testimonios es local en memoria. Redis está definido en Compose, pero BullMQ y una caché distribuida aún no forman parte de la API. Los diagramas de despliegue multinodo describen una evolución posible y no una topología verificada.
+**Estado del código (2026-10-02):** La API usa PostgreSQL para el outbox, el ledger de entregas, los leases y los intentos. Cada réplica NestJS procesa por polling cada 3 s; Redis 7 se usa para cuotas atómicas y caché pública compartida. No hay BullMQ ni servicio worker separado. Hay instrumentación RED, métricas de outbox y trazas OTLP opcionales en el código; la infraestructura de alertas, staging y producción requiere verificación de despliegue. Los diagramas y ejemplos marcados como objetivo/histórico no representan el runtime actual.
 
 ## 1. Visión General (C4 Model - Level 1)
 
@@ -28,7 +28,7 @@ flowchart TD
         S4[Servicio de Analítica]
         S5[Servicio de Webhooks]
         S6[(PostgreSQL<br/>Base de datos principal)]
-        S7[(Caché local<br/>en memoria)]
+        S7[(Redis 7<br/>cuotas y caché pública)]
         S8[(Cloudinary<br/>Almacenamiento multimedia)]
     end
 
@@ -76,12 +76,12 @@ flowchart TD
 | **Estilo Arquitectónico** | Monolito / Microservicios / Serverless | Modular monolito (NestJS) con capas claras y posible desacople futuro | Simplicidad inicial, pero con separación de dominios que permite escalar servicios de forma independiente si es necesario. | Menor complejidad operativa ahora, preparado para crecimiento. |
 | **Framework Backend** | Express.js / Fastify / NestJS | NestJS | Provee arquitectura por defecto (módulos, controladores, servicios), inyección de dependencias y soporte nativo para los patrones que necesitamos (guards, interceptores, etc.). | Curva de aprendizaje, pero mejora mantenibilidad en equipo. |
 | **Base de Datos** | PostgreSQL / MySQL / MongoDB | PostgreSQL 18 | Requerimos ACID, relaciones y consistencia fuerte para testimonios, analítica y eventos. Soporte JSONB para flexibilidad. | Integridad referencial garantizada. |
-| **Cache** | Redis / Memcached / in‑memory | Caché local en memoria (actual); Redis 7 reservado | Evita dependencia de red en despliegue simple. | No comparte entradas entre instancias; requiere rediseño para escalado horizontal. |
-| **Procesamiento asíncrono** | RabbitMQ / Kafka / AWS SQS / BullMQ / polling | Polling de `outbox_events` (actual); BullMQ evaluable a futuro | Mantiene la transacción de negocio y evento en PostgreSQL. | El procesador comparte ciclo de vida con la API. |
+| **Cache y cuotas** | Redis / Memcached / in‑memory | Redis 7 compartido, TTL y claves versionadas por tenant | Comparte límites e invalidación entre réplicas. | Una mutación protegida responde 503 si no puede verificarse su cuota. |
+| **Procesamiento asíncrono** | RabbitMQ / Kafka / AWS SQS / BullMQ / polling | Ledger y polling PostgreSQL dentro de la API | Mantiene evento, entregas e intentos durables en PostgreSQL. | El procesador comparte ciclo de vida con la API. |
 | **API Design** | REST / GraphQL / gRPC | REST con OpenAPI | Simplicidad, madurez, herramientas de documentación y consumo universal. | Versionado y evolución controlada. |
 | **Autenticación** | OAuth2 / JWT / Sesiones | JWT + Refresh Tokens (rotación y hashing) | Stateless, fácil de escalar, compatible con frontends modernos. Refresh tokens almacenados con hash para seguridad adicional. | Necesidad de revocación y rotación. |
 | **Multi‑tenancy** | Base de datos separada / Schema por tenant / Fila por tenant | Fila por tenant (tenant_id en cada tabla) | Simplifica la administración y permite compartir recursos. Aislamiento lógico a nivel de aplicación. | Requiere cuidado en queries para no filtrar datos entre tenants. |
-| **Event‑driven** | Polling / Event Sourcing / Outbox | Outbox pattern con tabla `outbox_events` y worker | Garantiza que los eventos (webhooks, analítica, etc.) se entreguen incluso si falla el sistema externo. Consistencia transaccional. | Mayor complejidad, pero necesario para confiabilidad. |
+| **Event‑driven** | Polling / Event Sourcing / Outbox | Outbox transaccional y ledger con procesador en la API | Garantiza persistencia del evento y registra el resultado de cada destino. | Requiere leases, reintentos y operación de entregas `dead`. |
 | **Feature Flags** | Configuración hardcodeada / DB / LaunchDarkly | Tabla `feature_flags` y `tenant_feature_flags` en DB | Control dinámico por tenant sin redeploy, preparado para A/B testing y despliegues graduales. | Impacto mínimo en complejidad. |
 | **Analítica** | Almacenamiento en el mismo servicio / Servicio separado / Eventos en DB | Eventos en tabla `analytics_events` + procesamiento asíncrono | Simplicidad para MVP, permite reportes y cálculo de scoring con consultas SQL. | Puede convertirse en cuello de botella con muchos eventos; se migrará a sistema dedicado en el futuro. |
 
@@ -90,8 +90,8 @@ flowchart TD
 | Componente | Decisión | Consecuencia |
 | --- | --- | --- |
 | PostgreSQL | Estado de testimonios y outbox comparten transacción. | Si la base no está disponible, no se aceptan nuevas escrituras y readiness falla. |
-| Caché local | `CacheService` guarda respuestas con TTL dentro de cada proceso. | Una réplica no comparte entradas ni invalidaciones con otra; el escalado horizontal requiere otra estrategia. |
-| Outbox por polling | `OutboxProcessor` lee eventos de PostgreSQL cada 3 s y reintenta entregas fallidas. | No requiere Redis para entregar webhooks, pero la concurrencia entre réplicas necesita verificación específica. |
+| Redis | `CacheService` guarda respuestas públicas con TTL de 60 s y versión por tenant; cuotas usan contadores Lua con TTL. | Redis es necesario para verificar cuotas de mutaciones protegidas; una lectura puede volver a PostgreSQL si falla la caché. |
+| Outbox por polling | `OutboxProcessor` reclama entregas con `SKIP LOCKED` y lease cada 3 s; la API guarda intentos y resultados terminales. | No requiere Redis para entregar webhooks; la concurrencia entre dos procesadores está cubierta por pruebas PostgreSQL descartables. |
 | API NestJS | Controladores y procesador viven en el mismo servicio. | Su disponibilidad y la entrega de webhooks comparten ciclo de vida. |
 
 ---
@@ -100,75 +100,24 @@ flowchart TD
 
 ### 3.1. Diagrama de Contenedores
 
-Este diagrama incluye componentes objetivo (SDK embebible, CDN, Redis y worker BullMQ). El despliegue actual se describe en el estado implementado al inicio del documento y en `docker-compose.yml`.
+Este diagrama representa los componentes del código. Compose los ejecuta localmente; la topología AWS preparada aún requiere despliegue y verificación.
 
 ```mermaid
-flowchart TD
-    subgraph Client_Layer["Capa Cliente"]
-        C1[Web App<br/>Next.js + React]
-        C2[Widget embebible<br/>JavaScript SDK]
-        C3[API Clients<br/>Postman / curl]
-    end
-
-    subgraph Edge_Layer["Capa Edge"]
-        E1[CDN<br/>Vercel / Cloudflare]
-        E2[Load Balancer<br/>Nginx / AWS ALB]
-    end
-
-    subgraph Backend_Layer["Backend (NestJS)"]
-        direction TB
-        G1[API Gateway<br/>Módulos: Auth, Tenants]
-        G2[Testimonial Module<br/>CRUD, moderación, scoring]
-        G3[Analytics Module<br/>Event tracking, reportes]
-        G4[Webhook Module<br/>Configuración, delivery]
-        G5[Feature Flags Module<br/>Gestión de flags por tenant]
-    end
-
-    subgraph Async_Layer["Procesamiento Asíncrono"]
-        A1[(Redis<br/>BullMQ Queues)]
-        A2[Worker Service<br/>NestJS + BullMQ]
-    end
-
-    subgraph Data_Layer["Capa de Datos"]
-        D1[(PostgreSQL<br/>Primaria)]
-        D2[(Redis<br/>Cache)]
-        D3[Cloudinary<br/>Media Storage]
-    end
-
-    subgraph External_Systems["Sistemas Externos"]
-        X1[YouTube API]
-        X2[Slack / CRM / Webhooks]
-    end
-
-    C1 --> E1
-    C2 --> E1
-    C3 --> E1
-    E1 --> E2
-    E2 --> G1
-
-    G1 --> G2
-    G1 --> G3
-    G1 --> G4
-    G1 --> G5
-
-    G2 --> D1
-    G2 --> D2
-    G2 --> D3
-    G2 --> A1
-
-    G3 --> D1
-    G3 --> A1
-
-    G4 --> D1
-    G4 --> A1
-
-    G5 --> D1
-
-    A1 --> A2
-    A2 --> D1
-    A2 --> X2
-
-    G2 -.->|Obtener metadata| X1
+flowchart LR
+    W[Web Next.js] --> E[Ingress Nginx o ALB]
+    C[Clientes Bearer y API key] --> E
+    E --> A[API NestJS replica 1]
+    E --> B[API NestJS replica 2]
+    A --> P[(PostgreSQL 18: dominio, outbox, ledger e intentos)]
+    B --> P
+    A --> R[(Redis 7: cuotas y cache publica)]
+    B --> R
+    A --> H[Destinos webhook HTTPS]
+    B --> H
+    A --> X[Cloudinary y YouTube]
+    B --> X
+    A -.-> O[Metricas protegidas y OTLP opcional]
+    B -.-> O
 ```
 
 ### 3.2. Responsabilidades por Módulo/Servicio
@@ -177,10 +126,10 @@ flowchart TD
 |-----------------|---------------------------|-----------------|---------------|--------------|
 | **Auth Module** | Registro, login, refresh tokens, gestión de roles y permisos | `/auth/login`, `/auth/refresh`, `/auth/logout`, `/users` | Horizontal (stateless) | PostgreSQL (users, refresh_tokens, roles, permissions) |
 | **Testimonial Module** | CRUD de testimonios, moderación, asignación de tags/categorías, cálculo de scoring | `/testimonials`, `/testimonials/:id/moderate`, `/testimonials?sort=top` | Horizontal | PostgreSQL + Redis (caching de listas públicas) |
-| **Analytics Module** | Recepción de eventos (views, clicks, plays), consulta de métricas, alimentación del scoring | `/analytics/event`, `/analytics/dashboard` | Horizontal, con colas para escritura | PostgreSQL (tabla de eventos), Redis para agregados rápidos |
-| **Webhook Module** | Registro de webhooks por tenant, disparo de eventos, reintentos | `/webhooks`, `/webhooks/:id/deliveries` | Horizontal, worker asíncrono | PostgreSQL (webhooks, deliveries), Redis (cola de reintentos) |
+| **Analytics Module** | Recepción de vistas/clicks y reportes | `/analytics/events`, `/analytics/dashboard` | Horizontal | PostgreSQL (eventos), Redis para cuotas de ruta |
+| **Webhook Module** | Registro de destinos, outbox, entregas e intentos | `/webhooks`, `/webhooks/:id/deliveries` | Poller dentro de cada réplica API | PostgreSQL (outbox, ledger, intentos); sin cola Redis |
 | **Feature Flags Module** | Consulta y actualización de feature flags por tenant | `/flags`, `/flags/:name` | Horizontal | PostgreSQL (feature_flags, tenant_feature_flags) |
-| **Worker Service** | Procesa eventos de outbox, envía webhooks, actualiza scoring, invalida caché | (no expone API) | Horizontal (varios workers) | PostgreSQL, Redis |
+| **OutboxProcessor** | Reclama entregas con lease y las envía con concurrencia acotada | (no expone API propia) | Una instancia dentro de cada réplica API | PostgreSQL |
 
 ---
 
@@ -226,8 +175,8 @@ modules/
 export class TestimonialsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findById(id: string): Promise<TestimonialView | null> {
-    return this.prisma.testimonial.findUnique({ where: { id } });
+  async findById(tenantId: string, id: string): Promise<TestimonialView | null> {
+    return this.prisma.testimonial.findFirst({ where: { id, tenantId } });
   }
 
   async create(data: Prisma.TestimonialCreateInput): Promise<TestimonialView> {
@@ -245,46 +194,9 @@ export class TestimonialsRepository {
 
 ### 4.3. Patrón: Outbox (Transactional Outbox)
 
-**Propósito**: Garantizar la publicación confiable de eventos (webhooks, actualización de scoring, analítica) sin perder datos, incluso si falla el envío.
+**Propósito**: Garantizar la publicación confiable de eventos de dominio y entregas HTTP sin perder datos aunque falle un destinatario.
 
-**Implementación** (dentro de la misma transacción):
-
-```typescript
-async publishTestimonial(id: string): Promise<void> {
-  await this.prisma.$transaction(async (tx) => {
-    // 1. Actualizar el testimonio
-    await tx.testimonial.update({
-      where: { id },
-      data: { status: 'published', publishedAt: new Date() }
-    });
-
-    // 2. Guardar evento en outbox
-    await tx.outboxEvent.create({
-      data: {
-        tenantId: testimonial.tenantId,
-        eventType: 'testimonial.published',
-        payload: { id, author: testimonial.authorName }
-      }
-    });
-  });
-
-  // El worker recogerá este evento y lo enviará a los webhooks
-}
-```
-
-**Worker**:
-
-```typescript
-@Processor('outbox')
-export class OutboxProcessor {
-  @Process()
-  async processEvent(job: Job<{ eventId: string }>) {
-    const event = await prisma.outboxEvent.findUnique({ where: { id: job.data.eventId } });
-    // Enviar a webhooks configurados, reintentar si falla...
-    // Marcar como procesado cuando tenga éxito
-  }
-}
-```
+**Implementación real**: `TestimonialRepository` y `OutboxService` escriben dominio, evento y entregas lógicas en una transacción PostgreSQL. `OutboxProcessor` consulta trabajos vencidos cada tres segundos, los reclama con `FOR UPDATE SKIP LOCKED` y lease, y registra cada intento antes de enviar. Ver [ADR 0002](../adr/0002-patron-outbox-para-eventos-y-webhooks.md) y [módulo de webhooks](../modules/api-webhooks.md).
 
 **Beneficios**:
 - ✅ Consistencia transaccional: evento y cambio de estado se guardan juntos o no se guarda ninguno.
@@ -292,7 +204,7 @@ export class OutboxProcessor {
 - ✅ Permite desacoplar el envío de la respuesta al usuario.
 
 **Trade-offs**:
-- ⚠️ Complejidad adicional (worker, tabla outbox, reintentos).
+- ⚠️ Complejidad adicional (ledger, leases, tabla outbox y reintentos).
 - ⚠️ Latencia entre la acción y el evento (puede ser de segundos, aceptable).
 
 ### 4.4. Patrón: Circuit Breaker (para llamadas externas)
@@ -356,7 +268,7 @@ async createTestimonial(@Body() dto: CreateTestimonialDto, @Headers('Idempotency
 
 ### 5.1. Matriz de Tecnologías
 
-La matriz siguiente enumera el software implementado. Las topologías con BullMQ o Kubernetes en otras secciones son diseños objetivo.
+La matriz siguiente separa el software implementado de las topologías históricas/objetivo con BullMQ o Kubernetes que aparecen en otras secciones.
 
 | Capa/Componente | Tecnología | Versión | Justificación | Alternativas Descartadas |
 |-----------------|------------|---------|---------------|--------------------------|
@@ -364,8 +276,8 @@ La matriz siguiente enumera el software implementado. Las topologías con BullMQ
 | **Framework Backend** | NestJS | 11.2.x | DI y módulos por dominio | Express, Fastify |
 | **Base de Datos** | PostgreSQL | 18 | ACID, JSONB y outbox transaccional | MySQL, MongoDB |
 | **ORM** | Prisma | 6.5.0 | Acceso tipado y migraciones | TypeORM, Sequelize |
-| **Caché de API** | `CacheService` local | TTL de 60 s | Consultas repetidas en una instancia | Redis compartido para escala futura |
-| **Outbox** | `OutboxProcessor` en NestJS | polling de 3 s | Reintentos respaldados por PostgreSQL | BullMQ evaluable a futuro |
+| **Caché y cuotas** | Redis 7 | TTL de 60 s para caché | Datos públicos y límites compartidos entre réplicas | Caché local descartada |
+| **Outbox** | `OutboxProcessor` en NestJS + ledger PostgreSQL | polling de 3 s | Leases, intentos y reintentos durables | BullMQ fuera del flujo actual |
 | **API Specification** | Swagger/OpenAPI | `@nestjs/swagger` 11.4.x | Documentación de endpoints | GraphQL |
 | **Frontend Framework** | Next.js 15 (App Router) + React 18 | 15.5.x / 18.3.x | SSR/CSR según necesidad, routing automático, buen rendimiento | React puro (más configuración), Vue (menor ecosistema) |
 | **Frontend Language** | TypeScript | 5.x | Type safety, mejor mantenimiento, compartir tipos con backend | JavaScript |
@@ -374,9 +286,9 @@ La matriz siguiente enumera el software implementado. Las topologías con BullMQ
 | **Testing Frontend** | Vitest + React Testing Library | 3.2.7 | Pruebas de componentes y adaptadores | Playwright aún no implementado |
 | **CI/CD** | GitHub Actions | - | Suite completa para ambas apps | GitLab CI, CircleCI |
 | **Containerization** | Docker | 24.x | Portabilidad, desarrollo y producción consistentes | Podman, containerd |
-| **Orchestration** | Docker Compose (dev) / Kubernetes (futuro) | - | Para desarrollo local; producción planeada con K8s | AWS ECS (dependencia de nube) |
-| **Monitoring** | Prometheus + Grafana | - | Open source, comunidad activa, dashboards potentes | ELK, Datadog |
-| **Logging** | Winston + Loki | - | Logging estructurado, integración con Grafana | Bunyan, Pino |
+| **Orchestration** | Docker Compose local / Terraform AWS ECS preparado | - | Despliegue gradual pendiente de evidencia de staging y producción | Kubernetes fuera del flujo actual |
+| **Monitoring** | Exposición Prometheus protegida, OTLP opcional | - | Instrumentación RED, lag y outbox en API; backend de recolección pendiente de despliegue | ELK, Datadog |
+| **Logging** | Pino JSON estructurado | - | Correlación por request y trace ID | Winston histórico |
 
 ---
 
@@ -537,15 +449,15 @@ flowchart TD
 | Vulnerabilidad | Mitigación Implementada |
 |----------------|-------------------------|
 | **A01: Broken Access Control** | RBAC estricto + middleware que verifica tenant_id en cada operación. |
-| **A02: Cryptographic Failures** | TLS 1.3, bcrypt para contraseñas, SHA-256 para hashes de tokens. |
+| **A02: Cryptographic Failures** | Argon2id para contraseñas nuevas; verificación transitoria de scrypt; HMAC con pepper para claves nuevas y secretos de webhook cifrados. |
 | **A03: Injection** | Prisma usa queries parametrizadas; validación de entrada con DTOs. |
 | **A04: Insecure Design** | Threat modeling ligero al diseñar features; revisiones de código. |
 | **A05: Security Misconfiguration** | Configuración centralizada con validación de variables de entorno. |
-| **A06: Vulnerable Components** | Dependabot + Snyk en CI; actualizaciones regulares. |
+| **A06: Vulnerable Components** | `npm audit`, Dependency Review y escaneo de secretos en CI. |
 | **A07: Identification & Auth Failures** | JWT con expiración corta (15 min), refresh tokens con rotación y revocación. |
 | **A08: Software/Data Integrity** | Firma de webhooks con HMAC; idempotencia en endpoints clave. |
-| **A09: Security Logging** | Logs estructurados de eventos de autenticación y errores, enviados a Loki. |
-| **A10: SSRF** | Validación estricta de URLs en webhooks (whitelist de dominios permitidos). |
+| **A09: Security Logging** | Pino estructurado con redacción de credenciales; retención en CloudWatch preparada en Terraform. |
+| **A10: SSRF** | HTTPS para destinos nuevos, DNS A/AAAA validado en cada conexión, IP fijada, sin redirecciones ni proxies implícitos y ACL de egreso preparada. |
 
 ---
 
@@ -559,31 +471,11 @@ flowchart TD
 | **API Gateway** | Compresión gzip, caché de respuestas públicas | -50% latencia en lecturas frecuentes | p95 < 150ms |
 | **Aplicación** | Caching en Redis de listas de testimonios públicos | -90% hits a base de datos | Cache hit rate > 80% |
 | **Base de Datos** | Índices adecuados (tenant_id, status, score) | -95% tiempo de queries complejas | Query time < 50ms |
-| **Worker** | Procesamiento asíncrono de tareas pesadas (webhooks, scoring) | UI no bloqueada, mejor experiencia | Tiempo de respuesta API < 200ms |
+| **OutboxProcessor** | Entrega HTTP fuera de la petición y con concurrencia acotada | La respuesta de publicación no espera al destinatario | Antigüedad de pendiente < 300 s |
 
-### 9.2. Patrón: Caching en Multi‑nivel
+### 9.2. Caché pública implementada
 
-```typescript
-// Ejemplo de cache con Redis y local memory (opcional)
-@Injectable()
-export class TestimonialCache {
-  constructor(@Inject(CACHE_MANAGER) private cache: Cache) {}
-
-  async getPublished(tenantId: string, filters: any): Promise<Testimonial[]> {
-    const key = `testimonials:${tenantId}:published:${hash(filters)}`;
-    let cached = await this.cache.get(key);
-    if (cached) return JSON.parse(cached);
-
-    const data = await this.fetchFromDb(tenantId, filters);
-    await this.cache.set(key, JSON.stringify(data), 300); // TTL 5 min
-    return data;
-  }
-
-  async invalidate(tenantId: string): Promise<void> {
-    // Invalida por patrón usando Redis SCAN o keys versionadas
-  }
-}
-```
+`CacheService` guarda respuestas públicas en Redis durante 60 s, con límite de 256 KiB por valor. La clave incluye una versión del tenant que se incrementa al publicar. Un lock evita el recálculo simultáneo entre réplicas. Si Redis falla en una lectura, la API consulta PostgreSQL; las mutaciones con cuota protegida fallan cerradas si el contador no puede verificarse. Ver [operación de Redis](../operations/10_redis_quotas_cache.md).
 
 ---
 
@@ -591,10 +483,10 @@ export class TestimonialCache {
 
 | Componente | Estrategia | Métrica de Trigger | Herramienta |
 |------------|------------|-------------------|-------------|
-| **API (NestJS)** | Horizontal (múltiples instancias) | CPU > 70% o requests/segundo > 500 | Kubernetes HPA / Docker Swarm |
+| **API (NestJS)** | Horizontal con varias tareas ECS preparadas | CPU/latencia y antigüedad del outbox observadas | ECS autoscaling en Terraform |
 | **Base de Datos** | Vertical + read replicas para consultas de analítica | CPU > 80% o conexiones > 100 | RDS / PostgreSQL streaming replication |
-| **Redis** | Redis Cluster (sharding) | Memoria > 85% o evictions > 0 | Redis Cluster nativo |
-| **Worker (BullMQ)** | Horizontal, múltiples workers consumiendo la misma cola | Longitud de cola > 1000 | Kubernetes HPA basado en métricas de cola |
+| **Redis** | ElastiCache privado preparado, con réplica en producción | Memoria/evictions y disponibilidad | ElastiCache Redis OSS 7 |
+| **Entrega webhook** | Poller en cada réplica API, reclamación `SKIP LOCKED` | Pendiente > 300 s, `dead` > 0 | PostgreSQL y alarmas CloudWatch preparadas |
 
 ---
 
@@ -604,12 +496,12 @@ export class TestimonialCache {
 
 | Patrón | Propósito | Implementación |
 |--------|-----------|----------------|
-| **Retry con Exponential Backoff** | Reintentar operaciones fallidas (webhooks, llamadas externas) | BullMQ retries automáticos; backoff configurable |
-| **Circuit Breaker** | Evitar cascadas de fallos en llamadas a Cloudinary/YouTube | Implementación manual con `cockatiel` o similar |
-| **Bulkhead** | Aislar recursos por tenant (opcional, futuro) | Pools de conexión separados por tenant en base de datos (si se requiere) |
+| **Retry con Exponential Backoff** | Reintentar fallos transitorios de webhooks y proveedores externos | Ledger PostgreSQL con full jitter para webhooks; transporte HTTP acotado para proveedores |
+| **Circuit Breaker** | Evitar cascadas de fallos en Cloudinary/YouTube | Circuito simple en `HttpResilienceService` |
+| **Concurrencia acotada** | Evitar saturación por destinos lentos | Máximo cinco entregas simultáneas por réplica API |
 | **Timeout** | Evitar bloqueos indefinidos | Timeout de 5s en llamadas a servicios externos |
-| **Fallback** | Respuestas degradadas en caso de error | Cache stale‑while‑revalidate; si falla, servir datos de caché aunque estén expirados |
-| **Health Checks** | Detectar fallos proactivamente | Endpoint `/health` en cada servicio, verifica DB, Redis |
+| **Fallback** | Mantener lecturas públicas si Redis no está disponible | Consultar PostgreSQL; no servir datos expirados tras una mutación crítica |
+| **Health Checks** | Detectar fallos proactivamente | Liveness sin base y readiness con Prisma |
 | **Graceful Degradation** | Mantener funcionalidad crítica bajo fallos | Si el módulo de analytics falla, el dashboard muestra un mensaje pero el CRUD de testimonios sigue funcionando |
 
 ### 11.2. Estrategia de Backup y Recovery
@@ -708,22 +600,22 @@ interface ErrorResponse {
 
 ### ✅ Escalabilidad y Rendimiento
 - [x] La estrategia de escalado horizontal está definida.
-- [x] El caching strategy está documentado (multi‑nivel con Redis).
+- [x] La caché pública compartida con TTL y versión por tenant está documentada.
 - [x] Las métricas de rendimiento objetivo están definidas.
 
 ### ✅ Resiliencia y Seguridad
 - [x] Patrones de resiliencia (retry, circuit breaker, outbox) implementados.
-- [x] La estrategia de backup y recovery cumple RTO/RPO definidos.
+- [ ] RTO/RPO requieren simulacro y evidencia del entorno desplegado.
 - [x] Mitigaciones OWASP Top 10 documentadas.
 - [x] Defensa en profundidad en múltiples capas.
 
 ### ✅ Observabilidad
-- [x] Métricas clave definidas (tiempo de respuesta, tasa de error, hits de caché).
-- [x] Logging estructurado implementado (Winston).
-- [x] Trazabilidad distribuida (futuro con OpenTelemetry).
+- [x] Métricas RED, lag y estado del outbox instrumentadas en la API.
+- [x] Logging estructurado con Pino y correlación de solicitud/trace ID.
+- [ ] Exportación OTLP y alertas requieren prueba en staging/producción.
 
 ### ✅ Documentación y Código
-- [x] Diagramas de arquitectura actualizados (C4).
+- [x] El diagrama de contenedores refleja PostgreSQL para entregas y Redis para cuotas/caché.
 - [x] Estructura del proyecto sigue los principios documentados.
 - [x] APIs especificadas en OpenAPI (se generará automáticamente con NestJS Swagger).
 

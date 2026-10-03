@@ -1,6 +1,8 @@
 # Módulo: Testimonials (`apps/api/src/modules/testimonials/`)
 # Código: SKL-PRO-001 — Nivel 3, Especificación Técnica
-# Última actualización: 2026-09-18
+# Última actualización: 2026-10-02
+
+> Contrato activo de límites: JSON general hasta 1 MiB. Los POST de subida de imagen y envío público con imagen aceptan un cuerpo JSON de hasta 14 MiB para transportar base64; la imagen decodificada se valida a un máximo de 10 MiB antes de persistir o llamar a Cloudinary. Los listados administrativos de testimonios, categorías y etiquetas responden `{ items, meta: { page, limit, total } }`; `page` por defecto es 1 y `limit` por defecto es 20, máximo 100.
 
 ---
 

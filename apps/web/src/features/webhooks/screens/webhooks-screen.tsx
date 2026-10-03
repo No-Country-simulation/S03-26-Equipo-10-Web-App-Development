@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, Trash2, Webhook, Zap, ShieldAlert, Copy } from 'lucide-react';
 import { createWebhook, deleteWebhook, listWebhookDeliveries, listWebhooks, replayWebhookDelivery, rotateWebhookSecret, testWebhook } from '../api';
+import { PageControls } from '@/features/shared/pagination';
 
 export type WebhookView = {
   id: string;
@@ -37,22 +38,27 @@ type DeliveryView = {
 export default function WebhooksPage() {
   const { session, fetchApi } = useSession();
   const [webhooks, setWebhooks] = useState<WebhookView[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [selectedWebhookId, setSelectedWebhookId] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
+  const [deliveryPage, setDeliveryPage] = useState(1);
+  const [deliveryTotal, setDeliveryTotal] = useState(0);
   const [newSigningSecret, setNewSigningSecret] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listWebhooks(fetchApi);
+      const res = await listWebhooks(fetchApi, page);
       setWebhooks(res.data.items);
+      setTotal(res.data.meta.total);
     } catch { /* handled */ } finally {
       setLoading(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, page]);
 
   useEffect(() => { if (session) void load(); }, [session, load]);
 
@@ -105,11 +111,13 @@ export default function WebhooksPage() {
     }
   }
 
-  async function showDeliveries(webhookId: string) {
+  async function showDeliveries(webhookId: string, requestedPage = 1) {
     try {
-      const res = await listWebhookDeliveries(fetchApi, webhookId);
+      const res = await listWebhookDeliveries(fetchApi, webhookId, requestedPage);
       setSelectedWebhookId(webhookId);
       setDeliveries(res.data.items);
+      setDeliveryPage(requestedPage);
+      setDeliveryTotal(res.data.meta.total);
     } catch (err) {
       alert(`Error cargando entregas: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -119,7 +127,7 @@ export default function WebhooksPage() {
     if (!selectedWebhookId) return;
     try {
       await replayWebhookDelivery(fetchApi, selectedWebhookId, deliveryId);
-      await showDeliveries(selectedWebhookId);
+      await showDeliveries(selectedWebhookId, deliveryPage);
     } catch (err) {
       alert(`Error reenviando entrega: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -298,10 +306,13 @@ export default function WebhooksPage() {
                   ))}
                 </ul>
               )}
+              <PageControls page={deliveryPage} total={deliveryTotal} limit={20}
+                onChange={(next) => void showDeliveries(selectedWebhookId, next)} />
             </section>
           )}
         </div>
       )}
+      <PageControls page={page} total={total} limit={20} onChange={setPage} />
     </>
   );
 }

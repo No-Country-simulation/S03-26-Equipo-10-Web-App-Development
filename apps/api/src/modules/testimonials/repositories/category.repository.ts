@@ -1,22 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CategoryView } from '../entities/category.model';
+import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
 
 @Injectable()
 export class CategoryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByTenant(tenantId: string): Promise<CategoryView[]> {
-    const rows = await this.prisma.category.findMany({
+  async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: CategoryView[]; total: number }> {
+    const [rows, total] = await Promise.all([this.prisma.category.findMany({
       where: { tenantId },
       orderBy: { name: 'asc' },
-    });
+      skip: pageOffset(page), take: page.limit,
+    }), this.prisma.category.count({ where: { tenantId } })]);
 
-    return rows.map(row => ({
+    return { items: rows.map(row => ({
       id: row.id,
       tenantId: row.tenantId,
       name: row.name,
-    }));
+    })), total };
   }
 
   async findById(tenantId: string, id: string): Promise<CategoryView | null> {

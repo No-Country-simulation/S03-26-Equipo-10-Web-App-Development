@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Youtube, Image as ImageIcon, Loader2, Edit3, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { listCategories, listTags } from '@/features/catalog/api';
+import { PageControls } from '@/features/shared/pagination';
 import { attachTestimonialImage, attachTestimonialVideo, transitionTestimonial, updateTestimonial } from '../api';
 
 interface TestimonialModalProps {
@@ -49,21 +50,35 @@ export function TestimonialModal({
   // Metadata
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
   const [allTags, setAllTags] = useState<{id: string, name: string}[]>([]);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [tagPage, setTagPage] = useState(1);
+  const [categoryTotal, setCategoryTotal] = useState(0);
+  const [tagTotal, setTagTotal] = useState(0);
 
   useEffect(() => {
     async function loadMeta() {
       if (!open) return;
       try {
         const [catRes, tagRes] = await Promise.all([
-          listCategories(fetchApi),
-          listTags(fetchApi),
+          listCategories(fetchApi, categoryPage, 20),
+          listTags(fetchApi, tagPage, 20),
         ]);
-        setCategories(catRes.data);
-        setAllTags(tagRes.data);
+        setCategories(previous => {
+          const selected = previous.find(item => item.id === editCategoryId)
+            ?? (testimonial?.category?.id === editCategoryId ? testimonial.category : undefined);
+          return [...(selected && !catRes.data.items.some(item => item.id === selected.id) ? [selected] : []), ...catRes.data.items];
+        });
+        setAllTags(previous => {
+          const selected = editTagIds.map(id => previous.find(item => item.id === id)
+            ?? testimonial?.tags?.find(item => item.id === id)).filter((item): item is { id: string; name: string } => Boolean(item));
+          return [...selected.filter(item => !tagRes.data.items.some(next => next.id === item.id)), ...tagRes.data.items];
+        });
+        setCategoryTotal(catRes.data.meta.total);
+        setTagTotal(tagRes.data.meta.total);
       } catch (e) { console.error('Error loading meta', e); }
     }
     void loadMeta();
-  }, [open, fetchApi]);
+  }, [open, fetchApi, categoryPage, tagPage, editCategoryId, editTagIds, testimonial]);
 
   useEffect(() => {
     if (open && testimonial) {
@@ -113,6 +128,11 @@ export function TestimonialModal({
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !testimonial) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('La imagen supera el máximo de 10 MB');
+      e.target.value = '';
+      return;
+    }
     
     setLoadingImage(true);
     try {
@@ -219,6 +239,7 @@ export function TestimonialModal({
                       <option value="">Sin Categoría</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
+                    <PageControls page={categoryPage} total={categoryTotal} limit={20} onChange={setCategoryPage} />
                   </div>
                   <div>
                     <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Etiquetas</Label>
@@ -243,6 +264,7 @@ export function TestimonialModal({
                         </button>
                       ))}
                     </div>
+                    <PageControls page={tagPage} total={tagTotal} limit={20} onChange={setTagPage} />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-4">

@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { UserRepository } from "../repositories/user.repository";
 import { PasswordService } from '../../shared/hashing';
 import { CreateUserDto, UpdateUserDto } from "../dto/user.dto";
+import type { AdminPage } from '../../../common/pagination/admin-page';
 
 /**
  * Servicio encargado de la gestión de usuarios.
@@ -61,11 +62,11 @@ export class UsersService {
      * Lista todos los usuarios de un tenant y los envuelve en un objeto paginado estandarizado.
      * @param tenantId ID del tenant a consultar.
      */
-    async listUsers(tenantId: string) {
-        const users = await this.userRepo.findByTenant(tenantId);
+    async listUsers(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+        const { items, total } = await this.userRepo.findByTenant(tenantId, page);
         return {
-          items: users,
-          meta: { total: users.length, page: 1, limit: users.length },
+          items,
+          meta: { total, page: page.page, limit: page.limit },
         };
     }
 

@@ -22,9 +22,11 @@ describe('TestimonialsScreen', () => {
     fetchApi.mockReset();
     fetchApi.mockImplementation(async (path: string, init?: RequestInit) => {
       if (path === '/testimonials' && init?.method === 'POST') return { success: true, data: records[0] };
-      if (path === '/testimonials') return { success: true, data: records };
+      if (path.startsWith('/testimonials?page=')) return { success: true,
+        data: { items: records, meta: { page: 1, limit: 20, total: records.length } } };
       if (path.endsWith('/approve')) return { success: true, data: records[1] };
-      if (path === '/categories' || path === '/tags') return { success: true, data: [] };
+      if (path.startsWith('/categories?page=') || path.startsWith('/tags?page=')) return { success: true,
+        data: { items: [], meta: { page: 1, limit: 100, total: 0 } } };
       return { success: true, data: {} };
     });
   });

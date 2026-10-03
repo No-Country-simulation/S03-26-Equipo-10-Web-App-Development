@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
@@ -14,6 +15,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CreateUserDto, UpdateUserDto } from '../dto/user.dto';
+import { parseAdminPage } from '../../../common/pagination/admin-page';
 
 /**
  * Controlador de Usuarios.
@@ -31,8 +33,8 @@ export class UsersController {
    * @param tenantId ID del tenant extraído del token del usuario autenticado.
    */
   @Get()
-  list(@CurrentTenantId() tenantId: string) {
-    return this.usersService.listUsers(tenantId);
+  list(@CurrentTenantId() tenantId: string, @Query() query: Record<string, unknown>) {
+    return this.usersService.listUsers(tenantId, parseAdminPage(query));
   }
 
   /**

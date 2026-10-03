@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Star, Loader2, PenLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { listCategories, listTags } from '@/features/catalog/api';
+import { PageControls } from '@/features/shared/pagination';
 import { createTestimonial } from '../api';
 
 interface CreateTestimonialModalProps {
@@ -38,21 +39,27 @@ export function CreateTestimonialModal({
   // Metadata
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
   const [allTags, setAllTags] = useState<{id: string, name: string}[]>([]);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [tagPage, setTagPage] = useState(1);
+  const [categoryTotal, setCategoryTotal] = useState(0);
+  const [tagTotal, setTagTotal] = useState(0);
 
   useEffect(() => {
     async function loadMeta() {
       if (!open) return;
       try {
         const [catRes, tagRes] = await Promise.all([
-          listCategories(fetchApi),
-          listTags(fetchApi),
+          listCategories(fetchApi, categoryPage, 20),
+          listTags(fetchApi, tagPage, 20),
         ]);
-        setCategories(catRes.data);
-        setAllTags(tagRes.data);
+        setCategories(previous => [...previous.filter(item => item.id === categoryId && !catRes.data.items.some(next => next.id === item.id)), ...catRes.data.items]);
+        setAllTags(previous => [...previous.filter(item => tagIds.includes(item.id) && !tagRes.data.items.some(next => next.id === item.id)), ...tagRes.data.items]);
+        setCategoryTotal(catRes.data.meta.total);
+        setTagTotal(tagRes.data.meta.total);
       } catch (e) { console.error('Error loading meta', e); }
     }
     void loadMeta();
-  }, [open, fetchApi]);
+  }, [open, fetchApi, categoryPage, tagPage, categoryId, tagIds]);
 
   function resetForm() {
     setAuthorName('');
@@ -186,6 +193,7 @@ export function CreateTestimonialModal({
                   <option value="">Sin Categoría</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
+                <PageControls page={categoryPage} total={categoryTotal} limit={20} onChange={setCategoryPage} />
               </div>
 
               <div>
@@ -214,6 +222,7 @@ export function CreateTestimonialModal({
                   ))}
                   {allTags.length === 0 && <p className="text-[8px] text-muted-foreground italic w-full text-center">No hay etiquetas</p>}
                 </div>
+                <PageControls page={tagPage} total={tagTotal} limit={20} onChange={setTagPage} />
               </div>
             </div>
 

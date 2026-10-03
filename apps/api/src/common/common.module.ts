@@ -17,9 +17,12 @@ import { RedisStoreService } from './services/redis-store.service';
 import { ApiKeyCryptoService } from './services/api-key-crypto.service';
 import { SessionCsrfService } from './services/session-csrf.service';
 import type { AppConfig } from '../config/app.config';
+import { MetricsService } from './observability/metrics.service';
+import { MetricsController } from './observability/metrics.controller';
 
 @Global()
 @Module({
+  controllers: [MetricsController],
   imports: [
     JwtModule.registerAsync({
       inject: [ConfigService],
@@ -44,6 +47,7 @@ import type { AppConfig } from '../config/app.config';
     RedisStoreService,
     ApiKeyCryptoService,
     SessionCsrfService,
+    MetricsService,
   ],
   exports: [
     JwtModule,
@@ -61,6 +65,7 @@ import type { AppConfig } from '../config/app.config';
     RedisStoreService,
     ApiKeyCryptoService,
     SessionCsrfService,
+    MetricsService,
   ],
 })
 export class CommonModule {}

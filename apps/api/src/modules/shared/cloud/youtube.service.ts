@@ -26,11 +26,11 @@ export class YoutubeService {
       return null;
     }
 
-    const endpoint = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails&key=${this.youtubeApiKey}`;
+    const endpoint = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,contentDetails`;
 
     const response = await this.http.request<{ items: Array<{ snippet: { title: string; thumbnails: { high?: { url: string }; default?: { url: string } } }; contentDetails: { duration: string } }> }>(
       endpoint,
-      { method: 'GET' },
+      { method: 'GET', headers: { 'X-Goog-Api-Key': this.youtubeApiKey } },
       { circuitKey: 'youtube', timeoutMs: 5000, retries: 1 },
     );
 

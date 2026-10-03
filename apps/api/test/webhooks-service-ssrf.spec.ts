@@ -17,7 +17,7 @@ describe('WebhooksService SSRF boundary', () => {
   const repo = {
     create: jest.fn(), update: jest.fn(),
     findById: jest.fn().mockResolvedValue(legacy),
-    findByTenant: jest.fn().mockResolvedValue([legacy]),
+    findByTenant: jest.fn().mockResolvedValue({ items: [legacy], total: 1 }),
   } as unknown as WebhookRepository;
   const outbox = { createEvent: jest.fn().mockResolvedValue('event-id'), replayDead: jest.fn() } as unknown as OutboxRepository;
   const secrets = {

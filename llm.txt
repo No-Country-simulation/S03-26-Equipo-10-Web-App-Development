@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-09-29
+# Última actualización: 2026-10-02
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -20,8 +20,8 @@ database: PostgreSQL 18
 frontend: Next.js 15 (App Router, React 18)
 styles: Tailwind CSS v3 + Radix UI + next-themes
 outbox: polling PostgreSQL cada 3 s en la API; BullMQ no implementado
-redis: servicio disponible en Compose, sin uso desde la API actual
-infra: Docker Compose
+redis: cuotas atómicas y caché pública compartida con claves versionadas por tenant; no es cola de webhooks
+infra: Docker Compose local y Terraform AWS ECS/ElastiCache preparado; despliegue no verificado
 ci: GitHub Actions (husky pre-commit)
 
 ## ARCHITECTURE
@@ -29,10 +29,11 @@ pattern: Modular Monolith, N-Tier (NestJS standard layers)
 communication_sync: REST /api/v1/ (NestJS controllers)
 communication_async: Transactional Outbox → polling PostgreSQL → HTTP POST
 multi_tenant_strategy: aislamiento lógico en consultas por tenant_id; sin PostgreSQL RLS
-auth_strategy: JWT Access (15min, HttpOnly cookie y token en respuesta para Bearer web) + Refresh Token Rotation (7d, path-scoped)
+auth_strategy: JWT Access (15min) en cookie HttpOnly para web o Bearer explícito; familias de refresh tokens con rotación atómica; modo legado temporal
 rbac_roles: admin, editor
-api_public_auth: API Keys aleatorias tms_ + 24 bytes; hash SHA-256 sin pepper en la implementación actual
-webhook_security: firma HMAC-SHA256 saliente cuando hay secret; verificación entrante y anti-replay no implementados
+api_public_auth: nuevas ak_<entorno>_<publicId>_<secret>; HMAC-SHA-256 con pepper versionado y scopes; tms_ conserva lector temporal de 30 días
+webhook_security: firma X-TMS-Signature versionada sobre timestamp + bytes exactos; secreto por destino cifrado; X-Signature legado temporal; no hay consumidor entrante
+observability: Pino estructurado, métricas RED y outbox, OpenTelemetry opcional por OTLP, correlation/trace ID; alertas y staging pendientes de desplegar
 
 ## MONOREPO LAYOUT
 apps/api/              → @testimonial-cms/api
@@ -64,7 +65,7 @@ auth/
   guards: JwtAuthGuard, RateLimitGuard
   decorators: @CurrentUser, @RateLimit, @Idempotent
   dtos: LoginDto, RefreshTokenDto, RegisterAdminDto (nestjs-zod)
-  strategy: JWT HttpOnly cookie y Bearer en web, refresh token rotation
+  strategy: cookie HttpOnly en web; Bearer explícito; familias de refresh token y CSRF vinculado a sesión
 
 users/
   responsibilities: CRUD users, RBAC assignment
@@ -88,15 +89,15 @@ webhooks/
   services: WebhooksService, OutboxService, OutboxProcessor, WebhookOutboxHandler,
             HttpWebhookDispatcher, HttpResilienceService, WebhookEventsListener,
             WebhooksBootstrapService, LoggerService
-  delivery: at-least-once mediante polling PostgreSQL, reintentos y estado de fallo
-  security: HMAC-SHA256 en entregas salientes cuando el webhook tiene secret
+  delivery: at-least-once mediante ledger PostgreSQL, lease SKIP LOCKED, diez intentos/72 h, dead y reenvío administrativo
+  security: HMAC-SHA256 versionado, secreto por destino cifrado y validación SSRF por conexión
 
 analytics/
   responsibilities: impression tracking, click events, widget analytics
 
 api-keys/
-  storage: never plaintext; SHA-256 de clave aleatoria (HMAC/pepper pendiente)
-  format: prefijo tms_ + 24 bytes aleatorios en hexadecimal
+  storage: nunca texto plano; HMAC-SHA-256 con pepper externo versionado para claves nuevas
+  format: ak_<entorno>_<publicId>_<secret>; tms_ con SHA-256 solo durante compatibilidad
 
 feature-flags/
   scope: per-tenant toggles, no redeploy required
@@ -121,7 +122,7 @@ BR-VAL-002: rating integer 1-5
 BR-FLOW-001: lifecycle draft→pending→approved→published|rejected (no skip, no revert published)
 BR-SEC-001: queries and writes for tenant-owned resources scoped by tenant_id
 BR-SEC-002: API Keys never stored plaintext
-BR-WEB-001: webhook delivery at-least-once, HMAC signed when secret configured
+BR-WEB-001: webhook delivery at-least-once, firma versionada para destinos nuevos
 BR-WEB-002: outbox_events written in same DB transaction as domain event
 
 ## ADRs
@@ -150,7 +151,7 @@ docs/technical/01_architecture.md   → system architecture + C4 diagrams
 docs/domain/business_rules.md       → domain invariants (source of truth)
 docs/domain/diccionario_de_dato.md  → ERD + all table schemas
 apps/api/prisma/schema.prisma       → canonical data model
-.agents/skills/                     → 20 engineering skills (read before coding)
+.agents/skills/                     → 24 engineering skills (read before coding)
 docs/plan/                          → active HITL plans (read before executing)
 
 ## PROHIBITED (NEVER DO)

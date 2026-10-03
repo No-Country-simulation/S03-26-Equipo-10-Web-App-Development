@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { createTag, deleteTag, listTags } from '../api';
+import { PageControls } from '@/features/shared/pagination';
 
 interface TagRecord {
   id: string;
@@ -18,18 +19,21 @@ interface TagRecord {
 export default function TagsPage() {
   const { session, fetchApi } = useSession();
   const [items, setItems] = useState<TagRecord[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listTags(fetchApi);
-      setItems(res.data);
+      const res = await listTags(fetchApi, page);
+      setItems(res.data.items);
+      setTotal(res.data.meta.total);
     } catch { /* handled */ } finally {
       setLoading(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, page]);
 
   useEffect(() => { if (session) void load(); }, [session, load]);
 
@@ -85,6 +89,7 @@ export default function TagsPage() {
           ))}
         </div>
       )}
+      <PageControls page={page} total={total} limit={20} onChange={setPage} />
     </>
   );
 }

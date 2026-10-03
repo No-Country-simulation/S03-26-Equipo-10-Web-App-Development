@@ -27,4 +27,4 @@ COPY --from=production-deps /app/apps ./apps
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 USER node
 EXPOSE 4000
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["node", "--require", "./apps/api/dist/telemetry.js", "apps/api/dist/main.js"]

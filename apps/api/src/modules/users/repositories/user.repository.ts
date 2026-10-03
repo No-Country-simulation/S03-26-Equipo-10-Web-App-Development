@@ -2,19 +2,21 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { UserView } from '../entities/user.model';
 import { InternalError } from '../../../common/errors/application.error';
+import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
 
 @Injectable()
 export class UserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByTenant(tenantId: string): Promise<UserView[]> {
-    const users = await this.prisma.user.findMany({
+  async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: UserView[]; total: number }> {
+    const [users, total] = await Promise.all([this.prisma.user.findMany({
       where: { tenantId },
       include: { roles: { include: { role: true } } },
       orderBy: { createdAt: 'desc' },
-    });
+      skip: pageOffset(page), take: page.limit,
+    }), this.prisma.user.count({ where: { tenantId } })]);
 
-    return users.map((u) => this.toView(u));
+    return { items: users.map((u) => this.toView(u)), total };
   }
 
   async findById(tenantId: string, userId: string): Promise<UserView | null> {

@@ -13,7 +13,8 @@ import { listUsers } from '@/features/users/api';
 export default function AdminOverviewPage() {
   const { session, fetchApi, isAdmin } = useSession();
   const [testimonials, setTestimonials] = useState<TestimonialRecord[]>([]);
-  const [users, setUsers] = useState<TenantUser[]>([]);
+  const [testimonialTotal, setTestimonialTotal] = useState(0);
+  const [userTotal, setUserTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedTestimonial, setSelectedTestimonial] = useState<TestimonialRecord | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -26,10 +27,11 @@ export default function AdminOverviewPage() {
       try {
         const [tRes, uRes] = await Promise.all([
           listTestimonials(fetchApi),
-          isAdmin ? listUsers(fetchApi) : Promise.resolve({ data: [] as TenantUser[], success: true }),
+          isAdmin ? listUsers(fetchApi) : Promise.resolve({ data: { items: [] as TenantUser[], meta: { total: 0 } }, success: true }),
         ]);
-        setTestimonials(tRes.data);
-        setUsers(uRes.data);
+        setTestimonials(tRes.data.items);
+        setTestimonialTotal(tRes.data.meta.total);
+        setUserTotal(uRes.data.meta.total);
       } catch {
         // errors handled by useSession (401 redirect)
       } finally {
@@ -46,18 +48,18 @@ export default function AdminOverviewPage() {
   const metrics = [
     {
       label: 'Total Testimonios',
-      value: testimonials.length,
+      value: testimonialTotal,
       icon: MessageSquareQuote,
       accent: false,
     },
     {
-      label: 'Publicados',
+      label: 'Publicados recientes',
       value: published,
       icon: TrendingUp,
       accent: false,
     },
     {
-      label: 'Pendientes',
+      label: 'Pendientes recientes',
       value: pending,
       icon: Clock,
       accent: pending > 0,
@@ -66,7 +68,7 @@ export default function AdminOverviewPage() {
       ? [
           {
             label: 'Usuarios',
-            value: users.length,
+            value: userTotal,
             icon: Users,
             accent: false,
           },

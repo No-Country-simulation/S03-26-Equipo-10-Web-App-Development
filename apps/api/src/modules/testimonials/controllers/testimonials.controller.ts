@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
@@ -27,6 +28,7 @@ import { TagsService } from '../services/tags.service';
 
 import { FeatureFlagGuard } from '../../../common/guards/feature-flag.guard';
 import { RequireFeature } from '../../../common/decorators/feature-flag.decorator';
+import { parseAdminPage } from '../../../common/pagination/admin-page';
 
 /**
  * Controlador principal de Testimonios para la gestión interna.
@@ -48,8 +50,8 @@ export class TestimonialsController {
    * @param tenantId ID del tenant extraído del token del usuario.
    */
   @Get()
-  list(@CurrentTenantId() tenantId: string) {
-    return this.testimonialsService.listTestimonials(tenantId);
+  list(@CurrentTenantId() tenantId: string, @Query() query: Record<string, unknown>) {
+    return this.testimonialsService.listTestimonials(tenantId, parseAdminPage(query));
   }
 
   @Get(':testimonial_id')

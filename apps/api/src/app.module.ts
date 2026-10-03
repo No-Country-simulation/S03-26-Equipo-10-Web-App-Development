@@ -42,6 +42,7 @@ import { getRequestScope } from './common/request-context.storage';
             'req.headers.authorization',
             'req.headers.cookie',
             'req.headers["x-csrf-token"]',
+            'req.headers["x-metrics-token"]',
             'res.headers["set-cookie"]',
             'req.body.password',
             'req.body.token',
@@ -53,7 +54,8 @@ import { getRequestScope } from './common/request-context.storage';
         },
         // Inyectar traceId y tenantId automáticamente en cada log HTTP
         customProps: (req: object) => ({
-          traceId: getRequestScope()?.correlationId
+          traceId: getRequestScope()?.traceId ?? getRequestScope()?.correlationId
+            ?? (req as { requestContext?: { traceId?: string; correlationId?: string } }).requestContext?.traceId
             ?? (req as { requestContext?: { correlationId?: string } }).requestContext?.correlationId,
           tenantId: getRequestScope()?.tenantId
             ?? (req as { user?: { tenantId?: string }; apiKey?: { tenantId?: string } }).user?.tenantId

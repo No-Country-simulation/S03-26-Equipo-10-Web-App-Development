@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { createCategory, deleteCategory, listCategories } from '../api';
+import { PageControls } from '@/features/shared/pagination';
 
 interface Category {
   id: string;
@@ -18,18 +19,21 @@ interface Category {
 export default function CategoriesPage() {
   const { session, fetchApi } = useSession();
   const [items, setItems] = useState<Category[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await listCategories(fetchApi);
-      setItems(res.data);
+      const res = await listCategories(fetchApi, page);
+      setItems(res.data.items);
+      setTotal(res.data.meta.total);
     } catch { /* handled */ } finally {
       setLoading(false);
     }
-  }, [fetchApi]);
+  }, [fetchApi, page]);
 
   useEffect(() => { if (session) void load(); }, [session, load]);
 
@@ -85,6 +89,7 @@ export default function CategoriesPage() {
           ))}
         </div>
       )}
+      <PageControls page={page} total={total} limit={20} onChange={setPage} />
     </>
   );
 }

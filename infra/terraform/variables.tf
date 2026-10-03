@@ -312,6 +312,24 @@ variable "youtube_api_key" {
   sensitive   = true
 }
 
+variable "otel_exporter_otlp_traces_endpoint" {
+  description = "Optional HTTPS OTLP trace receiver URL; validate reachability and authorization in staging."
+  type        = string
+  default     = null
+  nullable    = true
+  validation {
+    condition     = var.otel_exporter_otlp_traces_endpoint == null || startswith(var.otel_exporter_otlp_traces_endpoint, "https://")
+    error_message = "The OTLP trace endpoint must use HTTPS."
+  }
+}
+
+variable "alert_notification_email" {
+  description = "Operational email subscribed to phase 8 SNS alarms; required by the deployment runbook before production."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
 variable "log_retention_in_days" {
   description = "CloudWatch log retention for ECS services."
   type        = number

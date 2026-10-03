@@ -2,6 +2,7 @@ import { NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
 import { CategoryRepository } from '../repositories/category.repository';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/category.dto';
+import type { AdminPage } from '../../../common/pagination/admin-page';
 
 @Injectable()
 export class CategoriesService {
@@ -9,11 +10,11 @@ export class CategoriesService {
     private readonly categoryRepo: CategoryRepository,
   ) {}
 
-  async list(tenantId: string) {
-    const categories = await this.categoryRepo.findByTenant(tenantId);
+  async list(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+    const categories = await this.categoryRepo.findByTenant(tenantId, page);
     return {
-      items: categories,
-      meta: { total: categories.length, page: 1, limit: categories.length },
+      items: categories.items,
+      meta: { total: categories.total, page: page.page, limit: page.limit },
     };
   }
 

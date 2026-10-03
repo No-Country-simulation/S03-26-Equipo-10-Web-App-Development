@@ -7,6 +7,7 @@ import { WebhookDestinationPolicy } from './webhook-destination-policy';
 import type { WebhookView } from '../repositories/webhook.repository';
 import { OutboxRepository } from '../repositories/outbox.repository';
 import { WebhookSecretService } from './webhook-secret.service';
+import type { AdminPage } from '../../../common/pagination/admin-page';
 
 @Injectable()
 export class WebhooksService {
@@ -42,22 +43,22 @@ export class WebhooksService {
     return { id: webhookId, deleted: true };
   }
 
-  async listWebhookDeliveries(tenantId: string, webhookId: string) {
+  async listWebhookDeliveries(tenantId: string, webhookId: string, page: AdminPage = { page: 1, limit: 20 }) {
     const webhook = await this.webhookRepo.findById(tenantId, webhookId);
     if (!webhook) throw new NotFoundError('Webhook not found');
 
-    const deliveries = await this.webhookRepo.findDeliveries(webhookId);
+    const deliveries = await this.webhookRepo.findDeliveries(webhookId, page);
     return {
-      items: deliveries,
-      meta: { total: deliveries.length, page: 1, limit: deliveries.length },
+      items: deliveries.items,
+      meta: { total: deliveries.total, page: page.page, limit: page.limit },
     };
   }
 
-  async listWebhooks(tenantId: string) {
-    const webhooks = await this.webhookRepo.findByTenant(tenantId);
+  async listWebhooks(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+    const webhooks = await this.webhookRepo.findByTenant(tenantId, page);
     return {
-      items: webhooks.map(webhook => this.withLegacyNotice(webhook)),
-      meta: { total: webhooks.length, page: 1, limit: webhooks.length },
+      items: webhooks.items.map(webhook => this.withLegacyNotice(webhook)),
+      meta: { total: webhooks.total, page: page.page, limit: page.limit },
     };
   }
 

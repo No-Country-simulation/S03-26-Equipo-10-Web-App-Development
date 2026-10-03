@@ -25,6 +25,7 @@ export interface AuthenticatedUser {
 export interface RequestContext {
   readonly requestId: string;
   readonly correlationId: string;
+  readonly traceId?: string;
 }
 
 export interface ApiRequest extends Request {

@@ -51,17 +51,22 @@ export class HttpResilienceService {
           headers: init.headers as Record<string, string>,
           ...(init.body !== undefined && { data: init.body }),
           timeout: timeoutMs,
+          maxRedirects: 0,
+          proxy: false,
         });
 
         this.resetCircuit(options.circuitKey);
         return response.data as T;
       } catch (error: unknown) {
-        lastError = error;
+        const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+        // Preserve only a safe status; Axios errors may contain credential-bearing URLs.
+        lastError = new Error(status ? `Upstream HTTP ${status}` : 'Upstream network error');
         attempt += 1;
 
-        if (attempt > retries) {
-          this.markFailure(options.circuitKey);
-          throw error;
+        const retryable = status === undefined || status === 408 || status === 429 || status >= 500;
+        if (!retryable || attempt > retries) {
+          if (retryable) this.markFailure(options.circuitKey);
+          throw lastError;
         }
 
         await this.sleep(this.jitteredBackoff(baseDelayMs, attempt));

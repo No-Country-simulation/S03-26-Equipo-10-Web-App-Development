@@ -63,6 +63,11 @@ resource "random_password" "redis_auth" {
   special = false
 }
 
+resource "random_password" "metrics_token" {
+  length  = 48
+  special = false
+}
+
 module "redis" {
   source = "./modules/redis"
 
@@ -86,6 +91,7 @@ module "api_runtime_secret" {
     JWT_SECRET               = var.jwt_secret
     API_KEY_PEPPERS_JSON     = var.api_key_peppers_json
     WEBHOOK_SECRET_KEYS_JSON = var.webhook_secret_keys_json
+    METRICS_TOKEN            = random_password.metrics_token.result
     CLOUDINARY_UPLOAD_URL    = var.cloudinary_upload_url
     CLOUDINARY_UPLOAD_PRESET = var.cloudinary_upload_preset
     YOUTUBE_API_KEY          = var.youtube_api_key
@@ -169,6 +175,8 @@ module "api_service" {
     CORS_ORIGIN                    = "https://${local.app_domain_name}"
     API_KEY_PEPPER_CURRENT_VERSION = tostring(var.api_key_pepper_current_version)
     WEBHOOK_SECRET_CURRENT_VERSION = tostring(var.webhook_secret_current_version)
+    }, var.otel_exporter_otlp_traces_endpoint == null ? {} : {
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = var.otel_exporter_otlp_traces_endpoint
     }, var.webhook_legacy_http_started_at == null ? {} : {
     WEBHOOK_LEGACY_HTTP_STARTED_AT = var.webhook_legacy_http_started_at
     }, var.api_key_legacy_started_at == null ? {} : {
@@ -182,6 +190,7 @@ module "api_service" {
     JWT_SECRET               = "${module.api_runtime_secret.secret_arn}:JWT_SECRET::"
     API_KEY_PEPPERS_JSON     = "${module.api_runtime_secret.secret_arn}:API_KEY_PEPPERS_JSON::"
     WEBHOOK_SECRET_KEYS_JSON = "${module.api_runtime_secret.secret_arn}:WEBHOOK_SECRET_KEYS_JSON::"
+    METRICS_TOKEN            = "${module.api_runtime_secret.secret_arn}:METRICS_TOKEN::"
     CLOUDINARY_UPLOAD_URL    = "${module.api_runtime_secret.secret_arn}:CLOUDINARY_UPLOAD_URL::"
     CLOUDINARY_UPLOAD_PRESET = "${module.api_runtime_secret.secret_arn}:CLOUDINARY_UPLOAD_PRESET::"
     YOUTUBE_API_KEY          = "${module.api_runtime_secret.secret_arn}:YOUTUBE_API_KEY::"

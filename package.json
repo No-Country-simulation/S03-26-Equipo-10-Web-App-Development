@@ -47,6 +47,7 @@
     "@swc/core@1.15.30": true,
     "esbuild@0.28.2": true,
     "prisma@6.5.0": true,
+    "protobufjs@7.6.6": false,
     "unrs-resolver@1.11.1": true
   }
 }

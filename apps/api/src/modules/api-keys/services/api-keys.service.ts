@@ -3,6 +3,7 @@ import { NotFoundError } from '../../../common/errors/application.error';
 import { ApiKeyCryptoService, type ApiKeyScope } from '../../../common/services/api-key-crypto.service';
 import { ApiKeyRepository } from '../repositories/api-key.repository';
 import { CreateApiKeyDto, RotateApiKeyDto } from '../dto/api-key.dto';
+import type { AdminPage } from '../../../common/pagination/admin-page';
 
 @Injectable()
 export class ApiKeysService {
@@ -20,11 +21,11 @@ export class ApiKeysService {
     return { ...result, apiKey: issued.raw };
   }
 
-  async listApiKeys(tenantId: string) {
-    const keys = await this.apiKeyRepo.findByTenant(tenantId);
+  async listApiKeys(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+    const { items, total } = await this.apiKeyRepo.findByTenant(tenantId, page);
     return {
-      items: keys.map(key => ({ ...key, legacyDeadline: this.crypto.legacyDeadline() })),
-      meta: { total: keys.length, page: 1, limit: keys.length },
+      items: items.map(key => ({ ...key, legacyDeadline: this.crypto.legacyDeadline() })),
+      meta: { total, page: page.page, limit: page.limit },
     };
   }
 

@@ -1,9 +1,11 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { trace } from '@opentelemetry/api';
 import { OutboxRepository, type ClaimedDelivery } from '../repositories/outbox.repository';
 import { HttpWebhookDispatcher } from './http-webhook-dispatcher';
 import { WebhookRepository } from '../repositories/webhook.repository';
 import { WebhookSecretService } from './webhook-secret.service';
 import { WebhookDestinationPolicy } from './webhook-destination-policy';
+import { MetricsService } from '../../../common/observability/metrics.service';
 
 @Injectable()
 export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
@@ -19,11 +21,15 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly webhooks: WebhookRepository,
     private readonly secrets: WebhookSecretService,
     private readonly destinationPolicy: WebhookDestinationPolicy,
+    @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   onModuleInit(): void {
     this.timer = setInterval(() => {
-      void this.process().catch(error => this.logger.error('Outbox poll failed', error));
+      void this.process().catch(() => {
+        this.metrics?.recordOutboxPollFailure();
+        this.logger.error({ event: 'outbox.poll_failed' }, 'Outbox poll failed');
+      });
     }, this.intervalMs);
   }
 
@@ -52,7 +58,7 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
         if (result.status === 'rejected') {
           this.logger.warn({
             deliveryId: claimed.at(index)?.id,
-            reason: result.reason instanceof Error ? result.reason.message : 'Unknown delivery error',
+            event: 'outbox.delivery_unfinished',
           }, 'Delivery attempt could not be completed; lease will recover it');
         }
       }
@@ -70,6 +76,9 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
   }
 
   private async deliver(claim: ClaimedDelivery): Promise<void> {
+    return trace.getTracer('testimonial-cms-api').startActiveSpan('webhook.delivery', async span => {
+    span.setAttributes({ 'tms.delivery_id': claim.id, 'tms.event_id': claim.outboxEventId });
+    try {
     const context = await this.outbox.getDeliveryContext(claim.id);
     if (!context?.outboxEvent) {
       await this.outbox.completeAttempt(claim, { status: null, errorMessage: 'Delivery context missing' });
@@ -104,6 +113,14 @@ export class OutboxProcessor implements OnModuleInit, OnModuleDestroy {
       sentAt: event.createdAt.toISOString(),
     }, event.id);
     const accepted = await this.outbox.completeAttempt(claim, result);
+    if (accepted) this.metrics?.recordWebhookAttempt(result.status);
     if (!accepted) this.logger.warn({ deliveryId: claim.id }, 'Stale delivery result discarded');
+    } catch (error) {
+      span.recordException(new Error('Webhook delivery attempt failed'));
+      throw error;
+    } finally {
+      span.end();
+    }
+    });
   }
 }

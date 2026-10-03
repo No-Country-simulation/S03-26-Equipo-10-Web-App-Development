@@ -17,6 +17,12 @@ export class CloudinaryService {
     private readonly configService: ConfigService,
   ) {
     this.cloudinaryConfig = this.configService.get<AppConfig>('app')!.cloudinary;
+    if (this.cloudinaryConfig.uploadUrl) {
+      const url = new URL(this.cloudinaryConfig.uploadUrl);
+      if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) {
+        throw new Error('CLOUDINARY_UPLOAD_URL must be HTTPS without credentials or query parameters');
+      }
+    }
   }
 
   async uploadImage(base64Data: string): Promise<CloudinaryUploadResult> {

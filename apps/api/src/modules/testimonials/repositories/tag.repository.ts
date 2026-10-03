@@ -2,22 +2,24 @@ import { NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TagView } from '../entities/tag.model';
+import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
 
 @Injectable()
 export class TagRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByTenant(tenantId: string): Promise<TagView[]> {
-    const rows = await this.prisma.tag.findMany({
+  async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: TagView[]; total: number }> {
+    const [rows, total] = await Promise.all([this.prisma.tag.findMany({
       where: { tenantId },
       orderBy: { name: 'asc' },
-    });
+      skip: pageOffset(page), take: page.limit,
+    }), this.prisma.tag.count({ where: { tenantId } })]);
 
-    return rows.map(row => ({
+    return { items: rows.map(row => ({
       id: row.id,
       tenantId: row.tenantId,
       name: row.name,
-    }));
+    })), total };
   }
 
   async findById(tenantId: string, id: string): Promise<TagView | null> {

@@ -2,6 +2,8 @@
 
 **Última actualización:** 2026-10-01
 
+El listado administrativo usa `page` y `limit` (1 y 20 por defecto, máximo 100) y responde `{ items, meta: { page, limit, total } }`. La paginación no modifica la verificación de credenciales ni la revocación inmediata.
+
 ## Contrato
 
 Los administradores del tenant gestionan claves en `/api/v1/api-keys`. `POST` exige `name` y uno o dos scopes entre `testimonials:read` y `analytics:write`; `expiresAt` es opcional y debe ser una fecha UTC futura. `POST /:id/rotate` acepta cambios de nombre, scopes y expiración. La creación y la rotación responden `201` con `apiKey` **una sola vez** y `Cache-Control: no-store`. `GET` de listado/detalle entrega únicamente metadatos; `DELETE /:id` revoca inmediatamente la clave lógica y todas sus credenciales. Los IDs administrativos se mantienen al rotar.

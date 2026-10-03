@@ -41,7 +41,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const request = context.getRequest<ApiRequest>();
 
     const requestContext = request.requestContext as RequestContext | undefined;
-    const traceId = getRequestScope()?.correlationId
+    const traceId = getRequestScope()?.traceId ?? requestContext?.traceId
+      ?? getRequestScope()?.correlationId
       ?? requestContext?.correlationId
       ?? request.header('x-correlation-id')
       ?? 'unknown';

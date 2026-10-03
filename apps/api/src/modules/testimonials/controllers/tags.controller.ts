@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CreateTagDto, UpdateTagDto } from '../dto/tag.dto';
 import { TagsService } from '../services/tags.service';
+import { parseAdminPage } from '../../../common/pagination/admin-page';
 
 @Controller('tags')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -13,8 +14,8 @@ export class TagsController {
   constructor(private readonly tagsService: TagsService) {}
 
   @Get()
-  list(@CurrentTenantId() tenantId: string) {
-    return this.tagsService.list(tenantId);
+  list(@CurrentTenantId() tenantId: string, @Query() query: Record<string, unknown>) {
+    return this.tagsService.list(tenantId, parseAdminPage(query));
   }
 
   @Get(':tag_id')

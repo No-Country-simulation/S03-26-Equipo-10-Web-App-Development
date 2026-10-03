@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { sessionRequest, type SessionFetch } from '@/lib/api/validated-response';
+import { pagePath, paginatedSchema } from '@/features/shared/pagination';
 
 export const testimonialSchema = z.object({
   id: z.string(), authorName: z.string(), content: z.string(),
@@ -11,8 +12,8 @@ export const testimonialSchema = z.object({
   videoTitle: z.string().nullable().optional(), videoThumbnailUrl: z.string().nullable().optional(),
 }).passthrough();
 
-export const listTestimonials = (fetchApi: SessionFetch) =>
-  sessionRequest(fetchApi, '/testimonials', z.array(testimonialSchema));
+export const listTestimonials = (fetchApi: SessionFetch, page = 1) =>
+  sessionRequest(fetchApi, pagePath('/testimonials', page), paginatedSchema(testimonialSchema));
 export const createTestimonial = (fetchApi: SessionFetch, input: object) =>
   sessionRequest(fetchApi, '/testimonials', testimonialSchema, { method: 'POST', body: JSON.stringify(input) });
 export const transitionTestimonial = (fetchApi: SessionFetch, id: string, action: string, body?: object) =>

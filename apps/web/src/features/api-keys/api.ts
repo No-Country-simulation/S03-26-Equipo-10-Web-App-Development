@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { sessionRequest, type SessionFetch } from '@/lib/api/validated-response';
+import { pagePath, paginatedSchema } from '@/features/shared/pagination';
 
 const apiKeySchema = z.object({
   id: z.string(), tenantId: z.string(), name: z.string(), isActive: z.boolean(),
@@ -10,7 +11,8 @@ const apiKeySchema = z.object({
 }).passthrough();
 const createdKeySchema = z.object({ apiKey: z.string(), id: z.string(), name: z.string() }).passthrough();
 
-export const listApiKeys = (fetchApi: SessionFetch) => sessionRequest(fetchApi, '/api-keys', z.array(apiKeySchema));
+export const listApiKeys = (fetchApi: SessionFetch, page = 1) =>
+  sessionRequest(fetchApi, pagePath('/api-keys', page), paginatedSchema(apiKeySchema));
 export type ApiKeyInput = { name: string; scopes: Array<'testimonials:read' | 'analytics:write'>; expiresAt?: string };
 export const createApiKey = (fetchApi: SessionFetch, input: ApiKeyInput) =>
   sessionRequest(fetchApi, '/api-keys', createdKeySchema, { method: 'POST', body: JSON.stringify(input) });

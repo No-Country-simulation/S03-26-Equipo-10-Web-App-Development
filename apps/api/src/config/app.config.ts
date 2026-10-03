@@ -2,6 +2,7 @@ import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
 export interface AppConfig {
+  metricsToken: string;
   port: number;
   corsOrigin: string;
   trustedProxyHops: number;
@@ -37,6 +38,7 @@ export interface AppConfig {
 }
 
 export const appConfigValidationSchema = z.object({
+  METRICS_TOKEN: z.string().default(''),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(process.env.NODE_ENV === 'production' ? 1 : 0),
   WEBHOOK_LEGACY_HTTP_STARTED_AT: z.union([
@@ -146,6 +148,7 @@ export const appConfig = registerAs('app', (): AppConfig => {
     throw new Error('WEBHOOK_SECRET_KEYS_JSON is required in production');
   }
   return {
+    metricsToken: process.env.METRICS_TOKEN ?? '',
     port: Number(process.env.PORT ?? 4000),
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
     trustedProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? (process.env.NODE_ENV === 'production' ? 1 : 0)),

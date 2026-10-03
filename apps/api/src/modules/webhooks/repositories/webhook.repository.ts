@@ -1,6 +1,7 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
 
 export interface WebhookView {
   id: string;
@@ -62,14 +63,15 @@ export class WebhookRepository {
     };
   }
 
-  async findByTenant(tenantId: string): Promise<WebhookView[]> {
-    const webhooks = await this.prisma.webhook.findMany({
+  async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: WebhookView[]; total: number }> {
+    const [webhooks, total] = await Promise.all([this.prisma.webhook.findMany({
       where: { tenantId },
       include: { event: true },
       orderBy: { createdAt: 'desc' },
-    });
+      skip: pageOffset(page), take: page.limit,
+    }), this.prisma.webhook.count({ where: { tenantId } })]);
 
-    return webhooks.map(w => this.view(w));
+    return { items: webhooks.map(w => this.view(w)), total };
   }
 
   async findById(tenantId: string, webhookId: string): Promise<WebhookView | null> {
@@ -192,15 +194,15 @@ export class WebhookRepository {
     });
   }
 
-  async findDeliveries(webhookId: string): Promise<WebhookDeliveryView[]> {
-    const deliveries = await this.prisma.webhookDelivery.findMany({
+  async findDeliveries(webhookId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: WebhookDeliveryView[]; total: number }> {
+    const [deliveries, total] = await Promise.all([this.prisma.webhookDelivery.findMany({
       where: { webhookId },
       include: { attemptHistory: { orderBy: { startedAt: 'desc' }, take: 20 } },
       orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
+      skip: pageOffset(page), take: page.limit,
+    }), this.prisma.webhookDelivery.count({ where: { webhookId } })]);
 
-    return deliveries.map((d) => ({
+    return { items: deliveries.map((d) => ({
       id: d.id,
       webhookId: d.webhookId,
       outboxEventId: d.outboxEventId,
@@ -218,7 +220,7 @@ export class WebhookRepository {
         startedAt: attempt.startedAt,
         completedAt: attempt.completedAt,
       })),
-    }));
+    })), total };
   }
 
 }

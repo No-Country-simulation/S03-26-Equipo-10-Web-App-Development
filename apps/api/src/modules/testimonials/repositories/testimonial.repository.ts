@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { enqueueWebhookEvent } from '../../webhooks';
 import { TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
+import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
 
 export interface PublishedFilters {
   q?: string;
@@ -196,8 +197,8 @@ export class TestimonialRepository {
     await this.prisma.testimonial.deleteMany({ where: { id, tenantId } });
   }
 
-  async findByTenant(tenantId: string): Promise<TestimonialView[]> {
-    const rows = await this.prisma.testimonial.findMany({
+  async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: TestimonialView[]; total: number }> {
+    const [rows, total] = await Promise.all([this.prisma.testimonial.findMany({
       where: { tenantId },
       include: { 
         status: true,
@@ -205,9 +206,10 @@ export class TestimonialRepository {
         tags: { include: { tag: true } }
       },
       orderBy: { createdAt: 'desc' },
-    });
+      skip: pageOffset(page), take: page.limit,
+    }), this.prisma.testimonial.count({ where: { tenantId } })]);
 
-    return rows.map(row => this.toView(row));
+    return { items: rows.map(row => this.toView(row)), total };
   }
 
   async findPublished(

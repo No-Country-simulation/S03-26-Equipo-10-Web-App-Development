@@ -2,6 +2,8 @@
 
 **Estado:** implementación local de las Fases 3 y 7 del [plan HITL](../plan/2026-09-30_chore-endurecimiento-seguridad.md). Las migraciones y el despliegue persistente requieren revisión separada.
 
+Los listados administrativos de destinos y entregas aceptan `page` y `limit` (1 y 20 por defecto, máximo 100) y responden `{ items, meta: { page, limit, total } }`. La API expone métricas de intentos por resultado, entregas pendientes y `dead`, fallos de polling y edad del evento pendiente más antiguo en `/api/v1/internal/metrics` mediante `x-metrics-token`. Ver [operación de fase 8](../operations/14_phase8_observability_rollout.md).
+
 ## Escritura y entrega
 
 El productor escribe el cambio de dominio, un `outbox_events` y una entrega lógica por destino activo en la **misma transacción PostgreSQL**. La pareja `(outbox_event_id, webhook_id)` es única y cada entrega guarda la URL de destino vigente al crearse. Los cambios posteriores de URL solo afectan eventos nuevos. Los eventos anteriores a esta versión, sin entregas inicializadas, se recuperan mediante un inicializador transaccional que usa `FOR UPDATE SKIP LOCKED`.
