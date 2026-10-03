@@ -19,7 +19,7 @@
 | Pendiente antiguo | `tms_outbox_oldest_pending_age_seconds > 300` durante 5 minutos | Comprobar leases, errores de PostgreSQL, capacidad del procesador y destinos lentos. |
 | Fallos sostenidos | crecimiento de `tms_outbox_poll_failures_total` o tasa de HTTP 5xx elevada durante 5 minutos | Correlacionar trace ID, logs y salud de PostgreSQL/Redis; escalar si afecta escrituras. |
 
-La fuente puede ser Prometheus u otra plataforma que recopile las mismas series. En AWS, los logs JSON `outbox.health` cada 30 s también permiten filtros y alarmas CloudWatch para `dead` y antigüedad mientras se instala un scraper. Probar cada alarma con datos sintéticos y confirmar recepción en el canal operativo antes de depender de ella. No usar tenant o secreto como dimensión de métrica.
+La fuente puede ser Prometheus u otra plataforma que recopile las mismas series. El destino de métricas y logs, la retención y el canal de alertas se definirán para el entorno elegido. Probar cada alarma con datos sintéticos y confirmar recepción antes de depender de ella. No usar tenant ni secretos como dimensiones de métrica.
 
 ## Puertas de despliegue
 
@@ -30,4 +30,4 @@ La fuente puede ser Prometheus u otra plataforma que recopile las mismas series.
 
 ## Estado de verificación
 
-Las pruebas locales y sus resultados se registran en el plan HITL. No se ejecutó Terraform `apply`, no se aplicaron migraciones persistentes, no se desplegó staging ni producción y no se activó un canal de alertas. Esos pasos requieren acceso/ACK y evidencia del entorno.
+Las pruebas locales y sus resultados se registran en el plan HITL. No se aplicaron migraciones persistentes, no se desplegó staging ni producción y no se activó un canal de alertas. Esos pasos requieren acceso/ACK y evidencia del entorno.

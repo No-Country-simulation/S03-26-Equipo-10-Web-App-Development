@@ -1,11 +1,15 @@
+# Auditoría y cumplimiento: diseño histórico
+
+> **Estado:** los ejemplos de servicios cloud, retención y automatización no representan controles desplegados ni evidencia de cumplimiento. La operación real debe verificarse en el entorno elegido.
+
 ## 🎯 Propósito del Documento
 
-Este documento define la **estrategia completa de auditoría y cumplimiento** del sistema: requisitos legales, logging estructurado, retención de datos, seguridad de registros y procedimientos de auditoría. Es la **guía definitiva para Compliance, Legal, SRE y desarrolladores** sobre cómo garantizar el cumplimiento normativo y mantener registros auditables.
+Este documento conserva propuestas de auditoría y cumplimiento: requisitos, logging, retención, seguridad de registros y procedimientos. Su aplicación requiere diseño, implementación y evidencia del entorno que se elija.
 
 > 💡 **Diferencia clave**:  
 > - **`audit.md`** (este documento): Define *requisitos de cumplimiento*, *logging de auditoría* y *procedimientos de auditoría*  
 > - **`observability.md`** (`operations/`): Define *monitoreo y alertas* para operaciones  
-> - **`infrastructure.md`** (`operations/`): Define la *infraestructura física*  
+> - **`infrastructure.md`** (`operations/`): Describe la infraestructura local real y los requisitos pendientes
 > - **`security.md`** (`governance/`): Define *seguridad general* del sistema  
 >   
 > ✅ **Regla moderna**: Todo evento que pueda tener implicaciones legales, regulatorias o de seguridad **debe ser auditado**. Si no está auditado, no existe para fines de cumplimiento.

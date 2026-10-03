@@ -40,7 +40,7 @@
 | **Database** | PostgreSQL | 18 | Persistencia relacional y outbox |
 | **ORM** | Prisma | 6.5+ | Acceso a datos y migraciones |
 | **Outbox** | Polling en la API | cada 3 s | Entrega de webhooks desde PostgreSQL |
-| **Redis** | Disponible en Compose | 7 | Reservado para uso futuro |
+| **Redis** | Compose y CI descartable | 7 | Cuotas atómicas y caché pública compartida |
 | **Runtime** | Node.js | 24.21.0 | Entorno de ejecución de servidor |
 | **Deployment** | Docker + Compose | - | Containerización |
 

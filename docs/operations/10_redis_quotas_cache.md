@@ -5,7 +5,7 @@
 ## Configuración
 
 - Compose incorpora `redis:7-alpine`, sin puerto público. La API recibe `REDIS_URL=redis://redis:6379` y espera el health check.
-- Terraform define ElastiCache Redis OSS 7 en subredes privadas de datos, con TLS, cifrado en reposo, AUTH generado y security group que acepta solo la API. La ACL de aplicación permite únicamente TCP 6379 hacia esas subredes. Staging usa un nodo; producción agrega una réplica y failover. La URL cifrada se entrega a ECS desde Secrets Manager.
+- Para la demostración falta elegir un Redis 7 compartido y comprobar conexión cifrada, autenticación, acceso restringido desde la API, política de memoria y persistencia conforme a las necesidades del entorno.
 - Para desarrollo fuera de Compose, configurar `REDIS_URL` y `TEST_REDIS_URL` según la instancia descartable. CI crea un servicio Redis 7. No registrar URLs con credenciales en logs.
 
 ## Comportamiento
@@ -16,7 +16,7 @@ La lista pública usa claves `public-cache:v1:<tenant>:<version>:<hash de consul
 
 ## Secuencia de despliegue
 
-1. Provisionar Redis y conectividad; comprobar TLS/AUTH, SG y ACL en staging. No ejecutar `terraform apply` sin autorización.
+1. Preparar Redis y conectividad en el alojamiento elegido; comprobar TLS, autenticación, acceso restringido y política de memoria en staging.
 2. Desplegar la API con `REDIS_URL` y retirar las réplicas antiguas que usan `Map`; mientras conviven, las cuotas no son globales.
 3. Verificar con dos instancias: cinco fallos de login bloquean en ambas, el límite por API key/tenant/IP se comparte, y una publicación invalida la lista cacheada en la otra instancia.
 4. Monitorear errores de Redis, 503 de cuotas, latencia de caché y memoria/evicciones. Con `noeviction`, un Redis lleno hará fallar las mutaciones protegidas en lugar de permitirlas sin cuota.

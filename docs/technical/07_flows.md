@@ -120,65 +120,20 @@ sequenceDiagram
 
 ---
 
-## 2. Perspectiva de Despliegue (Infraestructura)
+## 2. Perspectiva de ejecución actual
 
-El siguiente diagrama muestra una arquitectura de despliegue objetivo (Cloud/Kubernetes o Docker Swarm), no el Compose actual. BullMQ y la caché Redis distribuida todavía no están implementados en la API; el outbox actual se procesa por polling PostgreSQL dentro de NestJS.
+Compose ejecuta la web, la API, PostgreSQL 18 y Redis 7 en desarrollo local. La CI levanta PostgreSQL y Redis descartables y comprueba ambas imágenes. No existe un despliegue cloud verificado.
 
-```mermaid
-flowchart TB
-    subgraph Internet["Internet Público"]
-        C[Cliente Web / Móvil]
-        E[Servicios Externos<br/>Slack / CRM]
-    end
+~~~mermaid
+flowchart LR
+    U[Usuario web] --> W[Web Next.js]
+    W --> A[API NestJS]
+    C[Cliente API] --> A
+    A --> P[(PostgreSQL 18)]
+    A --> R[(Redis 7)]
+    A --> H[Webhooks HTTPS]
+    A --> X[Cloudinary y YouTube]
+    A -.-> O[Métricas protegidas y OTLP opcional]
+~~~
 
-    subgraph Cloud["Entorno Cloud (AWS / Vercel)"]
-        
-        subgraph CDN["Edge Network"]
-            CF[Cloudflare / Vercel Edge<br/>(WAF, DDoS, Caching Estático)]
-        end
-
-        subgraph VPC["Red Privada Virtual (VPC)"]
-            
-            LB[Load Balancer / Nginx Reverse Proxy]
-            
-            subgraph K8s["Clúster de Contenedores (Docker / K8s)"]
-                
-                subgraph NextPods["Frontend Layer"]
-                    Next1[Next.js App 1]
-                    Next2[Next.js App 2]
-                end
-
-                subgraph APIPods["API Layer"]
-                    API1[NestJS API 1]
-                    API2[NestJS API 2]
-                end
-
-                subgraph WorkerPods["Async Processing"]
-                    W1[BullMQ Worker 1]
-                    W2[BullMQ Worker 2]
-                end
-            end
-            
-            subgraph DataStores["Bases de Datos Administradas"]
-                PG[(PostgreSQL 18<br/>Primaria / Multi-AZ)]
-                REDIS[(Redis 7<br/>Cache & BullMQ)]
-            end
-        end
-    end
-
-    C -- "HTTPS" --> CF
-    CF -- "Trafico Limpio" --> LB
-    
-    LB -- "/admin, /" --> Next1 & Next2
-    LB -- "/api" --> API1 & API2
-
-    Next1 & Next2 -- "Llamadas API Internas" --> API1 & API2
-    
-    API1 & API2 -- "Consultas DML/DDL" --> PG
-    API1 & API2 -- "Pub/Sub, Cache" --> REDIS
-    
-    W1 & W2 -- "Procesa Trabajos" --> REDIS
-    W1 & W2 -- "Actualiza Estados" --> PG
-    
-    W1 & W2 -- "Notificaciones HTTPS" --> E
-```
+El procesador de outbox corre dentro de la API y reclama entregas en PostgreSQL cada tres segundos. Redis atiende cuotas y caché pública, sin intervenir en la entrega durable. El alojamiento de la demostración se definirá en un plan posterior; ver [infraestructura](../operations/01_infrastructure.md).

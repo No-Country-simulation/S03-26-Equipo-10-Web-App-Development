@@ -873,14 +873,7 @@ Nos comprometemos a acusar recibo dentro de las 48 horas hábiles y coordinar la
   - Modelos compilados y pesos registrados en Model Registries (MLflow, Hugging Face, WandB).
   - Git LFS únicamente para assets binarios inmutables de tamaño moderado indispensables en el repositorio.
 
-#### 23.7. Infrastructure as Code (Terraform / Pulumi)
-- Validación de sintaxis (`terraform fmt -check`, `terraform validate`).
-- Análisis estático de seguridad de IaC con `trivy` o `checkov`.
-- **Flujo Plan/Apply:**
-  - En PR: Se ejecuta `terraform plan` y se publica el resultado como comentario auditado.
-  - En `main`: Se aplica `terraform apply` únicamente previa aprobación en el Environment protegido.
-
-#### 23.8. Monorepos
+#### 23.7. Monorepos
 - Implementar filtrado de rutas (`dorny/paths-filter`) para ejecutar pipelines únicamente en los servicios modificados.
 - Aprovechar herramientas de caché distribuido (Turborepo, Nx).
 

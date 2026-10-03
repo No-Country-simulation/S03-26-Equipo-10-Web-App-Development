@@ -21,7 +21,7 @@ frontend: Next.js 15 (App Router, React 18)
 styles: Tailwind CSS v3 + Radix UI + next-themes
 outbox: polling PostgreSQL cada 3 s en la API; BullMQ no implementado
 redis: cuotas atómicas y caché pública compartida con claves versionadas por tenant; no es cola de webhooks
-infra: Docker Compose local y Terraform AWS ECS/ElastiCache preparado; despliegue no verificado
+infra: Docker Compose local; CI con PostgreSQL y Redis descartables; demostración aún sin despliegue verificado
 ci: GitHub Actions (husky pre-commit)
 
 ## ARCHITECTURE

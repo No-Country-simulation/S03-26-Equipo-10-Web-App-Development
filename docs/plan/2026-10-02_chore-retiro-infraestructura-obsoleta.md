@@ -1,7 +1,7 @@
 # Plan HITL: retiro de infraestructura obsoleta y preparación de la demostración
 
 **Fecha de inicio:** 2026-10-02
-**Estado global:** En progreso; fase 1 pendiente de ACK
+**Estado global:** En progreso; fase 2 lista para revisión
 
 ## Contexto y restricciones
 
@@ -14,20 +14,28 @@
 
 ## Fases
 
-### `[Actual: lista para revisión]` Fase 1: registrar el retiro
+### `[Completada]` Fase 1: registrar el retiro
 
 - Crear este plan con el inventario y la confirmación del estado externo.
 - Incorporarlo al índice de planes y versionar únicamente estos cambios de planificación.
 - **Salida:** plan y commit disponibles para revisión humana; ningún archivo de infraestructura o guía operativa retirado todavía.
-- **ACK:** pendiente antes de iniciar la fase 2.
+- **ACK:** recibido por instrucción expresa del usuario para continuar con la fase 2. Commit de la fase: 8f080c2.
 
-### `[Pendiente]` Fase 2: retirar archivos y corregir documentación
+### `[Actual: lista para revisión]` Fase 2: retirar archivos y corregir documentación
 
 - Eliminar los 52 archivos del árbol de IaC anterior y el placeholder de Kubernetes.
 - Sustituir las guías de infraestructura y despliegue AWS/Kubernetes por documentación del estado local y de CI, sin atribuir al proyecto recursos o controles no desplegados.
 - Limpiar todas las referencias versionadas a la herramienta retirada en arquitectura, resúmenes, runbooks, cumplimiento, skill local e historial HITL. Preservar los resultados históricos de pruebas de la aplicación y señalar con precisión las verificaciones de despliegue pendientes.
 - Registrar en la documentación las necesidades de la futura demostración: PostgreSQL, Redis, API NestJS y polling del outbox, secretos y variables, conexión web–API, migraciones autorizadas, protección de webhooks y observabilidad. Mantener abierta la fase 8 del plan de seguridad hasta contar con evidencia del entorno elegido.
 - **Salida:** retiro y documentación coherentes en un mismo cambio; commit sugerido y detención para ACK.
+
+**Implementación local para revisión:** se retiraron los 52 archivos del árbol de IaC anterior y el placeholder de Kubernetes. Las guías de infraestructura y despliegue ahora describen Compose, la CI descartable y las dependencias de la demostración sin presentar recursos cloud como activos. Arquitectura, runbooks, cumplimiento, resúmenes, skill local y plan histórico se ajustaron al estado real; la fase 8 de seguridad continúa abierta.
+
+**Verificación de esta fase:** búsqueda del árbol de trabajo sin nombres, archivos ni referencias de la herramienta retirada; `git diff --check` sin errores; los enlaces locales de las guías sustituidas y del diagrama de flujos existen. Solo cambiaron documentación y archivos de infraestructura retirados: no se ejecutaron pruebas de aplicación ni se desplegó ningún entorno. La revisión documental integral y el cierre corresponden a la fase 3.
+
+**Commit sugerido:** `chore(infra): retirá IaC anterior y actualizá guías de despliegue`.
+
+**ACK:** pendiente antes de la fase 3.
 
 ### `[Pendiente]` Fase 3: verificar y cerrar
 

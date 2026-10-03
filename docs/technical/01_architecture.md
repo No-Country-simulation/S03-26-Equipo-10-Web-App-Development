@@ -100,24 +100,17 @@ flowchart TD
 
 ### 3.1. Diagrama de Contenedores
 
-Este diagrama representa los componentes del código. Compose los ejecuta localmente; la topología AWS preparada aún requiere despliegue y verificación.
+Este diagrama representa los componentes del código. Compose los ejecuta localmente; cualquier entorno de demostración todavía requiere diseño, despliegue y verificación.
 
 ```mermaid
 flowchart LR
-    W[Web Next.js] --> E[Ingress Nginx o ALB]
-    C[Clientes Bearer y API key] --> E
-    E --> A[API NestJS replica 1]
-    E --> B[API NestJS replica 2]
-    A --> P[(PostgreSQL 18: dominio, outbox, ledger e intentos)]
-    B --> P
-    A --> R[(Redis 7: cuotas y cache publica)]
-    B --> R
+    W[Web Next.js] --> A[API NestJS]
+    C[Clientes Bearer y API key] --> A
+    A --> P[(PostgreSQL 18: dominio, outbox y entregas)]
+    A --> R[(Redis 7: cuotas y caché pública)]
     A --> H[Destinos webhook HTTPS]
-    B --> H
     A --> X[Cloudinary y YouTube]
-    B --> X
-    A -.-> O[Metricas protegidas y OTLP opcional]
-    B -.-> O
+    A -.-> O[Métricas protegidas y OTLP opcional]
 ```
 
 ### 3.2. Responsabilidades por Módulo/Servicio
@@ -268,7 +261,7 @@ async createTestimonial(@Body() dto: CreateTestimonialDto, @Headers('Idempotency
 
 ### 5.1. Matriz de Tecnologías
 
-La matriz siguiente separa el software implementado de las topologías históricas/objetivo con BullMQ o Kubernetes que aparecen en otras secciones.
+La matriz siguiente describe el software implementado y señala las capacidades que todavía requieren un entorno desplegado.
 
 | Capa/Componente | Tecnología | Versión | Justificación | Alternativas Descartadas |
 |-----------------|------------|---------|---------------|--------------------------|
@@ -286,7 +279,7 @@ La matriz siguiente separa el software implementado de las topologías históric
 | **Testing Frontend** | Vitest + React Testing Library | 3.2.7 | Pruebas de componentes y adaptadores | Playwright aún no implementado |
 | **CI/CD** | GitHub Actions | - | Suite completa para ambas apps | GitLab CI, CircleCI |
 | **Containerization** | Docker | 24.x | Portabilidad, desarrollo y producción consistentes | Podman, containerd |
-| **Orchestration** | Docker Compose local / Terraform AWS ECS preparado | - | Despliegue gradual pendiente de evidencia de staging y producción | Kubernetes fuera del flujo actual |
+| **Orchestration** | Docker Compose local | - | Staging y producción aún no desplegados ni verificados | Alojamiento de demostración por definir |
 | **Monitoring** | Exposición Prometheus protegida, OTLP opcional | - | Instrumentación RED, lag y outbox en API; backend de recolección pendiente de despliegue | ELK, Datadog |
 | **Logging** | Pino JSON estructurado | - | Correlación por request y trace ID | Winston histórico |
 
@@ -456,8 +449,8 @@ flowchart TD
 | **A06: Vulnerable Components** | `npm audit`, Dependency Review y escaneo de secretos en CI. |
 | **A07: Identification & Auth Failures** | JWT con expiración corta (15 min), refresh tokens con rotación y revocación. |
 | **A08: Software/Data Integrity** | Firma de webhooks con HMAC; idempotencia en endpoints clave. |
-| **A09: Security Logging** | Pino estructurado con redacción de credenciales; retención en CloudWatch preparada en Terraform. |
-| **A10: SSRF** | HTTPS para destinos nuevos, DNS A/AAAA validado en cada conexión, IP fijada, sin redirecciones ni proxies implícitos y ACL de egreso preparada. |
+| **A09: Security Logging** | Pino estructurado con redacción de credenciales; retención centralizada pendiente de configurar y verificar. |
+| **A10: SSRF** | HTTPS para destinos nuevos, DNS A/AAAA validado en cada conexión, IP fijada y sin redirecciones ni proxies implícitos. El control de egreso del futuro alojamiento sigue pendiente. |
 
 ---
 
@@ -483,10 +476,10 @@ flowchart TD
 
 | Componente | Estrategia | Métrica de Trigger | Herramienta |
 |------------|------------|-------------------|-------------|
-| **API (NestJS)** | Horizontal con varias tareas ECS preparadas | CPU/latencia y antigüedad del outbox observadas | ECS autoscaling en Terraform |
-| **Base de Datos** | Vertical + read replicas para consultas de analítica | CPU > 80% o conexiones > 100 | RDS / PostgreSQL streaming replication |
-| **Redis** | ElastiCache privado preparado, con réplica en producción | Memoria/evictions y disponibilidad | ElastiCache Redis OSS 7 |
-| **Entrega webhook** | Poller en cada réplica API, reclamación `SKIP LOCKED` | Pendiente > 300 s, `dead` > 0 | PostgreSQL y alarmas CloudWatch preparadas |
+| **API (NestJS)** | Posible escalado horizontal del mismo proceso HTTP y outbox | CPU, latencia y antigüedad del outbox por verificar | Alojamiento y escalado por definir |
+| **Base de Datos** | PostgreSQL local; capacidad del entorno futuro por definir | Conexiones y latencia por verificar | PostgreSQL y proveedor por definir |
+| **Redis** | Redis 7 local y descartable en CI; alojamiento futuro pendiente | Memoria, evicciones y disponibilidad por verificar | Redis 7 compartido |
+| **Entrega webhook** | Poller en cada réplica API, reclamación SKIP LOCKED | Pendiente > 300 s y entregas dead por observar | PostgreSQL; alertas externas pendientes |
 
 ---
 
@@ -504,13 +497,13 @@ flowchart TD
 | **Health Checks** | Detectar fallos proactivamente | Liveness sin base y readiness con Prisma |
 | **Graceful Degradation** | Mantener funcionalidad crítica bajo fallos | Si el módulo de analytics falla, el dashboard muestra un mensaje pero el CRUD de testimonios sigue funcionando |
 
-### 11.2. Estrategia de Backup y Recovery
+### 11.2. Requisitos pendientes de Backup y Recovery
 
 | Componente | Frecuencia | Retención | Método | RTO | RPO |
 |------------|------------|-----------|--------|-----|-----|
-| **Base de Datos** | Diario + WAL continuo | 30 días | pg_dump + archivo WAL (Point‑in‑time recovery) | < 15 min | < 5 min |
+| **Base de Datos** | Pendiente de definir | Pendiente | Respaldo y restauración del proveedor elegido por verificar | Por medir | Por medir |
 | **Archivos (Cloudinary)** | No aplica (gestión externa) | - | Depende de Cloudinary | - | - |
-| **Configuración** | Con cada cambio | Indefinido | Git + Terraform | < 30 min | 0 |
+| **Configuración** | Con cada cambio | Según política futura | Git y gestor de secretos del entorno elegido | Por medir | Por medir |
 
 ---
 

@@ -1,6 +1,6 @@
 # Docker Infrastructure
 
-Artefactos de build para publicar las imágenes de producción en ECR.
+Artefactos de build para verificar imágenes de API y web. Su publicación y alojamiento para la demostración aún no están definidos.
 
 ## Imágenes
 

@@ -95,8 +95,8 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 | [`2026-09-18_feat-skill-docker-engineering.md`](./2026-09-18_feat-skill-docker-engineering.md) | `Completado` | Incorporación de la skill SKL-DEVOPS-DKR-001 (Docker Container Engineering) |
 | [`2026-09-20_feat-skill-monorepo-engineering.md`](./2026-09-20_feat-skill-monorepo-engineering.md) | `Completado` | Incorporación de la skill SKL-MONOREPO-ARCH-001 (Senior Monorepo Architecture & Engineering) |
 | [`2026-09-28_chore-cierre-arquitectura-configuracion.md`](./2026-09-28_chore-cierre-arquitectura-configuracion.md) | `Pausado` | Fase 6 de ownership y cierre; pendiente de nuevo ACK |
-| [`2026-09-30_chore-endurecimiento-seguridad.md`](./2026-09-30_chore-endurecimiento-seguridad.md) | `En Progreso` | Seguridad de API, sesión, webhooks, outbox y operación; Fase 1 actual |
-| [`2026-10-02_chore-retiro-infraestructura-obsoleta.md`](./2026-10-02_chore-retiro-infraestructura-obsoleta.md) | `En Progreso` | Retiro de infraestructura obsoleta y preparación documental de la demostración; fase 1 lista para ACK |
+| [`2026-09-30_chore-endurecimiento-seguridad.md`](./2026-09-30_chore-endurecimiento-seguridad.md) | `En Progreso` | Seguridad de API, sesión, webhooks, outbox y operación; fase 8 pendiente de evidencia de despliegue |
+| [`2026-10-02_chore-retiro-infraestructura-obsoleta.md`](./2026-10-02_chore-retiro-infraestructura-obsoleta.md) | `En Progreso` | Retiro de infraestructura obsoleta y preparación documental de la demostración; fase 2 lista para ACK |
 
 ---
 

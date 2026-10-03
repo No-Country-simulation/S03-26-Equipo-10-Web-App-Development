@@ -29,7 +29,7 @@
 | **UI** | React | 18.x |
 | **Estilos** | Tailwind CSS + Radix UI | v3 |
 | **Outbox** | Polling PostgreSQL en la API | cada 3 s |
-| **Cuotas y caché pública** | Redis compartido (Compose / ElastiCache preparado) | 7 |
+| **Cuotas y caché pública** | Redis compartido en Compose y descartable en CI; alojamiento futuro pendiente | 7 |
 | **Package manager** | npm | 11.19.0 |
 | **Infraestructura** | Docker Compose | — |
 

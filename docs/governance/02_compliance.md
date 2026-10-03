@@ -2,7 +2,7 @@
 
 ## 🎯 Propósito del Documento
 
-Este documento define el **marco de cumplimiento regulatorio completo** del proyecto: requisitos legales aplicables, controles técnicos implementados, procedimientos de verificación y evidencia requerida para auditorías. Es la **guía definitiva para Compliance Officers, Auditores y Mantenedores** sobre cómo demostrar y mantener el cumplimiento continuo con normativas aplicables.
+Este archivo conserva un marco de diseño y ejemplos de cumplimiento. Sus matrices y ejemplos no acreditan controles desplegados ni cumplimiento legal del proyecto. Los controles de infraestructura, cifrado en reposo, retención, copias y jurisdicción deben verificarse con evidencia del proveedor que se elija para la demostración.
 
 > 💡 **Diferencia clave**:
 > - **`compliance.md`** (este documento): Define *requisitos regulatorios específicos* y *controles técnicos de cumplimiento* (gobernanza legal)
@@ -71,7 +71,7 @@ flowchart TD
 
 **Definición de Alcance**:
 - ✅ **Incluido**: Todo software, infraestructura y procesos que almacenan, procesan o transmiten datos de autores y clientes argentinos.
-- ✅ **Incluido**: Proveedores de servicios (AWS, Cloudinary) bajo contrato de procesamiento de datos.
+- **Por verificar**: contratos y responsabilidades de cada proveedor externo que finalmente se utilice.
 - ❌ **Excluido**: Herramientas de desarrollo locales sin acceso a datos reales.
 - ❌ **Excluido**: Repositorios públicos de código sin datos sensibles.
 
@@ -106,7 +106,7 @@ flowchart TD
 |----------|-----------|------------------------------|---------------------|----------------------------|
 | **Art. 4** | Consentimiento informado para publicación de testimonios | - Checkbox explícito en formulario de creación<br>- Registro de timestamp de consentimiento<br>- API para revocación | - Captura de pantalla del formulario<br>- Logs de consentimiento<br>- Prueba de tiempo de revocación | Continua |
 | **Art. 5** | Calidad de los datos | - Validación de campos en frontend y backend<br>- Proceso de rectificación por parte del autor | - Esquema de validación<br>- Logs de ediciones por autores | Trimestral |
-| **Art. 6** | Confidencialidad | - Cifrado AES-256 en reposo (RDS)<br>- TLS 1.3 en tránsito<br>- RBAC estricto | - Configuración de KMS<br>- Certificado TLS válido<br>- Matriz de permisos | Mensual |
+| **Art. 6** | Confidencialidad | - RBAC en la aplicación; cifrado de datos y transporte del alojamiento por verificar | - Configuración y evidencia del proveedor elegido<br>- Matriz de permisos | Antes de desplegar |
 | **Art. 7** | Deber de confidencialidad del personal | - Cláusulas en contratos laborales<br>- Auditorías de acceso a datos | - Contratos firmados<br>- Logs de acceso revisados | Anual |
 | **Art. 9** | Eliminación de datos | - Eliminación lógica (soft delete) con purgado automático a los 30 días<br>- Mecanismo de derecho al olvido | - Logs de eliminación<br>- Prueba de purgado | Trimestral |
 | **Art. 14** | Derecho de acceso del titular | - API para que autores descarguen sus datos<br>- Portal de auto-servicio | - Captura de portal<br>- Logs de solicitudes | Continua |
@@ -185,9 +185,9 @@ compliance_framework:
               type: "TECHNICAL"
               description: "Cifrado AES-256 en reposo para todos los datos sensibles"
               implementation:
-                location: "infrastructure/terraform/modules/rds/main.tf"
+                location: "pendiente: configuración del proveedor de PostgreSQL elegido"
                 verification_script: "scripts/verify-encryption-at-rest.sh"
-                evidence: "aws/kms-key-policies/testimonialcms-production.json"
+                evidence: "pendiente: evidencia de cifrado y gestión de claves del proveedor"
             - id: "CTRL-SEC-002"
               type: "TECHNICAL"
               description: "TLS 1.3 obligatorio para todas las conexiones"
@@ -275,157 +275,11 @@ flowchart LR
 
 ## Controles Técnicos de Cumplimiento
 
-### 1. Control: Cifrado en Reposo (Ley 25.326 Art. 6)
+### 1. Control: Cifrado en reposo
 
-#### Implementación Técnica
+**Estado:** pendiente de verificar en el proveedor de PostgreSQL que se elija. No hay una base persistente de staging o producción desplegada con evidencia de cifrado, gestión de claves, respaldo o restauración.
 
-```hcl
-# infrastructure/terraform/modules/rds/main.tf
-
-resource "aws_db_instance" "production" {
-  identifier             = "testimonialcms-production"
-  engine                 = "postgres"
-  engine_version         = "15.5"
-  instance_class         = "db.t4g.large"
-  allocated_storage      = 100
-  storage_encrypted      = true  # 🔒 CRÍTICO: Cifrado obligatorio
-  
-  # Cifrado con KMS CMK (Customer Managed Key)
-  kms_key_id             = aws_kms_key.database.arn
-  
-  # Configuración de seguridad
-  backup_retention_period = 7
-  backup_window          = "03:00-04:00"
-  maintenance_window     = "sun:04:00-sun:05:00"
-  
-  # Parámetros de cifrado
-  parameter_group_name   = aws_db_parameter_group.secure.name
-  
-  tags = {
-    Name        = "testimonialcms-production"
-    Environment = "production"
-    Compliance  = "Ley25326-Art6"
-  }
-}
-
-# Clave KMS con política de rotación automática
-resource "aws_kms_key" "database" {
-  description             = "Clave KMS para cifrado de base de datos Testimonial CMS"
-  deletion_window_in_days = 30
-  enable_key_rotation     = true  # 🔒 Rotación automática cada año
-  
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "Enable IAM User Permissions"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${var.account_id}:root"
-        }
-        Action   = "kms:*"
-        Resource = "*"
-      },
-      {
-        Sid    = "Allow use of the key by RDS"
-        Effect = "Allow"
-        Principal = {
-          Service = "rds.amazonaws.com"
-        }
-        Action = [
-          "kms:Encrypt",
-          "kms:Decrypt",
-          "kms:ReEncrypt*",
-          "kms:GenerateDataKey*",
-          "kms:DescribeKey"
-        ]
-        Resource = "*"
-        Condition = {
-          StringLike = {
-            "kms:ViaService" = "rds.${var.region}.amazonaws.com"
-          }
-        }
-      }
-    ]
-  })
-  
-  tags = {
-    Name        = "testimonialcms-database-key"
-    Compliance  = "Ley25326-Art6"
-    Rotation    = "Annual"
-  }
-}
-```
-
-#### Verificación Automática
-
-```bash
-#!/bin/bash
-# scripts/verify-encryption-at-rest.sh
-
-set -e
-
-echo "🔍 Verificando cifrado en reposo para base de datos..."
-
-# 1. Verificar que la instancia RDS tiene storage_encrypted=true
-DB_IDENTIFIER="testimonialcms-production"
-ENCRYPTED=$(aws rds describe-db-instances \
-  --db-instance-identifier $DB_IDENTIFIER \
-  --query 'DBInstances[0].StorageEncrypted' \
-  --output text)
-
-if [ "$ENCRYPTED" != "True" ]; then
-  echo "❌ FALLA: La base de datos $DB_IDENTIFIER NO tiene cifrado en reposo habilitado"
-  exit 1
-fi
-
-echo "✅ Base de datos $DB_IDENTIFIER tiene cifrado en reposo habilitado"
-
-# 2. Verificar que usa KMS CMK (no default key)
-KMS_KEY_ID=$(aws rds describe-db-instances \
-  --db-instance-identifier $DB_IDENTIFIER \
-  --query 'DBInstances[0].KmsKeyId' \
-  --output text)
-
-if [ -z "$KMS_KEY_ID" ]; then
-  echo "❌ FALLA: La base de datos $DB_IDENTIFIER no usa KMS CMK"
-  exit 1
-fi
-
-echo "✅ Base de datos $DB_IDENTIFIER usa KMS CMK: $KMS_KEY_ID"
-
-# 3. Verificar que la clave KMS tiene rotación habilitada
-KEY_ROTATION=$(aws kms get-key-rotation-status \
-  --key-id $KMS_KEY_ID \
-  --query 'KeyRotationEnabled' \
-  --output text)
-
-if [ "$KEY_ROTATION" != "true" ]; then
-  echo "❌ FALLA: La clave KMS $KMS_KEY_ID NO tiene rotación automática habilitada"
-  exit 1
-fi
-
-echo "✅ Clave KMS $KMS_KEY_ID tiene rotación automática habilitada"
-
-# 4. Verificar políticas de la clave KMS
-KEY_POLICY=$(aws kms get-key-policy \
-  --key-id $KMS_KEY_ID \
-  --policy-name default)
-
-# Verificar que solo servicios autorizados pueden usar la clave
-if ! echo "$KEY_POLICY" | grep -q "rds.amazonaws.com"; then
-  echo "❌ FALLA: La política de la clave KMS no autoriza a RDS"
-  exit 1
-fi
-
-echo "✅ Política de clave KMS autoriza solo a servicios autorizados"
-
-# 5. Registrar verificación exitosa
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-echo "$TIMESTAMP | ENCRYPTION_AT_REST | VERIFIED | $DB_IDENTIFIER | $KMS_KEY_ID" >> /var/log/compliance/encryption-verification.log
-
-echo "🎉 Verificación de cifrado en reposo completada exitosamente"
-```
+Antes de tratar este control como activo, registrar la configuración del proveedor, el mecanismo de cifrado, la gestión de claves, el acceso administrativo y una prueba de restauración. No usar ejemplos de diseño como evidencia de cumplimiento.
 
 ### 2. Control: Consentimiento Explícito (Ley 25.326 Art. 4)
 

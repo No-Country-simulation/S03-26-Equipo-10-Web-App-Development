@@ -4,7 +4,7 @@
 
 1. Generar un pepper aleatorio de al menos 32 bytes fuera del repositorio y guardarlo en el gestor de secretos. Configurar `API_KEY_PEPPERS_JSON` como un objeto JSON cuyas claves sean versiones positivas y cuyos valores sean bytes codificados en base64url. Configurar `API_KEY_PEPPER_CURRENT_VERSION` con una versión presente en ese objeto. Conservar peppers anteriores mientras haya credenciales emitidas con ellos.
 2. Registrar `API_KEY_LEGACY_STARTED_AT` en UTC (`YYYY-MM-DDTHH:mm:ssZ`) con el instante del **primer despliegue compatible**. No reiniciar ese reloj en despliegues posteriores. En producción, sin fecha, `tms_` falla cerrado. En Compose de desarrollo, si falta el pepper, se pueden leer claves legadas, pero crear o verificar claves nuevas requiere configurarlo.
-3. Revisar acceso al secreto en Terraform/ECS y proteger el estado remoto de Terraform, que puede contener valores sensibles. Ejecutar la migración `20261002000000_api_key_expand` solo mediante el procedimiento de cambios de base autorizado. Mantener `key_hash`, `is_active` y el lector dual durante toda la convivencia.
+3. Revisar el acceso al pepper en el gestor de secretos del alojamiento elegido y evitar que aparezca en logs o artefactos. Ejecutar la migración `20261002000000_api_key_expand` solo mediante el procedimiento de cambios de base autorizado. Mantener `key_hash`, `is_active` y el lector dual durante toda la convivencia.
 4. Desplegar primero la API compatible con ambos formatos; después la web que permite seleccionar scopes, vencimiento y rotación. Un rollback tras emitir claves `ak_` debe volver a una versión que siga leyendo ambos formatos; el binario previo a esta fase no sirve como rollback completo.
 
 ## Contrato y operación
