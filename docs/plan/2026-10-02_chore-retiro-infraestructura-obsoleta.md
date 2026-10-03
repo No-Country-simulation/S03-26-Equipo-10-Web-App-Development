@@ -1,7 +1,7 @@
 # Plan HITL: retiro de infraestructura obsoleta y preparación de la demostración
 
 **Fecha de inicio:** 2026-10-02
-**Estado global:** En progreso; fase 3 lista para revisión y ACK final pendiente
+**Estado global:** Completado; las tres fases recibieron ACK y tienen commits registrados
 
 ## Contexto y restricciones
 
@@ -37,7 +37,7 @@
 
 **ACK:** recibido mediante «Continua con la fase 3». Commit de la fase: 4b9eab5.
 
-### `[Actual: lista para revisión]` Fase 3: verificar y cerrar
+### `[Completada]` Fase 3: verificar y cerrar
 
 - Comprobar que no quedan archivos, rutas, menciones versionadas ni enlaces rotos asociados con la herramienta retirada; revisar que las guías distingan ejecución local, requisitos futuros y controles sin verificar.
 - Ejecutar `git diff --check` y comprobaciones documentales pertinentes. Ejecutar pruebas de aplicación solo si se modifica código ejecutable.
@@ -49,7 +49,7 @@
 
 **Commit sugerido:** `docs(infra): verificá el retiro y registrá el cierre local`.
 
-**ACK final:** pendiente.
+**ACK final:** recibido mediante «Continua». Commit de la fase: 8658345.
 
 ## Criterios de aceptación
 
