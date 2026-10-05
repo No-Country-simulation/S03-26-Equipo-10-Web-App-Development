@@ -1,7 +1,7 @@
 # Plan HITL: remediación del código frente a diez skills web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; fase 1 lista para revisión humana  
+**Estado global:** En progreso; fase 2 lista para revisión humana
 **Alcance:** Código activo de `apps/api` y `apps/web`, pruebas y documentación de los contratos modificados. El plan no incorpora por sí mismo capacidades SEO futuras.
 
 ## Contexto y restricciones
@@ -45,22 +45,25 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 
 ## Fases de ejecución
 
-### `[Actual]` Fase 1: registrar el plan
+### `[Completada]` Fase 1: registrar el plan
 
 - [x] Registrar baseline, matriz, hallazgos, prioridades, contratos y criterios de cierre.
 - [x] Incorporar este plan al índice de `docs/plan/`.
 - [x] Limitar esta fase a documentación; no modificar código, esquema ni dependencias.
 
 **Criterio de salida:** el plan y el índice existen, los enlaces locales resuelven y `git diff --check` no reporta errores.  
-**Review humano (ACK):** Pendiente.  
+**Review humano (ACK):** Recibido el 2026-10-05: «Continua». Commit observado: `8d59aec`.
 **Commit sugerido:** `docs(plan): registrá la remediación de las diez skills web`.
 
-### `[Pendiente]` Fase 2: diseñar API y migración
+### `[Actual]` Fase 2: diseñar API y migración
 
-- Especificar rutas elegibles, scope de actor y tenant, huella canónica del payload, reserva atómica, respuesta repetida, conflicto y manejo de fallos. Preparar SQL y estrategia de datos existentes sin modificar `schema.prisma`.
-- Definir el error estable de captura repetida y actualizar el contrato documental de API/web. Identificar las rutas sin tenant autenticado cuya etiqueta `@Idempotent()` deberá retirarse en la fase 3 hasta contar con un diseño propio.
+- [x] Especificar rutas elegibles, scope de actor y tenant, huella canónica del payload, reserva atómica, respuesta repetida, conflicto y manejo de fallos en `docs/technical/08_http_idempotency_contract.md`.
+- [x] Preparar el borrador SQL y la estrategia para filas legadas en `docs/plan/2026-10-05_fix-remediacion-codigo-web_idempotencia-borrador.sql`, fuera de las migraciones activas y sin modificar `schema.prisma`.
+- [x] Definir `409 PUBLIC_SUBMISSION_RECENT_BROWSER` para captura repetida, diferente de `429` por cuota. Alinear los módulos afectados y retirar de las guías técnicas los ejemplos `get` + `save` que prometían seguridad concurrente.
+- [x] Clasificar registro y analítica como rutas cuyo `@Idempotent()` se retirará en la fase 3; reservar la garantía para creación/publicación de testimonios y prueba/replay de webhooks transaccionales.
 
-**Criterio de salida:** contrato y SQL revisables; ninguna ruta se declara idempotente sin una forma de cumplirlo.  
+**Criterio de salida:** contrato y SQL revisables; la documentación modificada distingue claramente estado vigente de garantía futura y no presenta los decoradores actuales como prueba suficiente. El código aún conserva el interceptor inseguro hasta la fase 3.
+**Salida para revisión:** contrato técnico, borrador SQL, módulos de auth/testimonios/webhooks y dos secciones técnicas históricas actualizadas. Se comprobaron rutas y transacciones reales, enlaces locales de los documentos nuevos, búsqueda dirigida de ejemplos inseguros y `git diff --check`. No se ejecutaron tests de aplicaciones ni SQL porque el alcance de esta fase es documental.
 **Review humano (ACK):** Pendiente; debe incluir autorización explícita para modificar `apps/api/prisma/schema.prisma` en la fase 3 si se aprueba esa migración.  
 **Commit sugerido:** `docs(api): definí los contratos de idempotencia y captura`.
 

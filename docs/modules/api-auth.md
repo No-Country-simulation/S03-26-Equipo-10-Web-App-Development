@@ -16,7 +16,7 @@ Gestiona la **autenticación y sesiones** de usuarios dentro de un tenant. Emite
 
 | Método | Ruta | Descripción | Rate Limit | Guard |
 |--------|------|-------------|------------|-------|
-| `POST` | `/api/v1/auth/register-admin` | Registra nuevo admin + crea tenant | 10/min por IP | `RateLimitGuard`, `@Idempotent` |
+| `POST` | `/api/v1/auth/register-admin` | Registra nuevo admin + crea tenant | 10/min por IP | `RateLimitGuard`; `@Idempotent` figura en código pero no actúa sin tenant autenticado |
 | `POST` | `/api/v1/auth/login` | Login con email + contraseña | 5/min por IP | `RateLimitGuard` |
 | `POST` | `/api/v1/auth/refresh` | Rota refresh token | 20/min por IP | `RateLimitGuard` |
 | `GET` | `/api/v1/auth/csrf` | Entrega HMAC vinculado al refresh cookie activo | 60/min por IP | `RateLimitGuard` |
@@ -53,7 +53,7 @@ AuthController
 **Decorators** (en `common/decorators/`):
 - `@CurrentUser()` — inyecta `AuthenticatedUser` desde el request
 - `@RateLimit({ limit, windowSeconds, scope })` — configura cuotas atómicas con TTL en Redis por IP confiable y, cuando corresponda, tenant y clave API. Los intentos fallidos de login también comparten Redis; una mutación con cuota responde 503 si no puede verificarse. Ver [operación de Redis](../operations/10_redis_quotas_cache.md).
-- `@Idempotent()` — previene registro duplicado por mismo request
+- `@Idempotent()` aún decora `register-admin`, pero el interceptor vigente sale sin reserva si no hay tenant autenticado; **no previene registros duplicados por reintento**. La [fase 3 de remediación](../technical/08_http_idempotency_contract.md) retirará el decorador y su promesa. La unicidad del email se verifica por separado.
 
 ---
 

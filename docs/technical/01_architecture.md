@@ -229,31 +229,9 @@ export class CloudinaryService {
 
 ### 4.5. Patrón: Idempotency (para webhooks y API)
 
-**Propósito**: Evitar duplicados en endpoints que pueden ser llamados múltiples veces (por ejemplo, webhooks con reintentos).
+**Estado actual:** el interceptor global usa una lectura seguida de `upsert` y guarda con `tap(async ...)`. No garantiza exclusión concurrente ni espera el guardado antes de responder. El ejemplo anterior de lectura, mutación y guardado separados fue retirado porque tampoco cerraba esa carrera.
 
-**Implementación**:
-
-```typescript
-@Post()
-async createTestimonial(@Body() dto: CreateTestimonialDto, @Headers('Idempotency-Key') key: string) {
-  if (key) {
-    const existing = await this.idempotencyService.get(key);
-    if (existing) return existing.response;
-  }
-
-  const result = await this.testimonialsService.create(dto);
-
-  if (key) {
-    await this.idempotencyService.save(key, result);
-  }
-
-  return result;
-}
-```
-
-**Beneficios**:
-- ✅ Seguridad en reintentos.
-- ✅ Compatible con webhooks y API pública.
+**Contrato propuesto:** [idempotencia HTTP transaccional](08_http_idempotency_contract.md). Solo las operaciones que vinculen reserva, mutación, outbox y resultado en una transacción podrán ofrecer repetición segura con `Idempotency-Key`. El reenvío de webhooks salientes conserva su contrato **at least once** y necesita deduplicación del lado receptor por ID de evento; es un mecanismo distinto.
 
 ---
 

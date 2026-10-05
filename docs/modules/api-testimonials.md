@@ -21,7 +21,7 @@ draft ──► pending ──► approved ──► published
 
 | Transición | Actor | Acción |
 |------------|-------|--------|
-| `→ pending` | Cliente externo | `POST /api/v1/testimonials/public` |
+| `→ pending` | Cliente externo | `POST /api/v1/public/testimonials/:slug/submit` |
 | `pending → approved` | Editor/Admin | `POST /api/v1/testimonials/:id/approve` |
 | `pending → rejected` | Editor/Admin | `POST /api/v1/testimonials/:id/reject` |
 | `approved → published` | Editor/Admin | `POST /api/v1/testimonials/:id/publish` (emite evento webhook) |
@@ -32,7 +32,7 @@ draft ──► pending ──► approved ──► published
 
 | Método | Ruta | Descripción | Guard |
 |--------|------|-------------|-------|
-| `POST` | `/api/v1/testimonials/public` | Envío público de testimonio | Ninguno (API Key opcional) |
+| `POST` | `/api/v1/public/testimonials/:slug/submit` | Envío público de testimonio | `RateLimitGuard` y control de Origin; sin API Key |
 | `GET` | `/api/v1/testimonials` | Lista testimonios del tenant (paginado) | `JwtAuthGuard` |
 | `GET` | `/api/v1/testimonials/:id` | Obtiene testimonio por ID | `JwtAuthGuard` |
 | `POST` | `/api/v1/testimonials` | Crea testimonio (admin) | `JwtAuthGuard` |
@@ -49,6 +49,8 @@ draft ──► pending ──► approved ──► published
 ---
 
 ## 4. DTOs (nestjs-zod)
+
+**Límite vigente:** el header `Idempotency-Key` de las rutas administrativas decoradas no proporciona aún exclusión concurrente ni resultado durable. El [contrato propuesto](../technical/08_http_idempotency_contract.md) cubre creación y publicación dentro de la misma transacción de dominio y outbox. El envío público repetido puede hoy responder `received` sin persistencia; la corrección propuesta devolverá `409 PUBLIC_SUBMISSION_RECENT_BROWSER`, distinta del `429` del límite por IP.
 
 | DTO | Campos clave | Validación |
 |-----|-------------|------------|
