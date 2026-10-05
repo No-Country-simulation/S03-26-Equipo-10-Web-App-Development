@@ -23,8 +23,9 @@ describe('versioned outgoing webhook contract', () => {
     expect(secrets.decrypt('tenant-1', 'webhook-1', encrypted)).toBe(issued);
     expect(() => secrets.decrypt('tenant-2', 'webhook-1', encrypted)).toThrow('Webhook secret unavailable');
     expect(() => secrets.decrypt('tenant-1', 'webhook-2', encrypted)).toThrow('Webhook secret unavailable');
+    const firstChar = encrypted.ciphertext[0] === 'A' ? 'B' : 'A';
     expect(() => secrets.decrypt('tenant-1', 'webhook-1', {
-      ...encrypted, ciphertext: encrypted.ciphertext.slice(0, -1) + 'A',
+      ...encrypted, ciphertext: firstChar + encrypted.ciphertext.slice(1),
     })).toThrow('Webhook secret unavailable');
   });
 

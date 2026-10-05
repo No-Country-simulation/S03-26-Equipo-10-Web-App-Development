@@ -73,7 +73,7 @@ export class TestimonialRepository {
           score: 0,
           categoryId: data.categoryId ?? null,
           ...(data.tagIds !== undefined && {
-            tags: { create: data.tagIds.map(tagId => ({ tagId })) },
+            tags: { create: data.tagIds.map(tagId => ({ tenantId: data.tenantId, tagId })) },
           }),
         },
         include: testimonialInclude,
@@ -112,7 +112,7 @@ export class TestimonialRepository {
         ...(data.tagIds !== undefined && {
           tags: {
             deleteMany: {},
-            create: data.tagIds.map(tagId => ({ tagId }))
+            create: data.tagIds.map(tagId => ({ tenantId, tagId }))
           }
         }),
         updatedAt: new Date(),

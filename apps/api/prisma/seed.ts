@@ -215,7 +215,7 @@ async function main() {
        await prisma.testimonialTag.upsert({
           where: { testimonialId_tagId: { testimonialId, tagId: randomTag.id } },
           update: {},
-          create: { testimonialId, tagId: randomTag.id },
+          create: { tenantId: tenant.id, testimonialId, tagId: randomTag.id },
        });
     }
   }

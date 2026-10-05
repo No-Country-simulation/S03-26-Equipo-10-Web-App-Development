@@ -73,7 +73,7 @@ export class TagRepository {
       await tx.testimonialTag.upsert({
         where: { testimonialId_tagId: { testimonialId, tagId } },
         update: {},
-        create: { testimonialId, tagId },
+        create: { tenantId, testimonialId, tagId },
       });
     });
   }

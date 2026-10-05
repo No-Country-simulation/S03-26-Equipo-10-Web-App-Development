@@ -45,9 +45,9 @@ export async function enqueueWebhookEvent(tx: Prisma.TransactionClient, event: O
   });
   await tx.$executeRaw`
     INSERT INTO "webhook_deliveries"
-      (id, "webhook_id", "destination_url", "outbox_event_id", status, attempts, "retry_budget_attempts",
+      (id, "tenant_id", "webhook_id", "destination_url", "outbox_event_id", status, attempts, "retry_budget_attempts",
        "retry_budget_started_at", "created_at", "updated_at")
-    SELECT gen_random_uuid(), w.id, w.url, e.id, 'pending', 0, 0, now(), now(), now()
+    SELECT gen_random_uuid(), e."tenant_id", w.id, w.url, e.id, 'pending', 0, 0, now(), now(), now()
     FROM "outbox_events" e
     JOIN "webhooks" w ON w."tenant_id" = e."tenant_id"
     JOIN "webhook_events" we ON we.id = w."event_id" AND we.code = e."event_type"
@@ -94,9 +94,9 @@ export class OutboxRepository {
       for (const event of events) {
         await tx.$executeRaw`
           INSERT INTO "webhook_deliveries"
-            (id, "webhook_id", "destination_url", "outbox_event_id", status, attempts, "retry_budget_attempts",
+            (id, "tenant_id", "webhook_id", "destination_url", "outbox_event_id", status, attempts, "retry_budget_attempts",
              "retry_budget_started_at", "created_at", "updated_at")
-          SELECT gen_random_uuid(), w.id, w.url, e.id, 'pending', 0, 0, now(), now(), now()
+          SELECT gen_random_uuid(), e."tenant_id", w.id, w.url, e.id, 'pending', 0, 0, now(), now(), now()
           FROM "outbox_events" e
           JOIN "webhooks" w ON w."tenant_id" = e."tenant_id"
           JOIN "webhook_events" we ON we.id = w."event_id" AND we.code = e."event_type"

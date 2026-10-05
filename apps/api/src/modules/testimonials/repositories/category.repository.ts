@@ -61,6 +61,11 @@ export class CategoryRepository {
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
-    await this.prisma.category.delete({ where: { id, tenantId } });
+    await this.prisma.$transaction(async tx => {
+      await tx.testimonial.updateMany({
+        where: { tenantId, categoryId: id }, data: { categoryId: null },
+      });
+      await tx.category.delete({ where: { id, tenantId } });
+    });
   }
 }

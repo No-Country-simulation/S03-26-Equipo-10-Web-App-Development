@@ -1,9 +1,16 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
+// PostgreSQL char_length counts Unicode code points; JavaScript's .length
+// counts UTF-16 units. Keep API validation aligned with the database CHECK.
+const TestimonialContentSchema = z.string().min(10).max(1000).refine(
+  content => [...content].length >= 10,
+  { message: 'Content must contain at least 10 characters' },
+);
+
 const CreateTestimonialSchema = z.object({
   authorName: z.string().min(2).max(120),
-  content: z.string().min(10).max(1000),
+  content: TestimonialContentSchema,
   rating: z.number().int().min(1).max(5),
   categoryId: z.string().uuid().optional(),
   tagIds: z.array(z.string().uuid()).optional(),
@@ -12,7 +19,7 @@ export class CreateTestimonialDto extends createZodDto(CreateTestimonialSchema) 
 
 const UpdateTestimonialSchema = z.object({
   authorName: z.string().min(2).max(120).optional(),
-  content: z.string().min(10).max(1000).optional(),
+  content: TestimonialContentSchema.optional(),
   rating: z.number().int().min(1).max(5).optional(),
   categoryId: z.string().uuid().optional(),
   tagIds: z.array(z.string().uuid()).optional(),
@@ -46,7 +53,7 @@ export class AttachVideoDto extends createZodDto(AttachVideoSchema) {}
 
 const SubmitPublicTestimonialSchema = z.object({
   authorName: z.string().min(2).max(120),
-  content: z.string().min(10).max(1000),
+  content: TestimonialContentSchema,
   rating: z.number().int().min(1).max(5),
   imageBase64: z.string().optional(),
   videoUrl: z.string().url().optional(),

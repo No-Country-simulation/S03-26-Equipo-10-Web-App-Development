@@ -80,7 +80,15 @@ export class UserRepository {
   }
 
   async remove(tenantId: string, userId: string): Promise<void> {
-    await this.prisma.user.deleteMany({ where: { id: userId, tenantId } });
+    await this.prisma.$transaction(async tx => {
+      await tx.testimonial.updateMany({
+        where: { tenantId, createdById: userId }, data: { createdById: null },
+      });
+      await tx.apiKey.updateMany({
+        where: { tenantId, ownerId: userId }, data: { ownerId: null },
+      });
+      await tx.user.deleteMany({ where: { id: userId, tenantId } });
+    });
   }
 
   private toView(user: {
