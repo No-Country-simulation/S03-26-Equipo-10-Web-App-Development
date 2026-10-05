@@ -2,7 +2,7 @@
 
 **Fecha de inicio:** 2026-10-05
 
-**Estado global:** En progreso; Fase 1 lista para revisión
+**Estado global:** En progreso; Fase 2 lista para revisión
 
 **Alcance:** `.agents/skills/web-seo-accessibility-engineering/SKILL.md`, este registro HITL y su entrada en `docs/plan/README.md`. Las otras nueve skills web se revisan como referencias, sin reescribirlas salvo que aparezca una contradicción documental concreta.
 
@@ -24,7 +24,7 @@
 
 ## Fases
 
-### `[Actual]` Fase 1: registrar el plan
+### `[Completada]` Fase 1: registrar el plan
 
 - [x] Registrar baseline, hallazgos, alcance y fases con criterios de salida.
 - [x] Incorporar el plan al índice de `docs/plan/`.
@@ -32,15 +32,19 @@
 
 **Salida para revisión:** plan e índice creados; la skill permanece sin cambios.
 
-**Review humano (ACK):** Pendiente.
+**Review humano (ACK):** Recibido el 2026-10-05: «Continua».
 
 **Commit sugerido:** `docs(plan): registrá la alineación HITL de SEO y accesibilidad`.
 
-### `[Pendiente]` Fase 2: reescribir la guía para el proyecto vigente
+### `[Actual]` Fase 2: reescribir la guía para el proyecto vigente
 
 - Reemplazar la estructura repetitiva por una guía de unas 250–450 líneas con frontmatter, propósito, mapa de estado vigente/opcional/futuro y un solo DoD.
 - Describir rutas reales, `Tenant.publicSlug`, carga cliente de testimonios, metadata global y fronteras NestJS/Next. No presentar un objetivo SEO o una capacidad de despliegue como resultado logrado.
 - Mantener reglas útiles de HTML semántico, navegación, formularios y accesibilidad. Presentar SSR público, historial de slugs, sitemap, robots, canonical, JSON-LD, Search Console y RUM solo bajo sus condiciones de adopción. Retirar por completo los ejemplos peligrosos o incompatibles durante esta fase.
+
+**Salida para revisión:** skill reescrita de 2.020 a 283 líneas, con frontmatter, propósito, mapa vigente/opcional/futuro y un DoD. Usa rutas y modelo reales, conserva un ejemplo semántico sencillo y retira los ejemplos JSON-LD, Prisma y metadata incompatibles.
+
+**Verificación:** `quick_validate.py` aprobó la skill; un único DoD y cercos balanceados; búsqueda dirigida de rutas, capacidades futuras, JSON-LD y `notFound()`; `git diff --check` sin errores. No se modificaron aplicaciones, esquema ni infraestructura.
 
 **Criterio de salida:** skill coherente con el repositorio, sin ejemplos inseguros ni funcionalidades futuras afirmadas como actuales; no se modifican aplicaciones ni esquema.
 
