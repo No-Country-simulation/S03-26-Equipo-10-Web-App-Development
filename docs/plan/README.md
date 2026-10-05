@@ -99,6 +99,7 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 | [`2026-10-02_chore-retiro-infraestructura-obsoleta.md`](./2026-10-02_chore-retiro-infraestructura-obsoleta.md) | `Completado` | Retiro de infraestructura obsoleta y preparación documental de la demostración; tres fases cerradas |
 | [`2026-10-05_docs-correccion-skills-web.md`](./2026-10-05_docs-correccion-skills-web.md) | `Completado` | Corrección HITL de nueve skills web; cuatro fases cerradas con ACK |
 | [`2026-10-05_docs-alineacion-skill-seo-accesibilidad.md`](./2026-10-05_docs-alineacion-skill-seo-accesibilidad.md) | `Completado` | Alineación HITL de la décima skill web: SEO y accesibilidad; tres fases revisadas con ACK |
+| [`2026-10-05_fix-remediacion-codigo-web.md`](./2026-10-05_fix-remediacion-codigo-web.md) | `En Progreso` | Remediación HITL del código Next.js y NestJS frente a las diez skills web; fase 1 lista para ACK |
 
 ---
 
