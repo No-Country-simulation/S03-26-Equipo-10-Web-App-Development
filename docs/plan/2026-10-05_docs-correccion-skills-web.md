@@ -1,7 +1,7 @@
 # Plan HITL: corrección de nueve skills de ingeniería web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; Fase 4 lista para revisión
+**Estado global:** Completado; cuatro fases cerradas con ACK
 **Alcance:** nueve archivos `SKILL.md` indicados abajo, este registro HITL y su entrada en `docs/plan/README.md`
 
 ## Contexto y restricciones
@@ -61,15 +61,15 @@
 **Review humano (ACK):** Recibido el 2026-10-05: «Continua».
 **Commit sugerido:** `docs(skills): ajustá Tailwind CSS y UX al diseño actual`.
 
-### `[Actual]` Fase 4: React, TypeScript y coherencia final
+### `[Completada]` Fase 4: React, TypeScript y coherencia final
 
 - Reescribir React para React 18.3: render puro, Effects para sincronización externa, fetch de datos de Server Components de Next como caso distinto de efectos en render cliente, formularios proporcionales a su complejidad y React Compiler solo si se configura explícitamente.
 - Reescribir JavaScript/TypeScript según `tsconfig.base.json` y el runtime actual. Conservar `strict: true`; reconocer que `noUncheckedIndexedAccess` y `exactOptionalPropertyTypes` ya rigen en `apps/api/tsconfig.json`, mientras adoptarlos en la web o configuración base sería un cambio opcional que requiere evaluación separada. Evitar imponer paquetes, workers o abstracciones sin necesidad comprobada.
 - Hacer una revisión cruzada de las nueve skills: frontmatter, enlaces, terminología, contradicciones, ejemplos de seguridad, requisitos duplicados y distinción vigente/opcional/futuro. Resolver en esta fase únicamente las inconsistencias documentales que se descubran.
 
-**Salida para revisión:** React (261 líneas) y JavaScript/TypeScript (260 líneas) reescritas; las nueve skills quedan entre 250 y 269 líneas, con un único DoD y distinción de estado vigente, opción contextual y migración futura.
+**Salida:** React (261 líneas) y JavaScript/TypeScript (260 líneas) reescritas; las nueve skills quedan entre 250 y 269 líneas, con un único DoD y distinción de estado vigente, opción contextual y migración futura.
 **Verificación:** `quick_validate.py` aprobó las nueve; frontmatter YAML, enlaces locales, cercos y sintaxis de ejemplos TS/TSX/CSS validados. Se buscaron Next 16, React 19, Tailwind 4, pnpm, Prisma en Next y worker separado, y se revisaron manualmente autorización, tenant, caché e idempotencia: las menciones residuales son prohibiciones, límites o migraciones etiquetadas. `git diff --check` sin errores. No se ejecutaron typecheck ni tests de aplicaciones por tratarse solo de documentación.
-**Review humano (ACK):** Pendiente.  
+**Review humano (ACK):** Recibido el 2026-10-05: «Continua».
 **Commit sugerido:** `docs(skills): depurá React TypeScript y coherencia transversal`.
 
 ## Criterios de cierre
