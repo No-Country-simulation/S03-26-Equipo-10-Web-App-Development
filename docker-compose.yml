@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     shm_size: 256mb
     ports:
-      - '${POSTGRES_PORT:-5432}:5432'
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-testimonial_cms}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -39,12 +39,13 @@ services:
       - no-new-privileges:true
 
   pgadmin:
+    profiles: [debug]
     image: dpage/pgadmin4:8.3
     hostname: pgadmin
     user: root
     restart: unless-stopped
     ports:
-      - '${PGADMIN_PORT:-5050}:80'
+      - '127.0.0.1:${PGADMIN_PORT:-5050}:80'
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@pgadmin.org}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
@@ -64,6 +65,14 @@ services:
       dockerfile: apps/api/Dockerfile
     hostname: api
     restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    stop_grace_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -105,6 +114,15 @@ services:
         - NEXT_PUBLIC_API_URL=https://dev.testimonialcms.local/api/v1
     hostname: web
     restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+      - /app/apps/web/.next/cache:rw,nosuid,nodev,uid=1001,gid=1001,mode=0700,size=128m
+    stop_grace_period: 30s
     depends_on:
       - api
     networks:
@@ -125,8 +143,8 @@ services:
     hostname: nginx
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infra/nginx/certs:/etc/nginx/certs:ro

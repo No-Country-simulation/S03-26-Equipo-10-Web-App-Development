@@ -1,6 +1,6 @@
 # Infraestructura: estado actual y requisitos de la demostración
 
-**Estado al 2026-10-02:** el proyecto se ejecuta localmente con Docker Compose. La CI usa PostgreSQL y Redis descartables para validar la aplicación. No hay evidencia de un entorno de staging o producción desplegado.
+**Estado al 2026-10-05:** el proyecto se ejecuta localmente con Docker Compose. La CI usa PostgreSQL y Redis descartables para validar la aplicación. No hay evidencia de un entorno de staging o producción desplegado.
 
 ## Componentes ejecutables
 
@@ -12,7 +12,11 @@
 | Redis 7 | Servicio local de Compose y servicio descartable de CI | Cuotas atómicas y caché pública compartida |
 | Cloudinary y YouTube | Integraciones externas de la API | Credenciales y conectividad según la función usada |
 
-Compose levanta web, API, PostgreSQL, Redis y pgAdmin. La API consulta PostgreSQL para readiness; el procesador de outbox vive en el mismo proceso NestJS. Redis no entrega webhooks. La CI construye ambas imágenes y ejecuta un smoke test, pero no publica ni despliega artefactos.
+Compose levanta web, API, PostgreSQL, Redis y Nginx. PostgreSQL y Nginx publican puertos solo en `127.0.0.1`. pgAdmin es optativo: `docker compose --profile debug up -d pgadmin`; también publica solo en loopback. La API consulta PostgreSQL para readiness; el procesador de outbox vive en el mismo proceso NestJS. Redis no entrega webhooks. La CI construye ambas imágenes, ejecuta un smoke test con filesystem de solo lectura y capacidades reducidas, escanea vulnerabilidades altas/críticas y adjunta SBOM CycloneDX de cada imagen. El reporte conserva también hallazgos sin corrección disponible; la CI falla si encuentra alguno alto o crítico con corrección disponible. No publica ni despliega artefactos.
+
+Los Dockerfiles activos están en `apps/api/Dockerfile` y `apps/web/Dockerfile` y usan el repositorio raíz como contexto. Los Dockerfiles anteriores de `infra/docker/` se retiraron. Las etapas de ejecución contienen Node.js sin el gestor npm global que solo se usa durante el build. En Compose, API y web usan `read_only`, `cap_drop: ALL` y 30 segundos para apagarse; `/tmp` es temporal y la caché de Next.js tiene un `tmpfs` escribible por UID 1001. Para acceder a Nginx desde otra máquina se necesita un túnel o una configuración de exposición explícita.
+
+**Verificación local del 2026-10-05:** ambas imágenes se construyeron y pasaron el smoke test con sondas, usuario sin privilegios, `read_only`, `cap_drop: ALL`, `/tmp` y caché escribibles, y parada con `SIGTERM` sin salida 137. `docker compose config` confirmó que el perfil por defecto excluye pgAdmin y que los puertos publicados de PostgreSQL y Nginx usan loopback; el perfil `debug` también vincula pgAdmin a loopback. Trivy 0.74.0 generó SBOM CycloneDX para ambas imágenes: el reporte de la API registró un hallazgo alto sin corrección disponible y el de web ninguno; no hubo hallazgos altos o críticos con corrección disponible. El reporte local de `npm audit` registró 40 paquetes con hallazgos altos y corrección disponible en el lockfile actual. El workflow conserva ese fallo como gate final, después de producir los reportes de imágenes; la actualización de dependencias requiere una tarea y autorización separadas. El workflow remoto de CI todavía debe ejecutarse para confirmar la carga de artefactos en GitHub Actions.
 
 ## Configuración y controles
 

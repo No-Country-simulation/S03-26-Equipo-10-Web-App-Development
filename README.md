@@ -137,6 +137,9 @@ Si ya tenés un volumen de PostgreSQL 16, seguí primero la [guía de respaldo y
 # Levantar servicios locales
 docker compose up -d
 
+# Opcional: abrir pgAdmin solo en esta máquina
+docker compose --profile debug up -d pgadmin
+
 # Ver logs
 docker compose logs -f
 ```

@@ -20,7 +20,9 @@ COPY apps/web/package.json ./apps/web/
 RUN npm ci --omit=dev --workspace @testimonial-cms/api --ignore-scripts
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-FROM base AS runner
+FROM node:24.21.0-alpine AS runner
+WORKDIR /app
+RUN apk add --no-cache openssl && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm
 ENV NODE_ENV=production
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=production-deps /app/apps ./apps

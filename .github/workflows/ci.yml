@@ -52,6 +52,8 @@ jobs:
       - name: Verify lockfile is unchanged
         run: git diff --exit-code -- package-lock.json
       - name: Audit high and critical vulnerabilities
+        id: npm_audit
+        continue-on-error: true
         run: npm audit --audit-level=high
       - name: Verify registry signatures
         run: npm audit signatures
@@ -75,6 +77,80 @@ jobs:
         run: docker build --file apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=http://127.0.0.1:4000/api/v1 --tag testimonial-cms-web:ci .
       - name: Smoke test production images
         run: bash scripts/ci-smoke-containers.sh
+      - name: Prepare image reports
+        id: image_reports
+        run: mkdir -p image-reports
+      - name: Generate API SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: testimonial-cms-api:ci
+          version: v0.74.0
+          format: cyclonedx
+          output: image-reports/api-sbom.cdx.json
+      - name: Generate web SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: testimonial-cms-web:ci
+          version: v0.74.0
+          format: cyclonedx
+          output: image-reports/web-sbom.cdx.json
+      - name: Scan API image
+        id: scan_api
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: testimonial-cms-api:ci
+          version: v0.74.0
+          scanners: vuln
+          format: json
+          output: image-reports/api-vulnerabilities.json
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+      - name: Scan web image
+        id: scan_web
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: testimonial-cms-web:ci
+          version: v0.74.0
+          scanners: vuln
+          format: json
+          output: image-reports/web-vulnerabilities.json
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+      - name: Upload image reports
+        if: ${{ always() && steps.image_reports.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-reports
+          path: image-reports/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce image scan
+        if: ${{ always() && steps.image_reports.outcome == 'success' }}
+        env:
+          API_SCAN: ${{ steps.scan_api.outcome }}
+          WEB_SCAN: ${{ steps.scan_web.outcome }}
+        run: |
+          test "$API_SCAN" = success && test "$WEB_SCAN" = success
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          for image in ('api', 'web'):
+              report = json.loads(Path(f'image-reports/{image}-vulnerabilities.json').read_text())
+              fixable = [v for result in report.get('Results', [])
+                         for v in result.get('Vulnerabilities') or []
+                         if v.get('Severity') in ('HIGH', 'CRITICAL') and v.get('FixedVersion')]
+              print(f'{image}: {len(fixable)} vulnerabilidades altas/críticas con corrección disponible')
+              if fixable:
+                  raise SystemExit(1)
+          PY
+      - name: Enforce dependency audit
+        if: ${{ always() }}
+        env:
+          NPM_AUDIT: ${{ steps.npm_audit.outcome }}
+        run: test "$NPM_AUDIT" = success
 
   dependency-review:
     if: github.event_name == 'pull_request'
