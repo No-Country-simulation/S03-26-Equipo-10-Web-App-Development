@@ -1,7 +1,7 @@
 # Plan HITL: corrección de nueve skills de ingeniería web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; Fase 3 actual
+**Estado global:** En progreso; Fase 4 lista para revisión
 **Alcance:** nueve archivos `SKILL.md` indicados abajo, este registro HITL y su entrada en `docs/plan/README.md`
 
 ## Contexto y restricciones
@@ -50,25 +50,25 @@
 **Review humano (ACK):** Recibido el 2026-10-05: «Continua».
 **Commit sugerido:** `docs(skills): alineá Next y API con las fronteras vigentes`.
 
-### `[Actual]` Fase 3: sistema visual y experiencia cognitiva
+### `[Completada]` Fase 3: sistema visual y experiencia cognitiva
 
 - Reescribir Tailwind para v3.4 con `tailwind.config.ts`, `@tailwind` y clases detectables estáticamente; conservar v4 (`@theme`, `@source`, `@utility`) solo como apartado de migración explícita. Sustituir referencias a pnpm y `packages/ui` como estructura vigente.
 - Reescribir CSS según los tokens HSL presentes en `globals.css`, geometría editorial de radio cero y componentes existentes. Evitar exigir `tokens.css`, `themes.css`, `@scope`, container queries, subgrid o capas adicionales en toda pantalla; indicar cuándo aplican.
 - Reescribir Cognitive Interface como guía de heurísticas y comprobaciones observables. Retirar porcentajes y tiempos de impacto sin medición, defaults comerciales inventados y patrones visuales ajenos al producto. Describir el tamaño de objetivos WCAG 2.2 AA con sus excepciones y proteger flujos de moderación según las reglas reales.
 
-**Salida para revisión:** tres skills reescritas (251, 252 y 253 líneas), coherentes con Tailwind 3.4, tokens HSL, `ThemeProvider` e identidad editorial vigentes.
+**Salida:** tres skills reescritas (251, 252 y 253 líneas), coherentes con Tailwind 3.4, tokens HSL, `ThemeProvider` e identidad editorial vigentes.
 **Verificación:** frontmatter YAML, enlaces, cercos, sintaxis de ejemplos CSS/TSX y un DoD por skill validados; contraste con `globals.css`, `tailwind.config.ts`, componentes UI, [guía oficial de Tailwind 4](https://tailwindcss.com/docs/upgrade-guide) y [WCAG 2.2 SC 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum); búsqueda de capacidades futuras y métricas no verificadas; `git diff --check` sin errores. No se ejecutaron tests de aplicaciones por tratarse solo de documentación.
-**Review humano (ACK):** Pendiente.  
+**Review humano (ACK):** Recibido el 2026-10-05: «Continua».
 **Commit sugerido:** `docs(skills): ajustá Tailwind CSS y UX al diseño actual`.
 
-### `[Pendiente]` Fase 4: React, TypeScript y coherencia final
+### `[Actual]` Fase 4: React, TypeScript y coherencia final
 
 - Reescribir React para React 18.3: render puro, Effects para sincronización externa, fetch de datos de Server Components de Next como caso distinto de efectos en render cliente, formularios proporcionales a su complejidad y React Compiler solo si se configura explícitamente.
-- Reescribir JavaScript/TypeScript según `tsconfig.base.json` y el runtime actual. Conservar `strict: true`; presentar `noUncheckedIndexedAccess` y `exactOptionalPropertyTypes` como cambios de configuración opcionales que requieren evaluación separada. Evitar imponer paquetes, workers o abstracciones sin necesidad comprobada.
+- Reescribir JavaScript/TypeScript según `tsconfig.base.json` y el runtime actual. Conservar `strict: true`; reconocer que `noUncheckedIndexedAccess` y `exactOptionalPropertyTypes` ya rigen en `apps/api/tsconfig.json`, mientras adoptarlos en la web o configuración base sería un cambio opcional que requiere evaluación separada. Evitar imponer paquetes, workers o abstracciones sin necesidad comprobada.
 - Hacer una revisión cruzada de las nueve skills: frontmatter, enlaces, terminología, contradicciones, ejemplos de seguridad, requisitos duplicados y distinción vigente/opcional/futuro. Resolver en esta fase únicamente las inconsistencias documentales que se descubran.
 
-**Salida:** nueve skills consistentes, operativas y sin afirmaciones de implementación inexistente.  
-**Verificación:** frontmatter y enlaces válidos; búsquedas de Next 16, React 19, Tailwind 4, pnpm, Prisma en Next y worker separado; revisión manual de ejemplos de autorización, tenant, caché e idempotencia; `git diff --check`. No exigir typecheck o tests de aplicaciones por cambios exclusivamente documentales.  
+**Salida para revisión:** React (261 líneas) y JavaScript/TypeScript (260 líneas) reescritas; las nueve skills quedan entre 250 y 269 líneas, con un único DoD y distinción de estado vigente, opción contextual y migración futura.
+**Verificación:** `quick_validate.py` aprobó las nueve; frontmatter YAML, enlaces locales, cercos y sintaxis de ejemplos TS/TSX/CSS validados. Se buscaron Next 16, React 19, Tailwind 4, pnpm, Prisma en Next y worker separado, y se revisaron manualmente autorización, tenant, caché e idempotencia: las menciones residuales son prohibiciones, límites o migraciones etiquetadas. `git diff --check` sin errores. No se ejecutaron typecheck ni tests de aplicaciones por tratarse solo de documentación.
 **Review humano (ACK):** Pendiente.  
 **Commit sugerido:** `docs(skills): depurá React TypeScript y coherencia transversal`.
 
