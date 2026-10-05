@@ -1,7 +1,7 @@
 # Plan HITL: corrección de nueve skills de ingeniería web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; Fase 1 lista para revisión  
+**Estado global:** En progreso; Fase 2 actual
 **Alcance:** nueve archivos `SKILL.md` indicados abajo, este registro HITL y su entrada en `docs/plan/README.md`
 
 ## Contexto y restricciones
@@ -28,25 +28,25 @@
 
 ## Fases
 
-### `[Actual]` Fase 1: registrar el plan HITL
+### `[Completada]` Fase 1: registrar el plan HITL
 
 - [x] Registrar baseline, fuentes de verdad, alcance y cuatro fases con sus criterios de salida.
 - [x] Incorporar el plan al índice de `docs/plan/`.
 - [x] Confirmar que el registro no modifica código ni archivos de infraestructura.
 
-**Salida para revisión:** plan e índice creados; la fase permanece `[Actual]` hasta recibir ACK.  
-**Review humano (ACK):** Pendiente.  
+**Salida:** plan e índice creados sin modificar código ni infraestructura.
+**Review humano (ACK):** Recibido el 2026-10-05: «Continua».
 **Commit sugerido:** `docs(plan): registrá la corrección HITL de nueve skills web`.
 
-### `[Pendiente]` Fase 2: fronteras de Next.js, renderizado y API
+### `[Actual]` Fase 2: fronteras de Next.js, renderizado y API
 
 - Reescribir las skills de Next.js Architecture y Next.js Frontend para el modelo vigente: NestJS como backend independiente, adaptadores HTTP de web, sesión actual y Server Components solo donde los datos y la autenticación de la ruta lo permitan. Separar la DAL de API externa de ejemplos genéricos de Prisma en Next.
 - Reescribir Web Rendering con estrategias actuales por ruta, sin presentar como implementados ISR por eventos, `/api/revalidate`, RUM, worker separado ni acceso Prisma desde Next. Aclarar caché privada y pública, frescura y fallas sin inventar contratos de despliegue.
 - Reescribir Node/Next API según Express, `nestjs-zod`, `ApiExceptionFilter`, `IdempotencyInterceptor` y aislamiento por tenant existentes. Eliminar ejemplos de idempotencia con `tap(async ...)` y autorización que retorna `true` sin verificar propiedad; reemplazarlos por reglas y ejemplos que fallen cerrados.
 - Usar firmas y configuración de Next.js 15.5 en todos los ejemplos vigentes. Etiquetar `cacheComponents`, APIs de Next 16 y arquitectura de workers externos como migraciones futuras.
 
-**Salida:** cuatro skills breves y aplicables al repositorio, sin ejemplos que concedan permisos o aparenten durabilidad sin garantizarla.  
-**Verificación:** búsqueda dirigida de versiones y APIs futuras; contraste de ejemplos con tipos instalados y código de API/web.  
+**Salida para revisión:** cuatro skills reescritas (250, 256, 252 y 269 líneas); ninguna presenta autorización o idempotencia parcial como garantía completa.
+**Verificación:** frontmatter YAML, enlaces, cercos de código, sintaxis TS/TSX y un DoD por skill validados; versiones contrastadas con manifiestos y ejemplos con código API/web; búsqueda dirigida de capacidades futuras; `git diff --check` sin errores. Se documentó el límite vigente de `IdempotencyInterceptor` (`tap(async ...)`) sin modificar código.
 **Review humano (ACK):** Pendiente.  
 **Commit sugerido:** `docs(skills): alineá Next y API con las fronteras vigentes`.
 
