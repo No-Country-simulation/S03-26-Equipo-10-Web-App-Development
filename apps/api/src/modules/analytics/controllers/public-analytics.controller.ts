@@ -1,6 +1,5 @@
 import { AnalyticsService } from '../services/analytics.service';
 import { Body, Controller, Ip, Param, Post, UseGuards } from '@nestjs/common';
-import { Idempotent } from '../../../common/decorators/idempotent.decorator';
 import { RateLimit } from '../../../common/decorators/rate-limit.decorator';
 import { CsrfMode } from '../../../common/decorators/csrf-mode.decorator';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
@@ -18,7 +17,6 @@ export class PublicAnalyticsController {
   @CsrfMode('api-key')
   @UseGuards(ApiKeyGuard, ApiKeyScopesGuard, RateLimitGuard)
   @RequireApiKeyScopes('analytics:write')
-  @Idempotent()
   @RateLimit({ limit: 60, windowSeconds: 60, scope: 'ip-api-key' })
   track(
     @CurrentTenantId() tenantId: string,
@@ -35,7 +33,6 @@ export class PublicAnalyticsController {
   @Post('tenants/:slug/events')
   @CsrfMode('origin')
   @UseGuards(RateLimitGuard)
-  @Idempotent()
   @RateLimit({ limit: 60, windowSeconds: 60, scope: 'ip' })
   trackBySlug(
     @Param('slug') slug: string,

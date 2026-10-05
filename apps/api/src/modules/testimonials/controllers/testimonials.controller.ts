@@ -4,10 +4,13 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
+  Headers,
   Param,
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
@@ -17,6 +20,8 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import type { AuthenticatedUser } from '../../../common/interfaces/auth-context.interface';
+import type { ApiRequest } from '../../../common/interfaces/auth-context.interface';
+import { IdempotencyService } from '../../../common/services/idempotency.service';
 import {
   AttachVideoDto,
   CreateTestimonialDto,
@@ -43,6 +48,7 @@ export class TestimonialsController {
   constructor(
     private readonly testimonialsService: TestimonialsService,
     private readonly tagsService: TagsService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   /**
@@ -70,12 +76,19 @@ export class TestimonialsController {
    */
   @Post()
   @Idempotent()
-  create(
+  @Header('Cache-Control', 'no-store')
+  async create(
     @CurrentTenantId() tenantId: string,
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateTestimonialDto,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: ApiRequest,
   ) {
-    return this.testimonialsService.createTestimonial(tenantId, user.userId, dto);
+    const result = await this.idempotency.execute({
+      key, tenantId, principalKind: 'user', principalId: user.userId,
+      method: 'POST', path: req.path, payload: { body: dto }, statusCode: 201,
+    }, tx => this.testimonialsService.createTestimonial(tenantId, user.userId, dto, tx));
+    return result.value;
   }
 
   /**
@@ -141,11 +154,22 @@ export class TestimonialsController {
    */
   @Post(':testimonial_id/publish')
   @Idempotent()
-  publish(
+  @Header('Cache-Control', 'no-store')
+  async publish(
     @CurrentTenantId() tenantId: string,
     @Param('testimonial_id') testimonialId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: ApiRequest,
   ) {
-    return this.testimonialsService.publishTestimonial(tenantId, testimonialId);
+    const result = await this.idempotency.execute({
+      key, tenantId, principalKind: 'user', principalId: user.userId,
+      method: 'POST', path: req.path, payload: { testimonialId }, statusCode: 201,
+    }, tx => this.testimonialsService.publishTestimonial(tenantId, testimonialId, tx));
+    if (key !== undefined && !result.replayed) {
+      await this.testimonialsService.invalidatePublicTestimonials(tenantId);
+    }
+    return result.value;
   }
 
   @Post(':testimonial_id/image')

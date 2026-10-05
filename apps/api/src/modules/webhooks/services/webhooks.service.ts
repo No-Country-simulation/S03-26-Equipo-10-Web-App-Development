@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
+import type { TransactionClient } from '../../../common/repositories/transaction-client';
 import { randomUUID } from 'node:crypto';
 import { WebhookRepository } from '../repositories/webhook.repository';
 import { CreateWebhookDto, UpdateWebhookDto } from '../dto/webhook.dto';
@@ -68,8 +69,8 @@ export class WebhooksService {
     return this.withLegacyNotice(webhook);
   }
 
-  async testWebhook(tenantId: string, webhookId: string) {
-    const webhook = await this.webhookRepo.findById(tenantId, webhookId);
+  async testWebhook(tenantId: string, webhookId: string, tx?: TransactionClient) {
+    const webhook = await this.webhookRepo.findById(tenantId, webhookId, tx);
     if (!webhook || webhook.deletedAt || !webhook.isActive) throw new NotFoundError('Webhook not found');
 
     const payload = {
@@ -77,12 +78,12 @@ export class WebhooksService {
     };
     const id = await this.outbox.createEvent({
       tenantId, eventType: webhook.eventCode, payload, targetWebhookId: webhook.id,
-    });
+    }, tx);
     return { id, status: 'accepted' };
   }
 
-  async replayDead(tenantId: string, webhookId: string, deliveryId: string) {
-    const replayed = await this.outbox.replayDead(tenantId, webhookId, deliveryId);
+  async replayDead(tenantId: string, webhookId: string, deliveryId: string, tx?: TransactionClient) {
+    const replayed = await this.outbox.replayDead(tenantId, webhookId, deliveryId, tx);
     if (!replayed) throw new NotFoundError('Dead webhook delivery not found');
     return { id: deliveryId, status: 'pending' };
   }

@@ -96,6 +96,8 @@ export class ApiExceptionFilter implements ExceptionFilter {
       }),
     };
 
+    if (errorCode === 'IDEMPOTENCY_IN_PROGRESS') response.header('Retry-After', '1');
+
     response
       .status(status)
       .header('Content-Type', 'application/problem+json')

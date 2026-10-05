@@ -1,5 +1,6 @@
 import { ConflictError, ForbiddenError, InvalidInputError, NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
+import type { TransactionClient } from '../../../common/repositories/transaction-client';
 import { TenantsService } from '../../tenants';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
@@ -51,8 +52,8 @@ export class TestimonialsService {
    * @throws {NotFoundError} Si la categoría proporcionada no existe o no pertenece al tenant.
    * @returns El testimonio creado (en estado 'draft' por defecto).
    */
-  async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto) {
-    return this.create.execute(tenantId, creatorUserId, dto);
+  async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto, tx?: TransactionClient) {
+    return this.create.execute(tenantId, creatorUserId, dto, tx);
   }
 
   async getTestimonial(tenantId: string, testimonialId: string) {
@@ -322,7 +323,11 @@ export class TestimonialsService {
    * @throws {ConflictError} Si la transición de estado no es válida.
    * @returns El testimonio actualizado.
    */
-  async publishTestimonial(tenantId: string, testimonialId: string) {
-    return this.transition.execute(tenantId, testimonialId, 'published');
+  async publishTestimonial(tenantId: string, testimonialId: string, tx?: TransactionClient) {
+    return this.transition.execute(tenantId, testimonialId, 'published', undefined, tx);
+  }
+
+  async invalidatePublicTestimonials(tenantId: string): Promise<void> {
+    await this.cache.invalidateTenantPublic(tenantId);
   }
 }

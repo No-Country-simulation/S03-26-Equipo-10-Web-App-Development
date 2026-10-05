@@ -110,7 +110,7 @@ describe('TestimonialsService', () => {
       tenantId: 'tenant-1',
       createdById: 'user-1',
       rating: 5,
-    }), 'draft', expect.objectContaining({ eventType: 'testimonial.created' }));
+    }), 'draft', expect.objectContaining({ eventType: 'testimonial.created' }), undefined);
   });
 
   it('creates public submissions directly as pending', async () => {
@@ -154,7 +154,7 @@ describe('TestimonialsService', () => {
     mockRepo.updateStatus.mockResolvedValueOnce(published);
     const publishResult = await service.publishTestimonial('tenant-1', 'test-1');
     expect(publishResult.status).toBe('published');
-    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'approved', 'published', expect.any(Object), expect.objectContaining({ eventType: 'testimonial.published' }));
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'approved', 'published', expect.any(Object), expect.objectContaining({ eventType: 'testimonial.published' }), undefined);
     expect(mockCacheService.invalidateTenantPublic).toHaveBeenCalledWith('tenant-1');
   });
 

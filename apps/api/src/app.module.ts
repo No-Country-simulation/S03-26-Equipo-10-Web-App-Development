@@ -7,7 +7,6 @@ import { LoggerModule } from 'nestjs-pino';
 import { appConfig, appConfigValidationSchema } from './config/app.config';
 import { CommonModule } from './common/common.module';
 import { HashingModule } from './modules/shared/hashing/hashing.module';
-import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
 import { PrismaModule } from './modules/database/prisma.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -89,7 +88,6 @@ import { serializeSafeRequest } from './common/observability/safe-request-serial
     FeatureFlagsModule,
   ],
   providers: [
-    IdempotencyInterceptor,
     TelemetryShutdownService,
     {
       provide: APP_GUARD,

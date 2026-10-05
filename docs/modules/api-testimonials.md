@@ -50,7 +50,7 @@ draft ──► pending ──► approved ──► published
 
 ## 4. DTOs (nestjs-zod)
 
-**Límite vigente:** el header `Idempotency-Key` de las rutas administrativas decoradas no proporciona aún exclusión concurrente ni resultado durable. El [contrato propuesto](../technical/08_http_idempotency_contract.md) cubre creación y publicación dentro de la misma transacción de dominio y outbox. El envío público repetido puede hoy responder `received` sin persistencia; la corrección propuesta devolverá `409 PUBLIC_SUBMISSION_RECENT_BROWSER`, distinta del `429` del límite por IP.
+**Contrato implementado en código:** `Idempotency-Key` en creación y publicación administrativa vincula reserva, mutación, outbox y resultado en la misma transacción según el [contrato HTTP](../technical/08_http_idempotency_contract.md); la migración está preparada y aún no fue aplicada. El envío público con marca reciente de navegador devuelve `409 PUBLIC_SUBMISSION_RECENT_BROWSER`, distinto del `429` del límite por IP, sin afirmar una escritura inexistente.
 
 | DTO | Campos clave | Validación |
 |-----|-------------|------------|

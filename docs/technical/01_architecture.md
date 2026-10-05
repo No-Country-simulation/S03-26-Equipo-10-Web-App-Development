@@ -231,7 +231,7 @@ export class CloudinaryService {
 
 **Estado actual:** el interceptor global usa una lectura seguida de `upsert` y guarda con `tap(async ...)`. No garantiza exclusión concurrente ni espera el guardado antes de responder. El ejemplo anterior de lectura, mutación y guardado separados fue retirado porque tampoco cerraba esa carrera.
 
-**Contrato propuesto:** [idempotencia HTTP transaccional](08_http_idempotency_contract.md). Solo las operaciones que vinculen reserva, mutación, outbox y resultado en una transacción podrán ofrecer repetición segura con `Idempotency-Key`. El reenvío de webhooks salientes conserva su contrato **at least once** y necesita deduplicación del lado receptor por ID de evento; es un mecanismo distinto.
+**Contrato implementado en código, pendiente de aplicar la migración:** [idempotencia HTTP transaccional](08_http_idempotency_contract.md). Solo las operaciones que vinculan reserva, mutación, outbox y resultado en una transacción ofrecen repetición segura con `Idempotency-Key`. El reenvío de webhooks salientes conserva su contrato **at least once** y necesita deduplicación del lado receptor por ID de evento; es un mecanismo distinto.
 
 ---
 

@@ -9,6 +9,7 @@ import { RequireApiKeyScopes } from '../../../common/decorators/require-api-key-
 import { RateLimitGuard } from '../../../common/guards/rate-limit.guard';
 import { PublicTestimonialsQueryDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
 import { Request, Response } from 'express';
+import { ApplicationError } from '../../../common/errors/application.error';
 
 import { FeatureFlagGuard } from '../../../common/guards/feature-flag.guard';
 import { RequireFeature } from '../../../common/decorators/feature-flag.decorator';
@@ -71,12 +72,14 @@ export class PublicTestimonialsController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ) {
-    // 1. Anti-spam via HTTPOnly Cookier
+    // La marca local limita envíos repetidos, pero no confirma persistencia previa.
     const submissionCookieKey = `ts_submitted_${slug}`;
-    const cookiesHeader = req.headers.cookie || '';
-    if (cookiesHeader.includes(`${submissionCookieKey}=true`)) {
-      // Respond identically to a successful submission to slow down scrapers/bots
-      return { status: 'received' }; 
+    if (req.cookies?.[submissionCookieKey] === 'true') {
+      throw new ApplicationError(
+        'This browser has a recent submission marker; this attempt was not saved',
+        'conflict',
+        'PUBLIC_SUBMISSION_RECENT_BROWSER',
+      );
     }
 
     const result = await this.testimonialsService.submitPublicTestimonial(slug, dto);

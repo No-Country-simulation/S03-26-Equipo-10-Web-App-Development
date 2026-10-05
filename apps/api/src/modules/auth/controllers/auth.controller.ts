@@ -4,7 +4,6 @@ import type { Request, Response, CookieOptions } from 'express';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { RateLimit } from '../../../common/decorators/rate-limit.decorator';
 import { CsrfMode } from '../../../common/decorators/csrf-mode.decorator';
-import { Idempotent } from '../../../common/decorators/idempotent.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RateLimitGuard } from '../../../common/guards/rate-limit.guard';
 import type { AuthenticatedUser } from '../../../common/interfaces/auth-context.interface';
@@ -29,7 +28,6 @@ export class AuthController {
 
   @Post('register-admin')
   @CsrfMode('origin')
-  @Idempotent()
   @RateLimit({ limit: 10, windowSeconds: 60, scope: 'ip' })
   async registerAdmin(@Body() dto: RegisterAdminDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const mode = this.authMode(req);

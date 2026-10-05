@@ -8,7 +8,6 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { ApiExceptionFilter } from './common/filters/api-exception.filter';
 import { ApiResponseInterceptor } from './common/interceptors/api-response.interceptor';
-import { IdempotencyInterceptor } from './common/interceptors/idempotency.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -84,7 +83,6 @@ async function bootstrap() {
   app.useGlobalInterceptors(
     app.get(LoggingInterceptor),
     new ApiResponseInterceptor(),
-    app.get(IdempotencyInterceptor),
   );
 
   const config = new DocumentBuilder()

@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Header,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -12,9 +13,13 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import type { ApiRequest, AuthenticatedUser } from '../../../common/interfaces/auth-context.interface';
+import { IdempotencyService } from '../../../common/services/idempotency.service';
 import { Idempotent } from '../../../common/decorators/idempotent.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -26,7 +31,10 @@ import { parseAdminPage } from '../../../common/pagination/admin-page';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class WebhooksController {
-  constructor(private readonly webhooksService: WebhooksService) {}
+  constructor(
+    private readonly webhooksService: WebhooksService,
+    private readonly idempotency: IdempotencyService,
+  ) {}
 
   @Get()
   list(@CurrentTenantId() tenantId: string, @Query() query: Record<string, unknown>) {
@@ -88,21 +96,37 @@ export class WebhooksController {
   @Post(':webhook_id/test')
   @HttpCode(HttpStatus.ACCEPTED)
   @Idempotent()
-  test(
+  @Header('Cache-Control', 'no-store')
+  async test(
     @CurrentTenantId() tenantId: string,
     @Param('webhook_id') webhookId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: ApiRequest,
   ) {
-    return this.webhooksService.testWebhook(tenantId, webhookId);
+    const result = await this.idempotency.execute({
+      key, tenantId, principalKind: 'user', principalId: user.userId,
+      method: 'POST', path: req.path, payload: { webhookId }, statusCode: 202,
+    }, tx => this.webhooksService.testWebhook(tenantId, webhookId, tx));
+    return result.value;
   }
 
   @Post(':webhook_id/deliveries/:delivery_id/replay')
   @HttpCode(HttpStatus.ACCEPTED)
   @Idempotent()
-  replay(
+  @Header('Cache-Control', 'no-store')
+  async replay(
     @CurrentTenantId() tenantId: string,
     @Param('webhook_id', ParseUUIDPipe) webhookId: string,
     @Param('delivery_id', ParseUUIDPipe) deliveryId: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('idempotency-key') key: string | undefined,
+    @Req() req: ApiRequest,
   ) {
-    return this.webhooksService.replayDead(tenantId, webhookId, deliveryId);
+    const result = await this.idempotency.execute({
+      key, tenantId, principalKind: 'user', principalId: user.userId,
+      method: 'POST', path: req.path, payload: { webhookId, deliveryId }, statusCode: 202,
+    }, tx => this.webhooksService.replayDead(tenantId, webhookId, deliveryId, tx));
+    return result.value;
   }
 }

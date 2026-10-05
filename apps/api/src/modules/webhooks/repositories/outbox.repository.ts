@@ -77,8 +77,8 @@ export async function enqueueWebhookEvent(tx: Prisma.TransactionClient, event: O
 export class OutboxRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createEvent(event: OutboxEventInput): Promise<string> {
-    return this.prisma.$transaction(tx => enqueueWebhookEvent(tx, event));
+  async createEvent(event: OutboxEventInput, client?: Prisma.TransactionClient): Promise<string> {
+    return client ? enqueueWebhookEvent(client, event) : this.prisma.$transaction(tx => enqueueWebhookEvent(tx, event));
   }
 
   /** Inicialización transaccional y repetible; incluye eventos legados. */
@@ -259,8 +259,8 @@ export class OutboxRepository {
     });
   }
 
-  async replayDead(tenantId: string, webhookId: string, deliveryId: string): Promise<boolean> {
-    return this.prisma.$transaction(async tx => {
+  async replayDead(tenantId: string, webhookId: string, deliveryId: string, client?: Prisma.TransactionClient): Promise<boolean> {
+    const write = async (tx: Prisma.TransactionClient) => {
       const rows = await tx.$queryRaw<Array<{ outboxEventId: string }>>`
         SELECT d."outbox_event_id" AS "outboxEventId"
         FROM "webhook_deliveries" d JOIN "webhooks" w ON w.id = d."webhook_id"
@@ -283,7 +283,8 @@ export class OutboxRepository {
         data: { status: 'pending', processedAt: null },
       });
       return true;
-    });
+    };
+    return client ? write(client) : this.prisma.$transaction(write);
   }
 
   private async finalizeEvent(tx: Prisma.TransactionClient, eventId: string): Promise<void> {

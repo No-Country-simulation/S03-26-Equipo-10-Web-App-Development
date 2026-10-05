@@ -26,7 +26,7 @@ Los destinos legados firmados conservan `X-Signature` (HMAC-SHA-256 del body con
 
 Todos exigen sesión autenticada, rol `admin` y tenant actual.
 
-`POST /test` y `POST /replay` están decorados hoy con `@Idempotent()`, pero el interceptor vigente no reserva la clave en la transacción del outbox. Su [contrato transaccional propuesto](../technical/08_http_idempotency_contract.md) es distinto de la deduplicación por evento que deben hacer los **receptores** de webhooks salientes. Hasta la fase 3, el decorador no acredita una garantía frente a solicitudes concurrentes.
+`POST /test` y `POST /replay` usan el [contrato transaccional de idempotencia HTTP](../technical/08_http_idempotency_contract.md) cuando se envía `Idempotency-Key`: la reserva, el efecto y el resultado se confirman juntos. La migración correspondiente está preparada, pero aún no fue aplicada. Esta garantía es distinta de la deduplicación por evento que deben hacer los **receptores** de webhooks salientes.
 
 | Método | Ruta | Resultado |
 | --- | --- | --- |

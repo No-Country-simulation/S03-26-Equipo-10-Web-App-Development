@@ -397,19 +397,25 @@ model OutboxEvent {
 }
 
 model IdempotencyKey {
-  id           String   @id @default(uuid()) @db.Uuid
-  key          String
-  tenantId     String   @map("tenant_id") @db.Uuid
-  method       String
-  path         String
-  statusCode   Int      @map("status_code")
-  responseBody Json     @map("response_body")
-  createdAt    DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
-  updatedAt    DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  id            String   @id @default(uuid()) @db.Uuid
+  key           String
+  tenantId      String   @map("tenant_id") @db.Uuid
+  principalKind String   @map("principal_kind")
+  principalId   String   @map("principal_id")
+  method        String
+  path          String
+  requestHash   String   @map("request_hash") @db.VarChar(64)
+  recordState   String   @map("record_state")
+  statusCode    Int?     @map("status_code")
+  responseBody  Json?    @map("response_body")
+  expiresAt     DateTime @db.Timestamptz(3) @map("expires_at")
+  createdAt     DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3) @map("updated_at")
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
 
-  @@unique([key, tenantId, method, path], map: "uq_idempotency_key")
+  @@unique([tenantId, principalKind, principalId, method, path, key], map: "uq_idempotency_scope")
   @@index([tenantId], map: "idx_idempotency_tenant")
+  @@index([expiresAt], map: "idx_idempotency_expires_at")
   @@map("idempotency_keys")
 }
 

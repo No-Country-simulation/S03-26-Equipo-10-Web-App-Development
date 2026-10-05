@@ -7,8 +7,8 @@ import { ApiKeyScopesGuard } from './guards/api-key-scopes.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { RolesGuard } from './guards/roles.guard';
-import { IdempotencyInterceptor } from './interceptors/idempotency.interceptor';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
+import { IdempotencyService } from './services/idempotency.service';
 import { IdempotencyRepository } from './repositories/idempotency.repository';
 import { CredentialRepository } from './repositories/credential.repository';
 import { RateLimitService } from './services/rate-limit.service';
@@ -38,8 +38,8 @@ import { MetricsController } from './observability/metrics.controller';
     JwtAuthGuard,
     RateLimitGuard,
     RolesGuard,
-    IdempotencyInterceptor,
     LoggingInterceptor,
+    IdempotencyService,
     IdempotencyRepository,
     CredentialRepository,
     RateLimitService,
@@ -56,9 +56,8 @@ import { MetricsController } from './observability/metrics.controller';
     JwtAuthGuard,
     RateLimitGuard,
     RolesGuard,
-    IdempotencyInterceptor,
     LoggingInterceptor,
-    IdempotencyRepository,
+    IdempotencyService,
     CredentialRepository,
     RateLimitService,
     CacheService,

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { TransactionClient } from '../../../common/repositories/transaction-client';
 import { ConflictError, NotFoundError } from '../../../common/errors/application.error';
 import { CategoryRepository } from '../repositories/category.repository';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
@@ -19,7 +20,7 @@ export class CreateTestimonialUseCase {
     private readonly categories: CategoryRepository,
   ) {}
 
-  async execute(tenantId: string, creatorUserId: string, input: CreateTestimonialInput) {
+  async execute(tenantId: string, creatorUserId: string, input: CreateTestimonialInput, tx?: TransactionClient) {
     if (input.rating < 1 || input.rating > 5) {
       throw new ConflictError('Rating must be between 1 and 5');
     }
@@ -49,6 +50,6 @@ export class CreateTestimonialUseCase {
         videoUrl: testimonial.videoUrl,
         createdAt: testimonial.createdAt,
       }),
-    });
+    }, tx);
   }
 }

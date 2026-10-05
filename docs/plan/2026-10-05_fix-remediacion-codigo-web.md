@@ -1,7 +1,7 @@
 # Plan HITL: remediación del código frente a diez skills web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; fase 2 lista para revisión humana
+**Estado global:** En progreso; fase 3 lista para revisión humana con integración PostgreSQL pendiente
 **Alcance:** Código activo de `apps/api` y `apps/web`, pruebas y documentación de los contratos modificados. El plan no incorpora por sí mismo capacidades SEO futuras.
 
 ## Contexto y restricciones
@@ -55,7 +55,7 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 **Review humano (ACK):** Recibido el 2026-10-05: «Continua». Commit observado: `8d59aec`.
 **Commit sugerido:** `docs(plan): registrá la remediación de las diez skills web`.
 
-### `[Actual]` Fase 2: diseñar API y migración
+### `[Completada]` Fase 2: diseñar API y migración
 
 - [x] Especificar rutas elegibles, scope de actor y tenant, huella canónica del payload, reserva atómica, respuesta repetida, conflicto y manejo de fallos en `docs/technical/08_http_idempotency_contract.md`.
 - [x] Preparar el borrador SQL y la estrategia para filas legadas en `docs/plan/2026-10-05_fix-remediacion-codigo-web_idempotencia-borrador.sql`, fuera de las migraciones activas y sin modificar `schema.prisma`.
@@ -64,15 +64,21 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 
 **Criterio de salida:** contrato y SQL revisables; la documentación modificada distingue claramente estado vigente de garantía futura y no presenta los decoradores actuales como prueba suficiente. El código aún conserva el interceptor inseguro hasta la fase 3.
 **Salida para revisión:** contrato técnico, borrador SQL, módulos de auth/testimonios/webhooks y dos secciones técnicas históricas actualizadas. Se comprobaron rutas y transacciones reales, enlaces locales de los documentos nuevos, búsqueda dirigida de ejemplos inseguros y `git diff --check`. No se ejecutaron tests de aplicaciones ni SQL porque el alcance de esta fase es documental.
-**Review humano (ACK):** Pendiente; debe incluir autorización explícita para modificar `apps/api/prisma/schema.prisma` en la fase 3 si se aprueba esa migración.  
+**Review humano (ACK):** Recibido el 2026-10-05: «Continua», tras solicitar expresamente el ACK de esta fase y autorización para modificar `apps/api/prisma/schema.prisma`. Commit observado: `50a1fbe`.
 **Commit sugerido:** `docs(api): definí los contratos de idempotencia y captura`.
 
-### `[Pendiente]` Fase 3: corregir API y persistencia
+### `[Actual]` Fase 3: corregir API y persistencia
 
-- Solo tras el ACK específico del esquema, implementar el protocolo en casos de uso elegibles, vincular cambio de negocio y resultado durable en una transacción y actualizar esquema, migración revisada, controladores, repositorios, OpenAPI y pruebas.
-- Corregir repetición en captura y revisar autorización, escritura filtrada por tenant, status y Problem Details de las operaciones tocadas.
+- [x] Implementar el protocolo en cuatro rutas con tenant y actor autenticados; reserva, mutación/outbox y resultado comparten transacción PostgreSQL. Retirar el interceptor anterior y `@Idempotent()` de registro y analítica pública.
+- [x] Actualizar `schema.prisma`, preparar migración, controladores, repositorios, OpenAPI y pruebas sin aplicar SQL a ningún entorno.
+- [x] Responder `409 PUBLIC_SUBMISSION_RECENT_BROWSER` ante la cookie exacta de captura, sin simular recepción. Conservar `429` de cuota y traducción Problem Details.
+- [x] Revisar las consultas y escrituras tocadas con `tenantId` verificado, estados `201`/`202`, actor y ruta concreta como parte del scope.
 
 **Criterio de salida:** concurrencia, conflicto, repetición, fallo/reinicio y aislamiento entre tenants probados; no hay éxito antes de la escritura requerida. No aplicar migraciones a ningún entorno.  
+**Evidencia local:** typecheck, lint (0 errores, 2 advertencias), build y `prisma validate` pasan con Node 24.19.0, inferior al mínimo declarado. Se ejecutaron 25 pruebas dirigidas con 6 suites correctas; la suite PostgreSQL tiene 3 pruebas preparadas pero se omite sin `TEST_DATABASE_URL`. Se añadieron casos de concurrencia entre dos clientes, replay `201`/`202`, conflicto, rollback y aislamiento por actor/tenant para ejecutar en una base aislada ya migrada. La suite completa tiene pruebas HTTP que no pueden abrir sockets en este sandbox (`listen EPERM`). No se ejecutó migración ni se certifica la concurrencia en PostgreSQL por inferencia.
+
+**Riesgo pendiente:** la garantía depende de aplicar la migración en un despliegue coordinado y verificar la suite PostgreSQL; la caída real de proceso y el recorrido HTTP esperan un entorno de integración. La interfaz aún debe presentar el nuevo `409` de forma comprensible en la fase 4.
+
 **Review humano (ACK):** Pendiente.  
 **Commit sugerido:** `fix(api): asegurá la idempotencia y la respuesta de captura`.
 

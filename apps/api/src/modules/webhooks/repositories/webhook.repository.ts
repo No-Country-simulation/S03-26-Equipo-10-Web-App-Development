@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
 
@@ -74,8 +75,8 @@ export class WebhookRepository {
     return { items: webhooks.map(w => this.view(w)), total };
   }
 
-  async findById(tenantId: string, webhookId: string): Promise<WebhookView | null> {
-    const w = await this.prisma.webhook.findFirst({
+  async findById(tenantId: string, webhookId: string, client: Prisma.TransactionClient | PrismaService = this.prisma): Promise<WebhookView | null> {
+    const w = await client.webhook.findFirst({
       where: { id: webhookId, tenantId },
       include: { event: true },
     });

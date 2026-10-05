@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { TransactionClient } from '../../../common/repositories/transaction-client';
 import { ConflictError, NotFoundError } from '../../../common/errors/application.error';
 import { CacheService } from '../../../common/services/cache.service';
 import { VALID_TRANSITIONS, TestimonialStatus } from '../entities/testimonial.model';
@@ -12,8 +13,8 @@ export class TransitionTestimonialUseCase {
     private readonly cache: CacheService,
   ) {}
 
-  async execute(tenantId: string, testimonialId: string, to: TestimonialStatus, reason?: string) {
-    const testimonial = await this.repo.findById(tenantId, testimonialId);
+  async execute(tenantId: string, testimonialId: string, to: TestimonialStatus, reason?: string, tx?: TransactionClient) {
+    const testimonial = await this.repo.findById(tenantId, testimonialId, tx);
     if (!testimonial) throw new NotFoundError('Testimonial not found');
 
     if (!VALID_TRANSITIONS[testimonial.status].includes(to)) {
@@ -40,8 +41,9 @@ export class TransitionTestimonialUseCase {
             createdAt: result.createdAt,
           }),
         },
+        tx,
       );
-      await this.cache.invalidateTenantPublic(tenantId);
+      if (!tx) await this.cache.invalidateTenantPublic(tenantId);
       return updated;
     }
 

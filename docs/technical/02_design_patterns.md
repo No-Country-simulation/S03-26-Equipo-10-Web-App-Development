@@ -1171,9 +1171,9 @@ export class ScoringService {
 
 ### 🔴 **Comportamiento - Idempotency (para webhooks y API)**
 
-**Estado actual:** `apps/api/src/common/interceptors/idempotency.interceptor.ts` usa PostgreSQL, pero su lectura y `upsert` no son una reserva atómica, y `tap(async ...)` no espera el guardado. El antiguo middleware Redis mostrado aquí no existe y no debe copiarse como implementación del producto.
+**Estado actual:** `IdempotencyService` delega en `IdempotencyRepository`, que reserva la clave, ejecuta la mutación y guarda la respuesta dentro de una transacción PostgreSQL. La migración del nuevo scope está preparada y pendiente de aplicación. El antiguo interceptor con `tap(async ...)` fue retirado; el middleware Redis mostrado en ejemplos históricos no existe.
 
-**Diseño para fase 3:** [contrato HTTP y protocolo transaccional](08_http_idempotency_contract.md). Se aplica solo a rutas con tenant y actor verificables que puedan persistir mutación, outbox y respuesta dentro de la misma transacción. Una solicitud sin clave no recibe garantía; una clave reutilizada con otro payload produce conflicto. La entrega saliente de webhooks es **at least once** y el receptor deduplica por `X-TMS-Event-Id`.
+**Contrato vigente en código:** [idempotencia HTTP transaccional](08_http_idempotency_contract.md). Se aplica solo a rutas con tenant y actor verificables que persisten mutación, outbox y respuesta dentro de la misma transacción. Una solicitud sin clave no recibe garantía; una clave reutilizada con otro payload produce conflicto. La entrega saliente de webhooks es **at least once** y el receptor deduplica por `X-TMS-Event-Id`.
 
 ---
 

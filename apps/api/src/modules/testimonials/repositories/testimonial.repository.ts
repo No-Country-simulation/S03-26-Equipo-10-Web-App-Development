@@ -45,8 +45,8 @@ const testimonialInclude = {
 export class TestimonialRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findById(tenantId: string, id: string): Promise<TestimonialView | null> {
-    const row = await this.prisma.testimonial.findFirst({
+  async findById(tenantId: string, id: string, client: Prisma.TransactionClient | PrismaService = this.prisma): Promise<TestimonialView | null> {
+    const row = await client.testimonial.findFirst({
       where: { id, tenantId },
       include: { 
         status: true,
@@ -58,8 +58,11 @@ export class TestimonialRepository {
     return row ? this.toView(row) : null;
   }
 
-  async createWithEvent(data: CreateData, status: 'draft' | 'pending', event: EventFactory): Promise<TestimonialView> {
-    return this.prisma.$transaction(async tx => {
+  async createWithEvent(
+    data: CreateData, status: 'draft' | 'pending', event: EventFactory,
+    client?: Prisma.TransactionClient,
+  ): Promise<TestimonialView> {
+    const write = async (tx: Prisma.TransactionClient) => {
       await this.assertReferencesBelongToTenant(tx, data.tenantId, data.categoryId, data.tagIds);
       const statusId = await this.resolveStatusId(status, tx);
       const created = await tx.testimonial.create({
@@ -85,7 +88,8 @@ export class TestimonialRepository {
         payload: this.toJsonPayload(event.payload(view)) as Record<string, unknown>,
       });
       return view;
-    });
+    };
+    return client ? write(client) : this.prisma.$transaction(write);
   }
 
   async updateFields(
@@ -134,8 +138,9 @@ export class TestimonialRepository {
     status: TestimonialStatus,
     extra?: { moderationNotes?: string | null; publishedAt?: Date | null },
     event?: EventFactory,
+    client?: Prisma.TransactionClient,
   ): Promise<TestimonialView> {
-    return this.prisma.$transaction(async tx => {
+    const write = async (tx: Prisma.TransactionClient) => {
       const expectedStatusId = await this.resolveStatusId(expectedStatus, tx);
       const statusId = await this.resolveStatusId(status, tx);
       const updated = await tx.testimonial.updateMany({
@@ -163,7 +168,8 @@ export class TestimonialRepository {
         });
       }
       return view;
-    });
+    };
+    return client ? write(client) : this.prisma.$transaction(write);
   }
 
   async updateMedia(
