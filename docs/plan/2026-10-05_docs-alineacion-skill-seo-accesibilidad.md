@@ -2,7 +2,7 @@
 
 **Fecha de inicio:** 2026-10-05
 
-**Estado global:** En progreso; Fase 3 lista para revisión
+**Estado global:** Completado; tres fases revisadas con ACK humano
 
 **Alcance:** `.agents/skills/web-seo-accessibility-engineering/SKILL.md`, este registro HITL y su entrada en `docs/plan/README.md`. Las otras nueve skills web se revisan como referencias, sin reescribirlas salvo que aparezca una contradicción documental concreta.
 
@@ -52,7 +52,7 @@
 
 **Commit sugerido:** `docs(skills): alineá SEO y accesibilidad con la web vigente`.
 
-### `[Actual]` Fase 3: ejemplos seguros y revisión cruzada
+### `[Completada]` Fase 3: ejemplos seguros y revisión cruzada
 
 - Incorporar ejemplos breves y seguros solo donde mejoren una decisión: firma `params: Promise` en Next 15, serialización JSON-LD que escape `<` si se muestra ese patrón, y tratamiento de ausencia/streaming sin prometer status 404 universal.
 - Corregir ratios WCAG y excepciones del objetivo de puntero; distinguir consejo SEO de requisito y explicar la restricción de reseñas propias. Eliminar porcentajes sin fuente y requisitos de herramientas no instaladas.
@@ -64,7 +64,7 @@
 
 **Criterio de salida:** validación de frontmatter, enlaces locales, cercos y ejemplos; búsqueda dirigida de afirmaciones obsoletas; contraste manual con fuentes primarias; `git diff --check` sin errores. No ejecutar tests de aplicaciones por tratarse solo de documentación.
 
-**Review humano (ACK):** Pendiente.
+**Review humano (ACK):** Recibido el 2026-10-05: «Falta algo, continua desde donde lo dejaste».
 
 **Commit sugerido:** `docs(skills): asegurá los ejemplos SEO y revisá las diez guías`.
 
