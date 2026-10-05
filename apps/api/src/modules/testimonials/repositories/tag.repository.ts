@@ -11,7 +11,7 @@ export class TagRepository {
   async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: TagView[]; total: number }> {
     const [rows, total] = await Promise.all([this.prisma.tag.findMany({
       where: { tenantId },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
       skip: pageOffset(page), take: page.limit,
     }), this.prisma.tag.count({ where: { tenantId } })]);
 

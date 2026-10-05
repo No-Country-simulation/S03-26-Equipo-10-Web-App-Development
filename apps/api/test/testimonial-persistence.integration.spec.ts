@@ -121,4 +121,29 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
     expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
     expect((await repo.findById(tenantId, created.id))?.status).toBe('pending');
   });
+
+  it('uses the testimonial ID to break ties across administrative and public pages', async () => {
+    const published = await prisma.testimonialStatus.findUniqueOrThrow({ where: { code: 'published' } });
+    const tiedAt = new Date('2099-01-01T00:00:00.000Z');
+    const ids = [randomUUID(), randomUUID(), randomUUID()];
+    for (const id of ids) {
+      await prisma.testimonial.create({
+        data: {
+          id, tenantId, content: 'Tied pagination testimonial', authorName: 'Integration test',
+          rating: 5, statusId: published.id, score: 98765,
+          createdAt: tiedAt, publishedAt: tiedAt,
+        },
+      });
+    }
+    const expected = ids.sort().reverse();
+    const adminFirst = await repo.findByTenant(tenantId, { page: 1, limit: 2 });
+    const adminSecond = await repo.findByTenant(tenantId, { page: 2, limit: 2 });
+    expect([...adminFirst.items, ...adminSecond.items].slice(0, 3).map(item => item.id)).toEqual(expected);
+
+    for (const sort of ['score:desc', 'publishedAt:desc'] as const) {
+      const first = await repo.findPublished(tenantId, { page: 1, limit: 2, sort });
+      const second = await repo.findPublished(tenantId, { page: 2, limit: 2, sort });
+      expect([...first.items, ...second.items].slice(0, 3).map(item => item.id)).toEqual(expected);
+    }
+  });
 });

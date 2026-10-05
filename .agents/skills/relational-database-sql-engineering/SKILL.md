@@ -10,12 +10,14 @@ description: "Diseño, modelado, implementación y evolución profesional de bas
 ESPECIFICACIÓN TÉCNICA DE HABILIDAD: SKL-DB-SQL-001
 Senior Relational Database Design, SQL & Persistence Engineering — Versión 1.1.0
 Estándares: ISO/IEC 9075 (SQL Standard) | IEEE 29148 | ISO/IEC 25010 | ACID | Agile DoD
-Baseline Técnico: PostgreSQL 16+ (Motor Principal), MySQL 8+, SQL Server 2022, SQLite 3, Oracle 23ai
+Baseline Técnico: PostgreSQL 18+ (Motor Principal), MySQL 8+, SQL Server 2022, SQLite 3, Oracle 23ai
 Host Application: NestJS 11, TypeScript 5.8+, Prisma ORM 6.5+, Next.js 15
 Responsable: Facundo Nicolás González
 Dominio: Bases de Datos Relacionales / SQL / Backend / Data Engineering
 ====================================================================================================
 ```
+
+**Aplicación en Testimonial CMS (2026-10-05):** El esquema multi-tenant usa filtros por `tenant_id` y FK compuestas para impedir asociaciones cruzadas, sin RLS. La base exige `CHECK (char_length(content) >= 10)` y rating de 1 a 5; las tablas puente comparten el tenant de ambos extremos. Ordenar listas paginadas por campo principal e `id` para resolver empates. Los instantes absolutos son `timestamptz(3)`; no interpretar `timestamp` histórico como UTC sin probar procedencia. Justificar índices con planes y buffers de consultas reales: la medición sintética permitió retirar `idx_testimonials_covering` sin alterar los planes de las listas actuales. Crear migraciones nuevas y conservar intacto el historial aplicado.
 
 ---
 

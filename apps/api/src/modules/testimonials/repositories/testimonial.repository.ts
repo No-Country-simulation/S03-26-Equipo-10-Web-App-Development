@@ -205,7 +205,7 @@ export class TestimonialRepository {
         category: true,
         tags: { include: { tag: true } }
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: pageOffset(page), take: page.limit,
     }), this.prisma.testimonial.count({ where: { tenantId } })]);
 
@@ -244,8 +244,8 @@ export class TestimonialRepository {
         },
         orderBy:
           filters.sort === 'publishedAt:desc'
-            ? { publishedAt: 'desc' }
-            : { score: 'desc' },
+            ? [{ publishedAt: 'desc' as const }, { id: 'desc' as const }]
+            : [{ score: 'desc' as const }, { id: 'desc' as const }],
         skip,
         take: filters.limit,
       }),

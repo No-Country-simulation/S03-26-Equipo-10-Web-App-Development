@@ -10,7 +10,7 @@ export class CategoryRepository {
   async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: CategoryView[]; total: number }> {
     const [rows, total] = await Promise.all([this.prisma.category.findMany({
       where: { tenantId },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
       skip: pageOffset(page), take: page.limit,
     }), this.prisma.category.count({ where: { tenantId } })]);
 

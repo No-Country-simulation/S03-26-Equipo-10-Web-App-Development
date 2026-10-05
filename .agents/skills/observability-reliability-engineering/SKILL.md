@@ -1,7 +1,7 @@
 ---
 name: observability-reliability-engineering
 description: >-
-  Diseño e implementación de sistemas observables, monitoreables, trazables y resilientes adaptado a NestJS 11, Next.js 15 y PostgreSQL (código SKL-ARCH-OBS-001). Usar cuando se requiera instrumentar telemetría con OpenTelemetry, structured logging con nestjs-pino, contratos de error RFC 9457 Problem Details en ApiExceptionFilter, health checks desacoplados en @nestjs/terminus (liveness sin DB vs readiness con Prisma), observabilidad de base de datos y slow queries (>100ms), métricas de colas Outbox, y confiabilidad SRE (SLI/SLO/Error Budgets).
+  Diseño e implementación de sistemas observables, monitoreables, trazables y resilientes adaptado a NestJS 11, Next.js 15 y PostgreSQL (código SKL-ARCH-OBS-001). Usar cuando se requiera instrumentar telemetría con OpenTelemetry, structured logging con nestjs-pino, contratos de error RFC 9457 Problem Details en ApiExceptionFilter, health checks desacoplados en @nestjs/terminus (liveness sin DB vs readiness con Prisma), observabilidad de base de datos y consultas lentas, métricas del Outbox y confiabilidad SRE (SLI/SLO/Error Budgets).
 ---
 
 # Especificación Técnica de Habilidad: Observability, Monitoring, Error Handling & Reliability Engineering
@@ -15,6 +15,8 @@ Dominio:            Backend / Frontend / Distributed Systems / SRE / DevOps / Pl
 Contexto Proyecto:  @testimonial-cms (NestJS 11 API + Next.js 15 Web + Prisma ORM + PostgreSQL + nestjs-pino + Terminus)
 ```
 
+**Contrato vigente del repositorio (2026-10-05):** PostgreSQL 18; logs estructurados con duración, código y ruta parametrizada, sin SQL, parámetros, URL completa ni mensajes arbitrarios de excepción. El `traceId` se genera o valida en la aplicación y enlaza respuesta RFC 9457, log y traza; no se confía en `x-request-id` sin validación. Liveness no consulta dependencias; readiness devuelve un estado genérico si PostgreSQL falla. El SDK de trazas se vacía en el cierre ordenado. Redis es caché/contador descartable y el outbox durable se procesa por polling PostgreSQL. `pg_stat_statements` solo recolecta si está en `shared_preload_libraries`, además de existir la extensión.
+
 ---
 
 ## 1. Ficha de Identificación
@@ -23,7 +25,7 @@ Contexto Proyecto:  @testimonial-cms (NestJS 11 API + Next.js 15 Web + Prisma OR
 | :--- | :--- |
 | **Habilidad Principal** | Diseño e implementación de sistemas observables, trazables, monitoreables y resilientes. |
 | **Objetivo de Dominio** | Permitir comprender el estado interno de `@testimonial-cms` a partir de su telemetría, detectar degradaciones antes de fallos severos, reconstruir el flujo causal completo con `traceId` y minimizar el MTTR. |
-| **Arquitectura de Referencia** | Monorepo con **Backend NestJS 11** (`apps/api`), **Frontend Next.js 15 App Router** (`apps/web`), **PostgreSQL 16+** y **Prisma ORM 6.5**. |
+| **Arquitectura de Referencia** | Monorepo con **Backend NestJS 11** (`apps/api`), **Frontend Next.js 15 App Router** (`apps/web`), **PostgreSQL 18** y **Prisma ORM 6.5**. |
 | **Herramientas de Telemetría** | OpenTelemetry Node SDK, `nestjs-pino`, `pino-http`, `@nestjs/terminus`, Prometheus y Grafana. |
 | **Trazabilidad Distribuida** | W3C Trace Context (`traceparent`, `tracestate`) inyectado en `RequestContextMiddleware` y propagado a llamadas salientes. |
 | **Contrato de Errores** | RFC 9457 Problem Details (`application/problem+json`) implementado en `ApiExceptionFilter` con códigos de error estables. |
@@ -134,7 +136,7 @@ export class LoggingInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const startTime = Date.now();
     const { method, route } = request;
-    const path = route?.path || request.url; // Ruta parametrizada (/api/v1/testimonials/:id)
+    const path = route?.path || '/unknown'; // Nunca registrar una URL sin parametrizar
 
     return next.handle().pipe(
       tap({
@@ -202,7 +204,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const payload = exception instanceof HttpException ? exception.getResponse() : undefined;
-    const traceId = request.requestContext?.correlationId || request.header('x-request-id') || 'unknown';
+    const traceId = request.requestContext?.correlationId || 'unknown';
 
     // Construcción del contrato estándar RFC 9457
     const problemDetails = {
@@ -210,7 +212,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       title: this.resolveTitle(status),
       status,
       detail: this.resolveSafeDetail(status, payload, exception),
-      instance: request.url,
+      instance: request.route?.path || '/unknown', // ruta parametrizada; sin query string
       code: this.resolveErrorCode(status, payload),
       traceId, // Referencia para el usuario y soporte técnico
       timestamp: new Date().toISOString(),
@@ -342,7 +344,6 @@ this.$on('query', (e: Prisma.QueryEvent) => {
   if (e.duration > 100) {
     this.logger.warn({
       event: 'database.slow_query',
-      query: e.query,
       durationMs: e.duration,
       target: e.target,
     }, `Slow Query detected [${e.duration}ms]`);
@@ -517,7 +518,7 @@ Un módulo o endpoint en `@testimonial-cms` se considera observable y apto para 
                 │ - Inspeccionar log │   │ - Inspeccionar código RFC 9457│
                 │   de slow query    │   │ - Evaluar timeout o respuesta │
                 │ - Verificar pool y │   │   de proveedor externo        │
-                │   deadlocks P2028  │   └──────┬────────────────────────┘
+                │   deadlocks P2034  │   └──────┬────────────────────────┘
                 └────────────────┬───┘          │
                                  │              │
                                  └──────┬───────┘

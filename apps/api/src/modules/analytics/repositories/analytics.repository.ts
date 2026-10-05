@@ -41,7 +41,7 @@ export class AnalyticsRepository {
       this.prisma.analyticsEvent.findMany({
         where: { tenantId },
         include: { eventType: true },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: 50,
       }),
     ]);

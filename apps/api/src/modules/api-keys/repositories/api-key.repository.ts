@@ -66,9 +66,9 @@ export class ApiKeyRepository {
 
   async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: ApiKeyView[]; total: number }> {
     const [keys, total] = await Promise.all([this.prisma.apiKey.findMany({
-      where: { tenantId }, orderBy: { createdAt: 'desc' },
+      where: { tenantId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: pageOffset(page), take: page.limit,
-      include: { credentials: { orderBy: { createdAt: 'desc' }, take: 1,
+      include: { credentials: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1,
         select: { publicId: true, environment: true } } },
     }), this.prisma.apiKey.count({ where: { tenantId } })]);
     return { items: keys.map(key => this.view(key)), total };
@@ -77,7 +77,7 @@ export class ApiKeyRepository {
   async findById(tenantId: string, apiKeyId: string): Promise<ApiKeyView | null> {
     const key = await this.prisma.apiKey.findFirst({
       where: { id: apiKeyId, tenantId },
-      include: { credentials: { orderBy: { createdAt: 'desc' }, take: 1,
+      include: { credentials: { orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 1,
         select: { publicId: true, environment: true } } },
     });
     return key ? this.view(key) : null;

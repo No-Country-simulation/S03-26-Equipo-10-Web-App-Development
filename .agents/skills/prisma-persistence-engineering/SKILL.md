@@ -15,6 +15,8 @@ Baseline:           Prisma ORM 6.5.x (activo en repo) con adaptación explícita
 Contexto Proyecto:  @testimonial-cms/api (NestJS 11 + PostgreSQL + Multi-tenant SaaS + Outbox Pattern)
 ```
 
+**Contrato vigente del repositorio (2026-10-05):** Prisma 6.5 sobre PostgreSQL 18, cliente singleton y migraciones SQL versionadas. Las FK compuestas `(tenant_id, id)` refuerzan asociaciones entre tenants; los repositorios también filtran por `tenantId` y no se usa RLS. Los instantes absolutos se declaran `@db.Timestamptz(3)`; la conversión histórica requiere verificar su procedencia UTC antes de aplicar la migración. Las listas con paginación ordenan por campo de negocio e `id` para resolver empates. Reintentar únicamente `P2034`, con límite y jitter, cuando la operación sea idempotente; `P2028` no equivale a un conflicto transitorio. No registrar SQL, parámetros ni mensajes arbitrarios del motor. `AGENTS.md` exige ACK antes de editar `schema.prisma` o ejecutar `migrate deploy`/`db push`.
+
 ---
 
 ## 1. Ficha de Identificación
@@ -156,14 +158,14 @@ Cuando el proyecto evolucione a Prisma 8+:
 Para `@testimonial-cms`, el diagnóstico contextual es:
 
 ```text
-DATABASE_ENGINE=PostgreSQL 16+
+DATABASE_ENGINE=PostgreSQL 18+
 PRISMA_MAJOR_VERSION=6.5.0 (con puente a 7.x)
 PROJECT_ARCHITECTURE=Modular Monolith (NestJS 11)
-DEPLOYMENT_MODEL=Docker Containerized (Node.js 22 LTS)
+DEPLOYMENT_MODEL=Docker Containerized (Node.js 24 LTS)
 TENANCY_MODEL=Shared Database, Shared Schema con tenant_id mandatorio
 PRIMARY_KEYS=UUIDv4 (@default(uuid()) @db.Uuid)
 MIGRATION_STRATEGY=prisma migrate deploy en CI/CD con Expand-Contract
-CONCURRENCY_MODEL=withRetry (Exponential Backoff ante Deadlocks P2028/P2034)
+CONCURRENCY_MODEL=withRetry (jitter acotado solo ante conflictos P2034)
 PATTERNS=Transactional Outbox (OutboxEvent) + Idempotency (IdempotencyKey)
 ```
 
@@ -263,16 +265,16 @@ export class PrismaService
     // Observabilidad de Slow Queries (> 100ms)
     this.$on('query', (e: Prisma.QueryEvent) => {
       if (e.duration > 100) {
-        this.logger.warn(`Slow Query detected [${e.duration}ms]: ${e.query}`);
+        this.logger.warn({ event: 'database.slow_query', durationMs: e.duration }, 'Slow query detected');
       }
     });
 
     this.$on('error', (e: Prisma.LogEvent) => {
-      this.logger.error(`Prisma Engine Error: ${e.message}`, e.target);
+      this.logger.error({ event: 'database.engine_error', target: e.target }, 'Prisma error');
     });
 
     this.$on('warn', (e: Prisma.LogEvent) => {
-      this.logger.warn(`Prisma Warning: ${e.message}`);
+      this.logger.warn({ event: 'database.engine_warning', target: e.target }, 'Prisma warning');
     });
   }
 
@@ -282,7 +284,7 @@ export class PrismaService
 
   /**
    * Ejecuta transacciones con lógica de reintentos exponenciales ante deadlocks transitorios.
-   * Mitiga los códigos de error P2028 y P2034.
+   * Reintenta únicamente P2034 en operaciones idempotentes y sin efectos externos.
    */
   async withRetry<T>(
     operation: (tx: Prisma.TransactionClient) => Promise<T>,
@@ -293,12 +295,12 @@ export class PrismaService
     while (attempt < maxRetries) {
       try {
         return await this.$transaction(operation);
-      } catch (error: any) {
+      } catch (error: unknown) {
         attempt++;
-        if (error?.code && ['P2028', 'P2034'].includes(error.code)) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
           if (attempt >= maxRetries) throw error;
-          const delay = baseDelayMs * Math.pow(2, attempt - 1);
-          this.logger.warn(`Transaction conflict (${error.code}). Retrying ${attempt}/${maxRetries} after ${delay}ms...`);
+          const delay = Math.floor(Math.random() * Math.min(baseDelayMs * 2 ** (attempt - 1), 2_000));
+          this.logger.warn({ attempt, maxRetries, delayMs: delay, errorCode: error.code }, 'Transaction conflict — retrying');
           await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           throw error;

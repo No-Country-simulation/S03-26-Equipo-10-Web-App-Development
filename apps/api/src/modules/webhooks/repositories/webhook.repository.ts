@@ -67,7 +67,7 @@ export class WebhookRepository {
     const [webhooks, total] = await Promise.all([this.prisma.webhook.findMany({
       where: { tenantId },
       include: { event: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: pageOffset(page), take: page.limit,
     }), this.prisma.webhook.count({ where: { tenantId } })]);
 
@@ -197,8 +197,8 @@ export class WebhookRepository {
   async findDeliveries(webhookId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: WebhookDeliveryView[]; total: number }> {
     const [deliveries, total] = await Promise.all([this.prisma.webhookDelivery.findMany({
       where: { webhookId },
-      include: { attemptHistory: { orderBy: { startedAt: 'desc' }, take: 20 } },
-      orderBy: { createdAt: 'desc' },
+      include: { attemptHistory: { orderBy: [{ startedAt: 'desc' }, { id: 'desc' }], take: 20 } },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: pageOffset(page), take: page.limit,
     }), this.prisma.webhookDelivery.count({ where: { webhookId } })]);
 

@@ -17,6 +17,8 @@ Dominio: PostgreSQL / SQL / Arquitectura de Datos / Backend / Data Engineering /
 ====================================================================================================
 ```
 
+**Contrato vigente de Testimonial CMS (2026-10-05):** PostgreSQL 18 con `tenant_id` en repositorios y FK compuestas `(tenant_id, id)` para relaciones entre tenants; el proyecto decidió no usar RLS por ahora. Los instantes absolutos se modelan como `timestamptz(3)` y los valores históricos `timestamp` solo pueden interpretarse como UTC tras comprobar su procedencia. Una migración nueva prepara el retiro de `idx_testimonials_covering` después de medir consultas representativas con `EXPLAIN (ANALYZE, BUFFERS)`; las migraciones antiguas no se editan. La extensión `pg_stat_statements` figura en SQL, pero la imagen PostgreSQL 18 local no la precarga: comprobar `shared_preload_libraries` y una lectura de la vista antes de afirmar que recolecta datos. No ejecutar migraciones sobre una base persistente sin ACK y respaldo.
+
 ---
 
 ## 1. Ficha de Identificación del Skill
@@ -1595,6 +1597,7 @@ FROM pg_statio_user_tables;
 
 Es la extensión de observabilidad de rendimiento más relevante del ecosistema PostgreSQL:
 - Recopila estadísticas acumuladas sobre todas las consultas normalizadas ejecutadas en el motor: llamadas totales, tiempo total, tiempo medio, lecturas de buffers, y en **PostgreSQL 18+, métricas ampliadas de generación de WAL y actividad paralela**.
+- Requiere `shared_preload_libraries = 'pg_stat_statements'` y reinicio del servidor; `CREATE EXTENSION` por sí solo instala la vista pero no activa la recolección.
 
 ```sql
 SELECT
@@ -2294,7 +2297,7 @@ La habilidad se considera dominada en grado Senior / Staff cuando el practicante
 - Dominar el ciclo de vida de MVCC, afinando `autovacuum` y remediando el bloat de tablas e índices sin afectar el servicio.
 - Diseñar arquitecturas de alta disponibilidad con streaming replication y replicación lógica.
 - Configurar y probar sistemas de recuperación puntual en el tiempo (PITR) con archivado de WAL.
-- Implementar aislamiento multi-tenant estricto mediante Row-Level Security (RLS) y variables de sesión.
+- Elegir y auditar un mecanismo de aislamiento multi-tenant: en este proyecto, filtros de repositorio más FK compuestas; RLS sigue siendo una opción futura, no una política activa.
 - Diseñar e instrumentar migraciones zero-downtime bajo el patrón Expand-Migrate-Contract.
 - Diagnosticar cuellos de botella mediante `pg_stat_statements` y dimensionar pools de conexión con PgBouncer.
 - Justificar cada decisión arquitectónica basándose en métricas empíricas, correctitud matemática y compensaciones operacionales.

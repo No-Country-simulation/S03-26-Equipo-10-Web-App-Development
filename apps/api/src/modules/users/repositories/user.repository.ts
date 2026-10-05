@@ -12,7 +12,7 @@ export class UserRepository {
     const [users, total] = await Promise.all([this.prisma.user.findMany({
       where: { tenantId },
       include: { roles: { include: { role: true } } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       skip: pageOffset(page), take: page.limit,
     }), this.prisma.user.count({ where: { tenantId } })]);
 

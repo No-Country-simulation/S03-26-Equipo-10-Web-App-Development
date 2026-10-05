@@ -14,7 +14,9 @@ description: >-
 **Nivel:** Senior / Staff / DevOps / Platform Engineering  
 **Dominio:** DevOps / Platform Engineering / Backend / Cloud / Infraestructura  
 **Estándar:** ISO/IEC 26514 / IEEE 29148 / Agile DoD / Open Container Initiative (OCI) / Twelve-Factor App / CIS Docker Benchmark  
-**Ecosistema del proyecto:** Monorepo `@testimonial-cms` (`apps/api` en NestJS 11 + Prisma 6.5+, `apps/web` en Next.js 15 App Router standalone, PostgreSQL 18, Redis 7, BullMQ, Nginx en `infra/nginx`, Docker Engine + BuildKit + Docker Compose).
+**Ecosistema del proyecto:** Monorepo `@testimonial-cms` (`apps/api` en NestJS 11 + Prisma 6.5+, `apps/web` en Next.js 15 App Router standalone, PostgreSQL 18, Redis 7 descartable para cuotas/caché, outbox por polling PostgreSQL y Nginx en `infra/nginx`).
+
+**Contrato vigente del repositorio (2026-10-05):** Los Dockerfiles activos están en `apps/api/Dockerfile` y `apps/web/Dockerfile`; `docker-compose.yml` es local, publica PostgreSQL y Nginx en loopback y deja pgAdmin en el perfil `debug`. API y web usan `read_only`, `cap_drop: ALL`, `/tmp` temporal y parada de 30 s; Next.js necesita además una caché `tmpfs` escribible por UID 1001. PostgreSQL 18 monta `/var/lib/postgresql`; Redis no es almacenamiento durable. `.github/workflows/ci.yml` construye, prueba, escanea y adjunta SBOM de ambas imágenes, pero no las publica. `NEXT_PUBLIC_API_URL` queda incorporada al bundle web durante el build: un mismo digest web solo se promociona entre entornos si comparten esa URL pública.
 
 ---
 
@@ -63,7 +65,7 @@ La configuración específica del entorno debe permanecer rigurosamente fuera de
 - **Mínimo privilegio**: Los procesos deben ejecutarse sin privilegios root (`USER node` o usuario dedicado sin login).
 - **Separación Build / Runtime**: Compiladores, SDKs, TypeScript y herramientas de desarrollo no deben llegar a la imagen final de producción.
 - **Ephemeral First**: El contenedor debe poder destruirse y reemplazarse en cualquier instante sin pérdida de datos persistentes ni caída de servicio.
-- **Externalización del estado**: Bases de datos (PostgreSQL 18), colas (Redis 7) y uploads de medios (Cloudinary) residen fuera de la capa escribible del contenedor.
+- **Externalización del estado**: PostgreSQL 18 conserva datos y outbox; Redis 7 es caché/contador descartable y Cloudinary aloja medios fuera de la capa escribible.
 - **Configuración externa**: Variables de entorno, secretos y tokens se inyectan en runtime mediante el orquestador o Docker Secrets.
 - **Observabilidad**: Logs directos hacia `stdout`/`stderr`, métricas accesibles y health checks deterministas.
 - **Aislamiento**: Redes segmentadas internamente sin exposición innecesaria de puertos de infraestructura al exterior.
@@ -182,10 +184,10 @@ timeouts en dependencias remotas
 - **[RF-05] Ejecución No-Root Obligatoria**: La aplicación DEBE ejecutarse con el usuario `node` (UID 1000) o un usuario del sistema sin privilegios.
 - **[RF-06] Inyección Externa de Configuración**: La configuración de entorno debe inyectarse en runtime sin quedar grabada en capas de la imagen.
 - **[RF-07] Cero Secretos en Artefactos**: Ningún token, API key ni contraseña de base de datos debe incluirse en instrucciones `ARG`, `ENV` ni commits.
-- **[RF-08] Persistencia Externalizada**: Datos persistentes (PostgreSQL, Redis, uploads) DEBEN residir en Named Volumes administrados o storage externo.
+- **[RF-08] Persistencia Externalizada**: Los datos persistentes de PostgreSQL y los medios DEBEN residir en volumen o servicio externo; la caché Redis de este proyecto es descartable.
 - **[RF-09] Redes Bridge de Usuario**: Los servicios deben comunicarse exclusivamente mediante redes Docker definidas con driver bridge.
 - **[RF-10] Service Discovery por DNS**: Los servicios deben comunicarse mediante nombres de host internos (ej. `postgres:5432`, `redis:6379`) y nunca por IPs fijas.
-- **[RF-11] Definición Declarativa en Docker Compose**: Infraestructura local y de despliegue modelada en archivos `compose.yaml` versionados.
+- **[RF-11] Definición Declarativa en Docker Compose**: El entorno local se modela en `docker-compose.yml`; definir el manifiesto de despliegue cuando se elija alojamiento.
 - **[RF-12] Health Checks Deterministas**: Exponer y verificar endpoints de salud reales (`/health`, `pg_isready`, `redis-cli ping`).
 - **[RF-13] Gobierno de Recursos (CPU / RAM)**: Definir límites estrictos de CPU, memoria y PIDs en Compose o Kubernetes para prevenir agotamiento del host.
 - **[RF-14] Logging Hacia Streams Estándar**: Emitir logs estructurados exclusivamente a `stdout` y `stderr`.
@@ -223,9 +225,9 @@ timeouts en dependencias remotas
    - Sin flag `--privileged` ni capabilities innecesarias (`cap_drop: [ALL]`).
    - Filesystem principal `read_only: true` con `tmpfs` para carpetas temporales.
 4. **Aislamiento**: Redes separadas en Compose; PostgreSQL 18 y Redis 7 residen en `internal: true` sin mapping de puertos en producción.
-5. **Persistencia**: Destruir contenedores con `docker compose down` y levantarlos con `up -d` preserva el 100% de los datos de PostgreSQL y Redis.
+5. **Persistencia**: Conservar el volumen de PostgreSQL al recrear contenedores; Redis se reconstruye a partir del estado durable de PostgreSQL y de las solicitudes.
 6. **Observabilidad**: Health check responde `healthy` en `docker compose ps`; logs JSON legibles en `docker compose logs`.
-7. **Automatización**: Pipeline de CI ejecuta validación, escaneo Trivy y publica imagen firmada al registro.
+7. **Automatización**: La CI actual valida, construye, escanea con Trivy y adjunta SBOM; publicación y firma requieren un alojamiento elegido y un plan posterior.
 8. **Operación**: Despliegue reproducible con `docker compose up -d` y parada limpia con `docker compose down`.
 
 ---
@@ -237,7 +239,7 @@ timeouts en dependencias remotas
 | **Container Runtime** | Docker Engine 26+ / containerd | Ejecución local y servidores de despliegue. |
 | **Build Engine** | Docker BuildKit / Buildx | Compilación multi-stage, cache mounts y multi-arch. |
 | **Definición de Imagen** | Dockerfile con sintaxis `# syntax=docker/dockerfile:1` | Definición de `api.Dockerfile` y `web.Dockerfile`. |
-| **Orquestación Local** | Docker Compose v2 (`compose.yaml`) | Levantado integral de NestJS, Next.js, Postgres y Redis. |
+| **Orquestación Local** | Docker Compose v2 (`docker-compose.yml`) | Levantado integral de NestJS, Next.js, Postgres y Redis. |
 | **Registro de Contenedores** | GitHub Container Registry (GHCR) | Almacenamiento y versionado de imágenes inmutables. |
 | **Vulnerability Scanning** | Trivy / Docker Scout / Grype | Auditoría de CVEs en dependencias del SO y Node. |
 | **Reverse Proxy** | Nginx / Traefik | Terminación TLS, rate limiting y ruteo a Next.js y API. |
@@ -389,7 +391,7 @@ Nunca pasar secretos en `ARG` ni `ENV`. Para acceder a registros privados de npm
 Aprovechar el usuario predeterminado `USER node` provisto por la imagen oficial de Node.js.
 
 ### Fase 8: Endurecimiento de Filesystem (`read_only`)
-Configurar `read_only: true` en el contenedor y montar `/tmp` y `/run` en `tmpfs` para que la aplicación escriba temporales en memoria RAM efímera.
+Configurar `read_only: true` y montar únicamente los directorios que la aplicación realmente escribe: aquí `/tmp` para API/web y `/app/apps/web/.next/cache` para Next.js, con UID/GID 1001.
 
 ### Fase 9: Reducción Drástica de Linux Capabilities
 Configurar `cap_drop: [ALL]` en el servicio. Node.js en puertos no privilegiados (>1024) no requiere capabilities de Linux.
@@ -410,7 +412,7 @@ En producción, no publicar el puerto `5432` ni `6379` en el host. Sólo el prox
 Centralizar SSL/TLS, compresión gzip/brotli y buffers en Nginx (`infra/nginx/nginx.conf`).
 
 ### Fase 15: Persistencia con Named Volumes
-Mapear datos de PostgreSQL a `postgres_data:/var/lib/postgresql/data` y Redis a `redis_data:/data`.
+En la imagen oficial PostgreSQL 18 usada aquí, montar el volumen en `/var/lib/postgresql`. Redis no requiere volumen durable en este proyecto.
 
 ### Fase 16: Externalización del Estado
 Garantizar que todo archivo subido por clientes (imágenes/videos) se envíe a Cloudinary o S3; nunca almacenarlos en el disco local del contenedor.
@@ -421,13 +423,11 @@ Definir variables generales (`NODE_ENV=production`, `PORT=4000`, `LOG_LEVEL=info
 ### Fase 18: Inyección Segura de Secretos
 Inyectar `DATABASE_URL`, `JWT_SECRET`, `REDIS_PASSWORD` y `CLOUDINARY_API_SECRET` mediante Docker Compose Secrets (`/run/secrets/...`) o variables inyectadas por el entorno de CI/CD.
 
-### Fase 19: Archivo `compose.yaml` Base de Producción
-Configurar el ensamble multi-servicio con dependencias saludables (`condition: service_healthy`).
+### Fase 19: Compose local canónico
+Mantener `docker-compose.yml` como ensamble local con dependencias saludables (`condition: service_healthy`). El despliegue productivo aún no tiene archivo Compose definido.
 
-### Fase 20: Separación de Entornos (`compose.override.yaml`)
-- `compose.yaml`: Base canónica de servicios.
-- `compose.override.yaml`: Montajes de código fuente local para desarrollo con recarga en caliente.
-- `compose.prod.yaml`: Endurecimiento de seguridad y configuración productiva.
+### Fase 20: Separación futura de entornos
+Diseñar los manifiestos de producción cuando se elija el alojamiento; no asumir que los ejemplos siguientes existen en este repositorio.
 
 ### Fase 21: Perfiles de Compose (`profiles`)
 Agrupar servicios auxiliares (pgAdmin, Mailpit, herramientas de debug) bajo `profiles: [debug]`, manteniéndolos apagados en producción.
@@ -449,7 +449,7 @@ healthcheck:
 Asignar `mem_limit: 512m`, `cpus: 1.0` y `pids_limit: 200` para evitar que fugas de memoria o ataques DoS colapsen el host.
 
 ### Fase 25: Graceful Shutdown y Propagación de Señales
-Usar la forma exec `CMD ["node", "dist/main.js"]`. Al recibir `SIGTERM`, NestJS cierra los listeners HTTP, BullMQ pausa workers y Prisma cierra el connection pool dentro de `stop_grace_period: 30s`.
+Usar la forma exec de `CMD` existente. Al recibir `SIGTERM`, NestJS detiene HTTP y el polling del outbox, cierra Prisma y vacía el SDK de trazas dentro de `stop_grace_period: 30s`; el smoke test comprueba que no termina con salida 137.
 
 ### Fase 26: Logging sin Fugas a `stdout`
 Logs en formato JSON estructurado hacia `stdout`. Configurar `logging: { driver: "json-file", options: { "max-size": "50m", "max-file": "3" } }`.
@@ -469,11 +469,11 @@ Generar el inventario de componentes con Syft: `syft testimonial-cms/api:1.0.0 -
 ### Fase 30: Versionado Semántico y Digest Inmutable
 Etiquetar imágenes como `api:0.1.0` y `api:git-${GITHUB_SHA::7}`, desplegando en producción mediante el Digest OCI `@sha256:...`.
 
-### Fase 31: Publicación en Registro Central (GHCR)
-Publicar artefactos validados en `ghcr.io/no-country-simulation/testimonial-cms/api`.
+### Fase 31: Publicación futura en un registro
+Elegir alojamiento y registro antes de publicar artefactos. La CI actual conserva las imágenes localmente para smoke, escaneo y SBOM.
 
 ### Fase 32: Pipeline CI/CD en GitHub Actions
-Automatizar en `.github/workflows/docker.yml`: Checkout → Test → Buildx → Trivy Scan → Push GHCR.
+En este repositorio, mantener `.github/workflows/ci.yml`: tests → build de ambas imágenes → smoke → Trivy → SBOM como artefactos. No añadir push hasta elegir alojamiento.
 
 ### Fase 33: Build Multi-Arquitectura con Buildx
 Construir para `linux/amd64` y `linux/arm64` permitiendo compatibilidad nativa en servidores cloud y Apple Silicon.
@@ -497,24 +497,18 @@ monorepo/
 │       └── Dockerfile           # Referencia canónica de la Web Next.js
 │
 ├── infra/
-│   ├── docker/
-│   │   ├── api.Dockerfile       # Build multi-stage optimizado
-│   │   └── web.Dockerfile       # Build standalone optimizado
-│   ├── nginx/
-│   │   └── nginx.conf           # Reverse Proxy, SSL y Rate Limiting
-│   └── monitoring/
-│       └── prometheus.yml
+│   ├── nginx/                   # Configuración del proxy local
+│   └── pgadmin/                 # Configuración opcional de pgAdmin
 │
-├── compose.yaml                 # Definición base multi-servicio
-├── compose.override.yaml        # Overrides locales para desarrollo
-├── compose.prod.yaml            # Baseline endurecido de producción
+├── docker-compose.yml           # Compose local canónico
+├── .github/workflows/ci.yml     # Build, smoke test, escaneo y SBOM
 ├── .dockerignore                # Exclusiones de build global
 └── .env.example                 # Plantilla de configuración documentada
 ```
 
 ---
 
-## 8. Baseline de Seguridad para Producción (`compose.prod.yaml`)
+## 8. Ejemplo ilustrativo para un despliegue futuro
 
 ```yaml
 services:
@@ -544,7 +538,7 @@ services:
           memory: 512M
           pids: 200
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/v1/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/api/v1/health/live"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -556,7 +550,7 @@ services:
     networks:
       - data_net
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     environment:
       POSTGRES_DB: testimonial_cms
       POSTGRES_USER: postgres
