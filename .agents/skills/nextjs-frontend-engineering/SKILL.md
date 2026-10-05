@@ -144,7 +144,7 @@ No introducir Redux/Zustand/TanStack Query por una sola pantalla. Si se añade u
 - Gestionar foco al abrir/cerrar diálogos; preferir Radix ya presente para patrones complejos.
 - Usar HTML semántico y jerarquía de encabezados coherente con la pantalla.
 - Comunicar estados asíncronos con texto y, cuando haga falta, una región viva no invasiva.
-- Revisar contraste, zoom al 200 %, navegación por teclado y móvil; consultar la skill de SEO/accesibilidad si el alcance es mayor.
+- Revisar contraste, zoom al 200 %, navegación por teclado y móvil; consultar [SEO y accesibilidad](../web-seo-accessibility-engineering/SKILL.md) si el alcance es mayor.
 - Evitar que un skeleton cambie drásticamente la geometría y provoque CLS.
 
 ## Rendimiento y caché

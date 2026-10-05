@@ -98,7 +98,7 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 | [`2026-09-30_chore-endurecimiento-seguridad.md`](./2026-09-30_chore-endurecimiento-seguridad.md) | `En Progreso` | Seguridad de API, sesión, webhooks, outbox y operación; fase 8 pendiente de evidencia de despliegue |
 | [`2026-10-02_chore-retiro-infraestructura-obsoleta.md`](./2026-10-02_chore-retiro-infraestructura-obsoleta.md) | `Completado` | Retiro de infraestructura obsoleta y preparación documental de la demostración; tres fases cerradas |
 | [`2026-10-05_docs-correccion-skills-web.md`](./2026-10-05_docs-correccion-skills-web.md) | `Completado` | Corrección HITL de nueve skills web; cuatro fases cerradas con ACK |
-| [`2026-10-05_docs-alineacion-skill-seo-accesibilidad.md`](./2026-10-05_docs-alineacion-skill-seo-accesibilidad.md) | `En Progreso` | Alineación HITL de la décima skill web: SEO y accesibilidad; fase 2 lista para revisión |
+| [`2026-10-05_docs-alineacion-skill-seo-accesibilidad.md`](./2026-10-05_docs-alineacion-skill-seo-accesibilidad.md) | `En Progreso` | Alineación HITL de la décima skill web: SEO y accesibilidad; fase 3 lista para revisión |
 
 ---
 

@@ -2,7 +2,7 @@
 
 **Fecha de inicio:** 2026-10-05
 
-**Estado global:** En progreso; Fase 2 lista para revisión
+**Estado global:** En progreso; Fase 3 lista para revisión
 
 **Alcance:** `.agents/skills/web-seo-accessibility-engineering/SKILL.md`, este registro HITL y su entrada en `docs/plan/README.md`. Las otras nueve skills web se revisan como referencias, sin reescribirlas salvo que aparezca una contradicción documental concreta.
 
@@ -36,7 +36,7 @@
 
 **Commit sugerido:** `docs(plan): registrá la alineación HITL de SEO y accesibilidad`.
 
-### `[Actual]` Fase 2: reescribir la guía para el proyecto vigente
+### `[Completada]` Fase 2: reescribir la guía para el proyecto vigente
 
 - Reemplazar la estructura repetitiva por una guía de unas 250–450 líneas con frontmatter, propósito, mapa de estado vigente/opcional/futuro y un solo DoD.
 - Describir rutas reales, `Tenant.publicSlug`, carga cliente de testimonios, metadata global y fronteras NestJS/Next. No presentar un objetivo SEO o una capacidad de despliegue como resultado logrado.
@@ -48,15 +48,19 @@
 
 **Criterio de salida:** skill coherente con el repositorio, sin ejemplos inseguros ni funcionalidades futuras afirmadas como actuales; no se modifican aplicaciones ni esquema.
 
-**Review humano (ACK):** Pendiente.
+**Review humano (ACK):** Recibido el 2026-10-05: «Falta algo? Continua».
 
 **Commit sugerido:** `docs(skills): alineá SEO y accesibilidad con la web vigente`.
 
-### `[Pendiente]` Fase 3: ejemplos seguros y revisión cruzada
+### `[Actual]` Fase 3: ejemplos seguros y revisión cruzada
 
 - Incorporar ejemplos breves y seguros solo donde mejoren una decisión: firma `params: Promise` en Next 15, serialización JSON-LD que escape `<` si se muestra ese patrón, y tratamiento de ausencia/streaming sin prometer status 404 universal.
 - Corregir ratios WCAG y excepciones del objetivo de puntero; distinguir consejo SEO de requisito y explicar la restricción de reseñas propias. Eliminar porcentajes sin fuente y requisitos de herramientas no instaladas.
 - Revisar las diez skills en conjunto: referencias cruzadas, rutas, vocabulario, capacidades futuras y contradicciones. Ajustar únicamente las inconsistencias documentales demostradas.
+
+**Salida para revisión:** la skill SEO quedó en 325 líneas. Incluye un ejemplo de `params: Promise` para Next.js 15, serialización JSON-LD que escapa `<`, una tabla que distingue ausencias antes y después del streaming, ratios y excepciones WCAG 2.2 AA precisos, y la restricción de Google para reseñas propias. Se añadió un enlace directo a esta skill desde la guía Next.js Frontend; la revisión cruzada de las otras nueve no encontró contradicciones que requieran reescritura.
+
+**Verificación:** `quick_validate.py` aprobó las diez skills; las diez tienen frontmatter válido, un único DoD, cercos balanceados y enlaces locales existentes. Los tres ejemplos TS/TSX de la skill SEO se transpilaron sin errores sintácticos y se comprobó el escape de `<` con `</script>`. La búsqueda dirigida de rutas, modelos y capacidades futuras no reveló afirmaciones obsoletas como estado actual. Se contrastaron manualmente las afirmaciones sobre Next.js 15, WCAG 2.2 AA y Google con las fuentes primarias enlazadas en la skill. `git diff --check` terminó sin errores. No se ejecutaron tests de aplicaciones porque el cambio es solo documental.
 
 **Criterio de salida:** validación de frontmatter, enlaces locales, cercos y ejemplos; búsqueda dirigida de afirmaciones obsoletas; contraste manual con fuentes primarias; `git diff --check` sin errores. No ejecutar tests de aplicaciones por tratarse solo de documentación.
 

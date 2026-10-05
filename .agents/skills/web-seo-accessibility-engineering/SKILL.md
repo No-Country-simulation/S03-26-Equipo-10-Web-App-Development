@@ -111,6 +111,15 @@ robots.txt controla rastreo y no protege datos. noindex debe ser accesible al cr
 - No imponer 410 Gone a toda baja; definir política de retiro con producto.
 - Probar status y robots con y sin JavaScript cuando se afirma indexabilidad.
 
+| Resultado de la API | Tratamiento en una ruta pública indexable |
+| --- | --- |
+| 404 conocido antes de enviar HTML | Una ruta de servidor puede invocar notFound(); comprobar el status servido. |
+| 5xx o timeout | Mostrar o propagar falla recuperable; no convertirla en 404. |
+| 404 detectado tras fetch cliente | Mostrar ausencia en UI; el status del HTML inicial ya fue decidido. |
+| Ausencia detectada tras iniciar streaming | notFound() puede mostrar la vista de ausencia e insertar noindex, pero conservar status 200. |
+
+Este cuadro describe una opción de renderizado en servidor, no el flujo actual del muro. Consultar la [semántica de not-found en Next.js 15](https://nextjs.org/docs/15/app/api-reference/file-conventions/not-found) y verificarla con la ruta real.
+
 ## Metadata
 
 La metadata global es un valor inicial, no un título específico para cada tenant. Antes de agregar metadata dinámica se requieren host confirmado, endpoint público y política de ausencia.
@@ -124,6 +133,19 @@ La metadata global es un valor inicial, no un título específico para cada tena
 - Google no utiliza meta keywords para ranking; una tarea documental no modifica el layout.
 - Open Graph y Twitter requieren verificar URL, títulos e imágenes reales.
 - No presentar una imagen 1200 × 630 como requisito universal de toda ruta.
+
+Al crear metadata dinámica, usar la firma asíncrona de Next.js 15. Este fragmento ilustra únicamente cómo leer el slug; no representa una consulta ni una metadata ya implementadas:
+
+~~~ts
+type PublicWallProps = { params: Promise<{ slug: string }> };
+
+async function resolvePublicSlug({ params }: PublicWallProps): Promise<string> {
+  const { slug } = await params;
+  return slug;
+}
+~~~
+
+La función generateMetadata de una ruta dinámica recibiría ese tipo de props y debería obtener el nombre público desde un adaptador seguro de NestJS. No construir un título, canonical o URL externa a partir del slug sin validar su contrato. Ver [generateMetadata en Next.js 15](https://nextjs.org/docs/15/app/api-reference/functions/generate-metadata).
 
 ## Canonicalización
 
@@ -159,11 +181,23 @@ JSON-LD puede describir contenido público si existe una entidad y datos visible
 - Calificaciones, autoría, fechas y conteos deben corresponder al contenido visible.
 - No inventar promedio, logo o reviewsCount si el contrato no los devuelve.
 - No añadir Organization, Review o AggregateRating por analogía con un ejemplo genérico.
-- Si el tenant controla su muro, revisar la [restricción de reseñas propias](https://developers.google.com/search/docs/appearance/structured-data/review-snippet) antes de sugerir estrellas para Organization.
+- Si el tenant controla su propio muro y las reseñas tratan sobre esa misma organización, el marcado Organization/LocalBusiness es [inelegible para estrellas de reseñas propias en Google](https://developers.google.com/search/docs/appearance/structured-data/review-snippet), aunque sea Schema.org válido.
 - Schema.org válido no garantiza una apariencia enriquecida en Google.
 - Un script con datos externos exige serialización segura.
 - No usar JSON.stringify crudo dentro de dangerouslySetInnerHTML.
 - Registrar procedencia de campos y mantener aislamiento entre tenants.
+
+Si una tarea posterior requiere insertar JSON-LD en un script, serializar datos públicos validados y escapar el carácter que puede cerrar el elemento HTML. El helper no añade por sí solo un tipo de Schema.org ni una ruta actual:
+
+~~~ts
+function serializeJsonLd(data: Record<string, unknown>): string {
+  const serialized = JSON.stringify(data);
+  if (serialized === undefined) throw new Error('JSON-LD no serializable');
+  return serialized.replace(/</g, '\\u003c');
+}
+~~~
+
+Usar el resultado al construir el script, después de revisar que cada campo corresponde al contenido visible. Ver la [guía de JSON-LD de Next.js](https://nextjs.org/docs/app/guides/json-ld).
 
 ## Imágenes y medios
 
@@ -192,6 +226,14 @@ JSON-LD puede describir contenido público si existe una entidad y datos visible
 - Revisar zoom, reflow y contraste calculado en tema claro y oscuro.
 - Evaluar objetivos de puntero según WCAG 2.2 AA, no por un tamaño universal.
 - Tratar WCAG 2.2 AA como objetivo verificable por criterio, no como sello automático.
+
+### Criterios WCAG 2.2 AA a medir
+
+- [Contraste de texto 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum): 4.5:1 para texto normal; 3:1 para texto grande (al menos 18 pt regular o 14 pt negrita), con las excepciones propias del criterio.
+- [Contraste no textual 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast): 3:1 para la información visual necesaria de controles activos y objetos gráficos frente a colores adyacentes. No aplicar el ratio a todo borde decorativo.
+- [Tamaño de objetivo 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum): al menos 24 × 24 CSS px para entrada de puntero, o una excepción comprobada por separación suficiente, control equivalente en la misma página, enlace inline, tamaño fijado por el agente de usuario o presentación esencial/legal. Medir el área interactiva, no solo el icono.
+- Un objetivo de 44 × 44 CSS px puede mejorar la usabilidad de acciones frecuentes, pero no es el mínimo universal de WCAG 2.2 AA.
+- Revisar foco, zoom y reflow en el estado real de la pantalla; no declarar conformidad completa por superar solo estos criterios.
 
 ## Formularios y captura pública
 
