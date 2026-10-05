@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { randomUUID } from 'node:crypto';
 import type { ApiRequest, RequestContext } from '../interfaces/auth-context.interface';
 import { ApplicationError, type ApplicationErrorKind } from '../errors/application.error';
 import { getRequestScope } from '../request-context.storage';
@@ -44,8 +45,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const traceId = getRequestScope()?.traceId ?? requestContext?.traceId
       ?? getRequestScope()?.correlationId
       ?? requestContext?.correlationId
-      ?? request.header('x-correlation-id')
-      ?? 'unknown';
+      ?? randomUUID();
 
     const status =
       exception instanceof ApplicationError
@@ -64,11 +64,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
     // OBS-F1+H-14: Loguear 5xx con contexto completo para observabilidad.
     // Los 4xx son errores de cliente y no representan fallas del sistema.
     if (status >= 500) {
+      const route = typeof request.route?.path === 'string' ? request.route.path : 'unmatched';
       this.logger.error(
         {
           event: 'http.server_error',
-          err: exception,
-          path: request.url,
+          errorCode,
+          route,
           method: request.method,
           traceId,
           tenantId: getRequestScope()?.tenantId ?? request.user?.tenantId ?? request.apiKey?.tenantId,
@@ -85,7 +86,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
       status,
       // OBS-04: En prod, los 5xx no exponen mensajes internos al cliente
       detail: this.resolveSafeDetail(status, payload, exception),
-      instance: request.url,
+      instance: request.url.split('?')[0],
       code: errorCode,
       traceId,
       timestamp: new Date().toISOString(),

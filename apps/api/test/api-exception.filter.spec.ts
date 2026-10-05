@@ -9,7 +9,7 @@ import { runWithRequestScope } from '../src/common/request-context.storage';
 describe('ApiExceptionFilter', () => {
   const filter = new ApiExceptionFilter();
 
-  function capture(error: unknown) {
+  function capture(error: unknown, requestOverrides: Record<string, unknown> = {}) {
     const response = {
       status: jest.fn().mockReturnThis(),
       header: jest.fn().mockReturnThis(),
@@ -18,6 +18,7 @@ describe('ApiExceptionFilter', () => {
     const request = {
       url: '/api/v1/testimonials/1', method: 'PATCH',
       header: () => undefined,
+      ...requestOverrides,
     };
     const host = {
       switchToHttp: () => ({ getResponse: () => response, getRequest: () => request }),
@@ -70,6 +71,29 @@ describe('ApiExceptionFilter', () => {
       expect(result.body.detail).not.toContain('private database details');
     } finally {
       process.env.NODE_ENV = original;
+      logger.mockRestore();
+    }
+  });
+
+  it('keeps sensitive query values and exception messages out of server logs', () => {
+    const logger = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    try {
+      const result = capture(new Error('password=private-value'), {
+        url: '/api/v1/testimonials/1?token=private-value',
+        route: { path: '/testimonials/:id' },
+        header: () => 'untrusted-value',
+      });
+
+      expect(result.body.instance).toBe('/api/v1/testimonials/1');
+      expect(result.body.traceId).toMatch(/^[0-9a-f-]{36}$/);
+      const log = logger.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+      expect(log).toEqual(expect.objectContaining({
+        route: '/testimonials/:id', errorCode: 'INTERNAL_SERVER_ERROR',
+        traceId: result.body.traceId,
+      }));
+      expect(JSON.stringify(log)).not.toContain('private-value');
+      expect(JSON.stringify(log)).not.toContain('untrusted-value');
+    } finally {
       logger.mockRestore();
     }
   });

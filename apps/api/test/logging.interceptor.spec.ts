@@ -38,5 +38,20 @@ describe('LoggingInterceptor', () => {
       traceId: 'trace-2',
       http: expect.objectContaining({ statusCode: 409 }),
     }));
+    expect(JSON.stringify(logger.warn.mock.calls[0])).not.toContain('transition failed');
+  });
+
+  it('uses a fixed label when no route template is available', async () => {
+    const unregisteredRequest = { method: 'GET', url: '/missing?token=private-value' };
+    const unregisteredContext = {
+      switchToHttp: () => ({ getRequest: () => unregisteredRequest, getResponse: () => ({ statusCode: 404 }) }),
+    } as unknown as ExecutionContext;
+
+    await firstValueFrom(interceptor.intercept(unregisteredContext, { handle: () => of('ok') }));
+
+    expect(logger.log).toHaveBeenCalledWith(expect.objectContaining({
+      http: expect.objectContaining({ route: 'unmatched' }),
+    }));
+    expect(JSON.stringify(logger.log.mock.calls[0])).not.toContain('private-value');
   });
 });

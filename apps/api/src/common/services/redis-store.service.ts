@@ -28,7 +28,7 @@ export class RedisStoreService implements OnModuleDestroy {
     const url = this.config.get<AppConfig>('app')?.redis.url;
     if (!url) throw new Error('REDIS_URL is required');
     const client = makeClient(url);
-    client.on('error', error => this.logger.warn(`Redis connection error: ${error.message}`));
+    client.on('error', () => this.logger.warn('Redis connection error'));
     this.client = client;
     this.connecting = client.connect().then(() => client).catch(error => {
       client.destroy();

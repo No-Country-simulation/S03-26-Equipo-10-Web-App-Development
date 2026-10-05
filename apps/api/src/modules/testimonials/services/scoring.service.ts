@@ -16,10 +16,10 @@ export class ScoringService implements OnApplicationBootstrap, OnApplicationShut
   onApplicationBootstrap() {
     this.logger.log('Iniciando worker de cálculo de scores (cada hora)');
     // Run immediately on boot
-    this.processScores().catch(err => this.logger.error({ err }, 'Initial scoring failed'));
+    this.processScores().catch(() => this.logger.error('Initial scoring failed'));
     // Run every hour
     this.timer = setInterval(() => {
-      this.processScores().catch(err => this.logger.error({ err }, 'Scheduled scoring failed'));
+      this.processScores().catch(() => this.logger.error('Scheduled scoring failed'));
     }, 60 * 60 * 1000);
   }
 

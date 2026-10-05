@@ -21,19 +21,19 @@ export class PrismaService
   async onModuleInit() {
     await this.$connect();
 
-    // Log slow queries (> 100ms) as warnings for observability (SKL-DB-001)
+    // Query text and engine messages can contain user values; log metadata only.
     this.$on('query', (e: Prisma.QueryEvent) => {
       if (e.duration > 100) {
-        this.logger.warn({ durationMs: e.duration, query: e.query }, 'Slow query detected');
+        this.logger.warn({ event: 'database.slow_query', durationMs: e.duration }, 'Slow query detected');
       }
     });
 
     this.$on('error', (e: Prisma.LogEvent) => {
-      this.logger.error({ target: e.target, message: e.message }, 'Prisma error');
+      this.logger.error({ event: 'database.engine_error', target: e.target }, 'Prisma error');
     });
 
     this.$on('warn', (e: Prisma.LogEvent) => {
-      this.logger.warn({ message: e.message }, 'Prisma warning');
+      this.logger.warn({ event: 'database.engine_warning', target: e.target }, 'Prisma warning');
     });
   }
 
@@ -42,8 +42,8 @@ export class PrismaService
   }
 
   /**
-   * Ejecuta una transacción con lógica de reintentos (Retry Logic) simple.
-   * Ideal para mitigar bloqueos de concurrencia transitorios (Deadlocks, P2028, P2034).
+   * Reintenta únicamente conflictos de escritura/deadlocks P2034. La operación
+   * debe poder repetirse sin efectos externos y escribir de forma idempotente.
    */
   async withRetry<T>(
     operation: (tx: Prisma.TransactionClient) => Promise<T>,
@@ -56,14 +56,13 @@ export class PrismaService
         return await this.$transaction(operation);
       } catch (error: unknown) {
         attempt++;
-        // Narrowing con el tipo oficial de Prisma para errores de request conocidos (P2028, P2034)
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
-          ['P2028', 'P2034'].includes(error.code)
+          error.code === 'P2034'
         ) {
           if (attempt >= maxRetries) throw error;
 
-          const delay = baseDelayMs * Math.pow(2, attempt - 1); // Exponential backoff
+          const delay = Math.floor(Math.random() * Math.min(baseDelayMs * 2 ** (attempt - 1), 2_000));
           this.logger.warn(
             { attempt, maxRetries, delayMs: delay, errorCode: error.code },
             'Transaction conflict — retrying',

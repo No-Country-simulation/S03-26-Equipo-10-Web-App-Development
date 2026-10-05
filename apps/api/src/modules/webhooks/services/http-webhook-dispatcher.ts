@@ -84,7 +84,7 @@ export class HttpWebhookDispatcher {
       const message = error instanceof Error ? error.message : 'Unexpected delivery error';
       const redacted = redactDeliveryText(message, [signingSecret ?? '', previousSecret ?? ''])
         ?? 'Unexpected delivery error';
-      this.logger.warn('Webhook transport failed', { webhookId: webhook.id, outboxEventId, message: redacted });
+      this.logger.warn('Webhook transport failed', { webhookId: webhook.id, outboxEventId });
       return { status: null, errorMessage: redacted };
     }
   }

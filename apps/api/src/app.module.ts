@@ -20,6 +20,8 @@ import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { UsersModule } from './modules/users/users.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { getRequestScope } from './common/request-context.storage';
+import { TelemetryShutdownService } from './common/observability/telemetry-shutdown.service';
+import { serializeSafeRequest } from './common/observability/safe-request-serializer';
 
 @Module({
   imports: [
@@ -31,6 +33,14 @@ import { getRequestScope } from './common/request-context.storage';
     }),
     LoggerModule.forRoot({
       pinoHttp: {
+        // LoggingInterceptor emits normalized request records; pino-http's
+        // automatic records would include the raw URL and query string.
+        autoLogging: false,
+        // Request-scoped child loggers still bind `req`; restrict that binding
+        // to stable metadata so unrelated service logs cannot leak raw URLs.
+        serializers: {
+          req: serializeSafeRequest,
+        },
         level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
         // En producción, emitir JSON crudo (Loki/ELK); en dev, formatear para legibilidad
         ...(process.env.NODE_ENV !== 'production' && {
@@ -80,6 +90,7 @@ import { getRequestScope } from './common/request-context.storage';
   ],
   providers: [
     IdempotencyInterceptor,
+    TelemetryShutdownService,
     {
       provide: APP_GUARD,
       useClass: CsrfGuard,

@@ -41,9 +41,9 @@ export class LoggingInterceptor implements NestInterceptor {
       apiKey?: { tenantId?: string };
     }>();
 
-    const { method, url } = request;
-    // OBS-F4: Ruta parametrizada de baja cardinalidad (ej. "/api/v1/testimonials/:id")
-    const route = request.route?.path ?? url;
+    const { method } = request;
+    // Never fall back to the requested URL: it can contain IDs, query values or secrets.
+    const route = typeof request.route?.path === 'string' ? request.route.path : 'unmatched';
     const traceId = getRequestScope()?.traceId ?? request.requestContext?.traceId
       ?? getRequestScope()?.correlationId ?? request.requestContext?.correlationId;
     const tenantId = getRequestScope()?.tenantId ?? request.user?.tenantId ?? request.apiKey?.tenantId;
@@ -71,10 +71,8 @@ export class LoggingInterceptor implements NestInterceptor {
           const statusCode = error instanceof ApplicationError
             ? applicationStatus[error.kind]
             : (error as { status?: number })?.status ?? 500;
-          const errorCode =
-            (error as { code?: string })?.code ?? 'UNHANDLED_EXCEPTION';
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error';
+          const errorCode = error instanceof ApplicationError && error.code
+            ? error.code : 'UNHANDLED_EXCEPTION';
 
           this.logger.warn({
             event: 'http.request_failed',
@@ -85,7 +83,6 @@ export class LoggingInterceptor implements NestInterceptor {
               durationMs,
             },
             error: {
-              message: errorMessage,
               code: errorCode,
             },
             traceId,

@@ -12,10 +12,10 @@ export class PrismaHealthIndicator extends HealthIndicator {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return this.getStatus(key, true);
-    } catch (error) {
+    } catch {
       throw new HealthCheckError(
         `${key} failed`,
-        this.getStatus(key, false, { message: error instanceof Error ? error.message : 'Database unreachable' }),
+        this.getStatus(key, false, { message: 'Database unavailable' }),
       );
     }
   }

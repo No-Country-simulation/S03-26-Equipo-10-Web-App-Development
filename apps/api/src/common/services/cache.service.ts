@@ -17,9 +17,9 @@ export class CacheService {
     try {
       const client = await this.redis.connection();
       await client.incr(`public-cache-version:v1:${tenantId}`);
-    } catch (error) {
+    } catch {
       // La escritura de dominio ya confirmó. El TTL acota la posible vista antigua.
-      this.logger.error('Public cache invalidation failed', error);
+      this.logger.error('Public cache invalidation failed');
     }
   }
 
@@ -46,8 +46,8 @@ export class CacheService {
             if (Buffer.byteLength(serialized) <= MAX_VALUE_BYTES) {
               await client.set(key, serialized, { PX: ttlMs });
             }
-          } catch (error) {
-            this.logger.warn('Public cache write failed; returning computed value', error);
+          } catch {
+            this.logger.warn('Public cache write failed; returning computed value');
           }
           return value;
         } finally {
@@ -62,7 +62,7 @@ export class CacheService {
       }
     } catch (error) {
       if (loading) throw error;
-      this.logger.warn('Public cache unavailable; loading from PostgreSQL', error);
+      this.logger.warn('Public cache unavailable; loading from PostgreSQL');
     }
     return factory();
   }
