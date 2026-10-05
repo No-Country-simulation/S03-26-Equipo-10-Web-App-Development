@@ -1,7 +1,7 @@
 # Plan HITL: corrección de nueve skills de ingeniería web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; Fase 2 actual
+**Estado global:** En progreso; Fase 3 actual
 **Alcance:** nueve archivos `SKILL.md` indicados abajo, este registro HITL y su entrada en `docs/plan/README.md`
 
 ## Contexto y restricciones
@@ -38,26 +38,26 @@
 **Review humano (ACK):** Recibido el 2026-10-05: «Continua».
 **Commit sugerido:** `docs(plan): registrá la corrección HITL de nueve skills web`.
 
-### `[Actual]` Fase 2: fronteras de Next.js, renderizado y API
+### `[Completada]` Fase 2: fronteras de Next.js, renderizado y API
 
 - Reescribir las skills de Next.js Architecture y Next.js Frontend para el modelo vigente: NestJS como backend independiente, adaptadores HTTP de web, sesión actual y Server Components solo donde los datos y la autenticación de la ruta lo permitan. Separar la DAL de API externa de ejemplos genéricos de Prisma en Next.
 - Reescribir Web Rendering con estrategias actuales por ruta, sin presentar como implementados ISR por eventos, `/api/revalidate`, RUM, worker separado ni acceso Prisma desde Next. Aclarar caché privada y pública, frescura y fallas sin inventar contratos de despliegue.
 - Reescribir Node/Next API según Express, `nestjs-zod`, `ApiExceptionFilter`, `IdempotencyInterceptor` y aislamiento por tenant existentes. Eliminar ejemplos de idempotencia con `tap(async ...)` y autorización que retorna `true` sin verificar propiedad; reemplazarlos por reglas y ejemplos que fallen cerrados.
 - Usar firmas y configuración de Next.js 15.5 en todos los ejemplos vigentes. Etiquetar `cacheComponents`, APIs de Next 16 y arquitectura de workers externos como migraciones futuras.
 
-**Salida para revisión:** cuatro skills reescritas (250, 256, 252 y 269 líneas); ninguna presenta autorización o idempotencia parcial como garantía completa.
+**Salida:** cuatro skills reescritas (250, 256, 252 y 269 líneas); ninguna presenta autorización o idempotencia parcial como garantía completa.
 **Verificación:** frontmatter YAML, enlaces, cercos de código, sintaxis TS/TSX y un DoD por skill validados; versiones contrastadas con manifiestos y ejemplos con código API/web; búsqueda dirigida de capacidades futuras; `git diff --check` sin errores. Se documentó el límite vigente de `IdempotencyInterceptor` (`tap(async ...)`) sin modificar código.
-**Review humano (ACK):** Pendiente.  
+**Review humano (ACK):** Recibido el 2026-10-05: «Continua».
 **Commit sugerido:** `docs(skills): alineá Next y API con las fronteras vigentes`.
 
-### `[Pendiente]` Fase 3: sistema visual y experiencia cognitiva
+### `[Actual]` Fase 3: sistema visual y experiencia cognitiva
 
 - Reescribir Tailwind para v3.4 con `tailwind.config.ts`, `@tailwind` y clases detectables estáticamente; conservar v4 (`@theme`, `@source`, `@utility`) solo como apartado de migración explícita. Sustituir referencias a pnpm y `packages/ui` como estructura vigente.
 - Reescribir CSS según los tokens HSL presentes en `globals.css`, geometría editorial de radio cero y componentes existentes. Evitar exigir `tokens.css`, `themes.css`, `@scope`, container queries, subgrid o capas adicionales en toda pantalla; indicar cuándo aplican.
 - Reescribir Cognitive Interface como guía de heurísticas y comprobaciones observables. Retirar porcentajes y tiempos de impacto sin medición, defaults comerciales inventados y patrones visuales ajenos al producto. Describir el tamaño de objetivos WCAG 2.2 AA con sus excepciones y proteger flujos de moderación según las reglas reales.
 
-**Salida:** tres skills coherentes entre sí y con el diseño implementado.  
-**Verificación:** contraste con `globals.css`, `tailwind.config.ts`, componentes UI y criterios WCAG citados.  
+**Salida para revisión:** tres skills reescritas (251, 252 y 253 líneas), coherentes con Tailwind 3.4, tokens HSL, `ThemeProvider` e identidad editorial vigentes.
+**Verificación:** frontmatter YAML, enlaces, cercos, sintaxis de ejemplos CSS/TSX y un DoD por skill validados; contraste con `globals.css`, `tailwind.config.ts`, componentes UI, [guía oficial de Tailwind 4](https://tailwindcss.com/docs/upgrade-guide) y [WCAG 2.2 SC 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum); búsqueda de capacidades futuras y métricas no verificadas; `git diff --check` sin errores. No se ejecutaron tests de aplicaciones por tratarse solo de documentación.
 **Review humano (ACK):** Pendiente.  
 **Commit sugerido:** `docs(skills): ajustá Tailwind CSS y UX al diseño actual`.
 
