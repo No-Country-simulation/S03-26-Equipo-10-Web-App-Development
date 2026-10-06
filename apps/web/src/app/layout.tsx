@@ -45,7 +45,6 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'es_ES',
-    url: 'https://testimonial-cms.com',
     title: 'Testimonial CMS | Gestión de Confianza',
     description: 'Plataforma neo-editorial para recopilar, gestionar y publicar testimonios de clientes.',
     siteName: 'Testimonial CMS',

@@ -115,10 +115,10 @@ export default function PublicCapturePage() {
   /* ───── Loading ───── */
   if (currentFormState.status === 'loading') {
     return (
-      <div className="relative flex min-h-screen items-center justify-center bg-background">
+      <main className="relative flex min-h-screen items-center justify-center bg-background">
         <NoiseOverlay />
         <div role="status" className="font-body text-sm text-muted-foreground">Cargando formulario...</div>
-      </div>
+      </main>
     );
   }
 
@@ -126,7 +126,7 @@ export default function PublicCapturePage() {
   if (currentFormState.status === 'error') {
     const { title, detail, retry } = loadFailureCopy(currentFormState.error, 'el formulario');
     return (
-      <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
+      <main className="relative flex min-h-screen items-center justify-center bg-background p-4">
         <NoiseOverlay />
         <div className="text-center max-w-md animate-fade-in-up">
           <ShieldAlert className="mx-auto mb-6 h-12 w-12 text-destructive/40" />
@@ -138,7 +138,7 @@ export default function PublicCapturePage() {
             <Button type="button" variant="outline" className="mt-6" onClick={() => setLoadVersion(version => version + 1)}>Reintentar</Button>
           )}
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -147,7 +147,7 @@ export default function PublicCapturePage() {
   /* ───── Form Disabled ───── */
   if (!formInfo.isPublicFormEnabled) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
+      <main className="relative flex min-h-screen items-center justify-center bg-background p-4">
         <NoiseOverlay />
         <div className="text-center max-w-md animate-fade-in-up">
           <MessageSquareQuote className="mx-auto mb-6 h-12 w-12 text-muted-foreground/30" />
@@ -157,14 +157,14 @@ export default function PublicCapturePage() {
           </p>
           <p className="mt-6 font-body text-[10px] text-muted-foreground uppercase tracking-widest">Muchas gracias por tu interés.</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   /* ───── Success ───── */
   if (success) {
     return (
-      <div className="relative flex min-h-screen items-center justify-center bg-background p-4">
+      <main className="relative flex min-h-screen items-center justify-center bg-background p-4">
         <NoiseOverlay />
         <div className="text-center max-w-md animate-fade-in-up">
           <CheckCircle className="mx-auto mb-6 h-16 w-16 text-primary" />
@@ -175,13 +175,13 @@ export default function PublicCapturePage() {
           </p>
           <div className="mt-8 h-px w-16 bg-primary mx-auto" />
         </div>
-      </div>
+      </main>
     );
   }
 
   /* ───── Main Form ───── */
   return (
-    <div className="relative min-h-screen bg-background">
+    <main className="relative min-h-screen bg-background">
       <NoiseOverlay />
 
       <div className="relative z-10 grid min-h-screen lg:grid-cols-[1fr,1.2fr]">
@@ -352,6 +352,6 @@ export default function PublicCapturePage() {
           </form>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

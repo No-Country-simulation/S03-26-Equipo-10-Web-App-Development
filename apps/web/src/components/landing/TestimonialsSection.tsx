@@ -6,7 +6,7 @@ const testimonials = [
     name: "Santiago Valdés",
     role: "CTO",
     company: "Fintech Horizon",
-    avatar: "https://i.pravatar.cc/800?img=13",
+    initials: "SV",
     quote: "La integración vía API nos tomó exactamente 18 minutos. El scoring algorítmico automáticamente colocó las reseñas más detalladas al frente. Redujimos el abandono del onboarding en un 22%.",
     rating: 5,
     category: "Ingeniería",
@@ -18,7 +18,7 @@ const testimonials = [
     name: "Elena Rostova",
     role: "Directora de Growth",
     company: "SaaS Analytics",
-    avatar: "https://i.pravatar.cc/800?img=5",
+    initials: "ER",
     quote: "Los Webhooks en tiempo real transformaron nuestro flujo. Aprobamos un testimonio y automáticamente aparece en nuestro sitio web y se notifica al equipo de ventas en Slack. Impecable.",
     rating: 5,
     category: "Marketing",
@@ -30,7 +30,7 @@ const testimonials = [
     name: "Marcos Villanueva",
     role: "Product Manager",
     company: "Agencia Neo",
-    avatar: "https://i.pravatar.cc/800?img=12",
+    initials: "MV",
     quote: "Manejar a 15 clientes B2B desde un solo panel multi-tenant parecía imposible hasta que descubrimos Testimonial CMS. La segmentación por categorías es exactamente lo que necesitábamos.",
     rating: 4,
     category: "Agencias",
@@ -97,8 +97,9 @@ export const TestimonialsSection = () => {
 
               <div className="mt-12 flex items-center justify-between border-t border-current/20 pt-6">
                 <div className="flex items-center gap-4">
-                  {/* Avatar */}
-                  <img src={t.avatar} alt={t.name} className="h-12 w-12 object-cover border border-current" />
+                  <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center border border-current bg-background/10 font-body text-xs font-bold tracking-widest">
+                    {t.initials}
+                  </span>
                   <div>
                     <p className="font-body text-lg font-bold uppercase tracking-wider">{t.name}</p>
                     <p className="font-body text-xs uppercase tracking-widest opacity-70">{t.role}, {t.company}</p>

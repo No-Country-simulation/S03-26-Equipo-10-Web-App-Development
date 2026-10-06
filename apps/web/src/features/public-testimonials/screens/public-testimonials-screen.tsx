@@ -50,25 +50,33 @@ function loadYouTubeApi(): Promise<void> {
     return youtubeApiPromise;
   }
 
-  youtubeApiPromise = new Promise((resolve) => {
+  youtubeApiPromise = new Promise((resolve, reject) => {
     const existingScript = document.querySelector<HTMLScriptElement>(
       'script[src="https://www.youtube.com/iframe_api"]',
     );
-
     const previousReady = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      previousReady?.();
-      resolve();
+    const fail = () => {
+      window.clearTimeout(timeout);
+      window.onYouTubeIframeAPIReady = previousReady;
+      script.remove();
+      youtubeApiPromise = null;
+      reject(new Error('No se pudo cargar el reproductor de YouTube'));
     };
-
-    if (existingScript) {
-      return;
+    const timeout = window.setTimeout(fail, 15000);
+    window.onYouTubeIframeAPIReady = () => {
+      window.clearTimeout(timeout);
+      window.onYouTubeIframeAPIReady = previousReady;
+      script.removeEventListener('error', fail);
+      resolve();
+      previousReady?.();
+    };
+    const script = existingScript ?? document.createElement('script');
+    script.addEventListener('error', fail, { once: true });
+    if (!existingScript) {
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      document.body.appendChild(script);
     }
-
-    const script = document.createElement('script');
-    script.src = 'https://www.youtube.com/iframe_api';
-    script.async = true;
-    document.body.appendChild(script);
   });
 
   return youtubeApiPromise;
@@ -91,13 +99,13 @@ function markTracked(slug: string, testimonialId: string, eventType: AnalyticsEv
 function extractYouTubeVideoId(url: string) {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname.includes('youtu.be')) {
-      return parsed.pathname.replace('/', '');
-    }
-
-    if (parsed.hostname.includes('youtube.com')) {
-      return parsed.searchParams.get('v');
-    }
+    if (parsed.protocol !== 'https:') return null;
+    const id = parsed.hostname === 'youtu.be'
+      ? parsed.pathname.slice(1)
+      : ['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(parsed.hostname)
+        ? parsed.searchParams.get('v')
+        : null;
+    return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
   } catch {
     return null;
   }
@@ -132,6 +140,7 @@ function TrackedYouTubePlayer({
   testimonial: PublicTestimonial;
 }) {
   const [showPlayer, setShowPlayer] = useState(false);
+  const [playerUnavailable, setPlayerUnavailable] = useState(false);
   const playerId = useId().replace(/:/g, '-');
   const videoId = useMemo(
     () => (testimonial.videoUrl ? extractYouTubeVideoId(testimonial.videoUrl) : null),
@@ -148,6 +157,7 @@ function TrackedYouTubePlayer({
 
     void loadYouTubeApi().then(() => {
       if (!mounted || !window.YT?.Player) {
+        if (mounted) setPlayerUnavailable(true);
         return;
       }
 
@@ -165,7 +175,7 @@ function TrackedYouTubePlayer({
           },
         },
       });
-    });
+    }).catch(() => { if (mounted) setPlayerUnavailable(true); });
 
     return () => {
       mounted = false;
@@ -178,6 +188,16 @@ function TrackedYouTubePlayer({
   }
 
   if (showPlayer) {
+    if (playerUnavailable) {
+      return (
+        <div className="flex aspect-video flex-col items-center justify-center gap-3 border bg-muted/20 p-4 text-center font-body text-sm">
+          <p>No se pudo cargar el reproductor.</p>
+          <a href={`https://www.youtube.com/watch?v=${videoId}`} target="_blank" rel="noopener noreferrer" className="text-primary underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+            Abrir video en YouTube
+          </a>
+        </div>
+      );
+    }
     return <div id={playerId} className="aspect-video w-full" />;
   }
 
@@ -192,6 +212,8 @@ function TrackedYouTubePlayer({
       <img
         src={thumbnail}
         alt={testimonial.videoTitle ?? `Video de ${testimonial.authorName}`}
+        loading="lazy"
+        decoding="async"
         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
       />
       <div className="absolute inset-0 bg-black/25" />
@@ -297,11 +319,13 @@ function TestimonialCard({
           {testimonial.videoUrl ? (
             <TrackedYouTubePlayer slug={slug} testimonial={testimonial} />
           ) : testimonial.imageUrl ? (
-            <div className="overflow-hidden border">
+            <div className="aspect-[4/3] overflow-hidden border bg-muted/20">
               <img
                 src={testimonial.imageUrl}
                 alt={`Imagen del testimonio de ${testimonial.authorName}`}
-                className="h-auto w-full object-cover"
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-contain"
               />
             </div>
           ) : null}
@@ -357,8 +381,7 @@ export default function PublicTestimonialsPage() {
             Testimonios publicados
           </h1>
           <p className="mt-6 font-body text-sm leading-7 text-muted-foreground">
-            Esta vista pública carga testimonios publicados del tenant y registra interacciones reales
-            de visualización, clic y reproducción.
+            Conocé las experiencias que esta marca eligió compartir con su comunidad.
           </p>
         </div>
 

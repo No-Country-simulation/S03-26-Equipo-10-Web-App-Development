@@ -1,7 +1,7 @@
 # Plan HITL: remediación del código frente a diez skills web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; fase 4 lista para revisión humana. La integración PostgreSQL de la fase 3 permanece pendiente de un entorno aislado.
+**Estado global:** En progreso; fase 5 lista para revisión humana. La integración PostgreSQL de la fase 3 permanece pendiente de un entorno aislado.
 **Alcance:** Código activo de `apps/api` y `apps/web`, pruebas y documentación de los contratos modificados. El plan no incorpora por sí mismo capacidades SEO futuras.
 
 ## Contexto y restricciones
@@ -82,7 +82,7 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 **Review humano (ACK):** Recibido el 2026-10-06: «Continua». La verificación PostgreSQL indicada arriba sigue como límite explícito, sin afirmar que se ejecutó.
 **Commit sugerido:** `fix(api): asegurá la idempotencia y la respuesta de captura`.
 
-### `[Actual]` Fase 4: interfaz y consumo HTTP
+### `[Completada]` Fase 4: interfaz y consumo HTTP
 
 - [x] Asociar etiquetas y nombres accesibles a captura, creación y edición de testimonios, usuarios, API keys y webhooks; usar radios nativos para calificación, foco visible y mensajes dentro de la página.
 - [x] Evitar la confirmación falsa de captura: validar la respuesta `success` con ID y distinguir `409 PUBLIC_SUBMISSION_RECENT_BROWSER`, `429` y el fallo de confirmación sin perder el texto ingresado.
@@ -92,15 +92,19 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 **Criterio de salida:** no hay éxito falso, control sin nombre accesible, fallo mostrado como vacío ni desbordamiento del dashboard a 320 px en las rutas verificadas.  
 **Evidencia local:** con Node 24.19.0, typecheck y lint web pasan (0 errores, 11 advertencias preexistentes); Vitest pasa 25 pruebas en 12 archivos, incluidos carga fallida con reintento, respuesta de captura y descarte de datos obsoletos. El build de Next.js 15.5 con `NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1` pasa y genera 26 páginas. El primer intento de build se detuvo por faltar esa variable requerida; un typecheck ejecutado a la vez que el segundo build chocó con la regeneración de `.next/types`, y el typecheck repetido después del build pasó. `git diff --check` pasa. Todo esto es provisional por la versión de Node, inferior al mínimo declarado. No hubo navegador autenticado en esta fase, por lo que el ancho de 320 px, teclado, contraste percibido y WCAG 2.2 AA permanecen pendientes de verificación manual de la fase 6. La CSP, imágenes y metadata pertenecen a la fase 5.
 **Contratos que requieren otra fase:** los DTO actuales no permiten enviar `null` para quitar un slug público ni una categoría ya asignada. La web ahora evita esos payloads inválidos y explica la limitación; ampliar ambos contratos exige una decisión de API. La revisión de los DTO también reveló que las expresiones de contraseña de registro y usuarios contienen `(?=.*d)` en vez de una condición de dígito; este defecto de política de contraseñas queda registrado para corrección con prueba de regresión en la fase 6 o en una fase API adicional aprobada, antes de cerrar el plan.
-**Review humano (ACK):** Pendiente.  
+**Review humano (ACK):** Recibido el 2026-10-06: «Continuar». Commit observado: `4c1fe8c`.
 **Commit sugerido:** `fix(web): corregí accesibilidad, estados y navegación móvil`.
 
-### `[Pendiente]` Fase 5: carga, CSP y SEO vigente
+### `[Actual]` Fase 5: carga, CSP y SEO vigente
 
-- Verificar CSP en navegador y permitir solo los orígenes necesarios de API y medios; retirar `unsafe-eval` de producción si la aplicación funciona sin él.
-- Revisar dimensiones/carga de imágenes y videos, metadata y semántica de rutas actuales. Mantener CSR del muro; no añadir canonical, sitemap, robots ni SSR sin dominio y política de indexación confirmados en otra tarea.
+- [x] Construir la CSP desde el origen validado de `NEXT_PUBLIC_API_URL`, Cloudinary y YouTube; reservar `unsafe-eval` para desarrollo. Conservar `unsafe-inline` porque las páginas estáticas de Next 15 aún generan scripts inline y no se adoptó una política de nonce con render dinámico.
+- [x] Verificar la respuesta de producción y el recorrido público en navegador: `connect-src` permite la API local simulada, cargan imágenes de `i.ytimg.com` y `res.cloudinary.com`, y el reproductor crea su iframe de `www.youtube.com` tras interacción.
+- [x] Quitar los avatares externos rotos de la landing; reservar proporción para imágenes públicas, diferir medios fuera de pantalla y ofrecer salida comprensible si falla la carga de YouTube.
+- [x] Quitar el host no confirmado de Open Graph y añadir títulos/descripciones estáticas correctas a `/t/[slug]` y `/p/[slug]`. Conservar la carga cliente del muro y un solo `main` en la captura, sin introducir canonical, sitemap, robots o SSR.
 
-**Criterio de salida:** recursos necesarios cargan sin ampliar la CSP a hosts arbitrarios; metadata no afirma un dominio no confirmado y no se inventa indexabilidad.  
+**Criterio de salida:** recursos necesarios cargan sin ampliar la CSP a hosts arbitrarios; metadata no afirma un dominio no confirmado y no se inventa indexabilidad.
+**Evidencia local:** build de Next.js 15.5, typecheck y Vitest (25/25 en 12 archivos) pasan con Node 24.19.0; lint termina con 0 errores y 10 advertencias existentes. `git diff --check` pasa. En `next start` sobre `127.0.0.1:3100`, el header `Content-Security-Policy` leído por HTTP no contiene `unsafe-eval`; la landing solo carga su favicon local y ya no intenta `i.pravatar.cc`. Con una API simulada temporal en `localhost:4000` y testimonios ficticios, el navegador cargó `/t/demo`, la miniatura de YouTube y una imagen pública de Cloudinary; al activar el video se creó el iframe `www.youtube.com`. `/p/demo` mostró el formulario, título y descripción propios y un único `main`. No hubo errores de consola registrados en ese recorrido. Se detuvieron ambos servidores temporales y se eliminó el archivo de prueba de `/tmp`.
+**Límites:** la API simulada prueba orígenes y render de las rutas, no el despliegue real, todos los medios posibles, la sesión administrativa, indexabilidad ni métricas de campo. El build y los checks siguen siendo provisionales porque Node 24.19.0 está por debajo del mínimo del repositorio. La URL y la política de indexación productivas siguen sin definición aprobada; la fase 6 conservará esa distinción y verificará el navegador con el entorno final disponible.
 **Review humano (ACK):** Pendiente.  
 **Commit sugerido:** `perf(web): ajustá carga pública, CSP y metadata vigente`.
 
