@@ -9,9 +9,9 @@ export const listCategories = (fetchApi: SessionFetch, page = 1, limit = 20) =>
   sessionRequest(fetchApi, pagePath('/categories', page, limit), paginatedSchema(categorySchema));
 export const listTags = (fetchApi: SessionFetch, page = 1, limit = 20) =>
   sessionRequest(fetchApi, pagePath('/tags', page, limit), paginatedSchema(tagSchema));
-export const createCategory = (fetchApi: SessionFetch, name: FormDataEntryValue | null) =>
+export const createCategory = (fetchApi: SessionFetch, name: string) =>
   sessionRequest(fetchApi, '/categories', categorySchema, { method: 'POST', body: JSON.stringify({ name }) });
-export const createTag = (fetchApi: SessionFetch, name: FormDataEntryValue | null) =>
+export const createTag = (fetchApi: SessionFetch, name: string) =>
   sessionRequest(fetchApi, '/tags', tagSchema, { method: 'POST', body: JSON.stringify({ name }) });
 export const deleteCategory = (fetchApi: SessionFetch, id: string) =>
   sessionRequest(fetchApi, `/categories/${id}`, deletedSchema, { method: 'DELETE' });

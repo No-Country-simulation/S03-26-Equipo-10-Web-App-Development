@@ -1,27 +1,16 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Eye, MousePointerClick, Play, Quote, Star } from 'lucide-react';
 import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { listPublicTestimonials, trackPublicEvent as sendPublicEvent } from '../api';
+import { listPublicTestimonials, trackPublicEvent as sendPublicEvent, type PublicTestimonial } from '../api';
+import { LoadFailure } from '@/features/shared/load-failure';
+import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 type AnalyticsEventType = 'view' | 'click' | 'play';
-
-interface PublicTestimonial {
-  id: string;
-  authorName: string;
-  content: string;
-  rating: number;
-  score: number;
-  imageUrl?: string | null;
-  videoUrl?: string | null;
-  videoTitle?: string | null;
-  videoThumbnailUrl?: string | null;
-  publishedAt?: string | null;
-}
 
 declare global {
   interface Window {
@@ -198,7 +187,7 @@ function TrackedYouTubePlayer({
     <button
       type="button"
       onClick={() => setShowPlayer(true)}
-      className="group relative block aspect-video w-full overflow-hidden border"
+      className="group relative block aspect-video w-full overflow-hidden border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       <img
         src={thumbnail}
@@ -351,27 +340,10 @@ function TestimonialCard({
 
 export default function PublicTestimonialsPage() {
   const params = useParams();
-  const slug = params.slug as string;
-  const [testimonials, setTestimonials] = useState<PublicTestimonial[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function loadTestimonials() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        setTestimonials(await listPublicTestimonials(slug));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'No se pudieron cargar los testimonios');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void loadTestimonials();
-  }, [slug]);
+  const slug = typeof params.slug === 'string' ? params.slug : '';
+  const load = useCallback(() => listPublicTestimonials(slug), [slug]);
+  const { state, reload } = useRemoteResource(load, Boolean(slug));
+  const testimonials = state.status === 'success' ? state.data : [];
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -390,14 +362,13 @@ export default function PublicTestimonialsPage() {
           </p>
         </div>
 
-        {loading ? (
+        {state.status === 'loading' ? (
           <div className="flex min-h-[40vh] items-center justify-center">
             <div className="h-8 w-8 animate-spin border-2 border-primary border-t-transparent" />
           </div>
-        ) : error ? (
-          <div className="mx-auto mt-16 max-w-2xl border border-dashed p-10 text-center">
-            <p className="font-body text-xs uppercase tracking-[0.18em] text-destructive">Error</p>
-            <p className="mt-4 font-body text-sm leading-7 text-muted-foreground">{error}</p>
+        ) : state.status === 'error' ? (
+          <div className="mx-auto mt-16 max-w-2xl">
+            <LoadFailure error={state.error} resource="los testimonios publicados" onRetry={reload} />
           </div>
         ) : testimonials.length === 0 ? (
           <div className="mx-auto mt-16 max-w-2xl border border-dashed p-10 text-center">

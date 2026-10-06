@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { TestimonialRecord, TenantUser } from '@/lib/api';
@@ -9,38 +9,29 @@ import { cn } from '@/lib/utils';
 import { TestimonialModal } from '@/features/testimonials';
 import { listTestimonials } from '@/features/testimonials/api';
 import { listUsers } from '@/features/users/api';
+import { LoadFailure } from '@/features/shared/load-failure';
+import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 export default function AdminOverviewPage() {
   const { session, fetchApi, isAdmin } = useSession();
-  const [testimonials, setTestimonials] = useState<TestimonialRecord[]>([]);
-  const [testimonialTotal, setTestimonialTotal] = useState(0);
-  const [userTotal, setUserTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [selectedTestimonial, setSelectedTestimonial] = useState<TestimonialRecord | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (!session) return;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const [tRes, uRes] = await Promise.all([
-          listTestimonials(fetchApi),
-          isAdmin ? listUsers(fetchApi) : Promise.resolve({ data: { items: [] as TenantUser[], meta: { total: 0 } }, success: true }),
-        ]);
-        setTestimonials(tRes.data.items);
-        setTestimonialTotal(tRes.data.meta.total);
-        setUserTotal(uRes.data.meta.total);
-      } catch {
-        // errors handled by useSession (401 redirect)
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    void load();
-  }, [session, fetchApi, isAdmin]);
+  const load = useCallback(async () => {
+    const [tRes, uRes] = await Promise.all([
+      listTestimonials(fetchApi),
+      isAdmin ? listUsers(fetchApi) : Promise.resolve({ data: { items: [] as TenantUser[], meta: { total: 0 } }, success: true }),
+    ]);
+    return {
+      testimonials: tRes.data.items,
+      testimonialTotal: tRes.data.meta.total,
+      userTotal: uRes.data.meta.total,
+    };
+  }, [fetchApi, isAdmin]);
+  const { state, reload } = useRemoteResource(load, Boolean(session));
+  const testimonials: TestimonialRecord[] = state.status === 'success' ? state.data.testimonials : [];
+  const testimonialTotal = state.status === 'success' ? state.data.testimonialTotal : 0;
+  const userTotal = state.status === 'success' ? state.data.userTotal : 0;
 
   const pending = testimonials.filter((t) => t.status === 'pending' || t.status === 'draft').length;
   const published = testimonials.filter((t) => t.status === 'published').length;
@@ -83,11 +74,13 @@ export default function AdminOverviewPage() {
         description={`Tenant: ${session?.user.tenantName ?? '—'} · Rol: ${session?.user.roles.join(', ') ?? '—'}`}
       />
 
-      {loading ? (
+      {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20">
           <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
           <span className="font-body text-sm text-muted-foreground">Cargando métricas...</span>
         </div>
+      ) : state.status === 'error' ? (
+        <LoadFailure error={state.error} resource="el resumen" onRetry={reload} />
       ) : (
         <>
           {/* Metric Cards */}
@@ -132,7 +125,7 @@ export default function AdminOverviewPage() {
                       setSelectedTestimonial(t);
                       setModalOpen(true);
                     }}
-                    className="border bg-card p-6 transition-all hover:bg-muted/30 text-left hover:scale-[1.02] duration-300"
+                    className="border bg-card p-6 text-left transition-all duration-300 hover:scale-[1.02] hover:bg-muted/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transform-none"
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <span className="font-body text-sm font-bold uppercase tracking-wider text-foreground">
@@ -181,10 +174,7 @@ export default function AdminOverviewPage() {
           setModalOpen(open);
           if (!open) setTimeout(() => setSelectedTestimonial(null), 300);
         }}
-        onUpdated={() => {
-          // Trigger a silent reload or just let it be since we don't have a specific load() bound here
-          // We could reload by window.location.reload() but let's just leave it or fetch again
-        }}
+        onUpdated={reload}
       />
     </>
   );

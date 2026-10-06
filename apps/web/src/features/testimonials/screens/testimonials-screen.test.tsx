@@ -53,4 +53,15 @@ describe('TestimonialsScreen', () => {
     await user.click(await screen.findByRole('button', { name: 'Aprobar' }));
     await waitFor(() => expect(fetchApi).toHaveBeenCalledWith('/testimonials/beto-1/approve', expect.objectContaining({ method: 'POST' })));
   });
+
+  it('shows a recoverable load failure instead of an empty list', async () => {
+    fetchApi.mockRejectedValueOnce(new Error('network unavailable'));
+    const user = userEvent.setup();
+    render(<TestimonialsScreen />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo cargar');
+    expect(screen.queryByText(/No hay testimonios/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByRole('row', { name: /Ana/ })).toBeInTheDocument();
+  });
 });

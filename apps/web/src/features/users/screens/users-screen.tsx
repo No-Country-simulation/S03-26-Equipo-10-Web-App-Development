@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, Trash2, Mail, ShieldAlert } from 'lucide-react';
 import { createUser, deleteUser, listUsers } from '../api';
 import { PageControls } from '@/features/shared/pagination';
+import { actionFailureCopy, LoadFailure } from '@/features/shared/load-failure';
+import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 export type UserView = {
   id: string;
@@ -23,40 +25,36 @@ export type UserView = {
 
 export default function UsersPage() {
   const { session, fetchApi } = useSession();
-  const [users, setUsers] = useState<UserView[]>([]);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listUsers(fetchApi, page);
-      setUsers(res.data.items);
-      setTotal(res.data.meta.total);
-    } catch { /* handled */ } finally {
-      setLoading(false);
-    }
-  }, [fetchApi, page]);
-
-  useEffect(() => { if (session) void load(); }, [session, load]);
+  const load = useCallback(async () => (await listUsers(fetchApi, page)).data, [fetchApi, page]);
+  const { state, reload } = useRemoteResource(load, Boolean(session));
+  const users: UserView[] = state.status === 'success' ? state.data.items : [];
+  const total = state.status === 'success' ? state.data.meta.total : 0;
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setCreateLoading(true);
+    setActionError(null);
     const fd = new FormData(e.currentTarget);
     try {
+      const role = fd.get('role');
+      if (role !== 'admin' && role !== 'editor') {
+        setActionError('Elegí un rol válido.');
+        return;
+      }
       await createUser(fetchApi, {
-        email: fd.get('email'),
-        password: fd.get('password'),
-        role: fd.get('role'),
+        email: String(fd.get('email') ?? ''),
+        password: String(fd.get('password') ?? ''),
+        role,
       });
       setShowForm(false);
-      void load();
+      reload();
     } catch (err) {
-      alert(`Error al invitar: ${err instanceof Error ? err.message : String(err)}`);
+      setActionError(actionFailureCopy(err, 'la creación del usuario'));
     } finally {
       setCreateLoading(false);
     }
@@ -64,11 +62,12 @@ export default function UsersPage() {
 
   async function handleRemove(id: string) {
     if (!confirm('¿Estás seguro de eliminar a este usuario?')) return;
+    setActionError(null);
     try {
       await deleteUser(fetchApi, id);
-      void load();
+      reload();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      setActionError(actionFailureCopy(err, 'la eliminación del usuario'));
     }
   }
 
@@ -93,27 +92,29 @@ export default function UsersPage() {
         </Button>
         <Button
           variant="ghost"
-          onClick={() => void load()}
+          onClick={reload}
           className="h-10 font-body text-xs uppercase tracking-wider"
         >
           <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
         </Button>
       </DashboardHeader>
 
+      {actionError && <p role="alert" className="mb-6 border border-destructive p-4 font-body text-sm">{actionError}</p>}
+
       {showForm && (
         <form onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-4">
           <div className="grid gap-2 sm:col-span-1">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Email</Label>
-            <Input name="email" type="email" required className="h-10 bg-transparent" placeholder="usuario@empresa.com" />
+            <Label htmlFor="new-user-email" className="font-body text-xs font-bold uppercase tracking-widest">Email</Label>
+            <Input id="new-user-email" name="email" type="email" required className="h-10 bg-transparent" placeholder="usuario@empresa.com" />
           </div>
           <div className="grid gap-2 sm:col-span-1">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Password</Label>
-            <Input name="password" required className="h-10 bg-transparent" placeholder="Min. 8 carácteres, mayúsculas, etc." minLength={8} />
+            <Label htmlFor="new-user-password" className="font-body text-xs font-bold uppercase tracking-widest">Contraseña</Label>
+            <Input id="new-user-password" name="password" type="password" required className="h-10 bg-transparent" placeholder="Mínimo 8 caracteres" minLength={8} />
           </div>
           <div className="grid gap-2 sm:col-span-2">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Rol asignado</Label>
+            <Label htmlFor="new-user-role" className="font-body text-xs font-bold uppercase tracking-widest">Rol asignado</Label>
             <div className="flex gap-2">
-              <select name="role" required className="h-10 border bg-transparent font-body text-sm px-3 focus:outline-none focus:ring-1 focus:ring-primary w-full">
+              <select id="new-user-role" name="role" required className="h-10 border bg-transparent font-body text-sm px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring w-full">
                 <option value="editor" className="text-black">Editor (Crear, Moderar, Publicar)</option>
                 <option value="admin" className="text-black">Admin (Control Total)</option>
               </select>
@@ -125,11 +126,13 @@ export default function UsersPage() {
         </form>
       )}
 
-      {loading ? (
+      {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20">
           <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
           <span className="font-body text-sm text-muted-foreground">Cargando...</span>
         </div>
+      ) : state.status === 'error' ? (
+        <LoadFailure error={state.error} resource="los usuarios" onRetry={reload} />
       ) : users.length === 0 ? (
         <div className="border border-dashed p-12 text-center">
           <p className="font-body text-sm text-muted-foreground">No hay usuarios en la plataforma.</p>
@@ -173,7 +176,7 @@ export default function UsersPage() {
                   </td>
                   <td className="py-4 text-right">
                     {u.id !== session?.user.id && (
-                      <Button variant="ghost" size="sm" onClick={() => handleRemove(u.id)} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                      <Button variant="ghost" size="sm" onClick={() => handleRemove(u.id)} aria-label={`Eliminar usuario ${u.email}`} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     )}
@@ -184,7 +187,7 @@ export default function UsersPage() {
           </table>
         </div>
       )}
-      <PageControls page={page} total={total} limit={20} onChange={setPage} />
+      {state.status === 'success' && <PageControls page={page} total={total} limit={20} onChange={setPage} />}
     </>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { TestimonialRecord } from '@/lib/api';
@@ -12,13 +12,12 @@ import { TestimonialModal } from '../components/TestimonialModal';
 import { CreateTestimonialModal } from '../components/CreateTestimonialModal';
 import { listTestimonials } from '../api';
 import { PageControls } from '@/features/shared/pagination';
+import { LoadFailure } from '@/features/shared/load-failure';
+import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 export function TestimonialsScreen() {
   const { session, fetchApi } = useSession();
-  const [testimonials, setTestimonials] = useState<TestimonialRecord[]>([]);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedTestimonial, setSelectedTestimonial] = useState<TestimonialRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -28,18 +27,10 @@ export function TestimonialsScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listTestimonials(fetchApi, page);
-      setTestimonials(res.data.items);
-      setTotal(res.data.meta.total);
-    } catch { /* handled */ } finally {
-      setLoading(false);
-    }
-  }, [fetchApi, page]);
-
-  useEffect(() => { if (session) void load(); }, [session, load]);
+  const load = useCallback(async () => (await listTestimonials(fetchApi, page)).data, [fetchApi, page]);
+  const { state, reload } = useRemoteResource(load, Boolean(session));
+  const testimonials = state.status === 'success' ? state.data.items : [];
+  const total = state.status === 'success' ? state.data.meta.total : 0;
 
   // Compute dynamic filters
   const categoryCounts = new Map<string, { name: string; count: number }>();
@@ -80,7 +71,7 @@ export function TestimonialsScreen() {
         </Button>
         <Button
           variant="ghost"
-          onClick={() => void load()}
+          onClick={reload}
           className="h-10 font-body text-xs uppercase tracking-wider"
         >
           <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
@@ -93,10 +84,11 @@ export function TestimonialsScreen() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            aria-label="Buscar testimonios por autor o contenido"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por autor o contenido..."
-            className="h-10 bg-transparent pl-10 font-body text-sm rounded-none border-t-0 border-x-0 border-b-2 border-border focus-visible:ring-0 focus-visible:border-primary"
+            className="h-10 bg-transparent pl-10 font-body text-sm rounded-none border-t-0 border-x-0 border-b-2 border-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
           />
         </div>
 
@@ -104,9 +96,11 @@ export function TestimonialsScreen() {
         {categoryCounts.size > 0 && (
           <div className="flex flex-wrap gap-2 pt-2">
             <button
+              type="button"
+              aria-pressed={selectedCategoryId === null}
               onClick={() => setSelectedCategoryId(null)}
               className={cn(
-                "font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border",
+                "min-h-8 font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                 selectedCategoryId === null ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:bg-muted/50 border-border"
               )}
             >
@@ -115,9 +109,11 @@ export function TestimonialsScreen() {
             {Array.from(categoryCounts.entries()).map(([id, { name, count }]) => (
               <button
                 key={id}
+                type="button"
+                aria-pressed={selectedCategoryId === id}
                 onClick={() => setSelectedCategoryId(id)}
                 className={cn(
-                  "font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border",
+                  "min-h-8 font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   selectedCategoryId === id ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:bg-muted/50 border-border"
                 )}
               >
@@ -133,13 +129,15 @@ export function TestimonialsScreen() {
             {Array.from(tagCounts.entries()).map(([id, { name, count }]) => (
               <button
                 key={id}
+                type="button"
+                aria-pressed={selectedTagIds.includes(id)}
                 onClick={() => {
                   setSelectedTagIds(prev =>
                     prev.includes(id) ? prev.filter(tid => tid !== id) : [...prev, id]
                   );
                 }}
                 className={cn(
-                  "font-body text-[9px] uppercase tracking-wider px-2 py-1 transition-colors border rounded-full",
+                  "min-h-8 font-body text-[10px] uppercase tracking-wider px-2 py-1 transition-colors border rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   selectedTagIds.includes(id)
                     ? "bg-foreground text-background border-foreground"
                     : "bg-transparent text-muted-foreground border-border hover:border-foreground/30"
@@ -150,8 +148,9 @@ export function TestimonialsScreen() {
             ))}
             {selectedTagIds.length > 0 && (
               <button
+                type="button"
                 onClick={() => setSelectedTagIds([])}
-                className="font-body text-[9px] uppercase tracking-wider px-2 py-1 text-destructive hover:underline ml-2"
+                className="min-h-8 font-body text-[10px] uppercase tracking-wider px-2 py-1 text-destructive hover:underline ml-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 Limpiar Etiquetas
               </button>
@@ -160,11 +159,13 @@ export function TestimonialsScreen() {
         )}
       </div>
 
-      {loading ? (
+      {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20">
           <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
           <span className="font-body text-sm text-muted-foreground">Cargando...</span>
         </div>
+      ) : state.status === 'error' ? (
+        <LoadFailure error={state.error} resource="los testimonios" onRetry={reload} />
       ) : filtered.length === 0 ? (
         <div className="border border-dashed p-12 text-center">
           <p className="font-body text-sm text-muted-foreground">No se encontraron testimonios.</p>
@@ -233,12 +234,12 @@ export function TestimonialsScreen() {
         </div>
       )}
 
-      <PageControls page={page} total={total} limit={20} onChange={setPage} />
+      {state.status === 'success' && <PageControls page={page} total={total} limit={20} onChange={setPage} />}
 
       <CreateTestimonialModal
         open={createOpen}
         onOpenChange={setCreateOpen}
-        onCreated={() => void load()}
+        onCreated={reload}
       />
 
       <TestimonialModal
@@ -248,7 +249,7 @@ export function TestimonialsScreen() {
           setSheetOpen(open);
           if (!open) setTimeout(() => setSelectedTestimonial(null), 300);
         }}
-        onUpdated={() => void load()}
+        onUpdated={reload}
       />
     </>
   );

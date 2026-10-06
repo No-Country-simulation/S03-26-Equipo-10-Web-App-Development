@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, FormEvent } from 'react';
+import { useCallback, useState, type FormEvent } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,9 @@ import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, KeyRound, Copy, Check, ShieldAlert } from 'lucide-react';
 import { createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '../api';
 import { PageControls } from '@/features/shared/pagination';
+import { LoadFailure } from '@/features/shared/load-failure';
+import { useRemoteResource } from '@/features/shared/use-remote-resource';
+import { actionFailureCopy } from '@/features/shared/load-failure';
 
 export type ApiKeyView = {
   id: string;
@@ -29,10 +32,7 @@ export type ApiKeyView = {
 
 export default function ApiKeysPage() {
   const { session, fetchApi } = useSession();
-  const [apiKeys, setApiKeys] = useState<ApiKeyView[]>([]);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [rotationTarget, setRotationTarget] = useState<ApiKeyView | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
@@ -40,25 +40,19 @@ export default function ApiKeysPage() {
   // State to hold the newly generated raw token
   const [newRawToken, setNewRawToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [actionMessage, setActionMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listApiKeys(fetchApi, page);
-      setApiKeys(res.data.items);
-      setTotal(res.data.meta.total);
-    } catch { /* handled */ } finally {
-      setLoading(false);
-    }
-  }, [fetchApi, page]);
-
-  useEffect(() => { if (session) void load(); }, [session, load]);
+  const load = useCallback(async () => (await listApiKeys(fetchApi, page)).data, [fetchApi, page]);
+  const { state, reload } = useRemoteResource(load, Boolean(session));
+  const apiKeys: ApiKeyView[] = state.status === 'success' ? state.data.items : [];
+  const total = state.status === 'success' ? state.data.meta.total : 0;
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setCreateLoading(true);
     setNewRawToken(null);
     setCopied(false);
+    setActionMessage(null);
     const fd = new FormData(e.currentTarget);
     try {
       const expiry = fd.get('expiresAt');
@@ -75,9 +69,10 @@ export default function ApiKeysPage() {
       setNewRawToken(res.data.apiKey);
       setShowForm(false);
       setRotationTarget(null);
-      void load();
+      reload();
     } catch (err) {
-      alert(`Error al generar token: ${err instanceof Error ? err.message : String(err)}`);
+      setActionMessage({ kind: 'error', text: err instanceof Error && err.message === 'Elegí al menos un permiso'
+        ? err.message : actionFailureCopy(err, 'la generación de la API key') });
     } finally {
       setCreateLoading(false);
     }
@@ -87,9 +82,10 @@ export default function ApiKeysPage() {
     if (!confirm('¿Estás SEGURO de revocar esta API Key? Dejará de funcionar en cualquier aplicación que la esté utilizando.')) return;
     try {
       await revokeApiKey(fetchApi, id);
-      void load();
+      setActionMessage({ kind: 'success', text: 'API key revocada.' });
+      reload();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      setActionMessage({ kind: 'error', text: actionFailureCopy(err, 'la revocación de la API key') });
     }
   }
 
@@ -99,11 +95,14 @@ export default function ApiKeysPage() {
     setNewRawToken(null);
   }
 
-  const copyToClipboard = () => {
+  const copyToClipboard = async () => {
     if (newRawToken) {
-      navigator.clipboard.writeText(newRawToken);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(newRawToken);
+        setCopied(true);
+      } catch {
+        setActionMessage({ kind: 'error', text: 'No se pudo copiar la API key. Seleccionala y copiala manualmente.' });
+      }
     }
   };
 
@@ -128,15 +127,17 @@ export default function ApiKeysPage() {
         </Button>
         <Button
           variant="ghost"
-          onClick={() => void load()}
+          onClick={reload}
           className="h-10 font-body text-xs uppercase tracking-wider"
         >
           <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
         </Button>
       </DashboardHeader>
 
+      {actionMessage && <p role={actionMessage.kind === 'error' ? 'alert' : 'status'} className="mb-4 border border-border bg-card p-3 font-body text-sm">{actionMessage.text}</p>}
+
       {newRawToken && (
-        <div className="mb-8 border-l-4 border-primary bg-primary/10 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div role="status" className="mb-8 border-l-4 border-primary bg-primary/10 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h3 className="font-body text-sm font-bold text-foreground">Tu API Key ha sido generada exitosamente</h3>
             <p className="text-xs text-muted-foreground mt-1">
@@ -147,7 +148,7 @@ export default function ApiKeysPage() {
             <code className="text-sm border border-primary/20 bg-background px-4 py-2 font-mono flex-1 sm:w-80 truncate">
               {newRawToken}
             </code>
-            <Button onClick={copyToClipboard} variant="outline" className="h-10 w-10 p-0 shrink-0">
+            <Button type="button" onClick={() => void copyToClipboard()} aria-label={copied ? 'API key copiada' : 'Copiar API key'} variant="outline" className="h-10 w-10 p-0 shrink-0">
               {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
             </Button>
           </div>
@@ -157,8 +158,8 @@ export default function ApiKeysPage() {
       {showForm && (
         <form key={rotationTarget?.id ?? 'create'} onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-3 items-end">
           <div className="grid gap-2 sm:col-span-2">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Nombre Descriptivo</Label>
-            <Input name="name" required defaultValue={rotationTarget?.name ?? ''} className="h-10 bg-transparent" placeholder="Ej. Integración App Móvil, Servidor Nodejs..." minLength={2} />
+            <Label htmlFor="api-key-name" className="font-body text-[10px] font-bold uppercase tracking-widest">Nombre Descriptivo</Label>
+            <Input id="api-key-name" name="name" required defaultValue={rotationTarget?.name ?? ''} className="h-10 bg-transparent" placeholder="Ej. Integración App Móvil, Servidor Nodejs..." minLength={2} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="api-key-expiry" className="font-body text-[10px] font-bold uppercase tracking-widest">Expira (opcional)</Label>
@@ -175,11 +176,13 @@ export default function ApiKeysPage() {
         </form>
       )}
 
-      {loading ? (
+      {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20">
           <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
           <span className="font-body text-sm text-muted-foreground">Cargando...</span>
         </div>
+      ) : state.status === 'error' ? (
+        <LoadFailure error={state.error} resource="las API keys" onRetry={reload} />
       ) : apiKeys.length === 0 ? (
         <div className="border border-dashed p-12 text-center">
           <p className="font-body text-sm text-muted-foreground">No tienes ninguna API Key activa.</p>
@@ -233,7 +236,7 @@ export default function ApiKeysPage() {
           </table>
         </div>
       )}
-      <PageControls page={page} total={total} limit={20} onChange={setPage} />
+      {state.status === 'success' && <PageControls page={page} total={total} limit={20} onChange={setPage} />}
     </>
   );
 }

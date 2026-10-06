@@ -7,6 +7,7 @@ export const publicTestimonialSchema = z.object({
   videoTitle: z.string().nullable().optional(), videoThumbnailUrl: z.string().nullable().optional(),
   publishedAt: z.string().nullable().optional(),
 }).passthrough();
+export type PublicTestimonial = z.infer<typeof publicTestimonialSchema>;
 
 export const listPublicTestimonials = async (slug: string) =>
   (await publicRequest(`/public/testimonials/tenants/${encodeURIComponent(slug)}`, z.array(publicTestimonialSchema))).data;

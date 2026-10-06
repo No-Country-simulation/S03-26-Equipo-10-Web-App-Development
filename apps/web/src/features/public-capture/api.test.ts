@@ -19,4 +19,15 @@ describe('public capture API adapter', () => {
       'http://api.test/api/v1/public/testimonials/tenant-slug/submit',
     ]);
   });
+
+  it('rejects a success envelope that lacks a saved testimonial id', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.test/api/v1');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      success: true, data: { status: 'received' },
+    }))));
+
+    await expect(submitPublicTestimonial('tenant-slug', {
+      authorName: 'Ana', content: 'Excelente atención', rating: 5,
+    })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
 });

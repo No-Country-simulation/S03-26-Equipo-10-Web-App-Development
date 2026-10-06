@@ -9,5 +9,6 @@ const flagSchema = z.object({ id: z.string(), name: z.string(), enabled: z.boole
 
 export const getTenant = (fetchApi: SessionFetch) => sessionRequest(fetchApi, '/tenants/me', tenantSchema);
 export const listFeatureFlags = (fetchApi: SessionFetch) => sessionRequest(fetchApi, '/feature-flags', z.array(flagSchema));
-export const updateTenant = (fetchApi: SessionFetch, input: object) =>
+export type UpdateTenantInput = { name?: string; publicSlug?: string; isPublicFormEnabled?: boolean };
+export const updateTenant = (fetchApi: SessionFetch, input: UpdateTenantInput) =>
   sessionRequest(fetchApi, '/tenants/me', tenantSchema, { method: 'PATCH', body: JSON.stringify(input) });

@@ -16,7 +16,8 @@ import { Youtube, Image as ImageIcon, Loader2, Edit3, ShieldCheck } from 'lucide
 import { cn } from '@/lib/utils';
 import { listCategories, listTags } from '@/features/catalog/api';
 import { PageControls } from '@/features/shared/pagination';
-import { attachTestimonialImage, attachTestimonialVideo, transitionTestimonial, updateTestimonial } from '../api';
+import { attachTestimonialImage, attachTestimonialVideo, transitionTestimonial, updateTestimonial, type TestimonialTransition } from '../api';
+import { actionFailureCopy } from '@/features/shared/load-failure';
 
 interface TestimonialModalProps {
   testimonial: TestimonialRecord | null;
@@ -39,6 +40,8 @@ export function TestimonialModal({
   const [statusLoading, setStatusLoading] = useState(false);
   const [rejectMode, setRejectMode] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [metaError, setMetaError] = useState(false);
 
   // Edit Mode States
   const [isEditing, setIsEditing] = useState(false);
@@ -56,13 +59,16 @@ export function TestimonialModal({
   const [tagTotal, setTagTotal] = useState(0);
 
   useEffect(() => {
+    let active = true;
     async function loadMeta() {
       if (!open) return;
+      setMetaError(false);
       try {
         const [catRes, tagRes] = await Promise.all([
           listCategories(fetchApi, categoryPage, 20),
           listTags(fetchApi, tagPage, 20),
         ]);
+        if (!active) return;
         setCategories(previous => {
           const selected = previous.find(item => item.id === editCategoryId)
             ?? (testimonial?.category?.id === editCategoryId ? testimonial.category : undefined);
@@ -75,15 +81,17 @@ export function TestimonialModal({
         });
         setCategoryTotal(catRes.data.meta.total);
         setTagTotal(tagRes.data.meta.total);
-      } catch (e) { console.error('Error loading meta', e); }
+      } catch { if (active) setMetaError(true); }
     }
     void loadMeta();
+    return () => { active = false; };
   }, [open, fetchApi, categoryPage, tagPage, editCategoryId, editTagIds, testimonial]);
 
   useEffect(() => {
     if (open && testimonial) {
       setRejectMode(false);
       setRejectReason('');
+      setActionError(null);
       setIsEditing(false);
       setEditContent(testimonial.content);
       setEditAuthor(testimonial.authorName);
@@ -97,15 +105,16 @@ export function TestimonialModal({
   const isPublished = testimonial.status === 'published';
   const canEdit = isAdmin;
 
-  async function handleStatusChange(action: string, body?: { reason: string }) {
+  async function handleStatusChange(action: TestimonialTransition, body?: { reason: string }) {
     if (!testimonial) return;
     setStatusLoading(true);
+    setActionError(null);
     try {
       await transitionTestimonial(fetchApi, testimonial.id, action, body);
       onUpdated();
       setRejectMode(false);
     } catch (err) {
-      alert(`Error con la acción ${action}: ${err instanceof Error ? err.message : String(err)}`);
+      setActionError(actionFailureCopy(err, 'la moderación del testimonio'));
     } finally {
       setStatusLoading(false);
     }
@@ -114,12 +123,13 @@ export function TestimonialModal({
   async function handleVideoSubmit() {
     if (!videoUrl.trim() || !testimonial) return;
     setLoadingVideo(true);
+    setActionError(null);
     try {
       await attachTestimonialVideo(fetchApi, testimonial.id, videoUrl);
       setVideoUrl('');
       onUpdated();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Error adjuntando video');
+    } catch (error) {
+      setActionError(actionFailureCopy(error, 'la asociación del video'));
     } finally {
       setLoadingVideo(false);
     }
@@ -129,7 +139,7 @@ export function TestimonialModal({
     const file = e.target.files?.[0];
     if (!file || !testimonial) return;
     if (file.size > 10 * 1024 * 1024) {
-      alert('La imagen supera el máximo de 10 MB');
+      setActionError('La imagen supera el máximo de 10 MB. Elegí una más pequeña.');
       e.target.value = '';
       return;
     }
@@ -138,36 +148,47 @@ export function TestimonialModal({
     try {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64 = reader.result as string;
+        if (typeof reader.result !== 'string') {
+          setActionError('No se pudo leer la imagen. Elegí otra.');
+          setLoadingImage(false);
+          return;
+        }
+        const base64 = reader.result;
         try {
           await attachTestimonialImage(fetchApi, testimonial.id, base64);
           onUpdated();
         } catch (err) {
-          alert('Error subiendo imagen: ' + (err instanceof Error ? err.message : String(err)));
+          setActionError(actionFailureCopy(err, 'la subida de la imagen'));
         } finally {
           setLoadingImage(false);
         }
       };
       reader.readAsDataURL(file);
     } catch {
+      setActionError('No se pudo leer la imagen. Elegí otra.');
       setLoadingImage(false);
     }
   }
 
   async function handleSaveEdits() {
     if (!testimonial) return;
+    if (!editCategoryId && testimonial.categoryId) {
+      setActionError('La API todavía no permite quitar una categoría asignada. Elegí otra categoría para continuar.');
+      return;
+    }
     setStatusLoading(true);
+    setActionError(null);
     try {
       await updateTestimonial(fetchApi, testimonial.id, {
         authorName: editAuthor,
         content: editContent,
-        categoryId: editCategoryId,
+        ...(editCategoryId && { categoryId: editCategoryId }),
         tagIds: editTagIds,
       });
       setIsEditing(false);
       onUpdated();
     } catch (err) {
-      alert('Error guardando edición: ' + (err instanceof Error ? err.message : String(err)));
+      setActionError(actionFailureCopy(err, 'la edición del testimonio'));
     } finally {
       setStatusLoading(false);
     }
@@ -183,6 +204,8 @@ export function TestimonialModal({
           {/* Left Column: Visual & Content (Neo-Editorial) */}
           <div className="flex-1 bg-card p-8 md:p-12 border-b md:border-b-0 md:border-r relative overflow-y-auto">
             <div className="absolute top-0 left-0 w-full h-1 bg-primary/20" />
+            {actionError && <p role="alert" className="mb-6 border border-destructive p-3 font-body text-sm">{actionError}</p>}
+            {metaError && <p role="alert" className="mb-6 border border-destructive p-3 font-body text-sm">No se pudieron cargar las categorías y etiquetas.</p>}
             
             <div className="flex items-center justify-between mb-8">
               <span className="font-body text-[10px] font-bold uppercase tracking-widest text-primary border border-primary/20 px-2 py-1">
@@ -212,29 +235,32 @@ export function TestimonialModal({
             {isEditing ? (
               <div className="space-y-6 animate-fade-in-up">
                 <div>
-                  <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Autor</Label>
+                  <Label htmlFor="edit-testimonial-author" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">Autor</Label>
                   <Input 
+                    id="edit-testimonial-author"
                     value={editAuthor} 
                     onChange={e => setEditAuthor(e.target.value)} 
-                    className="mt-2 font-caption text-xl bg-background rounded-none border-t-0 border-x-0 border-b-2 focus-visible:ring-0 focus-visible:border-primary px-0" 
+                    className="mt-2 font-caption text-xl bg-background rounded-none border-t-0 border-x-0 border-b-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary px-0"
                   />
                 </div>
                 <div>
-                  <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Contenido</Label>
+                  <Label htmlFor="edit-testimonial-content" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">Contenido</Label>
                   <textarea 
+                    id="edit-testimonial-content"
                     value={editContent} 
                     onChange={e => setEditContent(e.target.value)} 
-                    className="w-full mt-2 bg-background font-caption text-2xl italic leading-relaxed focus:outline-none focus:ring-0 resize-none min-h-[150px] border-b-2 border-border focus:border-primary"
+                    className="w-full mt-2 bg-background font-caption text-2xl italic leading-relaxed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring resize-y min-h-[150px] border-b-2 border-border focus:border-primary"
                   />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Categoría</Label>
+                    <Label htmlFor="edit-testimonial-category" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">Categoría</Label>
                     <select 
+                      id="edit-testimonial-category"
                       value={editCategoryId || ''} 
                       onChange={e => setEditCategoryId(e.target.value || null)}
-                      className="w-full mt-2 bg-background border-b-2 border-border p-2 font-body text-xs focus:outline-none focus:border-primary"
+                      className="w-full mt-2 bg-background border-b-2 border-border p-2 font-body text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary"
                     >
                       <option value="">Sin Categoría</option>
                       {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -248,13 +274,14 @@ export function TestimonialModal({
                         <button
                           key={tag.id}
                           type="button"
+                          aria-pressed={editTagIds.includes(tag.id)}
                           onClick={() => {
                             setEditTagIds(prev => 
                               prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
                             );
                           }}
                           className={cn(
-                            "font-body text-[9px] uppercase tracking-wider px-2 py-1 transition-colors",
+                            "min-h-8 font-body text-[10px] uppercase tracking-wider px-2 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                             editTagIds.includes(tag.id) 
                               ? "bg-primary text-primary-foreground" 
                               : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -341,7 +368,8 @@ export function TestimonialModal({
                     {rejectMode && (
                       <div className="mt-3 pt-3 border-t animate-fade-in-up">
                         <textarea 
-                          className="w-full border-b p-2 bg-transparent font-body text-xs focus:outline-none focus:border-destructive resize-none"
+                          aria-label="Motivo del rechazo"
+                          className="w-full border-b p-2 bg-transparent font-body text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-destructive resize-y"
                           placeholder="Motivo del rechazo (opcional)"
                           value={rejectReason}
                           onChange={e => setRejectReason(e.target.value)}
@@ -384,6 +412,7 @@ export function TestimonialModal({
                   canEdit && !isPublished && (
                     <div className="relative">
                       <Input
+                        aria-label="Imagen del testimonio"
                         type="file"
                         accept="image/png, image/jpeg, image/webp"
                         onChange={(e) => void handleImageUpload(e)}
@@ -414,6 +443,7 @@ export function TestimonialModal({
                   canEdit && !isPublished && (
                     <div className="flex flex-col gap-2">
                       <Input
+                        aria-label="URL del video de YouTube"
                         placeholder="https://youtu.be/..."
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}

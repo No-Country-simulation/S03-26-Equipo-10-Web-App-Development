@@ -33,8 +33,8 @@ export default function DashboardLayout({
         isAdmin={isAdmin}
         onLogout={logout}
       />
-      <main className="pl-64">
-        <div className="min-h-screen p-8 lg:p-12">
+      <main className="min-w-0 lg:pl-64" id="main-content">
+        <div className="min-h-screen min-w-0 p-4 sm:p-8 lg:p-12">
           {children}
         </div>
       </main>

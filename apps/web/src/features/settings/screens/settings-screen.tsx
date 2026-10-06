@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, ShieldAlert, ToggleLeft, ToggleRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getTenant, listFeatureFlags, updateTenant } from '../api';
+import { actionFailureCopy, LoadFailure } from '@/features/shared/load-failure';
+import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 interface FeatureFlag {
   id: string;
@@ -25,28 +27,23 @@ interface TenantInfo {
 
 export default function SettingsPage() {
   const { session, fetchApi, isAdmin } = useSession();
-  const [tenant, setTenant] = useState<TenantInfo | null>(null);
-  const [flags, setFlags] = useState<FeatureFlag[]>([]);
-  const [loading, setLoading] = useState(true);
   const [slugInput, setSlugInput] = useState('');
   const [isSavingSlug, setIsSavingSlug] = useState(false);
+  const [isSavingForm, setIsSavingForm] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [tenantRes, flagsRes] = await Promise.all([
-        getTenant(fetchApi),
-        listFeatureFlags(fetchApi),
-      ]);
-      setTenant(tenantRes.data);
-      setFlags(flagsRes.data);
-      setSlugInput(tenantRes.data.publicSlug ?? '');
-    } catch { /* handled */ } finally {
-      setLoading(false);
-    }
+    const [tenantRes, flagsRes] = await Promise.all([getTenant(fetchApi), listFeatureFlags(fetchApi)]);
+    return { tenant: tenantRes.data, flags: flagsRes.data };
   }, [fetchApi]);
 
-  useEffect(() => { if (session) void load(); }, [session, load]);
+  const { state, reload } = useRemoteResource(load, Boolean(session));
+  const tenant: TenantInfo | null = state.status === 'success' ? state.data.tenant : null;
+  const flags: FeatureFlag[] = state.status === 'success' ? state.data.flags : [];
+  useEffect(() => {
+    if (state.status === 'success') setSlugInput(state.data.tenant.publicSlug ?? '');
+  }, [state]);
 
   if (!isAdmin) {
     return (
@@ -60,23 +57,32 @@ export default function SettingsPage() {
   }
 
   async function handleTogglePublicForm() {
-    if (!tenant) return;
+    if (!tenant || isSavingForm) return;
+    setActionError(null);
+    setIsSavingForm(true);
     try {
-      const data = await updateTenant(fetchApi, { isPublicFormEnabled: !tenant.isPublicFormEnabled });
-      setTenant({ ...tenant, isPublicFormEnabled: data.data.isPublicFormEnabled });
-    } catch (e) {
-      console.error(e);
+      await updateTenant(fetchApi, { isPublicFormEnabled: !tenant.isPublicFormEnabled });
+      reload();
+    } catch (error) {
+      setActionError(actionFailureCopy(error, 'el cambio del formulario público'));
+    } finally {
+      setIsSavingForm(false);
     }
   }
 
   async function handleSaveSlug() {
     if (!tenant) return;
+    if (slugInput.length < 3) {
+      setActionError('El enlace debe tener al menos 3 caracteres.');
+      return;
+    }
     setIsSavingSlug(true);
+    setActionError(null);
     try {
-      const data = await updateTenant(fetchApi, { publicSlug: slugInput || null });
-      setTenant({ ...tenant, publicSlug: data.data.publicSlug });
-    } catch (e) {
-      console.error(e);
+      await updateTenant(fetchApi, { publicSlug: slugInput });
+      reload();
+    } catch (error) {
+      setActionError(actionFailureCopy(error, 'el cambio del enlace público'));
     } finally {
       setIsSavingSlug(false);
     }
@@ -87,16 +93,19 @@ export default function SettingsPage() {
   return (
     <>
       <DashboardHeader title="Configuración" description="Información de tu espacio de trabajo y módulos opcionales.">
-        <Button variant="ghost" onClick={() => void load()} className="h-10 font-body text-xs uppercase tracking-wider">
+        <Button variant="ghost" onClick={reload} className="h-10 font-body text-xs uppercase tracking-wider">
           <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
         </Button>
       </DashboardHeader>
 
-      {loading ? (
+      {actionError && <p role="alert" className="mb-6 border border-destructive p-4 font-body text-sm">{actionError}</p>}
+      {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20">
           <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
           <span className="font-body text-sm text-muted-foreground">Cargando...</span>
         </div>
+      ) : state.status === 'error' ? (
+        <LoadFailure error={state.error} resource="la configuración" onRetry={reload} />
       ) : (
         <div className="grid gap-8">
           {/* Tenant Info */}
@@ -130,13 +139,17 @@ export default function SettingsPage() {
               Buzón de Recepción Público
             </h2>
             <div className="border p-6 shadow-sm">
-              <div className="flex items-center justify-between border-b pb-4 mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
                 <div>
                   <h3 className="font-body text-sm font-medium text-foreground">Habilitar Recepción Externa</h3>
                   <p className="text-xs text-muted-foreground mt-1">Permite que tus clientes envíen testimonios usando un enlace seguro sin necesidad de iniciar sesión.</p>
                 </div>
-                <div 
-                  className="cursor-pointer"
+                <button
+                  type="button"
+                  aria-label="Habilitar recepción externa"
+                  aria-pressed={tenant?.isPublicFormEnabled ?? false}
+                  disabled={isSavingForm}
+                  className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
                   onClick={() => void handleTogglePublicForm()}
                 >
                   <div className="flex items-center gap-2">
@@ -149,20 +162,23 @@ export default function SettingsPage() {
                       <ToggleLeft className="h-8 w-8 text-muted-foreground/40" />
                     )}
                   </div>
-                </div>
+                </button>
               </div>
 
               <div className="grid gap-4">
                 <div>
-                  <label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">Enlace Personalizado</label>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 max-w-sm flex">
+                  <label htmlFor="public-slug" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground block mb-2">Enlace Personalizado</label>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 max-w-sm">
                       <span className="inline-flex items-center px-3 border border-r-0 bg-muted/20 text-muted-foreground text-sm font-body">/p/</span>
                       <input 
+                        id="public-slug"
                         type="text" 
+                        minLength={3}
+                        maxLength={50}
                         value={slugInput}
                         onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                        className="flex-1 w-full border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="min-w-0 flex-1 w-full border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                         placeholder="tu-empresa"
                       />
                     </div>
@@ -178,18 +194,19 @@ export default function SettingsPage() {
                 </div>
                 
                 {tenant?.publicSlug && (
-                  <div className="mt-2 bg-muted/10 p-4 border flex items-center justify-between">
-                    <div>
+                  <div className="mt-2 bg-muted/10 p-4 border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
                       <p className="text-xs text-muted-foreground font-body">Tu buzón público está disponible en:</p>
-                      <a href={publicLink} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline mt-1 block">
+                      <a href={publicLink} target="_blank" rel="noopener noreferrer" className="mt-1 block break-all text-sm font-medium text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                         {publicLink}
                       </a>
                     </div>
                     <Button 
                       variant="default" 
                       onClick={() => {
-                        void navigator.clipboard.writeText(publicLink);
-                        alert('Enlace copiado al portapapeles');
+                        void navigator.clipboard.writeText(publicLink)
+                          .then(() => setCopyMessage('Enlace copiado.'))
+                          .catch(() => setCopyMessage('No se pudo copiar el enlace.'));
                       }}
                       className="font-body text-xs uppercase tracking-wider"
                     >
@@ -197,6 +214,7 @@ export default function SettingsPage() {
                     </Button>
                   </div>
                 )}
+                {copyMessage && <p role="status" className="font-body text-sm text-muted-foreground">{copyMessage}</p>}
               </div>
             </div>
           </div>

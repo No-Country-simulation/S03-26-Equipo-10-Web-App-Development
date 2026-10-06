@@ -14,13 +14,23 @@ export const testimonialSchema = z.object({
 
 export const listTestimonials = (fetchApi: SessionFetch, page = 1) =>
   sessionRequest(fetchApi, pagePath('/testimonials', page), paginatedSchema(testimonialSchema));
-export const createTestimonial = (fetchApi: SessionFetch, input: object) =>
+export type CreateTestimonialInput = {
+  authorName: string;
+  content: string;
+  rating: number;
+  categoryId?: string;
+  tagIds?: string[];
+};
+export type UpdateTestimonialInput = Partial<CreateTestimonialInput>;
+export type TestimonialTransition = 'submit' | 'approve' | 'publish' | 'reject';
+
+export const createTestimonial = (fetchApi: SessionFetch, input: CreateTestimonialInput) =>
   sessionRequest(fetchApi, '/testimonials', testimonialSchema, { method: 'POST', body: JSON.stringify(input) });
-export const transitionTestimonial = (fetchApi: SessionFetch, id: string, action: string, body?: object) =>
+export const transitionTestimonial = (fetchApi: SessionFetch, id: string, action: TestimonialTransition, body?: { reason: string }) =>
   sessionRequest(fetchApi, `/testimonials/${id}/${action}`, testimonialSchema, {
     method: 'POST', body: body ? JSON.stringify(body) : undefined,
   });
-export const updateTestimonial = (fetchApi: SessionFetch, id: string, input: object) =>
+export const updateTestimonial = (fetchApi: SessionFetch, id: string, input: UpdateTestimonialInput) =>
   sessionRequest(fetchApi, `/testimonials/${id}`, testimonialSchema, { method: 'PATCH', body: JSON.stringify(input) });
 export const attachTestimonialVideo = (fetchApi: SessionFetch, id: string, videoUrl: string) =>
   sessionRequest(fetchApi, `/testimonials/${id}/video`, testimonialSchema, {

@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { RefreshCw, Eye, MousePointerClick, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getAnalyticsDashboard } from '../api';
+import { LoadFailure } from '@/features/shared/load-failure';
+import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 interface AnalyticsSummary {
   totalViews: number;
@@ -22,23 +24,9 @@ interface AnalyticsSummary {
 
 export default function AnalyticsPage() {
   const { session, fetchApi } = useSession();
-  const [data, setData] = useState<AnalyticsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getAnalyticsDashboard(fetchApi);
-      setData(res.data);
-    } catch {
-      // If the dashboard endpoint doesn't exist yet, show empty state
-      setData({ totalViews: 0, totalClicks: 0, totalPlays: 0, events: [] });
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchApi]);
-
-  useEffect(() => { if (session) void load(); }, [session, load]);
+  const load = useCallback(async () => (await getAnalyticsDashboard(fetchApi)).data, [fetchApi]);
+  const { state, reload } = useRemoteResource<AnalyticsSummary>(load, Boolean(session));
+  const data = state.status === 'success' ? state.data : null;
 
   const metrics = [
     { label: 'Visualizaciones', value: data?.totalViews ?? 0, icon: Eye },
@@ -49,13 +37,15 @@ export default function AnalyticsPage() {
   return (
     <>
       <DashboardHeader title="Analítica" description="Métricas de interacción con tus testimonios.">
-        <Button variant="ghost" onClick={() => void load()} className="h-10 font-body text-xs uppercase tracking-wider">
+        <Button variant="ghost" onClick={reload} className="h-10 font-body text-xs uppercase tracking-wider">
           <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
         </Button>
       </DashboardHeader>
 
-      {loading ? (
+      {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20"><div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" /></div>
+      ) : state.status === 'error' ? (
+        <LoadFailure error={state.error} resource="las métricas" onRetry={reload} />
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-3">

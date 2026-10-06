@@ -18,7 +18,8 @@ export const listWebhooks = (fetchApi: SessionFetch, page = 1) => sessionRequest
   items: z.array(webhookSchema),
   meta: z.object({ total: z.number(), page: z.number(), limit: z.number() }),
 }));
-export const createWebhook = (fetchApi: SessionFetch, input: object) =>
+export type CreateWebhookInput = { url: string; eventCode: string };
+export const createWebhook = (fetchApi: SessionFetch, input: CreateWebhookInput) =>
   sessionRequest(fetchApi, '/webhooks', revealedWebhookSchema, { method: 'POST', body: JSON.stringify(input) });
 export const rotateWebhookSecret = (fetchApi: SessionFetch, id: string) =>
   sessionRequest(fetchApi, `/webhooks/${id}/rotate-secret`, revealedWebhookSchema, { method: 'POST' });

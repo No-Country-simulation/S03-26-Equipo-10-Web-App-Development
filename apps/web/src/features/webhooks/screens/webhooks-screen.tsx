@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, Trash2, Webhook, Zap, ShieldAlert, Copy } from 'lucide-react';
 import { createWebhook, deleteWebhook, listWebhookDeliveries, listWebhooks, replayWebhookDelivery, rotateWebhookSecret, testWebhook } from '../api';
 import { PageControls } from '@/features/shared/pagination';
+import { actionFailureCopy, LoadFailure } from '@/features/shared/load-failure';
+import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 export type WebhookView = {
   id: string;
@@ -37,45 +39,41 @@ type DeliveryView = {
 
 export default function WebhooksPage() {
   const { session, fetchApi } = useSession();
-  const [webhooks, setWebhooks] = useState<WebhookView[]>([]);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [selectedWebhookId, setSelectedWebhookId] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<DeliveryView[]>([]);
   const [deliveryPage, setDeliveryPage] = useState(1);
   const [deliveryTotal, setDeliveryTotal] = useState(0);
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [deliveryError, setDeliveryError] = useState<unknown>(null);
+  const deliveryRequest = useRef(0);
   const [newSigningSecret, setNewSigningSecret] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listWebhooks(fetchApi, page);
-      setWebhooks(res.data.items);
-      setTotal(res.data.meta.total);
-    } catch { /* handled */ } finally {
-      setLoading(false);
-    }
-  }, [fetchApi, page]);
+  const load = useCallback(async () => (await listWebhooks(fetchApi, page)).data, [fetchApi, page]);
+  const { state, reload } = useRemoteResource(load, Boolean(session));
+  const webhooks: WebhookView[] = state.status === 'success' ? state.data.items : [];
+  const total = state.status === 'success' ? state.data.meta.total : 0;
 
-  useEffect(() => { if (session) void load(); }, [session, load]);
+  useEffect(() => () => { deliveryRequest.current += 1; }, [session?.user.tenantId]);
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setCreateLoading(true);
+    setActionMessage(null);
     const fd = new FormData(e.currentTarget);
     try {
       const result = await createWebhook(fetchApi, {
-        url: fd.get('url'),
-        eventCode: fd.get('eventCode'),
+        url: String(fd.get('url') ?? ''),
+        eventCode: String(fd.get('eventCode') ?? ''),
       });
       setNewSigningSecret(result.data.signingSecret);
       setShowForm(false);
-      void load();
+      reload();
     } catch (err) {
-      alert(`Error al crear webhook: ${err instanceof Error ? err.message : String(err)}`);
+      setActionMessage({ kind: 'error', text: actionFailureCopy(err, 'la creación del webhook') });
     } finally {
       setCreateLoading(false);
     }
@@ -86,9 +84,9 @@ export default function WebhooksPage() {
     try {
       const result = await rotateWebhookSecret(fetchApi, id);
       setNewSigningSecret(result.data.signingSecret);
-      void load();
+      reload();
     } catch (err) {
-      alert(`Error al rotar el secreto: ${err instanceof Error ? err.message : String(err)}`);
+      setActionMessage({ kind: 'error', text: actionFailureCopy(err, 'la rotación del secreto') });
     }
   }
 
@@ -96,30 +94,39 @@ export default function WebhooksPage() {
     if (!confirm('¿Seguro quieres eliminar este webhook?')) return;
     try {
       await deleteWebhook(fetchApi, id);
-      void load();
+      setActionMessage({ kind: 'success', text: 'Webhook eliminado.' });
+      reload();
     } catch (err) {
-      alert(`Error: ${err instanceof Error ? err.message : String(err)}`);
+      setActionMessage({ kind: 'error', text: actionFailureCopy(err, 'la eliminación del webhook') });
     }
   }
 
   async function handleTest(id: string) {
     try {
       await testWebhook(fetchApi, id);
-      alert('Evento de prueba encolado. Revisá el historial para ver el resultado de la entrega.');
+      setActionMessage({ kind: 'success', text: 'Evento de prueba encolado. Revisá el historial para ver el resultado de la entrega.' });
     } catch (err) {
-      alert(`Error enviando prueba: ${err instanceof Error ? err.message : String(err)}`);
+      setActionMessage({ kind: 'error', text: actionFailureCopy(err, 'el envío del evento de prueba') });
     }
   }
 
   async function showDeliveries(webhookId: string, requestedPage = 1) {
+    const requestId = ++deliveryRequest.current;
+    setSelectedWebhookId(webhookId);
+    setDeliveryPage(requestedPage);
+    setDeliveryLoading(true);
+    setDeliveryError(null);
+    setDeliveries([]);
     try {
       const res = await listWebhookDeliveries(fetchApi, webhookId, requestedPage);
-      setSelectedWebhookId(webhookId);
-      setDeliveries(res.data.items);
-      setDeliveryPage(requestedPage);
-      setDeliveryTotal(res.data.meta.total);
+      if (requestId === deliveryRequest.current) {
+        setDeliveries(res.data.items);
+        setDeliveryTotal(res.data.meta.total);
+      }
     } catch (err) {
-      alert(`Error cargando entregas: ${err instanceof Error ? err.message : String(err)}`);
+      if (requestId === deliveryRequest.current) setDeliveryError(err);
+    } finally {
+      if (requestId === deliveryRequest.current) setDeliveryLoading(false);
     }
   }
 
@@ -129,7 +136,7 @@ export default function WebhooksPage() {
       await replayWebhookDelivery(fetchApi, selectedWebhookId, deliveryId);
       await showDeliveries(selectedWebhookId, deliveryPage);
     } catch (err) {
-      alert(`Error reenviando entrega: ${err instanceof Error ? err.message : String(err)}`);
+      setActionMessage({ kind: 'error', text: actionFailureCopy(err, 'el reenvío de la entrega') });
     }
   }
 
@@ -154,19 +161,21 @@ export default function WebhooksPage() {
         </Button>
         <Button
           variant="ghost"
-          onClick={() => void load()}
+          onClick={reload}
           className="h-10 font-body text-xs uppercase tracking-wider"
         >
           <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
         </Button>
       </DashboardHeader>
 
+      {actionMessage && <p role={actionMessage.kind === 'error' ? 'alert' : 'status'} className="mb-4 border border-border bg-card p-3 font-body text-sm">{actionMessage.text}</p>}
+
       {newSigningSecret && (
         <div role="status" className="mb-6 border-l-4 border-primary bg-primary/10 p-4">
           <p className="font-body text-sm font-bold">Copiá el secreto de firma ahora. No volverá a mostrarse.</p>
           <div className="mt-2 flex gap-2">
             <code className="min-w-0 flex-1 overflow-x-auto border bg-background p-2 text-xs">{newSigningSecret}</code>
-            <Button type="button" variant="outline" onClick={() => void navigator.clipboard.writeText(newSigningSecret)}
+            <Button type="button" variant="outline" onClick={() => { void navigator.clipboard.writeText(newSigningSecret).catch(() => setActionMessage({ kind: 'error', text: 'No se pudo copiar el secreto. Seleccionalo y copialo manualmente.' })); }}
               aria-label="Copiar secreto de firma"><Copy className="h-4 w-4" /></Button>
           </div>
         </div>
@@ -175,12 +184,12 @@ export default function WebhooksPage() {
       {showForm && (
         <form onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-4">
           <div className="grid gap-2 sm:col-span-2">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">URL de Destino</Label>
-            <Input name="url" type="url" pattern="https://.*" required className="h-10 bg-transparent" placeholder="https://api.miproyecto.com/webhooks/..." />
+            <Label htmlFor="webhook-url" className="font-body text-[10px] font-bold uppercase tracking-widest">URL de Destino</Label>
+            <Input id="webhook-url" name="url" type="url" pattern="https://.*" required className="h-10 bg-transparent" placeholder="https://api.miproyecto.com/webhooks/..." />
           </div>
           <div className="grid gap-2 sm:col-span-2">
-            <Label className="font-body text-[10px] font-bold uppercase tracking-widest">Evento a Suscribir</Label>
-            <select name="eventCode" required className="h-10 border bg-transparent font-body text-sm px-3 focus:outline-none focus:ring-1 focus:ring-primary w-full">
+            <Label htmlFor="webhook-event" className="font-body text-[10px] font-bold uppercase tracking-widest">Evento a Suscribir</Label>
+            <select id="webhook-event" name="eventCode" required className="h-10 w-full border bg-transparent px-3 font-body text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
               <option value="testimonial.created" className="text-black">1. Nuevo Testimonio Creado (testimonial.created)</option>
               <option value="testimonial.published" className="text-black">2. Testimonio Publicado (testimonial.published)</option>
             </select>
@@ -193,11 +202,13 @@ export default function WebhooksPage() {
         </form>
       )}
 
-      {loading ? (
+      {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20">
           <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
           <span className="font-body text-sm text-muted-foreground">Cargando...</span>
         </div>
+      ) : state.status === 'error' ? (
+        <LoadFailure error={state.error} resource="los webhooks" onRetry={reload} />
       ) : webhooks.length === 0 ? (
         <div className="border border-dashed p-12 text-center">
           <p className="font-body text-sm text-muted-foreground">No hay destinos webhook configurados.</p>
@@ -254,7 +265,7 @@ export default function WebhooksPage() {
                   <td className="py-4 text-right">
                     <div className="flex justify-end gap-1">
                       {!w.deletedAt && (
-                        <Button variant="ghost" size="sm" onClick={() => handleTest(w.id)} className="text-blue-500 hover:bg-blue-500/10 hover:text-blue-500">
+                        <Button variant="ghost" size="sm" onClick={() => handleTest(w.id)} aria-label={`Probar webhook ${w.url}`} className="text-blue-500 hover:bg-blue-500/10 hover:text-blue-500">
                           <Zap className="h-4 w-4" />
                         </Button>
                       )}
@@ -267,7 +278,7 @@ export default function WebhooksPage() {
                         </Button>
                       )}
                       {!w.deletedAt && (
-                        <Button variant="ghost" size="sm" onClick={() => handleRemove(w.id)} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+                        <Button variant="ghost" size="sm" onClick={() => handleRemove(w.id)} aria-label={`Eliminar webhook ${w.url}`} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
@@ -285,7 +296,11 @@ export default function WebhooksPage() {
                   Actualizar
                 </Button>
               </div>
-              {deliveries.length === 0 ? (
+              {deliveryLoading ? (
+                <p role="status" className="font-body text-sm text-muted-foreground">Cargando entregas...</p>
+              ) : deliveryError ? (
+                <LoadFailure error={deliveryError} resource="las entregas" onRetry={() => void showDeliveries(selectedWebhookId, deliveryPage)} />
+              ) : deliveries.length === 0 ? (
                 <p className="font-body text-sm text-muted-foreground">Todavía no hay entregas.</p>
               ) : (
                 <ul className="space-y-2">
@@ -306,13 +321,13 @@ export default function WebhooksPage() {
                   ))}
                 </ul>
               )}
-              <PageControls page={deliveryPage} total={deliveryTotal} limit={20}
-                onChange={(next) => void showDeliveries(selectedWebhookId, next)} />
+              {!deliveryError && !deliveryLoading && <PageControls page={deliveryPage} total={deliveryTotal} limit={20}
+                onChange={(next) => void showDeliveries(selectedWebhookId, next)} />}
             </section>
           )}
         </div>
       )}
-      <PageControls page={page} total={total} limit={20} onChange={setPage} />
+      {state.status === 'success' && <PageControls page={page} total={total} limit={20} onChange={setPage} />}
     </>
   );
 }

@@ -1,7 +1,7 @@
 # Plan HITL: remediación del código frente a diez skills web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; fase 3 lista para revisión humana con integración PostgreSQL pendiente
+**Estado global:** En progreso; fase 4 lista para revisión humana. La integración PostgreSQL de la fase 3 permanece pendiente de un entorno aislado.
 **Alcance:** Código activo de `apps/api` y `apps/web`, pruebas y documentación de los contratos modificados. El plan no incorpora por sí mismo capacidades SEO futuras.
 
 ## Contexto y restricciones
@@ -67,7 +67,7 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 **Review humano (ACK):** Recibido el 2026-10-05: «Continua», tras solicitar expresamente el ACK de esta fase y autorización para modificar `apps/api/prisma/schema.prisma`. Commit observado: `50a1fbe`.
 **Commit sugerido:** `docs(api): definí los contratos de idempotencia y captura`.
 
-### `[Actual]` Fase 3: corregir API y persistencia
+### `[Completada]` Fase 3: corregir API y persistencia
 
 - [x] Implementar el protocolo en cuatro rutas con tenant y actor autenticados; reserva, mutación/outbox y resultado comparten transacción PostgreSQL. Retirar el interceptor anterior y `@Idempotent()` de registro y analítica pública.
 - [x] Actualizar `schema.prisma`, preparar migración, controladores, repositorios, OpenAPI y pruebas sin aplicar SQL a ningún entorno.
@@ -79,15 +79,19 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 
 **Riesgo pendiente:** la garantía depende de aplicar la migración en un despliegue coordinado y verificar la suite PostgreSQL; la caída real de proceso y el recorrido HTTP esperan un entorno de integración. La interfaz aún debe presentar el nuevo `409` de forma comprensible en la fase 4.
 
-**Review humano (ACK):** Pendiente.  
+**Review humano (ACK):** Recibido el 2026-10-06: «Continua». La verificación PostgreSQL indicada arriba sigue como límite explícito, sin afirmar que se ejecutó.
 **Commit sugerido:** `fix(api): asegurá la idempotencia y la respuesta de captura`.
 
-### `[Pendiente]` Fase 4: interfaz y consumo HTTP
+### `[Actual]` Fase 4: interfaz y consumo HTTP
 
-- Corregir controles y feedback de captura, contraste, foco, movimiento reducido y navegación móvil con teclado y gestión de foco.
-- Diferenciar vacío, ausencia, permiso, límite y fallo recuperable en pantallas activas; añadir reintento, cancelación o descarte de respuestas obsoletas, tipos y validación de datos externos pertinentes.
+- [x] Asociar etiquetas y nombres accesibles a captura, creación y edición de testimonios, usuarios, API keys y webhooks; usar radios nativos para calificación, foco visible y mensajes dentro de la página.
+- [x] Evitar la confirmación falsa de captura: validar la respuesta `success` con ID y distinguir `409 PUBLIC_SUBMISSION_RECENT_BROWSER`, `429` y el fallo de confirmación sin perder el texto ingresado.
+- [x] Ajustar los tokens claros, el movimiento reducido y el panel móvil con menú Radix, estado de navegación y cierre al navegar; usar `min-w-0` y contenedores con desplazamiento horizontal para tablas.
+- [x] Separar carga, vacío y errores `401`/`403`/`404`/`429`/red con reintento cuando corresponde; descartar resultados obsoletos por cambio de ruta, sesión o página en los listados activos, muro público y captura.
 
 **Criterio de salida:** no hay éxito falso, control sin nombre accesible, fallo mostrado como vacío ni desbordamiento del dashboard a 320 px en las rutas verificadas.  
+**Evidencia local:** con Node 24.19.0, typecheck y lint web pasan (0 errores, 11 advertencias preexistentes); Vitest pasa 25 pruebas en 12 archivos, incluidos carga fallida con reintento, respuesta de captura y descarte de datos obsoletos. El build de Next.js 15.5 con `NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1` pasa y genera 26 páginas. El primer intento de build se detuvo por faltar esa variable requerida; un typecheck ejecutado a la vez que el segundo build chocó con la regeneración de `.next/types`, y el typecheck repetido después del build pasó. `git diff --check` pasa. Todo esto es provisional por la versión de Node, inferior al mínimo declarado. No hubo navegador autenticado en esta fase, por lo que el ancho de 320 px, teclado, contraste percibido y WCAG 2.2 AA permanecen pendientes de verificación manual de la fase 6. La CSP, imágenes y metadata pertenecen a la fase 5.
+**Contratos que requieren otra fase:** los DTO actuales no permiten enviar `null` para quitar un slug público ni una categoría ya asignada. La web ahora evita esos payloads inválidos y explica la limitación; ampliar ambos contratos exige una decisión de API. La revisión de los DTO también reveló que las expresiones de contraseña de registro y usuarios contienen `(?=.*d)` en vez de una condición de dígito; este defecto de política de contraseñas queda registrado para corrección con prueba de regresión en la fase 6 o en una fase API adicional aprobada, antes de cerrar el plan.
 **Review humano (ACK):** Pendiente.  
 **Commit sugerido:** `fix(web): corregí accesibilidad, estados y navegación móvil`.
 
@@ -103,6 +107,7 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 ### `[Pendiente]` Fase 6: pruebas y reevaluación
 
 - Añadir pruebas API de concurrencia, conflicto, repetición y aislamiento; pruebas web de captura, errores, navegación y moderación; pruebas de navegador y accesibilidad automatizada para flujos principales.
+- Corregir y probar la validación de contraseñas de `auth` y `users` detectada durante la fase 4, o separar esa corrección en una fase API aprobada antes de dar el plan por cerrado.
 - Revisar manualmente teclado, foco, 320 px y temas. Ejecutar typecheck, lint, tests y builds de ambos workspaces con Node >=24.21.0 y npm 11.19.0. Usar PostgreSQL/Redis de prueba solo si están disponibles y sin migrar entornos ajenos.
 - Repetir la matriz de las diez skills, registrar evidencia y aspectos no verificables. Actualizar documentación de contratos y `llm.txt` solo si la arquitectura realmente cambió.
 

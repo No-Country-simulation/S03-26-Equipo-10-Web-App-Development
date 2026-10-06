@@ -9,7 +9,8 @@ export const userSchema = z.object({
 
 export const listUsers = (fetchApi: SessionFetch, page = 1) =>
   sessionRequest(fetchApi, pagePath('/users', page), paginatedSchema(userSchema));
-export const createUser = (fetchApi: SessionFetch, input: object) =>
+export type CreateUserInput = { email: string; password: string; role: 'admin' | 'editor' };
+export const createUser = (fetchApi: SessionFetch, input: CreateUserInput) =>
   sessionRequest(fetchApi, '/users', userSchema, { method: 'POST', body: JSON.stringify(input) });
 export const deleteUser = (fetchApi: SessionFetch, id: string) =>
   sessionRequest(fetchApi, `/users/${id}`, deletedSchema, { method: 'DELETE' });

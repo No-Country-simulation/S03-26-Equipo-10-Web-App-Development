@@ -15,7 +15,7 @@ export function DashboardHeader({ title, description, children }: DashboardHeade
           <p className="mt-2 max-w-xl font-body text-sm text-muted-foreground">{description}</p>
         )}
       </div>
-      {children && <div className="flex items-center gap-3">{children}</div>}
+      {children && <div className="flex flex-wrap items-center gap-3">{children}</div>}
     </div>
   );
 }

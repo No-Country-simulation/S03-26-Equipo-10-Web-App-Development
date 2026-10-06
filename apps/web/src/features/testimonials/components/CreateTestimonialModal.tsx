@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { listCategories, listTags } from '@/features/catalog/api';
 import { PageControls } from '@/features/shared/pagination';
 import { createTestimonial } from '../api';
+import { actionFailureCopy } from '@/features/shared/load-failure';
 
 interface CreateTestimonialModalProps {
   open: boolean;
@@ -35,6 +36,8 @@ export function CreateTestimonialModal({
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [metaError, setMetaError] = useState(false);
 
   // Metadata
   const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
@@ -45,20 +48,24 @@ export function CreateTestimonialModal({
   const [tagTotal, setTagTotal] = useState(0);
 
   useEffect(() => {
+    let active = true;
     async function loadMeta() {
       if (!open) return;
+      setMetaError(false);
       try {
         const [catRes, tagRes] = await Promise.all([
           listCategories(fetchApi, categoryPage, 20),
           listTags(fetchApi, tagPage, 20),
         ]);
+        if (!active) return;
         setCategories(previous => [...previous.filter(item => item.id === categoryId && !catRes.data.items.some(next => next.id === item.id)), ...catRes.data.items]);
         setAllTags(previous => [...previous.filter(item => tagIds.includes(item.id) && !tagRes.data.items.some(next => next.id === item.id)), ...tagRes.data.items]);
         setCategoryTotal(catRes.data.meta.total);
         setTagTotal(tagRes.data.meta.total);
-      } catch (e) { console.error('Error loading meta', e); }
+      } catch { if (active) setMetaError(true); }
     }
     void loadMeta();
+    return () => { active = false; };
   }, [open, fetchApi, categoryPage, tagPage, categoryId, tagIds]);
 
   function resetForm() {
@@ -67,6 +74,7 @@ export function CreateTestimonialModal({
     setRating(5);
     setCategoryId(null);
     setTagIds([]);
+    setFormError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -74,6 +82,7 @@ export function CreateTestimonialModal({
     if (!authorName.trim() || !content.trim()) return;
 
     setSubmitting(true);
+    setFormError(null);
     try {
       await createTestimonial(fetchApi, {
         authorName,
@@ -86,7 +95,7 @@ export function CreateTestimonialModal({
       onCreated();
       onOpenChange(false);
     } catch (err) {
-      alert('Error creando testimonio: ' + (err instanceof Error ? err.message : String(err)));
+      setFormError(actionFailureCopy(err, 'la creación del testimonio'));
     } finally {
       setSubmitting(false);
     }
@@ -111,32 +120,38 @@ export function CreateTestimonialModal({
               </span>
             </header>
 
+            {formError && <p role="alert" className="mb-6 border border-destructive p-3 font-body text-sm">{formError}</p>}
+            {metaError && <p role="alert" className="mb-6 border border-destructive p-3 font-body text-sm">No se pudieron cargar categorías y etiquetas. Cerrá y abrí el formulario para reintentar.</p>}
+
             {/* Author */}
             <div className="mb-8">
-              <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <Label htmlFor="new-testimonial-author" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Autor del testimonio
               </Label>
               <input
+                id="new-testimonial-author"
                 type="text"
                 required
                 value={authorName}
                 onChange={(e) => setAuthorName(e.target.value)}
                 placeholder="Nombre completo del cliente"
-                className="w-full mt-3 bg-transparent font-caption text-2xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/40 focus:outline-none border-b-2 border-border focus:border-primary pb-2 transition-colors"
+                className="w-full mt-3 bg-transparent font-caption text-2xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary pb-2 transition-colors"
               />
             </div>
 
             {/* Content */}
             <div>
-              <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <Label htmlFor="new-testimonial-content" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Contenido del testimonio
               </Label>
               <textarea
+                id="new-testimonial-content"
                 required
+                minLength={10}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="Escribe aquí la experiencia del cliente con tu producto o servicio..."
-                className="w-full mt-3 bg-transparent font-caption text-xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/30 focus:outline-none border-b-2 border-border focus:border-primary resize-none min-h-[180px] transition-colors"
+                className="w-full mt-3 bg-transparent font-caption text-xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary resize-y min-h-[180px] transition-colors"
               />
             </div>
           </div>
@@ -145,27 +160,27 @@ export function CreateTestimonialModal({
           <div className="w-full md:w-[280px] bg-background p-6 flex flex-col justify-between gap-8 overflow-y-auto">
 
             {/* Rating */}
-            <div className="space-y-4">
-              <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block">
+            <fieldset className="space-y-4">
+              <legend className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Valoración del cliente
-              </Label>
+              </legend>
               <div className="flex justify-center gap-2 py-4">
                 {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onClick={() => setRating(star)}
-                    className="transition-transform hover:scale-125 focus:outline-none"
-                  >
-                    <Star
+                  <label key={star} className="cursor-pointer">
+                    <input type="radio" name="new-testimonial-rating" value={star} checked={rating === star}
+                      onChange={() => setRating(star)} aria-label={`${star} ${star === 1 ? 'estrella' : 'estrellas'}`}
+                      className="peer sr-only" />
+                    <span className="flex h-10 w-10 items-center justify-center transition-transform hover:scale-110 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring motion-reduce:transform-none">
+                    <Star aria-hidden="true"
                       className={cn(
                         'h-8 w-8 transition-colors',
                         rating >= star
                           ? 'fill-primary text-primary'
-                          : 'text-muted-foreground/20 hover:text-muted-foreground/40',
+                          : 'text-muted-foreground/60',
                       )}
                     />
-                  </button>
+                    </span>
+                  </label>
                 ))}
               </div>
               <p className="text-center font-body text-xs text-muted-foreground">
@@ -175,20 +190,21 @@ export function CreateTestimonialModal({
                 {rating === 2 && 'Regular'}
                 {rating === 1 && 'Malo'}
               </p>
-            </div>
+            </fieldset>
 
             <div className="h-px bg-border" />
 
             {/* Categorization */}
             <div className="space-y-4">
               <div>
-                <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">
+                <Label htmlFor="new-testimonial-category" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground block mb-2">
                   Categoría
                 </Label>
                 <select 
+                  id="new-testimonial-category"
                   value={categoryId || ''} 
                   onChange={e => setCategoryId(e.target.value || null)}
-                  className="w-full bg-background border-b border-border p-2 font-body text-xs focus:outline-none focus:border-primary transition-colors"
+                  className="w-full bg-background border-b border-border p-2 font-body text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary transition-colors"
                 >
                   <option value="">Sin Categoría</option>
                   {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -205,13 +221,14 @@ export function CreateTestimonialModal({
                     <button
                       key={tag.id}
                       type="button"
+                      aria-pressed={tagIds.includes(tag.id)}
                       onClick={() => {
                         setTagIds(prev => 
                           prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
                         );
                       }}
                       className={cn(
-                        "font-body text-[8px] uppercase tracking-wider px-2 py-1 transition-colors",
+                        "min-h-8 font-body text-[10px] uppercase tracking-wider px-2 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                         tagIds.includes(tag.id) 
                           ? "bg-primary text-primary-foreground" 
                           : "bg-muted text-muted-foreground hover:bg-muted/80"
