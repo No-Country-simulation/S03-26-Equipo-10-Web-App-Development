@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TestimonialsScreen } from './testimonials-screen';
+import { ApiError } from '@/lib/api';
 
 const { fetchApi, session } = vi.hoisted(() => ({
   fetchApi: vi.fn(),
@@ -63,5 +64,23 @@ describe('TestimonialsScreen', () => {
     expect(screen.queryByText(/No hay testimonios/)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByRole('row', { name: /Ana/ })).toBeInTheDocument();
+  });
+
+  it('keeps the moderation decision visible when the API reports a conflict', async () => {
+    fetchApi.mockImplementation(async (path: string) => {
+      if (path.endsWith('/approve')) throw new ApiError('conflict', 'TESTIMONIAL_CONFLICT', 409);
+      if (path.startsWith('/testimonials?page=')) return { success: true,
+        data: { items: records, meta: { page: 1, limit: 20, total: records.length } } };
+      return { success: true, data: { items: [], meta: { page: 1, limit: 100, total: 0 } } };
+    });
+    const user = userEvent.setup();
+    render(<TestimonialsScreen />);
+
+    const row = await screen.findByRole('row', { name: /Beto/ });
+    await user.click(within(row).getByRole('button', { name: /Abrir Testimonio/ }));
+    await user.click(await screen.findByRole('button', { name: 'Aprobar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El recurso cambió o hay un conflicto');
+    expect(screen.getByRole('button', { name: 'Aprobar' })).toBeEnabled();
   });
 });

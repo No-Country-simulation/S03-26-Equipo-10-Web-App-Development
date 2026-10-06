@@ -255,12 +255,12 @@ export function CreateTestimonialModal({
                   &ldquo;{content}&rdquo;
                 </p>
               ) : (
-                <p className="font-body text-xs text-muted-foreground/40">
+                <p className="font-body text-xs text-muted-foreground">
                   El extracto aparecerá aquí...
                 </p>
               )}
               {authorName.trim() && (
-                <p className="font-body text-[10px] font-bold uppercase tracking-wider text-foreground/40 mt-2">
+                <p className="font-body text-[10px] font-bold uppercase tracking-wider text-foreground/70 mt-2">
                   — {authorName}
                 </p>
               )}

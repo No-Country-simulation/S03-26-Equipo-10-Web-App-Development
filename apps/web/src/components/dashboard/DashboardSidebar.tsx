@@ -19,7 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 interface NavItem {
   label: string;
@@ -71,7 +71,7 @@ function SidebarContent({ userEmail, userRoles, isAdmin, onLogout, onNavigate }:
       {/* Navigation */}
       <nav aria-label="Navegación del panel" className="flex-1 overflow-y-auto py-6">
         <div className="px-3">
-          <p className="mb-3 px-3 font-body text-[10px] font-bold uppercase tracking-widest text-background/40">
+          <p className="mb-3 px-3 font-body text-[10px] font-bold uppercase tracking-widest text-background/70">
             Panel
           </p>
           {visibleItems.slice(0, 5).map((item) => {
@@ -101,7 +101,7 @@ function SidebarContent({ userEmail, userRoles, isAdmin, onLogout, onNavigate }:
 
         {isAdmin && (
           <div className="mt-6 px-3">
-            <p className="mb-3 px-3 font-body text-[10px] font-bold uppercase tracking-widest text-background/40">
+            <p className="mb-3 px-3 font-body text-[10px] font-bold uppercase tracking-widest text-background/70">
               Administración
             </p>
             {visibleItems.slice(5).map((item) => {
@@ -185,6 +185,7 @@ export function DashboardSidebar(props: DashboardSidebarProps) {
           </SheetTrigger>
           <SheetContent side="left" className="w-64 p-0 bg-foreground text-background [&>button]:text-background">
             <SheetTitle className="sr-only">Navegación del panel</SheetTitle>
+            <SheetDescription className="sr-only">Enlaces a las secciones del panel de administración.</SheetDescription>
             <SidebarContent {...props} onNavigate={() => setMobileOpen(false)} />
           </SheetContent>
         </Sheet>

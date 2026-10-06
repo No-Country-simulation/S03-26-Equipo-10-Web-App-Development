@@ -57,6 +57,6 @@ describe('WebhooksService SSRF boundary', () => {
     expect(outbox.createEvent).toHaveBeenCalledWith({
       tenantId: 'tenant', eventType: 'testimonial.created',
       payload: { test: true }, targetWebhookId: 'webhook',
-    });
+    }, undefined);
   });
 });

@@ -1,15 +1,16 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+import { PasswordSchema } from '../../../common/validation/password.schema';
 
 const CreateUserSchema = z.object({
   email: z.string().email(),
-  password: z.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*d)(?=.*[^A-Za-zd]).{8,72}$/, 'Password must contain uppercase, lowercase, number and special character'),
+  password: PasswordSchema,
   role: z.enum(['admin', 'editor']),
 });
 export class CreateUserDto extends createZodDto(CreateUserSchema) {}
 
 const UpdateUserSchema = z.object({
-  password: z.string().regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*d)(?=.*[^A-Za-zd]).{8,72}$/, 'Password must contain uppercase, lowercase, number and special character').optional(),
+  password: PasswordSchema.optional(),
   role: z.enum(['admin', 'editor']).optional(),
   isActive: z.boolean().optional(),
 });

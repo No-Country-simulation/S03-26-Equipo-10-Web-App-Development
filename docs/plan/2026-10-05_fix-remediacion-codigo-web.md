@@ -1,7 +1,7 @@
 # Plan HITL: remediación del código frente a diez skills web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; fase 5 lista para revisión humana. La integración PostgreSQL de la fase 3 permanece pendiente de un entorno aislado.
+**Estado global:** En progreso; fase 6 lista para revisión humana. La integración PostgreSQL de la fase 3 permanece pendiente de un entorno aislado.
 **Alcance:** Código activo de `apps/api` y `apps/web`, pruebas y documentación de los contratos modificados. El plan no incorpora por sí mismo capacidades SEO futuras.
 
 ## Contexto y restricciones
@@ -95,7 +95,7 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 **Review humano (ACK):** Recibido el 2026-10-06: «Continuar». Commit observado: `4c1fe8c`.
 **Commit sugerido:** `fix(web): corregí accesibilidad, estados y navegación móvil`.
 
-### `[Actual]` Fase 5: carga, CSP y SEO vigente
+### `[Completada]` Fase 5: carga, CSP y SEO vigente
 
 - [x] Construir la CSP desde el origen validado de `NEXT_PUBLIC_API_URL`, Cloudinary y YouTube; reservar `unsafe-eval` para desarrollo. Conservar `unsafe-inline` porque las páginas estáticas de Next 15 aún generan scripts inline y no se adoptó una política de nonce con render dinámico.
 - [x] Verificar la respuesta de producción y el recorrido público en navegador: `connect-src` permite la API local simulada, cargan imágenes de `i.ytimg.com` y `res.cloudinary.com`, y el reproductor crea su iframe de `www.youtube.com` tras interacción.
@@ -105,15 +105,44 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 **Criterio de salida:** recursos necesarios cargan sin ampliar la CSP a hosts arbitrarios; metadata no afirma un dominio no confirmado y no se inventa indexabilidad.
 **Evidencia local:** build de Next.js 15.5, typecheck y Vitest (25/25 en 12 archivos) pasan con Node 24.19.0; lint termina con 0 errores y 10 advertencias existentes. `git diff --check` pasa. En `next start` sobre `127.0.0.1:3100`, el header `Content-Security-Policy` leído por HTTP no contiene `unsafe-eval`; la landing solo carga su favicon local y ya no intenta `i.pravatar.cc`. Con una API simulada temporal en `localhost:4000` y testimonios ficticios, el navegador cargó `/t/demo`, la miniatura de YouTube y una imagen pública de Cloudinary; al activar el video se creó el iframe `www.youtube.com`. `/p/demo` mostró el formulario, título y descripción propios y un único `main`. No hubo errores de consola registrados en ese recorrido. Se detuvieron ambos servidores temporales y se eliminó el archivo de prueba de `/tmp`.
 **Límites:** la API simulada prueba orígenes y render de las rutas, no el despliegue real, todos los medios posibles, la sesión administrativa, indexabilidad ni métricas de campo. El build y los checks siguen siendo provisionales porque Node 24.19.0 está por debajo del mínimo del repositorio. La URL y la política de indexación productivas siguen sin definición aprobada; la fase 6 conservará esa distinción y verificará el navegador con el entorno final disponible.
-**Review humano (ACK):** Pendiente.  
+**Review humano (ACK):** Recibido el 2026-10-06: «continua». Commit observado: `a562601`.
 **Commit sugerido:** `perf(web): ajustá carga pública, CSP y metadata vigente`.
 
-### `[Pendiente]` Fase 6: pruebas y reevaluación
+### `[Actual]` Fase 6: pruebas y reevaluación
 
-- Añadir pruebas API de concurrencia, conflicto, repetición y aislamiento; pruebas web de captura, errores, navegación y moderación; pruebas de navegador y accesibilidad automatizada para flujos principales.
-- Corregir y probar la validación de contraseñas de `auth` y `users` detectada durante la fase 4, o separar esa corrección en una fase API aprobada antes de dar el plan por cerrado.
-- Revisar manualmente teclado, foco, 320 px y temas. Ejecutar typecheck, lint, tests y builds de ambos workspaces con Node >=24.21.0 y npm 11.19.0. Usar PostgreSQL/Redis de prueba solo si están disponibles y sin migrar entornos ajenos.
-- Repetir la matriz de las diez skills, registrar evidencia y aspectos no verificables. Actualizar documentación de contratos y `llm.txt` solo si la arquitectura realmente cambió.
+- [x] Mantener las pruebas API de concurrencia, conflicto, repetición y aislamiento preparadas para PostgreSQL aislado; ampliar las pruebas web de captura, errores, navegación y moderación, y ejecutar recorridos de navegador y comprobaciones DOM de accesibilidad en flujos principales.
+- [x] Corregir y probar la validación de contraseñas de `auth` y `users` detectada durante la fase 4.
+- [x] Revisar teclado, foco, 320 px y temas en las rutas recorridas. Ejecutar typecheck, lint, tests y builds de ambos workspaces con Node 24.21.0. Comprobar disponibilidad de PostgreSQL y Redis sin aplicar migraciones.
+- [x] Repetir la matriz de las diez skills y registrar límites. No hubo cambios arquitectónicos que requieran actualizar `llm.txt`.
+
+**Evidencia de fase 6:** La regla compartida de contraseñas acepta dígitos reales y rechaza su ausencia en los tres DTO; seis casos nuevos pasan. La suite API completa pasó con sockets localhost autorizados: 38 suites y 185 tests correctos, 13 suites y 38 tests omitidos por requerir servicios de prueba. El primer intento dentro del sandbox produjo `listen EPERM`; además se corrigió una expectativa antigua del argumento transaccional de `createEvent`. PostgreSQL no respondió en `127.0.0.1:5432`, no se configuraron `TEST_DATABASE_URL` ni `TEST_REDIS_URL`, y Docker no permitió consultar su daemon. Por ello, la concurrencia y el aislamiento multi-tenant en PostgreSQL siguen **no verificables en integración real**; no se aplicó migración.
+
+Con Node 24.21.0, API y web pasan typecheck y build. Web: 30/30 tests en 13 archivos; API: 185 tests ejecutados correctos. ESLint termina con 0 errores y 2 advertencias en API, 0 errores y 10 advertencias en web. No se encontró el CLI de npm en este entorno; los scripts se invocaron mediante los binarios locales con Node 24.21.0, por lo que la versión de npm declarada no pudo comprobarse aquí. La compilación web produjo 26 rutas.
+
+| Directorio | Comandos ejecutados con Node 24.21.0 | Resultado |
+| --- | --- | --- |
+| `apps/api` | `../../node_modules/.bin/tsc -p tsconfig.json --noEmit`; `node_modules/.bin/nest build`; `../../node_modules/.bin/eslint '{src,test}/**/*.ts'` | Correctos; lint con 2 advertencias. |
+| `apps/api` | `../../node_modules/.bin/jest --runInBand --silent` con sockets localhost autorizados | 185 pasados, 38 omitidos por servicios no configurados. |
+| `apps/web` | `../../node_modules/.bin/vitest run`; `../../node_modules/.bin/tsc --noEmit`; `../../node_modules/.bin/eslint .` | 30 pasados; typecheck correcto; lint con 10 advertencias. |
+| `apps/web` | `NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1 ../../node_modules/.bin/next build` | Correcto; 26 rutas. |
+| Raíz | `git diff --check`; `pg_isready -h 127.0.0.1 -p 5432` | Diff sin errores; PostgreSQL sin respuesta. |
+
+En navegador local, `/p/demo` pasó de 332 px de contenido a 305 px para un viewport de 320 px tras corregir la columna implícita; `/t/demo` y `/admin/testimonials` no desbordaron el documento. El menú móvil se abrió con Enter, se cerró con Escape y devolvió el foco al botón. El tema claro mostró fondo y texto correctos; se revisó también el oscuro. La captura tuvo un solo `main`, cero campos/botones sin nombre en el barrido DOM acotado y foco de 2 px en el campo siguiente al tabular. Se reforzó la legibilidad de textos auxiliares con opacidad baja. Estos recorridos usaron una API simulada con datos ficticios; el [protocolo de navegador](../../apps/web/src/tests/e2e/README.md) registra pasos y límites. No se incorporó un runner E2E persistente ni axe en CI; es una mejora P3 pendiente de elegir dependencia y entorno aislado.
+
+| Skill | Reevaluación de fase 6 | Límite concreto |
+| --- | --- | --- |
+| Cognitive Interface | Cumple parcialmente | Captura y moderación probadas; no hubo pruebas con usuarios ni evaluación perceptiva exhaustiva. |
+| CSS Architecture | Cumple parcialmente | Sin desbordamiento a 320 px en tres rutas; contraste de todas las combinaciones no auditado. |
+| JavaScript/TypeScript | Cumple | Typecheck de ambos workspaces pasó; DTO de contraseña corregidos y probados. |
+| Next.js Frontend | Cumple | Rutas y estados revisados; el recorrido administrativo usó API simulada. |
+| Next.js Architecture | Cumple | No se cambió la frontera Next/NestJS ni se introdujo caché privada compartida. |
+| Node/Next API | Cumple parcialmente | Suite HTTP pasó; garantía de idempotencia concurrente en PostgreSQL real no verificable aquí. |
+| React Interface | Cumple parcialmente | Flujos probados; no hay runner E2E persistente ni cobertura de cada pantalla. |
+| Tailwind Architecture | Cumple parcialmente | Foco y tokens comprobados de forma acotada, no en toda la UI. |
+| SEO y Accessibility | Cumple parcialmente | Semántica, nombres y foco de rutas revisadas; WCAG 2.2 AA e indexación no verificables con este recorrido. |
+| Web Rendering | Cumple parcialmente | Carga cliente y errores comprobados; Core Web Vitals de campo y SSR público no forman parte de esta fase. |
+
+**Hallazgos P1/P2 verificables abiertos en el alcance probado:** ninguno. **Pendientes condicionados:** ejecutar las suites PostgreSQL/Redis en un entorno aislado ya migrado, adoptar E2E/axe en CI y definir host y política de indexación antes de cualquier trabajo SEO futuro. La ausencia de esos datos no se interpreta como aprobación de idempotencia en despliegue, WCAG, indexabilidad o métricas de campo.
 
 **Criterio de salida:** cero hallazgos P1/P2 verificables abiertos, checks ejecutados o bloqueo explicado, matriz final con límites de evidencia. No declarar conformidad WCAG, indexabilidad ni Core Web Vitals sin pruebas suficientes.  
 **Review humano (ACK):** Pendiente; cerrar el plan solo tras recibirlo.  

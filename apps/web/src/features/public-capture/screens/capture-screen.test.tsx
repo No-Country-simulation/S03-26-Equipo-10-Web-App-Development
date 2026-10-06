@@ -48,4 +48,30 @@ describe('PublicCapturePage', () => {
     expect(screen.getByRole('textbox', { name: 'Contanos tu historia' })).toHaveValue('Excelente atención del equipo');
     expect(screen.queryByRole('heading', { name: '¡Muchas gracias!' })).not.toBeInTheDocument();
   });
+
+  it('distinguishes rate limiting from a saved submission', async () => {
+    submitPublicTestimonial.mockRejectedValueOnce(new ApiError('rate limit', 'RATE_LIMITED', 429));
+    const user = userEvent.setup();
+    render(<PublicCapturePage />);
+
+    await screen.findByRole('heading', { name: 'Acme' });
+    await user.type(screen.getByRole('textbox', { name: 'Contanos tu historia' }), 'Excelente atención del equipo');
+    await user.type(screen.getByRole('textbox', { name: 'Tu Nombre Completo' }), 'Ana');
+    await user.click(screen.getByRole('button', { name: 'Enviar testimonio' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Alcanzaste el límite de envíos');
+    expect(screen.getByRole('textbox', { name: 'Contanos tu historia' })).toHaveValue('Excelente atención del equipo');
+    expect(screen.queryByRole('heading', { name: '¡Muchas gracias!' })).not.toBeInTheDocument();
+  });
+
+  it('offers retry after a recoverable form load error', async () => {
+    getFormInfo.mockRejectedValueOnce(new Error('network unavailable'));
+    const user = userEvent.setup();
+    render(<PublicCapturePage />);
+
+    expect(await screen.findByRole('heading', { name: /No se pudo cargar/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(await screen.findByRole('heading', { name: 'Acme' })).toBeInTheDocument();
+    expect(getFormInfo).toHaveBeenCalledTimes(2);
+  });
 });
