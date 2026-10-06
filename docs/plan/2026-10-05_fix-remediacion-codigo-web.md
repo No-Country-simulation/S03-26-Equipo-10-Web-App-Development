@@ -1,7 +1,7 @@
 # Plan HITL: remediación del código frente a diez skills web
 
 **Fecha de inicio:** 2026-10-05  
-**Estado global:** En progreso; fase 6 lista para revisión humana. La integración PostgreSQL de la fase 3 permanece pendiente de un entorno aislado.
+**Estado global:** Completado con ACK de las seis fases. La integración PostgreSQL y Redis, WCAG 2.2 AA, indexabilidad y Core Web Vitals conservan los límites de verificación indicados abajo.
 **Alcance:** Código activo de `apps/api` y `apps/web`, pruebas y documentación de los contratos modificados. El plan no incorpora por sí mismo capacidades SEO futuras.
 
 ## Contexto y restricciones
@@ -108,7 +108,7 @@ La fase 2 fijará el contrato de `Idempotency-Key`: sin clave no se anuncia gara
 **Review humano (ACK):** Recibido el 2026-10-06: «continua». Commit observado: `a562601`.
 **Commit sugerido:** `perf(web): ajustá carga pública, CSP y metadata vigente`.
 
-### `[Actual]` Fase 6: pruebas y reevaluación
+### `[Completada]` Fase 6: pruebas y reevaluación
 
 - [x] Mantener las pruebas API de concurrencia, conflicto, repetición y aislamiento preparadas para PostgreSQL aislado; ampliar las pruebas web de captura, errores, navegación y moderación, y ejecutar recorridos de navegador y comprobaciones DOM de accesibilidad en flujos principales.
 - [x] Corregir y probar la validación de contraseñas de `auth` y `users` detectada durante la fase 4.
@@ -145,7 +145,7 @@ En navegador local, `/p/demo` pasó de 332 px de contenido a 305 px para un view
 **Hallazgos P1/P2 verificables abiertos en el alcance probado:** ninguno. **Pendientes condicionados:** ejecutar las suites PostgreSQL/Redis en un entorno aislado ya migrado, adoptar E2E/axe en CI y definir host y política de indexación antes de cualquier trabajo SEO futuro. La ausencia de esos datos no se interpreta como aprobación de idempotencia en despliegue, WCAG, indexabilidad o métricas de campo.
 
 **Criterio de salida:** cero hallazgos P1/P2 verificables abiertos, checks ejecutados o bloqueo explicado, matriz final con límites de evidencia. No declarar conformidad WCAG, indexabilidad ni Core Web Vitals sin pruebas suficientes.  
-**Review humano (ACK):** Pendiente; cerrar el plan solo tras recibirlo.  
+**Review humano (ACK):** Recibido el 2026-10-06: «Continua». Commit observado para la implementación de la fase: `a16a3d6`. El cierre documental registra el ACK sin ampliar las garantías no verificadas.
 **Commit sugerido:** `test(web): incorporá pruebas de flujos y accesibilidad`.
 
 ## Regla de cierre
