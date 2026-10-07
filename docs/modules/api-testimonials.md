@@ -50,17 +50,19 @@ draft ──► pending ──► approved ──► published
 
 ## 4. DTOs (nestjs-zod)
 
-**Contrato implementado en código:** `Idempotency-Key` en creación y publicación administrativa vincula reserva, mutación, outbox y resultado en la misma transacción según el [contrato HTTP](../technical/08_http_idempotency_contract.md); la migración está preparada y aún no fue aplicada. El envío público con marca reciente de navegador devuelve `409 PUBLIC_SUBMISSION_RECENT_BROWSER`, distinto del `429` del límite por IP, sin afirmar una escritura inexistente.
+**Contrato implementado en código:** `Idempotency-Key` en creación y publicación administrativa vincula reserva, mutación, outbox y resultado en la misma transacción según el [contrato HTTP](../technical/08_http_idempotency_contract.md); la migración está preparada, pero su aplicación y la concurrencia en PostgreSQL no están verificadas. El envío público con marca reciente de navegador devuelve `409 PUBLIC_SUBMISSION_RECENT_BROWSER`, distinto del `429` del límite por IP, sin afirmar una escritura inexistente.
 
 | DTO | Campos clave | Validación |
 |-----|-------------|------------|
 | `CreateTestimonialDto` | `authorName`, `content`, `rating`, `categoryId?`, `tagIds?[]` | name 2-120, content 10-1000, rating 1-5 |
 | `UpdateTestimonialDto` | Todos opcionales, mismas reglas | — |
 | `ModerateTestimonialDto` | `reason?` | max 500 chars |
-| `SubmitPublicTestimonialDto` | `authorName`, `content`, `rating`, `imageBase64?`, `videoUrl?` | url format para video |
-| `PublicTestimonialsQueryDto` | `q?`, `tag?`, `category?`, `sort?`, `page?`, `limit?` | sort: `score:desc` \| `publishedAt:desc` |
+| `SubmitPublicTestimonialDto` | `authorName`, `content`, `rating`, `imageBase64?`, `videoUrl?` | Video: URL HTTPS de `youtube.com/watch` (también `www` y `m`) o `youtu.be` con ID de 11 caracteres; se guarda URL canónica. |
+| `PublicTestimonialsQueryDto` | `q?`, `tag?`, `category?`, `sort?`, `page?`, `limit?` | `page`: entero 1–10 000 (default 1); `limit`: entero 1–100 (default 20); `q` hasta 200 y tag/categoría hasta 80 caracteres; sort: `score:desc` \| `publishedAt:desc`. Inválidos: 400. |
 | `UploadImageDto` | `imageBase64` | string (base64) |
-| `AttachVideoDto` | `videoUrl` | url format |
+| `AttachVideoDto` | `videoUrl` | URL de YouTube con las mismas reglas que el envío público. |
+
+El envío público devuelve `201` con `{ success: true, data: { id, status, failedMedia } }`. `status: 'success'` lleva `failedMedia: []`; si una imagen o un video falla después de confirmar texto y outbox, `status: 'partial'` incluye `'image'` y/o `'video'`. En ambos casos se establece la marca de navegador. La web confirma la recepción del texto e indica el medio faltante sin pedir reenviar el formulario completo. Una actualización o eliminación que pierde el testimonio tras la lectura inicial devuelve 404; un estado cambiado con la fila aún presente devuelve 409.
 
 ---
 

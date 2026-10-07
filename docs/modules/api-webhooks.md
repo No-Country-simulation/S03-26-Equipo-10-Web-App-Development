@@ -26,7 +26,7 @@ Los destinos legados firmados conservan `X-Signature` (HMAC-SHA-256 del body con
 
 Todos exigen sesión autenticada, rol `admin` y tenant actual.
 
-`POST /test` y `POST /replay` usan el [contrato transaccional de idempotencia HTTP](../technical/08_http_idempotency_contract.md) cuando se envía `Idempotency-Key`: la reserva, el efecto y el resultado se confirman juntos. La migración correspondiente está preparada, pero aún no fue aplicada. Esta garantía es distinta de la deduplicación por evento que deben hacer los **receptores** de webhooks salientes.
+`POST /test` y `POST /replay` usan el [contrato transaccional de idempotencia HTTP](../technical/08_http_idempotency_contract.md) cuando se envía `Idempotency-Key`: la reserva, el efecto y el resultado se confirman juntos. La migración correspondiente está preparada, pero su aplicación y la concurrencia en PostgreSQL no están verificadas. Esta garantía es distinta de la deduplicación por evento que deben hacer los **receptores** de webhooks salientes.
 
 | Método | Ruta | Resultado |
 | --- | --- | --- |

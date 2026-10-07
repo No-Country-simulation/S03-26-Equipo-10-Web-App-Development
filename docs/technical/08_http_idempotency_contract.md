@@ -1,6 +1,6 @@
 # Contrato de idempotencia HTTP y captura pública
 
-**Estado:** implementado en código en la fase 3 del [plan HITL de remediación](../plan/2026-10-05_fix-remediacion-codigo-web.md). La [migración preparada](../../apps/api/prisma/migrations/20261005020000_idempotency_scope/migration.sql) **no fue aplicada**. La garantía exige desplegar código y esquema compatibles; el [borrador anterior](../plan/2026-10-05_fix-remediacion-codigo-web_idempotencia-borrador.sql) queda como registro de diseño.
+**Estado:** implementado en código en la fase 3 del [plan HITL de remediación](../plan/2026-10-05_fix-remediacion-codigo-web.md). La [migración preparada](../../apps/api/prisma/migrations/20261005020000_idempotency_scope/migration.sql) **no tiene aplicación verificada**. La garantía exige código y esquema compatibles; el [borrador anterior](../plan/2026-10-05_fix-remediacion-codigo-web_idempotencia-borrador.sql) queda como registro de diseño.
 
 ## Alcance por endpoint
 
@@ -32,17 +32,18 @@
 5. Responder solo después del commit. Si el proceso cae antes, PostgreSQL revierte reserva y mutación; si cae después, el reintento lee el resultado durable. Una fila `pending` confirmada por error de implementación nunca ejecuta otra mutación automáticamente: se investiga y repara. Para publicación, la invalidación de caché posterior al commit no altera el resultado ya confirmado; el TTL público actual limita una vista antigua si Redis falla.
 6. Borrar filas vencidas en lotes de hasta 1000 desde un temporizador de la API, sin introducir un worker separado. Mantener las filas legadas bajo `principal_kind=legacy`, fuera de los nuevos scopes, hasta su expiración. Las métricas específicas de replay y conflicto aún no están implementadas.
 
-**Verificación:** las pruebas unitarias cubren resultado escrito antes de responder, replay, conflicto y clave inválida. La suite de integración con dos clientes Prisma cubre concurrencia, rollback y efectos en PostgreSQL, pero requiere `TEST_DATABASE_URL` y una base aislada con migraciones ya aplicadas; no se ejecutó en esta fase por ausencia de ese servicio. Una caída real de proceso y el recorrido HTTP quedan pendientes de un entorno de integración.
+**Verificación:** las pruebas unitarias cubren resultado escrito antes de responder, replay, conflicto y clave inválida. La suite de integración con dos clientes Prisma está preparada para concurrencia, rollback y efectos en PostgreSQL. Solo debe ejecutarse con `TEST_DATABASE_URL` apuntando a una base aislada y con la migración ya aplicada. En la revisión del 2026-10-07, esa variable no estaba configurada, PostgreSQL no respondió en `127.0.0.1:5432` y Docker no permitió consultar su daemon; **la garantía concurrente sigue sin verificación en PostgreSQL**. Una caída real de proceso también requiere un entorno de integración.
 
 ## Captura pública
 
-La ruta activa es `POST /api/v1/public/testimonials/:slug/submit`. Una cookie `ts_submitted_<slug>` con valor `true` responde conflicto sin llamar al servicio de escritura. La interfaz de la fase 4 todavía debe mejorar la presentación de ese error.
+La ruta activa es `POST /api/v1/public/testimonials/:slug/submit`. Una cookie `ts_submitted_<slug>` con valor `true` responde conflicto sin llamar al servicio de escritura. En una recepción nueva, el texto y el evento outbox se confirman juntos antes de intentar los medios opcionales por separado. La marca del navegador se establece tanto para recepción completa como parcial.
 
-| Caso | Respuesta implementada | Comportamiento web de fase 4 |
+| Caso | Respuesta implementada | Comportamiento web actual |
 | --- | --- | --- |
-| Testimonio persistido | `201`, envelope `{ success: true, data: { status: 'success', id } }` | Mostrar confirmación de recepción. |
-| Marca reciente exacta de ese navegador y slug | `409`, Problem Details `code: PUBLIC_SUBMISSION_RECENT_BROWSER` | Informar que **este intento no se guardó** y que se puede volver a intentar más adelante; no mostrar éxito. |
+| Texto y medios confirmados | `201`, envelope `{ success: true, data: { id, status: 'success', failedMedia: [] } }` | Confirmar recepción. |
+| Texto confirmado; imagen y/o video falló tras el commit | `201`, envelope `{ success: true, data: { id, status: 'partial', failedMedia: ['image', 'video'] } }` cuando fallan ambos; el array contiene solo los medios fallidos | Confirmar el texto, nombrar los medios sin adjuntar y evitar sugerir otro envío completo. |
+| Marca reciente exacta de ese navegador y slug | `409`, Problem Details `code: PUBLIC_SUBMISSION_RECENT_BROWSER` | Informar que **este intento no se guardó**; no mostrar éxito. |
 | Cuota por IP agotada antes de llegar al controlador | `429`, Problem Details y código de cuota existente | Informar el límite sin afirmar que se recibió el testimonio. |
-| Error de validación o dependencia | Status y Problem Details vigentes | Conservar datos del formulario y ofrecer corrección o reintento según el error. |
+| URL de video inválida u otra entrada inválida | `400`, Problem Details antes de persistir | Conservar datos del formulario y pedir corrección. |
 
-El controlador comprueba la cookie por nombre y valor mediante el parser ya instalado, no por substring del header. Esa marca es una barrera de abuso por navegador, no prueba criptográfica de una sumisión anterior. `ApiExceptionFilter` devuelve el código estable y el adaptador web lo recibe como `ApiError`; en fase 4 se mejorará la presentación y el esquema de éxito exigirá `status: 'success'` con `id`.
+El controlador comprueba la cookie por nombre y valor mediante el parser ya instalado, no por substring del header. Esa marca es una barrera de abuso por navegador, no prueba criptográfica de una sumisión anterior. `ApiExceptionFilter` devuelve el código estable y el adaptador web lo recibe como `ApiError`; el esquema web exige un `id` en ambos estados y `failedMedia` no vacío en el parcial. Las URL de video admitidas se normalizan a `https://www.youtube.com/watch?v=<id>` antes de guardarse.

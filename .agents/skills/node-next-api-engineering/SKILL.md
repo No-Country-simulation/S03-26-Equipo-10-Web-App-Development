@@ -13,7 +13,8 @@ Usar esta skill para diseñar o revisar endpoints y su consumo web. Leer `AGENTS
 | Estado | Criterio |
 | --- | --- |
 | **Vigente** | Node 24, NestJS 11 con Express, `nestjs-zod`, `/api/v1/`, JWT/cookie o Bearer explícito, Prisma solo en API. |
-| **Vigente** | `ApiExceptionFilter`, `ApiResponseInterceptor`, `IdempotencyInterceptor`, Pino, métricas y outbox PostgreSQL. |
+| **Vigente en código** | `ApiExceptionFilter`, `ApiResponseInterceptor`, `IdempotencyService`/`IdempotencyRepository`, Pino, métricas y outbox PostgreSQL. |
+| **Sin verificación en PostgreSQL** | La migración del nuevo scope de idempotencia y su comportamiento concurrente en una base aislada ya migrada. |
 | **Opción contextual** | Cursor pagination, ETag, nuevos BFF/Route Handlers, circuit breaker; introducir según necesidad y contrato. |
 | **Migración futura** | Worker separado, BullMQ, gateway independiente o semántica avanzada de caché Next 16. |
 
@@ -31,6 +32,7 @@ Usar esta skill para diseñar o revisar endpoints y su consumo web. Leer `AGENTS
 | Situación | Respuesta esperada |
 | --- | --- |
 | Creación confirmada | 201 si el controlador declara creación; body según envelope real. |
+| Envío público con medio opcional fallido tras el commit | 201 con `{ success: true, data: { id, status: 'partial', failedMedia } }`; el texto y outbox quedaron confirmados. |
 | Lectura o mutación exitosa | 2xx y `{ success: true, data, meta? }` por `ApiResponseInterceptor`. |
 | Entrada inválida | 400/422 según el contrato del endpoint; `application/problem+json`. |
 | Sin credencial válida | 401. |
@@ -115,22 +117,13 @@ class TestimonialsController {
 
 El servicio y repositorio de testimonios aplican aislamiento; el decorador por sí solo no prueba propiedad. No presentar un guard con `return true` tras leer un ID como mitigación BOLA.
 
-## Idempotencia: garantía y límite actual
+## Idempotencia: implementación y verificación
 
-`IdempotencyInterceptor` se registra globalmente y actúa en rutas `@Idempotent()`. Busca por clave, tenant, método y ruta en PostgreSQL. **Límite comprobado:** en el miss actual usa `tap(async body => await repository.save(...))`. RxJS `tap` no espera esa promesa antes de emitir la respuesta. Además, un get seguido de upsert no reserva en forma atómica la clave; dos solicitudes concurrentes pueden ejecutar la mutación. La guía no debe presentarlo como idempotencia durable completa.
+El interceptor global anterior fue retirado. En cuatro rutas autenticadas (`POST` de creación/publicación de testimonios y prueba/replay de webhooks), los controladores llaman a `IdempotencyService` y `IdempotencyRepository`; `@Idempotent()` solo documenta el header en OpenAPI. Una solicitud sin `Idempotency-Key` ejecuta la operación sin deduplicación. Con clave, el repositorio valida 1–128 caracteres permitidos, liga el scope a tenant y actor verificados, método y ruta concreta, y calcula la huella SHA-256 de la solicitud canónica.
 
-Para una implementación con garantía fuerte, diseñar y probar este protocolo antes de cambiar el código:
+El repositorio intenta reservar una fila única y guarda mutación, outbox y respuesta en la misma transacción. Una repetición del mismo payload devuelve el status/body originales; una clave usada con otro payload responde `409 IDEMPOTENCY_KEY_REUSED`. La contención de lock conocida responde `409 IDEMPOTENCY_IN_PROGRESS`. Las filas vencen a las 24 horas. Ver [contrato HTTP](../../../docs/technical/08_http_idempotency_contract.md) para rutas, límites y recuperación.
 
-1. Exigir `Idempotency-Key` en la operación que la necesita; validar formato, longitud y expiración.
-2. Autenticar antes de resolver la clave; ligar su namespace a tenant y, cuando aplique, actor, método y ruta.
-3. Calcular fingerprint canónico del payload relevante; reutilizar clave con payload distinto debe producir conflicto.
-4. Reservar la clave de manera atómica con unicidad en PostgreSQL; resolver concurrencia sin ejecutar dos veces la operación.
-5. Vincular la mutación y el resultado durable en una transacción cuando el caso de uso lo permita, o definir recuperación explícita tras caída.
-6. Esperar la persistencia necesaria antes de responder éxito; no usar `tap(async ...)` para esa garantía.
-7. Repetir una solicitud terminada devolviendo status y body originales; una solicitud en curso recibe una respuesta definida, no una segunda ejecución.
-8. Verificar conflictos, expiración, reinicio del proceso y dos réplicas mediante pruebas concurrentes.
-
-No copiar un fragmento de interceptor parcial como patrón listo para producción: la reserva, negocio y respuesta deben diseñarse juntos. El outbox transaccional es otro mecanismo; no reemplaza idempotencia HTTP.
+La migración del nuevo scope está preparada, **sin aplicación verificada**. La suite con dos clientes Prisma solo debe ejecutarse con `TEST_DATABASE_URL` de una base aislada y ya migrada; hasta entonces, la exclusión concurrente real en PostgreSQL sigue sin verificarse. No inferirla por el decorador, el código o las pruebas unitarias. El outbox transaccional resuelve durabilidad de eventos; no reemplaza la idempotencia HTTP.
 
 ## Webhooks y trabajo asíncrono
 
@@ -156,6 +149,7 @@ No copiar un fragmento de interceptor parcial como patrón listo para producció
 
 - Definir timeouts para llamadas salientes y propagación de cancelación cuando sea posible.
 - Reintentar solo errores transitorios y operaciones idempotentes o protegidas por un protocolo comprobado.
+- La subida `POST` a Cloudinary no se reintenta automáticamente: un timeout puede suceder después de que el proveedor haya guardado la imagen. Validar su respuesta antes de persistir la URL.
 - Usar backoff acotado con jitter en procesos de entrega; no bloquear el Event Loop con espera sincrónica.
 - Acotar tamaño de body y concurrencia antes de procesar cargas costosas; `main.ts` ya aplica límites de JSON/form.
 - Para grandes archivos, preferir streaming cuando el módulo lo requiera, con límites de tamaño y tipo.
@@ -178,7 +172,7 @@ No copiar un fragmento de interceptor parcial como patrón listo para producció
 2. Trazar autenticación, rol/scope/flag y tenant hasta el predicado de persistencia.
 3. Revisar transición de negocio, constraints y transacción si escribe más de un registro.
 4. Revisar status, envelope, Problem Details y consumidor frontend.
-5. Decidir si requiere idempotencia real; no confiar en la etiqueta `@Idempotent()` para concurrencia.
+5. Decidir si requiere idempotencia; comprobar la llamada al servicio, la transacción y el esquema migrado, no solo `@Idempotent()`.
 6. Revisar caché y cuota, con fallo seguro y separación pública/privada.
 7. Verificar timeout, límites y logging sin datos sensibles.
 8. Probar acceso ajeno, entrada inválida, conflicto y concurrencia cuando el riesgo lo exige.
@@ -208,11 +202,18 @@ No copiar un fragmento de interceptor parcial como patrón listo para producció
 ### Lectura pública
 
 - Resolver slug a tenant y filtrar testimonios por tenant y estado publicado.
-- Aplicar paginación/límite para impedir respuesta desmesurada.
+- `PublicTestimonialsQueryDto` acepta `page` entero 1–10 000 (default 1), `limit` entero 1–100 (default 20), `q` hasta 200 y tag/categoría hasta 80 caracteres; entradas inválidas reciben 400.
 - Seleccionar solo campos públicos; no enviar PII administrativa o drafts.
 - La caché pública usa claves versionadas por tenant según implementación NestJS.
 - La web valida la estructura de respuesta antes de renderizar.
 - Una API key pública, cuando aplique, usa scopes y credencial verificada; no se incrusta en `NEXT_PUBLIC_`.
+
+### Envío público
+
+- Validar imagen y URL HTTPS de `youtube.com/watch` (también `www` y `m`) o `youtu.be` con ID de 11 caracteres antes de persistir; guardar la URL canónica del video.
+- Confirmar texto y outbox en una transacción. Tratar fallos posteriores de imagen/video por separado y devolver `201` con `id`, `status: 'partial'` y `failedMedia` no vacío. Sin fallos, usar `status: 'success'` y `failedMedia: []`.
+- Establecer la marca del navegador en ambos resultados. La web confirma el texto y nombra el medio faltante sin proponer reenviar el testimonio entero.
+- Una marca reciente exacta responde `409 PUBLIC_SUBMISSION_RECENT_BROWSER`; el límite por IP responde 429. Ninguno confirma una nueva escritura.
 
 ## Paginación y filtros
 
@@ -238,7 +239,7 @@ El administrador usa `parseAdminPage` y respuestas con `meta`; partir de esa for
 | Publicación | Confirmar estado antes de reintentar; puede disparar outbox. |
 | Entrega webhook | At least once y deduplicación del receptor por ID. |
 
-Un timeout del cliente no prueba que la mutación falló: puede haberse confirmado en PostgreSQL. La UI debe evitar afirmar “no se guardó” sin consulta de estado. Una clave de idempotencia parcial tampoco garantiza ausencia de duplicados ante dos réplicas.
+Un timeout del cliente no prueba que la mutación falló: puede haberse confirmado en PostgreSQL. La UI debe evitar afirmar “no se guardó” sin consulta de estado. La garantía concurrente de la implementación actual depende de la migración y de una prueba PostgreSQL aún pendiente.
 
 ## Pruebas enfocadas por riesgo
 
@@ -253,7 +254,7 @@ Un timeout del cliente no prueba que la mutación falló: puede haberse confirma
 - Caché pública de A no aparece en B, incluso tras invalidación y reinicio.
 - Cuota protegida falla cerrada cuando Redis no puede confirmar el contador.
 
-Ejecutar solo las pruebas pertinentes al cambio real. La fase documental de esta revisión no modifica los tests ni prueba de nuevo el runtime completo.
+Ejecutar solo las pruebas pertinentes al cambio real. No ejecutar la suite de concurrencia PostgreSQL sin comprobar que `TEST_DATABASE_URL` apunta a una base aislada con la migración aplicada.
 
 ## Migración futura
 

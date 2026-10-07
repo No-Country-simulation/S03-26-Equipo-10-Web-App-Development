@@ -122,7 +122,7 @@ Este ejemplo lanza todas las tareas a la vez: usarlo solo para un conjunto peque
 - No dejar una promesa flotante si su error afecta la respuesta o consistencia.
 - `void` documenta una operación intencionalmente desacoplada, pero necesita manejo de error.
 - Para una escritura requerida antes de responder, usar `await` en la cadena que determina la respuesta.
-- `tap(async ...)` de RxJS no espera la promesa; no ofrece durabilidad para idempotencia HTTP.
+- `tap(async ...)` de RxJS no espera la promesa; el interceptor de idempotencia que lo usaba fue retirado. La implementación vigente espera una transacción en `IdempotencyRepository`; su garantía concurrente requiere la migración y pruebas en PostgreSQL aislado aún no verificadas.
 - Cancelar o ignorar respuestas obsoletas de una búsqueda cliente cuando cambian los criterios.
 - Si dos requests pueden mutar el mismo recurso, resolver concurrencia en la API/DB, no con un booleano de React.
 
@@ -211,6 +211,8 @@ La función es útil para diagnóstico interno; no devolver `error.message` arbi
 - Un `catch` que traduce errores no debe convertir un 403 en 200 por fallback.
 - El `ApiExceptionFilter` traduce errores a Problem Details; no devolver stack en un DTO.
 - La respuesta HTTP no se confirma antes de persistencia requerida y outbox transaccional.
+- En el envío público, validar los medios antes de crear el testimonio; si falla un medio opcional tras confirmar texto y outbox, devolver el ID y un resultado `partial` que identifique ese medio.
+- Comprobar la fila realmente escrita en updates/deletes condicionados; un recurso desaparecido responde 404 y un estado cambiado con la fila presente responde 409.
 
 ## Ejemplo de frontera opcional
 

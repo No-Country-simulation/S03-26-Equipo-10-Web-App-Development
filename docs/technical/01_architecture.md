@@ -229,9 +229,9 @@ export class CloudinaryService {
 
 ### 4.5. Patrón: Idempotency (para webhooks y API)
 
-**Estado actual:** el interceptor global usa una lectura seguida de `upsert` y guarda con `tap(async ...)`. No garantiza exclusión concurrente ni espera el guardado antes de responder. El ejemplo anterior de lectura, mutación y guardado separados fue retirado porque tampoco cerraba esa carrera.
+**Estado en código:** `IdempotencyService` usa `IdempotencyRepository` para reservar la clave, ejecutar la mutación y guardar el resultado dentro de una transacción PostgreSQL. El interceptor global anterior fue retirado. El [contrato de idempotencia HTTP](08_http_idempotency_contract.md) se limita a las cuatro rutas indicadas allí y solo se activa si el cliente envía `Idempotency-Key`.
 
-**Contrato implementado en código, pendiente de aplicar la migración:** [idempotencia HTTP transaccional](08_http_idempotency_contract.md). Solo las operaciones que vinculan reserva, mutación, outbox y resultado en una transacción ofrecen repetición segura con `Idempotency-Key`. El reenvío de webhooks salientes conserva su contrato **at least once** y necesita deduplicación del lado receptor por ID de evento; es un mecanismo distinto.
+La migración del nuevo scope está preparada; **su aplicación no se verificó** y la concurrencia real en PostgreSQL sigue sin comprobarse. El reenvío de webhooks salientes conserva semántica **at least once** y exige deduplicación por ID de evento en el receptor.
 
 ---
 
@@ -517,7 +517,7 @@ En web, `app/` compone las rutas activas de administración, autenticación y ca
 | Elemento | Convención | Ejemplo |
 |----------|------------|---------|
 | **Endpoints** | Plural, kebab‑case, versionado en URL | `/api/v1/testimonials` |
-| **Query Parameters** | camelCase | `?page=1&pageSize=20&sortBy=score` |
+| **Query Parameters** | camelCase | `?page=1&limit=20&sort=score:desc` |
 | **Path Parameters** | snake_case | `/testimonials/{testimonial_id}` |
 | **Request Body** | camelCase | `{ "authorName": "Juan", "content": "..." }` |
 | **Response Body** | camelCase | `{ "testimonialId": "uuid", "createdAt": "..." }` |
@@ -530,30 +530,22 @@ En web, `app/` compone las rutas activas de administración, autenticación y ca
 
 ### 13.3. Manejo de Errores
 
-```typescript
-// Estructura estándar de error
-interface ErrorResponse {
-  error: {
-    code: string;          // Código único (ej: "TESTIMONIAL_NOT_FOUND")
-    message: string;       // Mensaje técnico
-    userMessage?: string;  // Mensaje amigable (opcional)
-    details?: any;         // Detalles adicionales (validación, etc.)
-    timestamp: string;     // ISO 8601
-    path: string;
-  };
-}
+`ApiExceptionFilter` responde con `Content-Type: application/problem+json` y un objeto Problem Details (RFC 9457), sin envelope `error`. `ApiResponseInterceptor` envuelve únicamente respuestas exitosas.
 
-// Ejemplo
+```json
 {
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Rating must be between 1 and 5",
-    "details": { "field": "rating", "value": 6 },
-    "timestamp": "YYYY-MM-DDT12:00:00Z",
-    "path": "/api/v1/testimonials"
-  }
+  "type": "https://api.testimonialcms.com/errors/validation-error",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Only valid YouTube URLs are supported",
+  "instance": "/api/v1/public/testimonials/demo/submit",
+  "code": "VALIDATION_ERROR",
+  "traceId": "identificador-de-traza",
+  "timestamp": "2026-10-07T00:00:00.000Z"
 }
 ```
+
+`invalidParams` aparece solo cuando el error de validación contiene una lista. `instance` omite la query; los errores 5xx ocultan el detalle interno en producción. El filtro traduce recurso ausente a 404 y conflicto de estado a 409.
 
 ---
 
