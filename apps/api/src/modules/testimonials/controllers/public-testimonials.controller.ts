@@ -95,7 +95,7 @@ export class PublicTestimonialsController {
       expires: expiryDate,
     });
 
-    return { status: 'success', id: result.id };
+    return result;
   }
 
   @Get(':slug/form-info')

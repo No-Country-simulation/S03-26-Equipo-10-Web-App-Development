@@ -8,12 +8,12 @@ describe('public capture API adapter', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.test/api/v1');
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { name: 'Tenant', isPublicFormEnabled: true } })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { status: 'success', id: 'one' } })));
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { status: 'success', id: 'one', failedMedia: [] } })));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(getFormInfo('tenant-slug')).resolves.toEqual({ name: 'Tenant', isPublicFormEnabled: true });
     await expect(submitPublicTestimonial('tenant-slug', { authorName: 'Ana', content: 'Muy bueno', rating: 5 }))
-      .resolves.toEqual({ status: 'success', id: 'one' });
+      .resolves.toEqual({ status: 'success', id: 'one', failedMedia: [] });
     expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
       'http://api.test/api/v1/public/testimonials/tenant-slug/form-info',
       'http://api.test/api/v1/public/testimonials/tenant-slug/submit',
@@ -29,5 +29,24 @@ describe('public capture API adapter', () => {
     await expect(submitPublicTestimonial('tenant-slug', {
       authorName: 'Ana', content: 'Excelente atención', rating: 5,
     })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
+
+  it('accepts a partial result only with a saved id and failed media', async () => {
+    vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.test/api/v1');
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: {
+        status: 'partial', id: 'one', failedMedia: ['image'],
+      } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: {
+        status: 'partial', id: 'one', failedMedia: [],
+      } })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const input = { authorName: 'Ana', content: 'Excelente atención', rating: 5 };
+    await expect(submitPublicTestimonial('tenant-slug', input)).resolves.toEqual({
+      status: 'partial', id: 'one', failedMedia: ['image'],
+    });
+    await expect(submitPublicTestimonial('tenant-slug', input))
+      .rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   });
 });

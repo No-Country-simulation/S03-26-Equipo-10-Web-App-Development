@@ -123,13 +123,56 @@ describe('TestimonialsService', () => {
       authorName: 'John', content: 'Great product, highly recommend it!', rating: 5,
     });
 
-    expect(result.status).toBe('pending');
+    expect(result).toEqual({ id: pending.id, status: 'success', failedMedia: [] });
     expect(mockRepo.createWithEvent).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1', createdById: null }),
       'pending',
       expect.objectContaining({ eventType: 'testimonial.created' }),
     );
     expect(mockRepo.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { failed: ['image'] as const, expected: ['image'] },
+    { failed: ['video'] as const, expected: ['video'] },
+    { failed: ['image', 'video'] as const, expected: ['image', 'video'] },
+  ])('confirms persisted text when $failed media fails', async ({ failed, expected }) => {
+    const pending = makeView({ status: 'pending', createdById: null });
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValue({ id: 'tenant-1', isPublicFormEnabled: true });
+    mockRepo.createWithEvent.mockResolvedValue(pending);
+    const failures = new Set<string>(failed);
+    const image = jest.spyOn(service, 'uploadImage').mockImplementation(async () => {
+      if (failures.has('image')) throw new Error('upstream image failure');
+      return pending;
+    });
+    const video = jest.spyOn(service, 'attachVideo').mockImplementation(async () => {
+      if (failures.has('video')) throw new Error('upstream video failure');
+      return pending;
+    });
+
+    const result = await service.submitPublicTestimonial('acme', {
+      authorName: 'John', content: 'Great product, highly recommend it!', rating: 5,
+      imageBase64: Buffer.from('image').toString('base64'),
+      videoUrl: 'https://youtu.be/dQw4w9WgXcQ',
+    });
+
+    expect(result).toEqual({ id: pending.id, status: 'partial', failedMedia: expected });
+    expect(mockRepo.createWithEvent).toHaveBeenCalledTimes(1);
+    expect(image).toHaveBeenCalledTimes(1);
+    expect(video).toHaveBeenCalledTimes(1);
+    image.mockRestore();
+    video.mockRestore();
+  });
+
+  it.each([
+    { videoUrl: 'https://example.com/video' },
+    { imageBase64: 'not base64!' },
+  ])('rejects invalid media before persisting the public submission', async media => {
+    await expect(service.submitPublicTestimonial('acme', {
+      authorName: 'John', content: 'Great product, highly recommend it!', rating: 5,
+      ...media,
+    })).rejects.toMatchObject({ kind: 'invalid_input' });
+    expect(mockRepo.createWithEvent).not.toHaveBeenCalled();
   });
 
   it('follows the correct state machine: draft → pending → approved → published', async () => {

@@ -14,7 +14,7 @@ vi.mock('../api', () => ({ getFormInfo, submitPublicTestimonial }));
 describe('PublicCapturePage', () => {
   beforeEach(() => {
     getFormInfo.mockReset().mockResolvedValue({ name: 'Acme', isPublicFormEnabled: true });
-    submitPublicTestimonial.mockReset().mockResolvedValue({ status: 'success', id: 'one' });
+    submitPublicTestimonial.mockReset().mockResolvedValue({ status: 'success', id: 'one', failedMedia: [] });
   });
 
   it('keeps the public form and success flow', async () => {
@@ -32,6 +32,23 @@ describe('PublicCapturePage', () => {
       authorName: 'Ana', content: 'Excelente atención del equipo', rating: 4,
     })));
     expect(await screen.findByRole('heading', { name: '¡Muchas gracias!' })).toBeInTheDocument();
+  });
+
+  it('confirms saved text and names both failed media without suggesting resubmission', async () => {
+    submitPublicTestimonial.mockResolvedValueOnce({
+      status: 'partial', id: 'one', failedMedia: ['image', 'video'],
+    });
+    const user = userEvent.setup();
+    render(<PublicCapturePage />);
+
+    await screen.findByRole('heading', { name: 'Acme' });
+    await user.type(screen.getByRole('textbox', { name: 'Contanos tu historia' }), 'Excelente atención del equipo');
+    await user.type(screen.getByRole('textbox', { name: 'Tu Nombre Completo' }), 'Ana');
+    await user.click(screen.getByRole('button', { name: 'Enviar testimonio' }));
+
+    expect(await screen.findByRole('heading', { name: '¡Muchas gracias!' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('No pudimos confirmar el adjunto de la foto y el video');
+    expect(screen.getByRole('status')).toHaveTextContent('no vuelvas a enviar el formulario');
   });
 
   it('keeps the entered data and reports a suppressed submission without success', async () => {

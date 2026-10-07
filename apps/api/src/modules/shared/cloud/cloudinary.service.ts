@@ -1,12 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { z } from 'zod';
 import { HttpResilienceService } from '../../webhooks';
 import type { AppConfig } from '../../../config/app.config';
+import { InternalError } from '../../../common/errors/application.error';
 
 interface CloudinaryUploadResult {
   secureUrl: string;
   publicId: string;
 }
+
+const cloudinaryUploadSchema = z.object({
+  secure_url: z.url().refine(value => {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'res.cloudinary.com' && url.pathname.length > 1;
+  }),
+  public_id: z.string().min(1),
+});
 
 @Injectable()
 export class CloudinaryService {
@@ -38,7 +48,7 @@ export class CloudinaryService {
       upload_preset: this.cloudinaryConfig.uploadPreset,
     };
 
-    const response = await this.http.request<{ secure_url: string; public_id: string }>(
+    const response = await this.http.request<unknown>(
       this.cloudinaryConfig.uploadUrl,
       {
         method: 'POST',
@@ -47,12 +57,15 @@ export class CloudinaryService {
         },
         body: JSON.stringify(payload),
       },
-      { circuitKey: 'cloudinary', timeoutMs: 5000, retries: 2 },
+      { circuitKey: 'cloudinary', timeoutMs: 5000, retries: 0 },
     );
 
+    const parsed = cloudinaryUploadSchema.safeParse(response);
+    if (!parsed.success) throw new InternalError('Invalid Cloudinary upload response');
+
     return {
-      secureUrl: response.secure_url,
-      publicId: response.public_id,
+      secureUrl: parsed.data.secure_url,
+      publicId: parsed.data.public_id,
     };
   }
 }

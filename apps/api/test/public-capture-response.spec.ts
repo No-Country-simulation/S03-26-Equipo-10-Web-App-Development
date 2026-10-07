@@ -24,11 +24,27 @@ describe('public capture response', () => {
   });
 
   it('confirms only a persisted submission', async () => {
-    submitPublicTestimonial.mockResolvedValueOnce({ id: 'saved-id' });
+    submitPublicTestimonial.mockResolvedValueOnce({ id: 'saved-id', status: 'success', failedMedia: [] });
     const request = { cookies: {} } as unknown as Request;
     await expect(controller.submit('example', input, request, response)).resolves.toEqual({
-      status: 'success', id: 'saved-id',
+      status: 'success', id: 'saved-id', failedMedia: [],
     });
     expect(response.cookie).toHaveBeenCalledTimes(1);
+  });
+
+  it('sets the recent-submission marker after a partial media result', async () => {
+    submitPublicTestimonial.mockResolvedValueOnce({ id: 'saved-id', status: 'partial', failedMedia: ['image'] });
+    const request = { cookies: {} } as unknown as Request;
+    await expect(controller.submit('example', input, request, response)).resolves.toEqual({
+      status: 'partial', id: 'saved-id', failedMedia: ['image'],
+    });
+    expect(response.cookie).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not set the marker when persistence fails', async () => {
+    submitPublicTestimonial.mockRejectedValueOnce(new Error('database unavailable'));
+    const request = { cookies: {} } as unknown as Request;
+    await expect(controller.submit('example', input, request, response)).rejects.toThrow('database unavailable');
+    expect(response.cookie).not.toHaveBeenCalled();
   });
 });

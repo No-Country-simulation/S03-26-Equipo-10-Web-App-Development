@@ -2,7 +2,12 @@ import { z } from 'zod';
 import { publicRequest } from '@/lib/api/validated-response';
 
 const formInfoSchema = z.object({ name: z.string(), isPublicFormEnabled: z.boolean() });
-const submissionSchema = z.object({ status: z.literal('success'), id: z.string().min(1) });
+const mediaSchema = z.enum(['image', 'video']);
+const submissionSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('success'), id: z.string().min(1), failedMedia: z.array(mediaSchema).length(0) }),
+  z.object({ status: z.literal('partial'), id: z.string().min(1), failedMedia: z.array(mediaSchema).nonempty() }),
+]);
+export type PublicSubmissionResult = z.infer<typeof submissionSchema>;
 
 export type PublicTestimonialInput = {
   authorName: string;

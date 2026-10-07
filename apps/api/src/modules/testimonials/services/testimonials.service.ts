@@ -1,5 +1,5 @@
 import { ConflictError, ForbiddenError, InvalidInputError, NotFoundError } from '../../../common/errors/application.error';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { TransactionClient } from '../../../common/repositories/transaction-client';
 import { TenantsService } from '../../tenants';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
@@ -25,6 +25,8 @@ import type { AdminPage } from '../../../common/pagination/admin-page';
  */
 @Injectable()
 export class TestimonialsService {
+  private readonly logger = new Logger(TestimonialsService.name);
+
   constructor(
     private readonly repo: TestimonialRepository,
     private readonly categoryRepo: CategoryRepository,
@@ -84,10 +86,11 @@ export class TestimonialsService {
    * @param slug - Slug público único del Tenant.
    * @param dto - Datos del testimonio público.
    * @throws {ForbiddenError} Si el formulario público del inquilino está desactivado.
-   * @returns El testimonio creado en estado 'pending'.
+   * @returns El ID persistido y el estado de los medios opcionales.
    */
   async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
     if (dto.imageBase64) validateImageBase64(dto.imageBase64);
+    if (dto.videoUrl) this.assertYoutubeUrl(dto.videoUrl);
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
 
     if (!tenant.isPublicFormEnabled) {
@@ -114,17 +117,43 @@ export class TestimonialsService {
       }),
     });
 
+    const failedMedia: Array<'image' | 'video'> = [];
     if (dto.imageBase64) {
-      await this.uploadImage(tenant.id, testimonial.id, dto.imageBase64);
+      try {
+        await this.uploadImage(tenant.id, testimonial.id, dto.imageBase64);
+      } catch (error: unknown) {
+        failedMedia.push('image');
+        this.logPublicMediaFailure(tenant.id, testimonial.id, 'image', error);
+      }
     }
 
     if (dto.videoUrl) {
-      await this.attachVideo(tenant.id, testimonial.id, dto.videoUrl);
+      try {
+        await this.attachVideo(tenant.id, testimonial.id, dto.videoUrl);
+      } catch (error: unknown) {
+        failedMedia.push('video');
+        this.logPublicMediaFailure(tenant.id, testimonial.id, 'video', error);
+      }
     }
 
-    const updated = await this.repo.findById(tenant.id, testimonial.id);
-    if (!updated) throw new NotFoundError('Testimonial not found');
-    return updated;
+    return {
+      id: testimonial.id,
+      status: failedMedia.length === 0 ? 'success' as const : 'partial' as const,
+      failedMedia,
+    };
+  }
+
+  private logPublicMediaFailure(tenantId: string, testimonialId: string, media: 'image' | 'video', error: unknown): void {
+    this.logger.warn({
+      event: 'public_submission.media_failed', tenantId, testimonialId, media,
+      errorType: error instanceof Error ? error.name : 'unknown',
+    });
+  }
+
+  private assertYoutubeUrl(videoUrl: string): void {
+    if (!/(?:youtube\.com|youtu\.be)/.test(videoUrl)) {
+      throw new InvalidInputError('Only YouTube URLs are supported');
+    }
   }
 
   async getPublicFormInfo(slug: string) {
@@ -272,10 +301,7 @@ export class TestimonialsService {
       throw new ConflictError('Cannot modify media of a published testimonial');
     }
 
-    const youtubePattern = /(?:youtube\.com|youtu\.be)/;
-    if (!youtubePattern.test(videoUrl)) {
-      throw new InvalidInputError('Only YouTube URLs are supported');
-    }
+    this.assertYoutubeUrl(videoUrl);
 
     const metadata = await this.youtubeService.getVideoMetadata(videoUrl);
 

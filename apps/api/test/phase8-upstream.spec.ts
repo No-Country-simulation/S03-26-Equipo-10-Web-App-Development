@@ -50,4 +50,34 @@ describe('Cloudinary and YouTube upstream resilience', () => {
     expect(() => new CloudinaryService({} as any, config('https://api.cloudinary.com/upload') as any))
       .not.toThrow();
   });
+
+  it('does not retry a Cloudinary POST after a network timeout', async () => {
+    mockedAxios.mockRejectedValue({ isAxiosError: true, message: 'timeout' });
+    const transport = new HttpResilienceService({} as any);
+    const cloudinary = new CloudinaryService(transport, { get: () => ({
+      cloudinary: { uploadUrl: 'https://api.cloudinary.com/upload', uploadPreset: 'preset' },
+    }) } as any);
+
+    await expect(cloudinary.uploadImage('data:image/png;base64,AAAA'))
+      .rejects.toThrow('Upstream network error');
+    expect(mockedAxios).toHaveBeenCalledTimes(1);
+    expect(mockedAxios.mock.calls[0]![0]).toMatchObject({ method: 'POST', maxRedirects: 0 });
+  });
+
+  it('rejects malformed or non-Cloudinary upload responses', async () => {
+    const http = { request: jest.fn().mockResolvedValueOnce({ secure_url: 'https://evil.test/image.png', public_id: 'one' })
+      .mockResolvedValueOnce({ secure_url: 'https://res.cloudinary.com/account/image.png' })
+      .mockResolvedValueOnce({ secure_url: 'https://res.cloudinary.com/account/image.png', public_id: 'one' }) };
+    const cloudinary = new CloudinaryService(http as any, { get: () => ({
+      cloudinary: { uploadUrl: 'https://api.cloudinary.com/upload', uploadPreset: 'preset' },
+    }) } as any);
+
+    await expect(cloudinary.uploadImage('image')).rejects.toThrow('Invalid Cloudinary upload response');
+    await expect(cloudinary.uploadImage('image')).rejects.toThrow('Invalid Cloudinary upload response');
+    await expect(cloudinary.uploadImage('image')).resolves.toEqual({
+      secureUrl: 'https://res.cloudinary.com/account/image.png', publicId: 'one',
+    });
+    expect(http.request).toHaveBeenCalledWith(expect.any(String), expect.any(Object),
+      expect.objectContaining({ retries: 0 }));
+  });
 });

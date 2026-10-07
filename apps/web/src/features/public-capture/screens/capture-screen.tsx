@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
 import { ApiError } from '@/lib/api';
 import { loadFailureCopy } from '@/features/shared/load-failure';
-import { getFormInfo, submitPublicTestimonial } from '../api';
+import { getFormInfo, submitPublicTestimonial, type PublicSubmissionResult } from '../api';
 
 interface FormInfo {
   name: string;
@@ -40,7 +40,7 @@ export default function PublicCapturePage() {
   const [formState, setFormState] = useState<FormState>({ status: 'loading', slug });
   const [loadVersion, setLoadVersion] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [submissionResult, setSubmissionResult] = useState<PublicSubmissionResult | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
   const successRef = useRef<HTMLHeadingElement>(null);
@@ -72,7 +72,7 @@ export default function PublicCapturePage() {
   }, [slug]);
 
   useEffect(() => {
-    setSuccess(false);
+    setSubmissionResult(null);
     setSubmitError(null);
     setSubmitting(false);
     setContent('');
@@ -83,7 +83,7 @@ export default function PublicCapturePage() {
   }, [slug]);
 
   useEffect(() => { if (submitError) feedbackRef.current?.focus(); }, [submitError]);
-  useEffect(() => { if (success) successRef.current?.focus(); }, [success]);
+  useEffect(() => { if (submissionResult) successRef.current?.focus(); }, [submissionResult]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -97,14 +97,14 @@ export default function PublicCapturePage() {
     setSubmitError(null);
     setSubmitting(true);
     try {
-      await submitPublicTestimonial(slug, {
+      const result = await submitPublicTestimonial(slug, {
         rating,
         content: content.trim(),
         authorName: authorName.trim(),
         videoUrl: videoUrl.trim() || undefined,
         imageBase64: imageBase64 || undefined,
       });
-      if (requestVersion === submissionVersion.current) setSuccess(true);
+      if (requestVersion === submissionVersion.current) setSubmissionResult(result);
     } catch (err) {
       if (requestVersion === submissionVersion.current) setSubmitError(submissionErrorCopy(err));
     } finally {
@@ -162,7 +162,9 @@ export default function PublicCapturePage() {
   }
 
   /* ───── Success ───── */
-  if (success) {
+  if (submissionResult) {
+    const failedMedia = submissionResult.failedMedia.map(media => media === 'image' ? 'la foto' : 'el video');
+    const failedMediaCopy = failedMedia.join(' y ');
     return (
       <main className="relative flex min-h-screen items-center justify-center bg-background p-4">
         <NoiseOverlay />
@@ -171,8 +173,13 @@ export default function PublicCapturePage() {
           <h1 ref={successRef} tabIndex={-1} className="font-caption text-4xl italic text-foreground mb-4">¡Muchas gracias!</h1>
           <p className="font-body text-sm leading-relaxed text-muted-foreground">
             Tu opinión es muy valiosa para <span className="font-bold text-primary">{formInfo.name}</span>. 
-            Hemos recibido tu testimonio exitosamente y será revisado en breve.
+            Hemos recibido tu testimonio y será revisado en breve.
           </p>
+          {submissionResult.status === 'partial' && (
+            <p role="status" className="mt-4 font-body text-sm leading-relaxed text-foreground">
+              No pudimos confirmar el adjunto de {failedMediaCopy}. El texto ya se guardó; no vuelvas a enviar el formulario.
+            </p>
+          )}
           <div className="mt-8 h-px w-16 bg-primary mx-auto" />
         </div>
       </main>
