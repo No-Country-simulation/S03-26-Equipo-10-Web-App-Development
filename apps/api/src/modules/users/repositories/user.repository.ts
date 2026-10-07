@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UserView } from '../entities/user.model';
-import { InternalError } from '../../../common/errors/application.error';
+import { InternalError, NotFoundError } from '../../../common/errors/application.error';
 import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
 
 @Injectable()
@@ -67,16 +68,22 @@ export class UserRepository {
     passwordHash?: string;
     isActive?: boolean;
   }): Promise<UserView> {
-    await this.prisma.user.updateMany({
+    const user = await this.prisma.user.update({
       where: { id: params.userId, tenantId: params.tenantId },
       data: {
         ...(params.email !== undefined && { email: params.email }),
         ...(params.passwordHash !== undefined && { passwordHash: params.passwordHash }),
         ...(params.isActive !== undefined && { isActive: params.isActive }),
       },
+      include: { roles: { include: { role: true } } },
+    }).catch((error: unknown) => {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundError('User not found');
+      }
+      throw error;
     });
 
-    return this.findById(params.tenantId, params.userId) as Promise<UserView>;
+    return this.toView(user);
   }
 
   async remove(tenantId: string, userId: string): Promise<void> {
@@ -87,7 +94,8 @@ export class UserRepository {
       await tx.apiKey.updateMany({
         where: { tenantId, ownerId: userId }, data: { ownerId: null },
       });
-      await tx.user.deleteMany({ where: { id: userId, tenantId } });
+      const deleted = await tx.user.deleteMany({ where: { id: userId, tenantId } });
+      if (deleted.count !== 1) throw new NotFoundError('User not found');
     });
   }
 

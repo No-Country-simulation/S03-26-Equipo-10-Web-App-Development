@@ -31,13 +31,16 @@ const ModerateTestimonialSchema = z.object({
 });
 export class ModerateTestimonialDto extends createZodDto(ModerateTestimonialSchema) {}
 
+const positiveQueryInteger = (maximum: number) => z.string().regex(/^[1-9]\d*$/)
+  .transform(Number).pipe(z.number().int().max(maximum));
+
 const PublicTestimonialsQuerySchema = z.object({
-  q: z.string().optional(),
-  tag: z.string().optional(),
-  category: z.string().optional(),
+  q: z.string().max(200).optional(),
+  tag: z.string().max(80).optional(),
+  category: z.string().max(80).optional(),
   sort: z.enum(['score:desc', 'publishedAt:desc']).optional(),
-  page: z.coerce.number().optional(),
-  limit: z.coerce.number().optional(),
+  page: positiveQueryInteger(10_000).optional(),
+  limit: positiveQueryInteger(100).optional(),
 });
 export class PublicTestimonialsQueryDto extends createZodDto(PublicTestimonialsQuerySchema) {}
 

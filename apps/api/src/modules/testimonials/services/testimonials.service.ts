@@ -1,11 +1,11 @@
-import { ConflictError, ForbiddenError, InvalidInputError, NotFoundError } from '../../../common/errors/application.error';
+import { ConflictError, ForbiddenError, NotFoundError } from '../../../common/errors/application.error';
 import { Injectable, Logger } from '@nestjs/common';
 import type { TransactionClient } from '../../../common/repositories/transaction-client';
 import { TenantsService } from '../../tenants';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
 import { AnalyticsService } from '../../analytics';
-import { CloudinaryService, YoutubeService } from '../../shared/cloud';
+import { CloudinaryService, YoutubeService, parseYoutubeUrl } from '../../shared/cloud';
 import { CacheService } from '../../../common/services/cache.service';
 import { TransitionTestimonialUseCase } from '../use-cases/transition-testimonial.use-case';
 import { CreateTestimonialUseCase } from '../use-cases/create-testimonial.use-case';
@@ -90,7 +90,7 @@ export class TestimonialsService {
    */
   async submitPublicTestimonial(slug: string, dto: SubmitPublicTestimonialDto) {
     if (dto.imageBase64) validateImageBase64(dto.imageBase64);
-    if (dto.videoUrl) this.assertYoutubeUrl(dto.videoUrl);
+    if (dto.videoUrl) parseYoutubeUrl(dto.videoUrl);
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
 
     if (!tenant.isPublicFormEnabled) {
@@ -150,12 +150,6 @@ export class TestimonialsService {
     });
   }
 
-  private assertYoutubeUrl(videoUrl: string): void {
-    if (!/(?:youtube\.com|youtu\.be)/.test(videoUrl)) {
-      throw new InvalidInputError('Only YouTube URLs are supported');
-    }
-  }
-
   async getPublicFormInfo(slug: string) {
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
     return {
@@ -194,8 +188,8 @@ export class TestimonialsService {
    * @returns Lista paginada de testimonios públicos.
    */
   async listPublicTestimonials(tenantId: string, query: PublicTestimonialsQueryDto) {
-    const page = Math.max(1, Number(query.page ?? 1));
-    const limit = Math.min(100, Math.max(1, Number(query.limit ?? 20)));
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
 
     // Clave de caché para memorizar la respuesta y aligerar la base de datos
     const cacheKey = JSON.stringify({ q: query.q ?? '', tag: query.tag ?? '',
@@ -301,12 +295,11 @@ export class TestimonialsService {
       throw new ConflictError('Cannot modify media of a published testimonial');
     }
 
-    this.assertYoutubeUrl(videoUrl);
-
-    const metadata = await this.youtubeService.getVideoMetadata(videoUrl);
+    const { canonicalUrl } = parseYoutubeUrl(videoUrl);
+    const metadata = await this.youtubeService.getVideoMetadata(canonicalUrl);
 
     return this.repo.updateMedia(tenantId, testimonialId, testimonial.status, {
-      videoUrl,
+      videoUrl: canonicalUrl,
       videoTitle: metadata?.title ?? null,
       videoThumbnailUrl: metadata?.thumbnailUrl ?? null,
     });

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpResilienceService } from '../../webhooks';
 import type { AppConfig } from '../../../config/app.config';
+import { parseYoutubeUrl } from './parse-youtube-url';
 
 interface YouTubeMetadata {
   title: string;
@@ -21,8 +22,8 @@ export class YoutubeService {
   }
 
   async getVideoMetadata(url: string): Promise<YouTubeMetadata | null> {
-    const videoId = this.extractVideoId(url);
-    if (!videoId || !this.youtubeApiKey) {
+    const { videoId } = parseYoutubeUrl(url);
+    if (!this.youtubeApiKey) {
       return null;
     }
 
@@ -46,9 +47,4 @@ export class YoutubeService {
     };
   }
 
-  private extractVideoId(url: string): string | null {
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const match = url.match(regex);
-    return match?.[1] ?? null;
-  }
 }

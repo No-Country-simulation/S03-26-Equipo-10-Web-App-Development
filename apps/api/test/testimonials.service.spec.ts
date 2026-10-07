@@ -42,6 +42,7 @@ describe('TestimonialsService', () => {
     createWithEvent: jest.fn(),
     updateFields: jest.fn(),
     updateStatus: jest.fn(),
+    updateMedia: jest.fn(),
     remove: jest.fn(),
     findByTenant: jest.fn(),
     findPublished: jest.fn(),
@@ -166,6 +167,7 @@ describe('TestimonialsService', () => {
 
   it.each([
     { videoUrl: 'https://example.com/video' },
+    { videoUrl: 'https://example.com/youtube.com/watch?v=dQw4w9WgXcQ' },
     { imageBase64: 'not base64!' },
   ])('rejects invalid media before persisting the public submission', async media => {
     await expect(service.submitPublicTestimonial('acme', {
@@ -173,6 +175,22 @@ describe('TestimonialsService', () => {
       ...media,
     })).rejects.toMatchObject({ kind: 'invalid_input' });
     expect(mockRepo.createWithEvent).not.toHaveBeenCalled();
+  });
+
+  it('stores a canonical YouTube URL for an existing testimonial', async () => {
+    const pending = makeView({ status: 'pending' });
+    mockRepo.findById.mockResolvedValue(pending);
+    mockRepo.updateMedia.mockResolvedValue(pending);
+    mockYoutubeService.getVideoMetadata.mockResolvedValue({
+      title: 'Video title', thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg', duration: 'PT1M',
+    });
+
+    await service.attachVideo('tenant-1', pending.id, 'https://youtu.be/dQw4w9WgXcQ?t=4');
+
+    const canonicalUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    expect(mockYoutubeService.getVideoMetadata).toHaveBeenCalledWith(canonicalUrl);
+    expect(mockRepo.updateMedia).toHaveBeenCalledWith('tenant-1', pending.id, 'pending',
+      expect.objectContaining({ videoUrl: canonicalUrl }));
   });
 
   it('follows the correct state machine: draft → pending → approved → published', async () => {

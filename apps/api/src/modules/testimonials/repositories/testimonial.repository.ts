@@ -126,7 +126,7 @@ export class TestimonialRepository {
         category: true,
         tags: { include: { tag: true } }
       },
-    }).catch(this.rethrowConditionalWriteConflict);
+    }).catch(error => this.rethrowConditionalWriteConflict(error, tenantId, id));
 
     return this.toView(updated);
   }
@@ -153,6 +153,8 @@ export class TestimonialRepository {
         },
       });
       if (updated.count !== 1) {
+        const existing = await tx.testimonial.findFirst({ where: { id, tenantId }, select: { id: true } });
+        if (!existing) throw new NotFoundError('Testimonial not found');
         throw new ConflictError('Testimonial status changed before this transition');
       }
       const row = await tx.testimonial.findFirstOrThrow({
@@ -194,13 +196,14 @@ export class TestimonialRepository {
         updatedAt: new Date(),
       },
       include: { status: true },
-    }).catch(this.rethrowConditionalWriteConflict);
+    }).catch(error => this.rethrowConditionalWriteConflict(error, tenantId, id));
 
     return this.toView(updated);
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
-    await this.prisma.testimonial.deleteMany({ where: { id, tenantId } });
+    const deleted = await this.prisma.testimonial.deleteMany({ where: { id, tenantId } });
+    if (deleted.count !== 1) throw new NotFoundError('Testimonial not found');
   }
 
   async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: TestimonialView[]; total: number }> {
@@ -346,8 +349,10 @@ export class TestimonialRepository {
     }
   }
 
-  private rethrowConditionalWriteConflict(error: unknown): never {
+  private async rethrowConditionalWriteConflict(error: unknown, tenantId: string, id: string): Promise<never> {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      const existing = await this.prisma.testimonial.findFirst({ where: { id, tenantId }, select: { id: true } });
+      if (!existing) throw new NotFoundError('Testimonial not found');
       throw new ConflictError('Testimonial changed before this update');
     }
     throw error;
