@@ -27,6 +27,10 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
     help: 'Dead webhook deliveries requiring administrative action', registers: [this.registry] });
   private readonly outboxPollFailures = new Counter({ name: 'tms_outbox_poll_failures_total',
     help: 'Failed outbox polling cycles', registers: [this.registry] });
+  private readonly logoCleanups = new Counter({ name: 'tms_tenant_logo_cleanup_total',
+    help: 'Tenant logo cleanup results', labelNames: ['result'], registers: [this.registry] });
+  private readonly deadLogoCleanups = new Gauge({ name: 'tms_tenant_logo_cleanup_dead',
+    help: 'Dead tenant logo cleanup jobs, including expired final leases', registers: [this.registry] });
 
   constructor(private readonly prisma: PrismaService) {
     collectDefaultMetrics({ register: this.registry, prefix: 'tms_' });
@@ -50,6 +54,8 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
   }
 
   recordOutboxPollFailure(): void { this.outboxPollFailures.inc(); }
+
+  recordLogoCleanup(result: 'completed' | 'retry' | 'dead'): void { this.logoCleanups.inc({ result }); }
 
   private async snapshotOutbox(): Promise<{ oldestPendingAgeSeconds: number; pendingDeliveries: number; deadDeliveries: number }> {
     const [oldest, pending, dead] = await Promise.all([
@@ -78,10 +84,13 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async render(): Promise<string> {
-    const { oldestPendingAgeSeconds, pendingDeliveries, deadDeliveries } = await this.snapshotOutbox();
+    const [{ oldestPendingAgeSeconds, pendingDeliveries, deadDeliveries }, deadLogos] = await Promise.all([
+      this.snapshotOutbox(), this.prisma.tenantLogoCleanupJob.count({ where: { status: 'dead' } }),
+    ]);
     this.pendingAge.set(oldestPendingAgeSeconds);
     this.pendingDeliveries.set(pendingDeliveries);
     this.deadDeliveries.set(deadDeliveries);
+    this.deadLogoCleanups.set(deadLogos);
     return this.registry.metrics();
   }
 

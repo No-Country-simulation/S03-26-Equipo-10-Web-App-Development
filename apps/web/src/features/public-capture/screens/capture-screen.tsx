@@ -9,10 +9,12 @@ import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
 import { ApiError } from '@/lib/api';
 import { loadFailureCopy } from '@/features/shared/load-failure';
 import { getFormInfo, submitPublicTestimonial, type PublicSubmissionResult } from '../api';
+import { TenantLogo } from '@/features/shared/tenant-logo';
 
 interface FormInfo {
   name: string;
   isPublicFormEnabled: boolean;
+  logoUrl: string | null;
 }
 
 type FormState =
@@ -206,6 +208,7 @@ export default function PublicCapturePage() {
             <p className="font-body text-xs uppercase tracking-widest text-muted-foreground mb-4">
               Buzón de opiniones para
             </p>
+            <TenantLogo key={slug} name={formInfo.name} logoUrl={formInfo.logoUrl} className="mb-5" />
             <h1 className="font-caption text-5xl md:text-6xl italic leading-[1.1] text-foreground mb-8">
               {formInfo.name}
             </h1>

@@ -31,6 +31,10 @@ export interface AppConfig {
   cloudinary: {
     uploadUrl: string;
     uploadPreset: string;
+    cloudName?: string;
+    apiKey?: string;
+    apiSecret?: string;
+    localPlaceholder?: boolean;
   };
   youtube: {
     apiKey: string;
@@ -116,6 +120,10 @@ export const appConfigValidationSchema = z.object({
 
   CLOUDINARY_UPLOAD_URL: z.string().default(''),
   CLOUDINARY_UPLOAD_PRESET: z.string().default(''),
+  CLOUDINARY_CLOUD_NAME: z.string().default(''),
+  CLOUDINARY_API_KEY: z.string().default(''),
+  CLOUDINARY_API_SECRET: z.string().default(''),
+  CLOUDINARY_LOCAL_PLACEHOLDER: z.enum(['true', 'false']).default('false'),
 
   YOUTUBE_API_KEY: z.string().default(''),
 }).superRefine((env, context) => {
@@ -177,6 +185,10 @@ export const appConfig = registerAs('app', (): AppConfig => {
     cloudinary: {
       uploadUrl: process.env.CLOUDINARY_UPLOAD_URL ?? '',
       uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET ?? '',
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME ?? '',
+      apiKey: process.env.CLOUDINARY_API_KEY ?? '',
+      apiSecret: process.env.CLOUDINARY_API_SECRET ?? '',
+      localPlaceholder: process.env.NODE_ENV !== 'production' && process.env.CLOUDINARY_LOCAL_PLACEHOLDER === 'true',
     },
     youtube: { apiKey: process.env.YOUTUBE_API_KEY ?? '' },
   };

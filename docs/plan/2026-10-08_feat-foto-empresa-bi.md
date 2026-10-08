@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-08
 
-**Estado global:** En progreso; fase 1 documental finalizada, esperando ACK. Fases 2–4 pendientes.
+**Estado global:** En progreso; fase 1 aprobada, fase 2 implementada y verificada, pendiente de ACK de cierre. Fases 3–4 pendientes.
 
 **Autorización inicial:** El usuario solicitó implementar el plan acordado, conservando el ACK entre sus cuatro fases. No se creó rama ni commit.
 
@@ -17,7 +17,7 @@
 - Decisiones del usuario: instancias PostgreSQL con recursos separados en producción; carga cada hora; BI para admin/editor de cada empresa; historial observado por cortes horarios; métricas y tendencias; sin volumen real conocido.
 - Skills de fase 1: `relational-database-sql-engineering`, `postgresql-database-engineering`, `supabase-postgres-best-practices`. En las fases de código, leer además las skills API, frontend, TypeScript y observabilidad que correspondan.
 
-## Diagnóstico comprobado
+## Diagnóstico inicial comprobado (antes de fase 2)
 
 | Hallazgo | Fuente | Consecuencia |
 | --- | --- | --- |
@@ -36,7 +36,7 @@
 
 ## Fases
 
-### `[Actual]` Fase 1: diagnóstico, ADR, diccionario y borradores SQL
+### `[Completada]` Fase 1: diagnóstico, ADR, diccionario y borradores SQL
 
 - [x] Documentar separación OLTP/OLAP y consecuencias operativas.
 - [x] Definir logo, limpieza durable de medios, contratos BI y semántica de métricas.
@@ -59,19 +59,29 @@
 
 **Límites pendientes:** confirmar ejecución del DDL en entornos descartables durante la fase 3; verificar proveedor/limpieza de medios en fase 2; volumen, latencias, backups, permisos reales y aislamiento físico productivo en fase 4. No ejecutar la fase 2 hasta recibir ACK de esta entrega y autorización explícita para modificar `apps/api/prisma/schema.prisma` (campos del logo/revisión y modelo de jobs), sin aplicar la migración.
 
-**Review humano (ACK):** pendiente.
+**Review humano (ACK):** recibido el 2026-10-08: «Continuar», en respuesta al pedido de ACK de fase 1 y autorización para modificar `apps/api/prisma/schema.prisma` en fase 2. La autorización comprende campos del logo/revisión y modelo de jobs; no aplicar migraciones.
 
 **Commit sugerido:** `docs(bi): definí el logo de empresa y el warehouse separado`.
 
-### `[Pendiente]` Fase 2: foto de empresa y formulario público
+### `[Actual]` Fase 2: foto de empresa y formulario público
 
-- Implementar columnas/modelos del borrador OLTP, servicios, PUT/DELETE del logo y cola durable de limpieza; solicitar ACK explícito para `schema.prisma` antes de editarlo.
-- Validar formato real, Base64 canónico y máximo 2 MiB; incorporar JSON máximo 3 MiB sólo para PUT del logo.
-- Añadir logo a `/tenants/me` y `form-info`, sin exponer identificador del proveedor ni jobs.
-- Incorporar carga/reemplazo/eliminación en Configuración y logo con respaldo en `/p/[slug]`, respetando la identidad editorial vigente.
-- Probar validación, RBAC/CSRF, concurrencia, fallos de proveedor, compensación durable y aislamiento por empresa; completar typecheck, lint y tests pertinentes.
+- [x] Implementar columnas/modelos del borrador OLTP, servicios, PUT/DELETE del logo y cola durable de limpieza; ACK de `schema.prisma` recibido antes de editarlo.
+- [x] Validar formato/contenedor, Base64 canónico y máximo 2 MiB; JSON máximo 3 MiB sólo para PUT del logo, con errores 400/413.
+- [x] Añadir logo a `/tenants/me` y `form-info`, sin exponer identificador del proveedor, revisión ni jobs.
+- [x] Incorporar carga/reemplazo/eliminación en Configuración y logo con respaldo en `/p/[slug]`, respetando la identidad editorial vigente.
+- [x] Probar validación, RBAC/CSRF, concurrencia, fallos simulados de proveedor, compensación durable y aislamiento por empresa; completar typecheck, lint, builds y tests pertinentes.
 
 **Criterio de salida:** recorridos de carga, reemplazo, eliminación y captura pública verificados; migración nueva preparada, no aplicada.
+
+**Evidencia (2026-10-08):** 78 tests API en nueve suites pertinentes (unitarios, HTTP con guards reales, arranque de DI, configuración, límites, métricas y persistencia); 42 tests web en 17 suites. Ocho tests de integración ejecutaron el DDL de la migración contra una fixture mínima en un esquema aleatorio de PostgreSQL 18.6 descartable. Verificados CAS con un ganador, configuración concurrente preservada, referencias cruzadas rechazadas por API/DB, rollback por fallo al encolar, candidato vencido, reintento sin extender plazo de adjunción, finalización con lease/token y último lease agotado. Cada esquema de prueba se elimina al finalizar; la instancia se detiene después de verificar.
+
+`prisma generate`/validación de esquema, typecheck API/web, lint API/web, build NestJS y build Next.js pasan; lint conserva dos warnings API y diez web preexistentes fuera de los archivos nuevos. Next.js advierte sobre múltiples lockfiles y una clase Tailwind ambigua preexistente; no se modifica infraestructura para resolverlos en esta fase. El build web usa `NEXT_PUBLIC_API_URL` local de prueba. `git diff --check` pasa. Se requirió ejecutar generación Prisma, integración y build Next fuera del sandbox porque éste corta entrada de procesos hijos/bloquea sockets de prueba; no hubo rechazo de aprobación automática.
+
+**Persistencia y operación:** migración `apps/api/prisma/migrations/20261008000000_tenant_logos/migration.sql` preparada; no ejecutado `migrate deploy` ni `db push`, ni tocadas bases persistentes. Campos Prisma autorizados, configuración Cloudinary externa documentada sin valores, métrica de resultados y gauge de jobs `dead`, logs técnicos sin Base64 ni secretos. Publicación/retirada del logo y trabajos de limpieza se confirman atómicamente; red fuera de las transacciones, plazos de SQL y de red acotados.
+
+**Límites:** Cloudinary se verifica mediante protocolo/respuestas simuladas; falta smoke test con cuenta real e invalidación CDN. Las pruebas DOM verifican respaldo y cambio de slug, selección/reintento y visibilidad admin/editor; no se realizó revisión visual en navegador. No se certifican producción ni volumen/retención. No se alteraron infraestructura, paquetes, hooks ni migraciones existentes; no se creó commit. BI/ETL/scoring permanecen en fase 3.
+
+**Estado de ejecución:** fase 2 terminada. Conservarla como `[Actual]` hasta recibir ACK; no activar ni ejecutar fase 3 en esta entrega.
 
 **Review humano (ACK):** pendiente.
 

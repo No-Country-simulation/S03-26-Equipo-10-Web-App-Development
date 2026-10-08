@@ -1,20 +1,43 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PublicCapturePage from './capture-screen';
 import { ApiError } from '@/lib/api';
 
-const { getFormInfo, submitPublicTestimonial } = vi.hoisted(() => ({
-  getFormInfo: vi.fn(), submitPublicTestimonial: vi.fn(),
+const { getFormInfo, submitPublicTestimonial, params } = vi.hoisted(() => ({
+  getFormInfo: vi.fn(), submitPublicTestimonial: vi.fn(), params: { slug: 'acme' },
 }));
 
-vi.mock('next/navigation', () => ({ useParams: () => ({ slug: 'acme' }) }));
+vi.mock('next/navigation', () => ({ useParams: () => params }));
 vi.mock('../api', () => ({ getFormInfo, submitPublicTestimonial }));
 
 describe('PublicCapturePage', () => {
   beforeEach(() => {
-    getFormInfo.mockReset().mockResolvedValue({ name: 'Acme', isPublicFormEnabled: true });
+    params.slug = 'acme';
+    getFormInfo.mockReset().mockResolvedValue({ name: 'Acme', isPublicFormEnabled: true, logoUrl: null });
     submitPublicTestimonial.mockReset().mockResolvedValue({ status: 'success', id: 'one', failedMedia: [] });
+  });
+
+  it('resets an image failure when navigating to another public slug', async () => {
+    getFormInfo.mockResolvedValue({ name: 'Acme', isPublicFormEnabled: true,
+      logoUrl: 'https://res.cloudinary.com/synthetic/image/upload/acme.png' });
+    const { rerender } = render(<PublicCapturePage />);
+    fireEvent.error(await screen.findByRole('img', { name: 'Logo de Acme' }));
+    expect(screen.getByRole('img', { name: 'Iniciales de Acme' })).toBeInTheDocument();
+    params.slug = 'other';
+    rerender(<PublicCapturePage />);
+    expect(await screen.findByRole('img', { name: 'Logo de Acme' })).toBeInTheDocument();
+    expect(getFormInfo).toHaveBeenLastCalledWith('other');
+  });
+
+  it('shows the company logo and keeps the form usable after an image failure', async () => {
+    getFormInfo.mockResolvedValueOnce({ name: 'Acme', isPublicFormEnabled: true,
+      logoUrl: 'https://res.cloudinary.com/synthetic/image/upload/acme.png' });
+    render(<PublicCapturePage />);
+    const logo = await screen.findByRole('img', { name: 'Logo de Acme' });
+    fireEvent.error(logo);
+    expect(screen.getByRole('img', { name: 'Iniciales de Acme' })).toHaveTextContent('A');
+    expect(screen.getByRole('textbox', { name: 'Contanos tu historia' })).toBeEnabled();
   });
 
   it('keeps the public form and success flow', async () => {

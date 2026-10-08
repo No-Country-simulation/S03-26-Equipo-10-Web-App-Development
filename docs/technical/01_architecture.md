@@ -115,7 +115,7 @@ flowchart LR
 
 ### 3.2. Responsabilidades por Módulo/Servicio
 
-**Propuesta pendiente (2026-10-08):** [ADR 0004](../adr/0004-warehouse-postgresql-separado.md) define un warehouse PostgreSQL con recursos separados, extracción por empresa cada hora y cortes del estado observado. La entrada ETL independiente y el endpoint/panel BI se incorporan en las fases 3/4 del [plan de foto de empresa y BI](../plan/2026-10-08_feat-foto-empresa-bi.md). El [logo de tenant](../modules/api-tenant-logo.md) se incorpora en fase 2. Ninguno de estos componentes forma parte del runtime descrito en el diagrama actual.
+**Evolución (2026-10-08):** el [logo de tenant](../modules/api-tenant-logo.md) está implementado en tenants, con carga/eliminación firmadas y polling de limpieza cada 30 s sobre PostgreSQL OLTP. La migración está preparada y probada en una fixture descartable; despliegue persistente no verificado. [ADR 0004](../adr/0004-warehouse-postgresql-separado.md) define el futuro warehouse PostgreSQL con recursos separados, extracción por empresa cada hora y cortes del estado observado. ETL y endpoint/panel BI permanecen pendientes de las fases 3/4 del [plan](../plan/2026-10-08_feat-foto-empresa-bi.md); todavía no forman parte del runtime.
 
 | Módulo/Servicio | Responsabilidad Principal | Endpoints Clave | Escalabilidad | Persistencia |
 |-----------------|---------------------------|-----------------|---------------|--------------|

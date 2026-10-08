@@ -95,6 +95,15 @@ describe('TestimonialsService', () => {
     );
   });
 
+  it('exposes only company name, form state and nullable logo in the public form', async () => {
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValueOnce({ name: 'Synthetic', isPublicFormEnabled: true,
+      logoUrl: 'https://res.cloudinary.com/demo/image/upload/logo.png', logoPublicId: 'private', logoRevision: 1n });
+    await expect(service.getPublicFormInfo('synthetic')).resolves.toEqual({ name: 'Synthetic', isPublicFormEnabled: true,
+      logoUrl: 'https://res.cloudinary.com/demo/image/upload/logo.png' });
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValueOnce({ name: 'Synthetic', isPublicFormEnabled: false, logoUrl: null });
+    await expect(service.getPublicFormInfo('synthetic')).resolves.toEqual({ name: 'Synthetic', isPublicFormEnabled: false, logoUrl: null });
+  });
+
   it('creates a draft testimonial', async () => {
     const created = makeView();
     mockRepo.createWithEvent.mockResolvedValue(created);

@@ -7,11 +7,11 @@ describe('public capture API adapter', () => {
   it('loads form state and submits a testimonial through the existing public routes', async () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://api.test/api/v1');
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { name: 'Tenant', isPublicFormEnabled: true } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { name: 'Tenant', isPublicFormEnabled: true, logoUrl: null } })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { status: 'success', id: 'one', failedMedia: [] } })));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(getFormInfo('tenant-slug')).resolves.toEqual({ name: 'Tenant', isPublicFormEnabled: true });
+    await expect(getFormInfo('tenant-slug')).resolves.toEqual({ name: 'Tenant', isPublicFormEnabled: true, logoUrl: null });
     await expect(submitPublicTestimonial('tenant-slug', { authorName: 'Ana', content: 'Muy bueno', rating: 5 }))
       .resolves.toEqual({ status: 'success', id: 'one', failedMedia: [] });
     expect(fetchMock.mock.calls.map(call => call[0])).toEqual([

@@ -1,10 +1,21 @@
 import express from 'express';
 import request from 'supertest';
-import { boundedJsonBody, formBody, isImagePayloadRoute } from '../src/common/middleware/body-limits.middleware';
+import { boundedJsonBody, formBody, isImagePayloadRoute, isLogoPayloadRoute } from '../src/common/middleware/body-limits.middleware';
 import { MAX_IMAGE_BYTES, validateImageBase64 } from '../src/modules/testimonials/utils/validate-image-base64';
 import { parseAdminPage } from '../src/common/pagination/admin-page';
 
 describe('bounded input and administrative pagination', () => {
+  it('reserves the three MiB budget exclusively for PUT logo', async () => {
+    const app = express();
+    app.use(boundedJsonBody);
+    app.all('/api/v1/tenants/me/logo', (req, res) => res.json({ length: req.body.imageBase64.length }));
+    const body = { imageBase64: 'A'.repeat(2800000) };
+    await request(app).put('/api/v1/tenants/me/logo').send(body).expect(200);
+    await request(app).patch('/api/v1/tenants/me/logo').send(body).expect(413);
+    await request(app).put('/api/v1/tenants/me/logo').send({ imageBase64: 'A'.repeat(3 * 1024 * 1024) }).expect(413);
+    expect(isLogoPayloadRoute('PUT', '/api/v1/tenants/me/logo/')).toBe(true);
+    expect(isLogoPayloadRoute('PUT', '/api/v1/tenants/other/logo')).toBe(false);
+  });
   it('allows the image route a separate body budget while rejecting oversized general JSON', async () => {
     const app = express();
     app.use(boundedJsonBody, formBody);

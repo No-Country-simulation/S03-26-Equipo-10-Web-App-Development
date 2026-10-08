@@ -5,7 +5,7 @@
 **Motor de Base de Datos:** PostgreSQL 18
 **Alcance:** modelo conceptual; el esquema efectivo se consulta en `apps/api/prisma/schema.prisma`.
 
-**Diseño pendiente (2026-10-08):** el [diccionario dimensional OLAP](./warehouse_diccionario_de_datos.md) define `testimonial_dw` en una instancia separada. El [contrato de logo de empresa](../modules/api-tenant-logo.md) propone columnas opcionales en `tenants` y una cola durable de limpieza. Estas estructuras son borradores del [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), no entidades implementadas ni migraciones aplicadas.
+**Evolución (2026-10-08):** el [logo de empresa](../modules/api-tenant-logo.md) está implementado en Prisma/API/UI, con migración preparada y probada en un esquema descartable; no aplicada a bases persistentes. El [diccionario dimensional OLAP](./warehouse_diccionario_de_datos.md) define `testimonial_dw` en una instancia separada y permanece como diseño pendiente de las fases 3/4 del [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md).
 
 ---
 
@@ -19,8 +19,17 @@
 |---------------|--------------|--------------------------------------|-----------------------------------------------|----------------------------------|
 | `id`          | `UUID`       | PK, DEFAULT `gen_random_uuid()`     | Identificador único del inquilino.            | `550e8400-e29b-41d4-a716-446655440000` |
 | `name`        | `TEXT`       | NOT NULL, UNIQUE                     | Nombre de la empresa.                          | `Academia X`                     |
+| `logo_url` | `TEXT` | NULL permitido, CHECK de par con ID | URL pública HTTPS del logo; NULL sin imagen. | NULL |
+| `logo_public_id` | `TEXT` | NULL permitido, namespace del tenant | Referencia privada de Cloudinary; no se publica en la API. | NULL |
+| `logo_revision` | `BIGINT` | NOT NULL, DEFAULT 0, CHECK >= 0 | Versión privada para reemplazo/eliminación concurrentes. | `0` |
 | `is_active`   | `BOOLEAN`    | NOT NULL, DEFAULT `TRUE`             | Indica si el inquilino está activo.            | `true`                           |
 | `created_at`  | `TIMESTAMP`  | NOT NULL, DEFAULT `now()`            | Fecha y hora de creación.                      | `2026-03-15 10:00:00`            |
+
+---
+
+### Tabla: `tenant_logo_cleanup_jobs`
+
+Cola durable de limpieza, vinculada a `tenants(id)` con `ON DELETE RESTRICT`. Contiene UUID de job/tenant, public ID privado, estado (`pending`, `processing`, `completed`, `cancelled`, `dead`), intentos (0–10), próxima ejecución, token/vencimiento de lease, código técnico y timestamps UTC. La unicidad `(tenant_id, public_id)` evita duplicados; CHECK de namespace y lease/estado protege integridad. Índices parciales sobre trabajos pendientes y leases vencidos. No almacena archivos, Base64 ni respuestas del proveedor. Ver [DDL exacto](../../apps/api/prisma/migrations/20261008000000_tenant_logos/migration.sql).
 
 ---
 

@@ -131,14 +131,15 @@ ADR-0002: Outbox pattern para eventos y webhooks (docs/adr/0002-patron-outbox-pa
 ADR-0003: Estrategia multi-tenant row-level (docs/adr/0003-estrategia-multi-tenant-row-level.md)
 ADR-0004: Warehouse PostgreSQL separado; diseño aprobado, implementación/despliegue pendientes (docs/adr/0004-warehouse-postgresql-separado.md)
 
-## PLANNED TENANT LOGO AND BI (NO IMPLEMENTADO)
-plan: docs/plan/2026-10-08_feat-foto-empresa-bi.md; cuatro fases HITL con ACK individual; fase 1 documental
-tenant_logo: logoUrl/logoPublicId opcionales + limpieza durable; PUT/DELETE tenants/me/logo admin; PNG/JPEG/WebP 2 MiB; visible en /p/[slug]
+## TENANT LOGO IMPLEMENTADO; BI PENDIENTE
+plan: docs/plan/2026-10-08_feat-foto-empresa-bi.md; cuatro fases HITL con ACK individual; fase 2 terminada, revisión pendiente
+tenant_logo: logoUrl público nullable; logoPublicId/logoRevision privados; PUT/DELETE tenants/me/logo admin+CSRF; PNG/JPEG/WebP 2 MiB y JSON 3 MiB; Configuración y /p/[slug] con iniciales de respaldo
+logo_cleanup: intención durable previa a subida; CAS de revisión; polling 30 s, lote 5, lease 60 s, máximo 10 intentos; métricas de resultados/dead; cuenta Cloudinary externa
 warehouse: testimonial_dw en instancia PostgreSQL con recursos separados; schemas staging/dw/etl; migraciones independientes
 etl: entrada independiente en apps/api, lectura consistente por tenant, reconciliación completa horaria, fencing y publicación atómica
 bi: GET /api/v1/bi/dashboard y /admin/business-intelligence; admin/editor por tenant; rangos UTC, snapshots horarios, métricas y tendencias
 sources: source libre se normaliza antes de exportar; no copiar textos, autores, IP/hash, usuarios, credenciales o URLs multimedia
-limits: sin volumen real medido; SQL en docs/plan es borrador no aplicado; no afirmar logo, worker, panel o servidores desplegados
+limits: migración OLTP preparada/probada sólo en fixture descartable; Cloudinary simulado en tests; warehouse SQL aún borrador; sin volumen real medido ni despliegue de logo/BI verificado
 
 ## COMMIT STANDARD (Conventional Commits)
 format: <type>(<scope>): <descripción en español rioplatense, voseo formal>

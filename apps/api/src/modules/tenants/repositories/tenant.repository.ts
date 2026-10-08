@@ -7,6 +7,7 @@ export interface TenantView {
   publicSlug: string | null;
   isPublicFormEnabled: boolean;
   isActive: boolean;
+  logoUrl: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ export class TenantRepository {
       publicSlug: tenant.publicSlug,
       isPublicFormEnabled: tenant.isPublicFormEnabled,
       isActive: tenant.isActive,
+      logoUrl: tenant.logoUrl,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
     };
@@ -42,6 +44,7 @@ export class TenantRepository {
       publicSlug: tenant.publicSlug,
       isPublicFormEnabled: tenant.isPublicFormEnabled,
       isActive: tenant.isActive,
+      logoUrl: tenant.logoUrl,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
     };
@@ -71,6 +74,7 @@ export class TenantRepository {
       publicSlug: tenant.publicSlug,
       isPublicFormEnabled: tenant.isPublicFormEnabled,
       isActive: tenant.isActive,
+      logoUrl: tenant.logoUrl,
       createdAt: tenant.createdAt,
       updatedAt: tenant.updatedAt,
     };

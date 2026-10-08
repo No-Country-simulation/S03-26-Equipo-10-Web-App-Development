@@ -42,5 +42,5 @@ export class InternalError extends ApplicationError {
   constructor(message: string) { super(message, 'internal'); }
 }
 export class UnavailableError extends ApplicationError {
-  constructor(message: string) { super(message, 'unavailable'); }
+  constructor(message: string, code?: string) { super(message, 'unavailable', code); }
 }

@@ -104,7 +104,7 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 |--------|--------------------------|
 | `auth/` | JWT login/register, refresh token rotation, logout, `/me` |
 | `users/` | CRUD usuarios, asignación de roles RBAC |
-| `tenants/` | Provisioning de tenants, aislamiento row-level |
+| `tenants/` | Provisioning, aislamiento por tenant y logo con limpieza durable de Cloudinary |
 | `testimonials/` | Lifecycle de testimonios, moderación, scoring, tags, categorías |
 | `webhooks/` | Outbox transaccional, polling, delivery HTTP, reintentos, HMAC signing |
 | `analytics/` | Tracking de vistas y clicks en widgets |
@@ -209,4 +209,4 @@ Al trabajar con un plan en `docs/plan/`:
 
 ---
 
-*Última actualización: 2026-10-02 — Versión del framework: SKL-PRO-001 v1.1.0*
+*Última actualización: 2026-10-08 — Versión del framework: SKL-PRO-001 v1.1.0*

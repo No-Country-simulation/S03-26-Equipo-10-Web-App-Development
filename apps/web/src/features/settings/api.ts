@@ -4,6 +4,7 @@ import { sessionRequest, type SessionFetch } from '@/lib/api/validated-response'
 const tenantSchema = z.object({
   id: z.string(), name: z.string(), publicSlug: z.string().nullable(),
   isPublicFormEnabled: z.boolean(), isActive: z.boolean(), createdAt: z.string(),
+  logoUrl: z.string().url().nullable(),
 }).passthrough();
 const flagSchema = z.object({ id: z.string(), name: z.string(), enabled: z.boolean().optional() }).passthrough();
 
@@ -12,3 +13,8 @@ export const listFeatureFlags = (fetchApi: SessionFetch) => sessionRequest(fetch
 export type UpdateTenantInput = { name?: string; publicSlug?: string; isPublicFormEnabled?: boolean };
 export const updateTenant = (fetchApi: SessionFetch, input: UpdateTenantInput) =>
   sessionRequest(fetchApi, '/tenants/me', tenantSchema, { method: 'PATCH', body: JSON.stringify(input) });
+
+export const uploadTenantLogo = (fetchApi: SessionFetch, imageBase64: string) =>
+  sessionRequest(fetchApi, '/tenants/me/logo', tenantSchema, { method: 'PUT', body: JSON.stringify({ imageBase64 }) });
+export const removeTenantLogo = (fetchApi: SessionFetch) =>
+  sessionRequest(fetchApi, '/tenants/me/logo', tenantSchema, { method: 'DELETE' });

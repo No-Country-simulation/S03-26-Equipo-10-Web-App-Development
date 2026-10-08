@@ -5,12 +5,14 @@ describe('protected RED and outbox metrics', () => {
   const prisma = {
     outboxEvent: { findFirst: jest.fn().mockResolvedValue({ createdAt: new Date(Date.now() - 360_000) }) },
     webhookDelivery: { count: jest.fn().mockResolvedValueOnce(2).mockResolvedValueOnce(1) },
+    tenantLogoCleanupJob: { count: jest.fn().mockResolvedValue(3) },
   };
 
   it('exports bounded route labels, lag, pending age and dead deliveries', async () => {
     const metrics = new MetricsService(prisma as any);
     metrics.recordHttp('GET', '/testimonials/:id', 200, 25);
     metrics.recordWebhookAttempt(503);
+    metrics.recordLogoCleanup('retry');
     const rendered = await metrics.render();
     expect(rendered).toContain('tms_http_requests_total');
     expect(rendered).toContain('route="/testimonials/:id"');
@@ -18,6 +20,8 @@ describe('protected RED and outbox metrics', () => {
     expect(rendered).toContain('tms_webhook_deliveries_dead 1');
     expect(rendered).toContain('tms_webhook_attempts_total{result="server_error"} 1');
     expect(rendered).toContain('tms_nodejs_eventloop_lag_seconds');
+    expect(rendered).toContain('tms_tenant_logo_cleanup_total{result="retry"} 1');
+    expect(rendered).toContain('tms_tenant_logo_cleanup_dead 3');
     metrics.onModuleDestroy();
   });
 

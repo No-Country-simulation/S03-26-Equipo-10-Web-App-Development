@@ -1,10 +1,10 @@
-# Contrato propuesto: logo de empresa
+# Logo de empresa
 
-**Fecha:** 2026-10-08. **Estado:** diseño; fase 2 pendiente.
+**Fecha:** 2026-10-08. **Estado:** implementado y probado localmente; despliegue y configuración del proveedor pendientes.
 
 **Plan:** [Foto de empresa y BI](../plan/2026-10-08_feat-foto-empresa-bi.md).
 
-**Persistencia propuesta:** [Borrador OLTP](../plan/2026-10-08_feat-foto-empresa-bi_oltp-borrador.sql).
+**Persistencia:** [migración aditiva](../../apps/api/prisma/migrations/20261008000000_tenant_logos/migration.sql), preparada y verificada en un esquema descartable. No aplicada a bases persistentes. El [borrador OLTP](../plan/2026-10-08_feat-foto-empresa-bi_oltp-borrador.sql) conserva el diseño original.
 
 ## API y autorización
 
@@ -49,8 +49,17 @@ Tratar «asset no encontrado» como eliminación exitosa. Reintentar errores con
 
 Configuración incorpora previsualización, selección, reemplazo y eliminación sólo para admin; conserva el archivo/feedback ante error sin afirmar guardado. El formulario `/p/[slug]` muestra la imagen junto al nombre con tamaño reservado, `alt="Logo de <nombre>"` y respaldo de iniciales. Restablecer el estado de error de imagen al cambiar slug o URL. El fallo de la imagen no impide completar el formulario. Mantener la identidad y los tokens vigentes.
 
-La columna nueva es opcional y la migración es aditiva. Backend se despliega antes del frontend que consume el logo. Actualizar el esquema Zod de `form-info` y TenantView en la fase 2; NULL expresa ausencia de logo. No hacer backfill de imágenes de testimonios ni registrar perfiles personales.
+La columna nueva es opcional y la migración es aditiva. Aplicar la migración mediante el procedimiento autorizado antes de arrancar la API nueva; desplegar backend antes del frontend que consume el logo. Los esquemas Zod de `form-info` y TenantView incluyen `logoUrl`; NULL expresa ausencia de logo. No hacer backfill de imágenes de testimonios ni registrar perfiles personales.
 
 ## Validación de fase 2
 
 Probar firma/MIME, Base64 inválido, cero bytes, 2 MiB exactos y exceso; límite de 3 MiB exclusivo de la ruta; admin/editor, CSRF y tenant obtenido de sesión. Verificar carga exitosa, reemplazo simultáneo con igual milisegundo, modificación de configuración concurrente sin pisar nombre/slug, eliminación repetida, proveedor caído, respuesta inválida, crash antes/después del commit, candidato vencido, worker vencido y job `dead`. Probar logo ausente/roto y cambio de slug en UI. La integración real no se sustituye por mocks para certificar limpieza durable.
+
+## Operación y evidencia
+
+- Configurar externamente `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` para logos. La URL/preset anteriores continúan en el flujo de imágenes de testimonios. `CLOUDINARY_LOCAL_PLACEHOLDER=true` sólo permite su placeholder local explícito; no habilita logos y se ignora en producción.
+- Las operaciones de persistencia del endpoint usan transacciones de hasta 10 s, espera de conexión de hasta 5 s, `lock_timeout=2s` y `statement_timeout=5s`. La red está fuera de esas transacciones, con timeout de 5 s y sin reintento de subida.
+- Observar `tms_tenant_logo_cleanup_total{result="completed|retry|dead"}` y `tms_tenant_logo_cleanup_dead`. El gauge incluye jobs agotados por vencimiento del último lease; el counter refleja finalizaciones aceptadas por el worker. No hay labels con IDs o nombres de empresas.
+- Ante jobs `dead`, comprobar configuración/proveedor y el código técnico del job. Reintentar sólo referencias que ya no estén en `tenants.logo_public_id`, con una intervención operativa autorizada que restablezca `pending`, intentos cero, vencimiento actual y lease NULL. No editar referencias de tenant para rescatar una carga vencida. La cola no tiene purga automática; medir crecimiento antes de definir retención.
+- La integración PostgreSQL usa `TEST_LOGO_DATABASE_URL` **sólo hacia una base descartable**. Crea un esquema aleatorio, una fixture mínima previa y ejecuta el DDL de la migración allí; elimina el esquema al terminar. No usa `migrate deploy`, `db push` ni tablas de un despliegue existente.
+- Las pruebas verifican persistencia real, atomicidad, concurrencia, aislamiento, lease vencido y recuperación. El protocolo Cloudinary se prueba con respuestas simuladas; falta una prueba real con una cuenta configurada y verificar invalidación CDN. La interfaz se verifica con pruebas DOM; no se declara una revisión visual de navegador ni capacidad productiva.

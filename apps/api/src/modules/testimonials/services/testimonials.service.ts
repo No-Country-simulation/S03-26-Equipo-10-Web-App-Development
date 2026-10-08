@@ -155,6 +155,7 @@ export class TestimonialsService {
     return {
       name: tenant.name,
       isPublicFormEnabled: tenant.isPublicFormEnabled,
+      logoUrl: tenant.logoUrl,
     };
   }
 

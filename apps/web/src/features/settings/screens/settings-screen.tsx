@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { getTenant, listFeatureFlags, updateTenant } from '../api';
 import { actionFailureCopy, LoadFailure } from '@/features/shared/load-failure';
 import { useRemoteResource } from '@/features/shared/use-remote-resource';
+import { TenantLogoEditor } from '../components/tenant-logo-editor';
 
 interface FeatureFlag {
   id: string;
@@ -23,6 +24,7 @@ interface TenantInfo {
   isPublicFormEnabled: boolean;
   isActive: boolean;
   createdAt: string;
+  logoUrl: string | null;
 }
 
 export default function SettingsPage() {
@@ -108,6 +110,8 @@ export default function SettingsPage() {
         <LoadFailure error={state.error} resource="la configuración" onRetry={reload} />
       ) : (
         <div className="grid gap-8">
+          {tenant && <TenantLogoEditor key={tenant.id} tenantId={tenant.id} name={tenant.name}
+            logoUrl={tenant.logoUrl} fetchApi={fetchApi} onSaved={reload} />}
           {/* Tenant Info */}
           <div>
             <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">

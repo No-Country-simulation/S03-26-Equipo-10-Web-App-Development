@@ -13,6 +13,9 @@ model Tenant {
   publicSlug          String?             @unique @map("public_slug")
   isPublicFormEnabled Boolean             @default(false) @map("is_public_form_enabled")
   isActive            Boolean             @default(true) @map("is_active")
+  logoUrl             String?             @map("logo_url")
+  logoPublicId        String?             @map("logo_public_id")
+  logoRevision        BigInt              @default(0) @map("logo_revision")
   createdAt           DateTime            @default(now()) @db.Timestamptz(3) @map("created_at")
   updatedAt           DateTime            @updatedAt @db.Timestamptz(3) @map("updated_at")
   users               User[]
@@ -26,8 +29,28 @@ model Tenant {
   outboxEvents        OutboxEvent[]
   idempotencyKeys     IdempotencyKey[]
   auditLogs           AuditLog[]
+  logoCleanupJobs     TenantLogoCleanupJob[]
 
   @@map("tenants")
+}
+
+model TenantLogoCleanupJob {
+  id            String   @id(map: "pk_tenant_logo_cleanup_jobs") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  publicId      String   @map("public_id")
+  status        String   @default("pending")
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @db.Timestamptz(3) @map("next_attempt_at")
+  leaseToken    String?  @map("lease_token") @db.Uuid
+  leaseUntil    DateTime? @db.Timestamptz(3) @map("lease_until")
+  errorCode     String?  @map("error_code")
+  createdAt     DateTime @default(now()) @db.Timestamptz(3) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @db.Timestamptz(3) @map("updated_at")
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "fk_tenant_logo_cleanup_tenant")
+
+  @@unique([tenantId, publicId], map: "uq_tenant_logo_cleanup_asset")
+  // Los índices parciales y CHECK viven en la migración SQL.
+  @@map("tenant_logo_cleanup_jobs")
 }
 
 model Role {
