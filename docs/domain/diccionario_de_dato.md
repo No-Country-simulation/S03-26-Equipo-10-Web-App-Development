@@ -5,6 +5,8 @@
 **Motor de Base de Datos:** PostgreSQL 18
 **Alcance:** modelo conceptual; el esquema efectivo se consulta en `apps/api/prisma/schema.prisma`.
 
+**Diseño pendiente (2026-10-08):** el [diccionario dimensional OLAP](./warehouse_diccionario_de_datos.md) define `testimonial_dw` en una instancia separada. El [contrato de logo de empresa](../modules/api-tenant-logo.md) propone columnas opcionales en `tenants` y una cola durable de limpieza. Estas estructuras son borradores del [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), no entidades implementadas ni migraciones aplicadas.
+
 ---
 
 ## 1. Diccionario de Datos (Estructura de Tablas)

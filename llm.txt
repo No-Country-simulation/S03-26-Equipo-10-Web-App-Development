@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-10-02
+# Última actualización: 2026-10-08
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -45,7 +45,7 @@ apps/web/src/app/      → Next.js App Router pages
 docs/                  → All documentation
 docs/technical/        → Architecture, patterns, design system, testing, accessibility
 docs/domain/           → Business rules + data dictionary (ERD)
-docs/adr/              → Architectural Decision Records (3 ADRs)
+docs/adr/              → Architectural Decision Records (3 del runtime + ADR 0004 de diseño pendiente)
 docs/product/          → Definition, PRD, user stories, IA, design system strategy
 docs/operations/       → Infrastructure, observability, deployment, audit
 docs/governance/       → Ethics, compliance
@@ -129,6 +129,16 @@ BR-WEB-002: outbox_events written in same DB transaction as domain event
 ADR-0001: NestJS + arquitectura modular (docs/adr/0001-uso-de-nestjs-y-arquitectura-modular.md)
 ADR-0002: Outbox pattern para eventos y webhooks (docs/adr/0002-patron-outbox-para-eventos-y-webhooks.md)
 ADR-0003: Estrategia multi-tenant row-level (docs/adr/0003-estrategia-multi-tenant-row-level.md)
+ADR-0004: Warehouse PostgreSQL separado; diseño aprobado, implementación/despliegue pendientes (docs/adr/0004-warehouse-postgresql-separado.md)
+
+## PLANNED TENANT LOGO AND BI (NO IMPLEMENTADO)
+plan: docs/plan/2026-10-08_feat-foto-empresa-bi.md; cuatro fases HITL con ACK individual; fase 1 documental
+tenant_logo: logoUrl/logoPublicId opcionales + limpieza durable; PUT/DELETE tenants/me/logo admin; PNG/JPEG/WebP 2 MiB; visible en /p/[slug]
+warehouse: testimonial_dw en instancia PostgreSQL con recursos separados; schemas staging/dw/etl; migraciones independientes
+etl: entrada independiente en apps/api, lectura consistente por tenant, reconciliación completa horaria, fencing y publicación atómica
+bi: GET /api/v1/bi/dashboard y /admin/business-intelligence; admin/editor por tenant; rangos UTC, snapshots horarios, métricas y tendencias
+sources: source libre se normaliza antes de exportar; no copiar textos, autores, IP/hash, usuarios, credenciales o URLs multimedia
+limits: sin volumen real medido; SQL en docs/plan es borrador no aplicado; no afirmar logo, worker, panel o servidores desplegados
 
 ## COMMIT STANDARD (Conventional Commits)
 format: <type>(<scope>): <descripción en español rioplatense, voseo formal>
