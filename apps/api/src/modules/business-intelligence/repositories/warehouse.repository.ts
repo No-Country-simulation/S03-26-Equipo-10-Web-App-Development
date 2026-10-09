@@ -198,11 +198,12 @@ export class WarehouseRepository {
       if (BigInt(snapshotRows) !== counts.testimonials || !total || total.count.toString() !== counts.events.toString()) {
         throw new EtlError('BI_SOURCE_INCONSISTENT');
       }
+      await this.clearStaging(tx, lease.tenantId, lease.runId);
+      // Record completion after staging cleanup so freshness and duration include that work.
       await tx.$executeRaw`UPDATE etl.runs SET status = 'succeeded', finished_at = clock_timestamp(),
         source_category_count = ${counts.categories}, source_testimonial_count = ${counts.testimonials},
         source_event_count = ${counts.events}, snapshot_row_count = ${BigInt(snapshotRows)}, engagement_row_count = ${BigInt(engagementRows)}
         WHERE tenant_id = ${lease.tenantId}::uuid AND id = ${lease.runId}::uuid AND status = 'running'`;
-      await this.clearStaging(tx, lease.tenantId, lease.runId);
       // Recheck at the END: a publication that outlives its lease rolls back entirely.
       const changed = await tx.$executeRaw`UPDATE etl.tenant_load_state SET last_published_run_id = ${lease.runId}::uuid,
         lease_run_id = NULL, lease_token = NULL, lease_until = NULL

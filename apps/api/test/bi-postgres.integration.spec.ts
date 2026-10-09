@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
@@ -12,6 +16,9 @@ import { AnalyticsRepository } from '../src/modules/analytics/repositories/analy
 import { TestimonialRepository } from '../src/modules/testimonials/repositories/testimonial.repository';
 import { PrismaService } from '../src/modules/database/prisma.service';
 import { main as etlMain } from '../src/modules/business-intelligence/etl.cli';
+import { BiConnection } from '../src/modules/business-intelligence/repositories/bi-connection';
+import { DashboardRepository } from '../src/modules/business-intelligence/repositories/dashboard.repository';
+import { BiMetricsService } from '../src/modules/business-intelligence/services/bi-metrics.service';
 
 // Explicit opt-in to TWO disposable servers. Create and remove fresh databases and restricted roles.
 const sourceAdminUrl = process.env.TEST_BI_SOURCE_DATABASE_URL;
@@ -37,6 +44,8 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
   let warehouse: WarehouseRepository;
   let service: EtlService;
   let warehouseSql: string;
+  let bi: BiConnection;
+  let dashboard: DashboardRepository;
   const tenantA = randomUUID();
   const tenantB = randomUUID();
   const categoryA = randomUUID();
@@ -89,6 +98,15 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     sourceRepo = new SourceRepository(source, 1); // Force multiple pages, including IDs above Number.MAX_SAFE_INTEGER.
     warehouse = new WarehouseRepository(target);
     service = new EtlService(sourceRepo, warehouse);
+    const previousEnabled = process.env.BI_ENABLED; const previousUrl = process.env.BI_DATABASE_URL;
+    const biUrl = new URL(targetAdminUrl!); biUrl.pathname = `/${targetDb}`; biUrl.username = readerRole; biUrl.password = '';
+    try {
+      process.env.BI_ENABLED = 'true'; process.env.BI_DATABASE_URL = biUrl.toString();
+      bi = new BiConnection(); dashboard = new DashboardRepository(bi);
+    } finally {
+      if (previousEnabled === undefined) delete process.env.BI_ENABLED; else process.env.BI_ENABLED = previousEnabled;
+      if (previousUrl === undefined) delete process.env.BI_DATABASE_URL; else process.env.BI_DATABASE_URL = previousUrl;
+    }
   });
 
   beforeEach(async () => {
@@ -111,6 +129,7 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
   });
 
   afterAll(async () => {
+    await bi?.onModuleDestroy();
     await Promise.allSettled([source, target, reader, sourceAdmin, targetAdmin].filter(Boolean).map(c => c.$disconnect()));
     if (parentSource) {
       await parentSource.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${sourceDb}" WITH (FORCE)`);
@@ -130,6 +149,36 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       SELECT last_published_run_id AS "runId" FROM etl.tenant_load_state WHERE tenant_id = ${tenantId}::uuid`;
     return state?.runId;
   }
+  it('restores a consistent warehouse backup including facts, pointers and migration ledger', async () => {
+    expect((await service.runTenant(tenantA)).status).toBe('succeeded');
+    const published = await current();
+    const restoredDb = `bi_restore_${suffix}`;
+    const directory = await mkdtemp(join(tmpdir(), 'tms-bi-restore-'));
+    const archive = join(directory, 'warehouse.dump');
+    const parsed = new URL(targetAdminUrl!);
+    // Disposable opt-in identity only. Credentials stay in child environment, never arguments/files.
+    const backupEnv = { ...process.env, PGHOST: parsed.searchParams.get('host') ?? parsed.hostname,
+      PGPORT: parsed.port || '5432', PGUSER: decodeURIComponent(parsed.username),
+      PGPASSWORD: decodeURIComponent(parsed.password), PGDATABASE: targetDb };
+    let restored: PrismaClient | undefined;
+    try {
+      await promisify(execFile)('pg_dump', ['--format=custom', '--no-owner', '--no-acl', '--file', archive], { env: backupEnv });
+      await parentTarget.$executeRawUnsafe(`CREATE DATABASE "${restoredDb}"`);
+      await promisify(execFile)('pg_restore', ['--exit-on-error', '--no-owner', '--no-acl', '--dbname', restoredDb, archive], { env: backupEnv });
+      restored = client(targetAdminUrl!, restoredDb);
+      const [check] = await restored.$queryRaw<Array<{ pointer: string; snapshots: bigint; events: string }>>`
+        SELECT s.last_published_run_id AS pointer,
+          (SELECT count(*) FROM dw.fact_testimonial_snapshot f WHERE f.tenant_id = s.tenant_id AND f.run_id = s.last_published_run_id) AS snapshots,
+          (SELECT sum(event_count)::text FROM dw.fact_engagement_daily f WHERE f.tenant_id = s.tenant_id) AS events
+        FROM etl.tenant_load_state s WHERE s.tenant_id = ${tenantA}::uuid`;
+      expect(check).toEqual({ pointer: published, snapshots: 2n, events: '3' });
+      expect(await applyWarehouseMigration(restored, '0001_initial.sql', warehouseSql)).toBe(false);
+    } finally {
+      await restored?.$disconnect();
+      await parentTarget.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${restoredDb}" WITH (FORCE)`);
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
   async function movePreviousCutBack(hours = 3) {
     // Simulated passage of hours, confined to the disposable fixture; real runtime never backdates cuts.
     await targetAdmin.$executeRaw`UPDATE etl.runs SET slot_at = slot_at - ${hours} * interval '1 hour',
@@ -394,5 +443,49 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     await scoring.updateScores(tenantA, [{ id: testimonialA, score: 99 }]);
     const [own] = await sourceAdmin.$queryRaw<Array<{ score: { toString(): string } }>>`SELECT score FROM testimonials WHERE tenant_id = ${tenantA}::uuid AND id = ${testimonialA}::uuid`;
     expect(own?.score.toString()).toBe('77');
+  });
+
+  it('reads current inventory outside the range and keeps two tenant dashboards isolated with UTC events', async () => {
+    await service.runTenant(tenantA); await service.runTenant(tenantB);
+    const range = { from: '2024-02-29', to: '2024-03-01', timezone: 'UTC' as const };
+    const a = await dashboard.dashboard(tenantA, range); const b = await dashboard.dashboard(tenantB, range);
+    expect(a.summary).toMatchObject({ totalTestimonials: 2, averageRating: 4.5, views: '1', clicks: '1', plays: '1', ctr: 100 });
+    expect(b.summary).toMatchObject({ totalTestimonials: 1, averageRating: 3, views: '1', clicks: '0', plays: '0', ctr: 0 });
+    expect(a.categories.map(row => row.name)).toEqual(expect.arrayContaining(['Category A', 'Sin categoría']));
+    expect(a.categories.map(row => row.name)).not.toContain('Category B');
+    expect(a.testimonialSeries.every(row => row.total === null && row.snapshotAt === null)).toBe(true);
+    expect(a.engagementSeries[0]).toMatchObject({ date: '2024-02-29', views: '1', clicks: '0' });
+    expect(a.engagementSeries[1]).toMatchObject({ date: '2024-03-01', views: '0', clicks: '1', plays: '1', ctr: null });
+    expect(a.freshness.status).toBe('fresh'); expect(a.freshness.engagementHistoryStartedAt).toBe('2024-02-29');
+  });
+
+  it('selects one last cut per day instead of summing inventory, and distinguishes missing days from empty cuts', async () => {
+    await service.runTenant(tenantA);
+    await targetAdmin.$executeRaw`UPDATE etl.runs SET slot_at = '2024-03-01T01:00:00Z', source_snapshot_at = '2024-03-01T01:01:00Z'
+      WHERE tenant_id = ${tenantA}::uuid AND status = 'succeeded'`;
+    await sourceAdmin.$executeRaw`DELETE FROM analytics_events WHERE tenant_id = ${tenantA}::uuid`;
+    await sourceAdmin.$executeRaw`DELETE FROM testimonials WHERE tenant_id = ${tenantA}::uuid`;
+    await service.runTenant(tenantA);
+    await targetAdmin.$executeRaw`UPDATE etl.runs SET slot_at = '2024-03-01T02:00:00Z', source_snapshot_at = '2024-03-01T02:01:00Z'
+      WHERE tenant_id = ${tenantA}::uuid AND id = ${await current()}::uuid`;
+    const result = await dashboard.dashboard(tenantA, { from: '2024-02-29', to: '2024-03-01', timezone: 'UTC' });
+    expect(result.summary).toMatchObject({ totalTestimonials: 0, averageRating: null, views: '0', clicks: '0', ctr: null });
+    expect(result.testimonialSeries.map(row => row.total)).toEqual([null, 0]);
+    expect(result.testimonialSeries[1]?.snapshotAt).toBe('2024-03-01T02:01:00.000Z');
+    expect(result.freshness.status).toBe('stale');
+    const unseen = await dashboard.dashboard(randomUUID(), result.range);
+    expect(unseen.freshness.status).toBe('not_loaded'); expect(unseen.summary.totalTestimonials).toBe(0);
+  });
+
+  it('preserves counts beyond Number.MAX_SAFE_INTEGER and exposes bounded durable metrics', async () => {
+    await service.runTenant(tenantA);
+    await targetAdmin.$executeRaw`UPDATE dw.fact_engagement_daily SET event_count = ${bigEventId}
+      WHERE tenant_id = ${tenantA}::uuid AND date_key = '2024-02-29'`;
+    const result = await dashboard.dashboard(tenantA, { from: '2024-02-29', to: '2024-03-01', timezone: 'UTC' });
+    expect(result.summary.views).toBe(bigEventId.toString()); expect(result.summary.ctr).toBe(0);
+    const metrics = await new BiMetricsService(bi).render();
+    expect(metrics).toContain('tms_bi_etl_runs_total{status="succeeded"} 1');
+    expect(metrics).toContain('tms_bi_etl_duration_seconds_bucket{le="+Inf"} 1');
+    expect(metrics).not.toContain(tenantA); expect(metrics).not.toContain(readerRole);
   });
 });

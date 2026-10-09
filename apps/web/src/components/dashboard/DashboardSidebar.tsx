@@ -34,6 +34,7 @@ const navItems: NavItem[] = [
   { label: 'Categorías', href: '/admin/categories', icon: FolderOpen },
   { label: 'Etiquetas', href: '/admin/tags', icon: Tag },
   { label: 'Analítica', href: '/admin/analytics', icon: BarChart3 },
+  { label: 'Inteligencia de negocio', href: '/admin/business-intelligence', icon: BarChart3 },
   { label: 'Usuarios', href: '/admin/users', icon: Users, adminOnly: true },
   { label: 'Webhooks', href: '/admin/webhooks', icon: Webhook, adminOnly: true },
   { label: 'APIs Keys', href: '/admin/api-keys', icon: KeyRound, adminOnly: true },
@@ -74,7 +75,7 @@ function SidebarContent({ userEmail, userRoles, isAdmin, onLogout, onNavigate }:
           <p className="mb-3 px-3 font-body text-[10px] font-bold uppercase tracking-widest text-background/70">
             Panel
           </p>
-          {visibleItems.slice(0, 5).map((item) => {
+          {visibleItems.filter(item => !item.adminOnly).map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -104,7 +105,7 @@ function SidebarContent({ userEmail, userRoles, isAdmin, onLogout, onNavigate }:
             <p className="mb-3 px-3 font-body text-[10px] font-bold uppercase tracking-widest text-background/70">
               Administración
             </p>
-            {visibleItems.slice(5).map((item) => {
+            {visibleItems.filter(item => item.adminOnly).map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link

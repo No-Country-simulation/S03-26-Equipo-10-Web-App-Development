@@ -38,4 +38,9 @@ describe('DashboardSidebar mobile navigation', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
   });
+  it('makes BI reachable for editors without exposing administrative links', () => {
+    render(<DashboardSidebar isAdmin={false} userRoles={['editor']} onLogout={vi.fn()} />);
+    expect(screen.getByRole('link', { name: 'Inteligencia de negocio' })).toHaveAttribute('href', '/admin/business-intelligence');
+    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument();
+  });
 });

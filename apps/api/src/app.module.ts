@@ -10,6 +10,7 @@ import { HashingModule } from './modules/shared/hashing/hashing.module';
 import { PrismaModule } from './modules/database/prisma.module';
 import { ApiKeysModule } from './modules/api-keys/api-keys.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { BusinessIntelligenceModule } from './modules/business-intelligence/business-intelligence.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DocsModule } from './modules/docs/docs.module';
 import { FeatureFlagsModule } from './modules/feature-flags/feature-flags.module';
@@ -84,6 +85,7 @@ import { serializeSafeRequest } from './common/observability/safe-request-serial
     TestimonialsModule,
     ApiKeysModule,
     AnalyticsModule,
+    BusinessIntelligenceModule,
     WebhooksModule,
     FeatureFlagsModule,
   ],

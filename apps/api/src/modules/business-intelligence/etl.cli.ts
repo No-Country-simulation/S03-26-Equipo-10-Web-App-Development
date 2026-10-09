@@ -13,7 +13,8 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const config = etlConfig();
   const source = new PrismaClient({ datasources: { db: { url: config.sourceUrl } }, log: [] });
   const target = new PrismaClient({ datasources: { db: { url: config.warehouseUrl } }, log: [] });
-  const service = new EtlService(new SourceRepository(source, config.pageSize), new WarehouseRepository(target));
+  const service = new EtlService(new SourceRepository(source, config.pageSize), new WarehouseRepository(target),
+    phase => logger.log({ event: 'bi.etl_phase_finished', ...phase }));
   const controller = new AbortController();
   const shutdown = () => controller.abort();
   process.on('SIGINT', shutdown);

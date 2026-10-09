@@ -1,12 +1,12 @@
 # Contrato: Business Intelligence
 
-**Fecha:** 2026-10-08. **Estado:** warehouse/ETL/scoring implementados en fase 3; endpoint/panel y métricas pendientes de fase 4. Despliegue persistente no verificado.
+**Fecha:** 2026-10-08. **Estado:** warehouse/ETL/scoring, endpoint, panel y métricas implementados; integración y operación verificadas localmente. Despliegue persistente no verificado.
 
-**Referencias:** [Plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md), [diccionario DW](../domain/warehouse_diccionario_de_datos.md), [migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql), [operación ETL](../operations/17_business_intelligence_etl.md).
+**Referencias:** [Plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md), [diccionario DW](../domain/warehouse_diccionario_de_datos.md), [migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql), [operación ETL](../operations/17_business_intelligence_etl.md), [validación y despliegue](../operations/18_business_intelligence_rollout.md).
 
 ## Fronteras y configuración
 
-`apps/api/src/modules/business-intelligence/` contiene configuración, repositorios y servicios de carga. La entrada ETL crea únicamente configuración, logger, clientes y servicios de carga. No importa AppModule ni inicia scoring, outbox, HTTP o Redis. En fase 4 la API HTTP sólo importará la parte de lectura, con providers separados; el frontend compondrá `/admin/business-intelligence` desde su feature y los adaptadores vigentes.
+`apps/api/src/modules/business-intelligence/` contiene configuración, repositorios y servicios de carga. La entrada ETL crea únicamente configuración, logger, clientes y servicios de carga. No importa AppModule ni inicia scoring, outbox, HTTP o Redis. La API HTTP importa exclusivamente providers de lectura; el worker mantiene su entrada independiente. El frontend compone `/admin/business-intelligence` desde su feature dentro del layout administrativo y usa los adaptadores/sesión vigentes.
 
 | Variable | Consumidor | Uso |
 | --- | --- | --- |
@@ -38,11 +38,11 @@ Un run exitoso vacío actualiza el pointer y demuestra extracción completada. S
 
 El lease se mantiene en el destino, nunca bloquea escrituras OLTP. Un worker obsoleto puede dejar staging de su propio run, pero no publicar: el token y la fila bloqueada actúan como fencing. Usar parámetros para datos; el rol de lectura no recibe SELECT sobre passwords, texto, autores, URLs, ip_hash, tokens o notas.
 
-## Endpoint del panel (pendiente de fase 4)
+## Endpoint del panel
 
 `GET /api/v1/bi/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD`, con JwtAuthGuard/RolesGuard y roles `admin`, `editor`. Tenant exclusivamente de sesión. Rechazar query `tenantId` y claves desconocidas. Las fechas son fechas de calendario reales UTC, rango inclusivo, `from <= to`, máximo 366 días; fechas inválidas dan 400. `to` sólo: completar 29 días anteriores. `from` sólo: completar `to` con hoy UTC. Sin ambas: hoy UTC y 29 días anteriores. Rechazar `to` futura.
 
-Leer el dashboard completo en una transacción warehouse `REPEATABLE READ READ ONLY` para que summary/series/metadatos no mezclen publicaciones. Respuestas mediante el envelope existente. Contrato de `data`:
+Leer el dashboard completo en una transacción warehouse `REPEATABLE READ READ ONLY` para que summary/series/metadatos no mezclen publicaciones. Pool máximo dos, `statement_timeout=5s`, `lock_timeout=1s`, `transaction_timeout=10s`, espera transaccional un segundo. Configuración/conexión lazy sin participar en readiness. Respuestas mediante el envelope existente y `Cache-Control: private, no-store`. Contrato de `data`:
 
 | Campo | Forma / semántica |
 | --- | --- |
@@ -61,9 +61,9 @@ Leer el dashboard completo en una transacción warehouse `REPEATABLE READ READ O
 
 ## Scoring y observabilidad
 
-En fase 3, reemplazar el listado global de scoring por recorrido explícito de IDs de tenants habilitados. Para cada uno, llamar listado de publicados, `getEngagementCounts(tenantId, testimonialIds)` y `updateScores(tenantId, updates)` con filtros por tenant y estado pertinente. Probar que IDs de otro tenant no aportan métricas ni se actualizan. Conservar fórmula y comportamiento funcional de flags.
+Scoring recorre explícitamente IDs de tenants habilitados, reemplazando el listado global. Para cada uno, llamar listado de publicados, `getEngagementCounts(tenantId, testimonialIds)` y `updateScores(tenantId, updates)` con filtros por tenant y estado pertinente. Probar que IDs de otro tenant no aportan métricas ni se actualizan. Conservar fórmula y comportamiento funcional de flags.
 
-Métricas propuestas: duración/extracción/publicación, filas leídas, runs exitosos/fallidos/abandonados, lease perdido y edad del último corte. Usar estados/códigos como labels acotados; IDs tenant/run en logs estructurados técnicos, no labels Prometheus ilimitados. No registrar URLs de conexión ni datos exportados. El panel avisa atraso; la alerta operativa de atraso requiere activar monitoreo externo en despliegue.
+`GET /api/v1/internal/bi/metrics` exige el token de operación vigente antes de consultar DW: no acepta un JWT como sustituto. Reconstruye contadores/histograma de intentos, filas extraídas, lease perdido y gauges de atraso desde el ledger, sin labels tenant/run. Es un inventario técnico global explícito, separado del dashboard por empresa. La duración incluye limpieza de staging; logs `bi.etl_phase_finished` registran extracción/publicación completadas. No registrar URLs de conexión ni datos exportados. El [runbook](../operations/18_business_intelligence_rollout.md) describe semántica, límites, alertas propuestas y reinicios de counters por restauración/purga. El panel avisa atraso; el monitoreo externo no está desplegado.
 
 ## Permisos, compatibilidad y pruebas
 

@@ -3,7 +3,8 @@ import { WarehouseRepository } from '../repositories/warehouse.repository';
 import { EtlError, hourUtc, type EtlResult, type Lease, type SourceSnapshot } from '../etl.types';
 
 export class EtlService {
-  constructor(private readonly source: SourceRepository, private readonly warehouse: WarehouseRepository) {}
+  constructor(private readonly source: SourceRepository, private readonly warehouse: WarehouseRepository,
+    private readonly observe?: (event: { phase: 'extraction' | 'publication'; durationMs: number; status: 'succeeded'; rows?: { categories: string; testimonials: string; events: string } }) => void) {}
 
   async *cycle(signal?: AbortSignal): AsyncGenerator<EtlResult> {
     let cursor: string | null = null;
@@ -50,6 +51,7 @@ export class EtlService {
     }, 20000);
     const stop = async () => { clearInterval(timer); await heartbeat; };
     try {
+      const extractionStarted = Date.now();
       const counts = await this.source.extract(lease.tenantId, {
         snapshot: async value => {
           check();
@@ -66,12 +68,16 @@ export class EtlService {
         testimonials: async rows => { check(); await this.warehouse.testimonials(lease, rows); check(); },
         events: async rows => { check(); await this.warehouse.events(lease, rows); check(); },
       }, lease.deadline);
+      this.observe?.({ phase: 'extraction', durationMs: Date.now() - extractionStarted, status: 'succeeded', rows: {
+        categories: counts.categories.toString(), testimonials: counts.testimonials.toString(), events: counts.events.toString() } });
       await stop();
       check();
       if (!snapshot) throw new EtlError('BI_SOURCE_INCONSISTENT');
       await this.warehouse.extracted(lease, counts);
       check();
+      const publicationStarted = Date.now();
       await this.warehouse.publish(lease, snapshot, counts);
+      this.observe?.({ phase: 'publication', durationMs: Date.now() - publicationStarted, status: 'succeeded' });
       return { result: { tenantId: lease.tenantId, runId: lease.runId, status: 'succeeded' } };
     } catch (error) {
       await stop();

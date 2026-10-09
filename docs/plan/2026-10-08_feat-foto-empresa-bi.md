@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-08
 
-**Estado global:** En progreso; fases 1 y 2 aprobadas, fase 3 terminada pendiente de ACK. Fase 4 pendiente.
+**Estado global:** Implementación de las cuatro fases completada; fases 1, 2 y 3 aprobadas, fase 4 pendiente de revisión. Despliegue persistente no ejecutado.
 
 **Autorización inicial:** El usuario solicitó implementar el plan acordado, conservando el ACK entre sus cuatro fases. No se creó rama ni commit.
 
@@ -87,7 +87,7 @@
 
 **Commit sugerido:** `feat(tenants): agregá el logo de empresa al formulario público`.
 
-### `[Actual]` Fase 3: warehouse, ETL y aislamiento de scoring (terminada, pendiente de ACK)
+### `[Completada]` Fase 3: warehouse, ETL y aislamiento de scoring
 
 - [x] Crear migraciones warehouse independientes y entrada CLI ETL mínima dentro de `apps/api`; conexiones independientes de origen y destino.
 - [x] Implementar extracción por empresa, staging, reconciliación completa, leases con fencing y publicación atómica; conservar resultados ante fallos y no inventar horas perdidas.
@@ -107,22 +107,32 @@ La suite histórica `testimonial-persistence.integration.spec.ts` omite sus seis
 
 **Límites y preservación:** no se ejecutaron `prisma migrate deploy`/`db push`, ni SQL sobre bases persistentes. No se modificaron schema Prisma, infraestructura, paquete raíz, lockfile ni hooks; sólo se añadieron scripts al paquete API, sin dependencias. Se preservó una modificación de formato ajena en `rate-limit.service.ts`. No se creó commit. Sin benchmark de capacidad, aislamiento físico productivo, métricas, backup/restauración o panel: pertenecen a fase 4. Revisar planes de consulta e índices de paginación del origen real durante esa prueba de carga; la fixture no representa su distribución ni todos sus índices. Los dos servidores de prueba se detienen al cerrar la validación.
 
-**Estado de ejecución:** fase 3 terminada. No iniciar fase 4 sin el ACK intermedio que exige `AGENTS.md`. El siguiente ACK autoriza panel/observabilidad/validación de fase 4, no infraestructura ni aplicación de migraciones persistentes.
+**Estado de ejecución:** fase 3 terminada y aprobada. ACK recibido: «Continuar», en respuesta al pedido de avanzar a fase 4. No autoriza infraestructura ni aplicación de migraciones persistentes.
 
-**Review humano (ACK):** pendiente.
+**Review humano (ACK):** recibido: «Continuar» para fase 4; sin autorización de infraestructura ni SQL persistente.
 
 **Commit sugerido:** `feat(bi): incorporá el warehouse y la carga horaria por empresa`.
 
-### `[Pendiente]` Fase 4: panel, observabilidad y validación operativa
+### `[Completada]` Fase 4: panel, observabilidad y validación operativa
 
-- Incorporar endpoint BI y pantalla `/admin/business-intelligence` con metadatos y estados vacío, atrasado, error e indisponible.
-- Verificar rango de fechas, snapshot diario, categorías, CTR, roles y aislamiento tenant en queries/joins.
-- Añadir métricas ETL y alertas propuestas; aislar caída OLAP del startup y readiness transaccional.
-- Ejecutar prueba de carga con referencia OLTP sin ETL y con ETL; registrar volumen, recursos, latencias y duración.
-- Preparar runbook de despliegue, permisos, backup y recuperación; infraestructura y SQL persistente se aplican sólo con ACK explícito.
-- Actualizar `AGENTS.md`, `llm.txt` y arquitectura cuando los componentes estén implementados, distinguiendo estado local y despliegue verificado.
+- [x] Incorporar endpoint BI y pantalla `/admin/business-intelligence` con metadatos y estados vacío, atrasado, error e indisponible.
+- [x] Verificar rango de fechas, snapshot diario, categorías, CTR, roles y aislamiento tenant en queries/joins.
+- [x] Añadir métricas ETL y alertas propuestas; aislar caída OLAP del startup y readiness transaccional.
+- [x] Ejecutar prueba de carga con referencia OLTP sin ETL y con ETL; registrar volumen, recursos, latencias y duración.
+- [x] Preparar runbook de despliegue, permisos, backup y recuperación; infraestructura y SQL persistente se aplican sólo con ACK explícito.
+- [x] Actualizar `AGENTS.md`, `llm.txt` y arquitectura cuando los componentes estén implementados, distinguiendo estado local y despliegue verificado.
 
 **Criterio de salida:** BI funcional y evidencia operativa reproducible; sin certificación de capacidad o producción por inferencia.
+
+**Evidencia (2026-10-08, hora local):** 52 tests API pertinentes en siete suites: 18 de integración real con dos PostgreSQL 18.6 descartables, cuatro HTTP con guards JWT/RBAC, cuatro de contratos, diez ETL/scoring, 14 configuración, uno DI y uno health. La integración incluye backup custom pg_dump/pg_restore en otra base nueva, comparación de hechos/pointer y ledger restaurado. Dos nombres de suites inicialmente invocados no existían; corregidos a `app.config.spec.ts` y `app-bootstrap.integration.spec.ts`, ambas pasan (15 tests). No se cuentan esas dos invocaciones fallidas como pruebas aprobadas. Las cinco suites restantes pasan con 37 tests. Pruebas web completas: 52 tests en 19 suites, incluidos ocho de pantalla BI, contrato de red y navegación editor.
+
+Typecheck API/web, lint API/web y builds NestJS/Next.js pasan; permanecen dos warnings API y diez web preexistentes. Next conserva las advertencias de múltiples lockfiles y clase Tailwind ambigua. Ruta BI 6,59 kB y First Load JS 130 kB. Revisión visual del build con API sintética en escritorio y viewport 390 × 844: menú administrativo/editor, cards, metadata, fechas, gráfico con hueco y tabla; ancho móvil sin overflow del documento (390/390), expansión del detalle mediante Enter. No equivale a auditoría WCAG ni smoke de sesión productiva.
+
+**Capacidad e aislamiento:** [benchmark](../operations/18_business_intelligence_benchmark.json) de 3 empresas/12 000 testimonios/60 000 eventos, cuatro clientes, ocho segundos por ronda. Cero errores HTTP; el ETL aumenta p95/p99 y reduce solicitudes completadas. Tres publicaciones exitosas, ciclo 53,20 s, máximo por empresa 20,005 s. CPU/RSS, ventanas distintas de CPU PostgreSQL, contadores de bloques y EXPLAIN documentados sin atribuir IO físico ni capacidad productiva. Ante destino inaccesible BI da 503 mientras liveness/readiness/listado operacional dan 200. Corrección de timestamp terminal: ahora incluye la limpieza de staging dentro de la misma publicación atómica. Métricas durables agregadas con token de operador, labels acotados y logs de fases; alertas propuestas, no desplegadas.
+
+**Artefactos y límites:** [runbook](../operations/18_business_intelligence_rollout.md) con permisos, habilitación, backup/restauración y retirada; contrato/contexto/arquitectura actualizados. Se preservan la estructura editorial y transporte de sesión. No se tocaron schema Prisma, infraestructura, paquetes, lockfile ni hooks; sin commits ni migraciones persistentes. Cuentas Cloudinary reales, infraestructura para worker/migrador, capacidad con datos reales/SLO, recursos productivos aislados, backups/RPO/RTO/PITR y alertas continúan pendientes de operación autorizada. Pruebas sockets/build fuera del sandbox autorizadas por revisión automática, sin rechazos. Bases/roles/archivos de backup descartables se eliminan; servidores de prueba se detienen al cerrar la validación.
+
+**Estado de ejecución:** fase 4 terminada. Se detiene el trabajo tras entregar evidencia y commit sugerido, según AGENTS.md; no se inicia despliegue ni otra fase.
 
 **Review humano (ACK):** pendiente.
 

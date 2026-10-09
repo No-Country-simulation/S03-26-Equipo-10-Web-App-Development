@@ -1,6 +1,6 @@
 # Warehouse y proceso de carga BI
 
-**Estado (2026-10-08):** fase 3 implementada y probada en dos PostgreSQL 18.6 descartables. Migraciones persistentes, infraestructura, panel, métricas y prueba de carga pendientes. Este documento prepara la operación; no acredita un despliegue.
+**Estado (2026-10-08):** fase 3 implementada y probada en dos PostgreSQL 18.6 descartables. Panel, métricas, backup/restauración y benchmark local completados en fase 4; ver [validación y despliegue](18_business_intelligence_rollout.md). Migraciones persistentes, infraestructura y capacidad productiva pendientes. Este documento prepara la operación; no acredita un despliegue.
 
 Referencias: [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [contrato BI](../modules/api-business-intelligence.md), [diccionario dimensional](../domain/warehouse_diccionario_de_datos.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md).
 
@@ -16,7 +16,7 @@ Referencias: [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [contrato 
 | `BI_SOURCE_DATABASE_URL` | Extractor OLTP: sólo SELECT sobre las cuatro vistas de exportación. |
 | `BI_ETL_DATABASE_URL` | Escritor warehouse: SELECT/INSERT/UPDATE/DELETE sobre staging, dimensiones, hechos, runs y estado; USAGE de secuencias. |
 | `BI_MIGRATION_DATABASE_URL` | Propietario/migrador del warehouse; exclusivamente durante mantenimiento autorizado. |
-| `BI_DATABASE_URL` | Lector del futuro endpoint BI, sólo SELECT; se incorpora en fase 4. |
+| `BI_DATABASE_URL` | Lector del endpoint BI y métricas técnicas, sólo SELECT; sin staging/ledger. |
 
 No hay fallback a `DATABASE_URL`. Inyectar los valores mediante la configuración externa del entorno; no incluirlos en comandos versionados, documentación ni logs. La API transaccional no necesita las credenciales del ETL. El proceso limita los pools a una conexión de origen y dos de destino, con esperas de conexión/pool de cinco segundos.
 
@@ -46,7 +46,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
     etl.runs, etl.tenant_load_state TO bi_etl_writer;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA dw TO bi_etl_writer;
 
--- Preparado para la API BI de fase 4:
+-- API BI y métricas de operación:
 GRANT USAGE ON SCHEMA dw, etl TO bi_api_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA dw TO bi_api_reader;
 GRANT SELECT ON etl.runs, etl.tenant_load_state TO bi_api_reader;
@@ -80,7 +80,7 @@ Lease: 90 segundos; heartbeat: 20 segundos; máximo tres intentos por empresa/ho
 
 SQL por sentencia: 30 segundos; espera de lock: un segundo; transacciones destino: hasta 35 segundos. La carga completa de una empresa, incluida publicación, dispone de cinco minutos. El origen limita también el idle en transacción a 60 segundos. PostgreSQL 18 aplica `transaction_timeout`; si se agota cualquiera de esos límites se conserva el último resultado publicado. El pool puede agregar una espera previa de hasta cinco segundos para tomar conexión. SIGINT/SIGTERM interrumpen entre lotes; una consulta en curso termina bajo sus límites antes del cierre de clientes.
 
-En modo `--once`, cargas fallidas producen salida 1. Scheduler y ejecuciones manuales emiten JSON con eventos `bi.etl_tenant_finished`, `bi.etl_cycle_finished` y, si termina por error, `bi.etl_stopped`; sólo IDs técnicos, estado, duración y código acotado. No registrar mensajes completos del driver, filas exportadas, leases, cadenas de conexión ni payloads. Las métricas/alertas se incorporan en fase 4.
+En modo `--once`, cargas fallidas producen salida 1. Scheduler y ejecuciones manuales emiten JSON con eventos `bi.etl_tenant_finished`, `bi.etl_cycle_finished` y, si termina por error, `bi.etl_stopped`; sólo IDs técnicos, estado, duración y código acotado. No registrar mensajes completos del driver, filas exportadas, leases, cadenas de conexión ni payloads. Se añade `bi.etl_phase_finished` para extracción/publicación completadas. Métricas y alertas propuestas: [runbook de fase 4](18_business_intelligence_rollout.md).
 
 ## Diagnóstico y recuperación
 
@@ -90,7 +90,7 @@ Consultar bajo la identidad de mantenimiento o lectura y con parámetros `tenant
 
 Si cae el proceso o el destino, no borrar leases/staging manualmente ni editar el pointer. Al recuperar servicio, ejecutar otra carga: si el lease sigue vivo, se omite; tras vencer se marca el intento anterior `abandoned`, se limpia sólo su staging y se reclama uno nuevo dentro del presupuesto de esa hora. El trabajador viejo no puede renovar, publicar ni liberar el lease nuevo. Si agotó tres intentos, corregir la causa y esperar el siguiente corte; no reiniciar contadores ni fabricar un éxito.
 
-Los snapshots históricos conservan observaciones de testimonios borrados del origen. Engagement refleja sólo eventos aún disponibles tras reconciliación. No hay retención/purga automática. Backup, restauración y capacidad se completan en fase 4 antes de habilitación productiva.
+Los snapshots históricos conservan observaciones de testimonios borrados del origen. Engagement refleja sólo eventos aún disponibles tras reconciliación. No hay retención/purga automática. Backup/restauración y capacidad local: [runbook de fase 4](18_business_intelligence_rollout.md). La capacidad productiva sigue pendiente.
 
 ## Integración reproducible
 
@@ -101,4 +101,4 @@ npm test --workspace=@testimonial-cms/api -- --runTestsByPath \
   test/bi-postgres.integration.spec.ts test/bi-etl.spec.ts test/analytics.service.spec.ts
 ```
 
-La fixture OLTP es mínima y sintética: esta evidencia comprueba PostgreSQL/Prisma, DDL, privilegios, publicación y scoring; no aplica toda la cadena histórica de migraciones operacionales ni representa volumen real. Registrar el número de tests ejecutados y omitidos. No se integra infraestructura CI/Compose en esta fase. La prueba comparativa de carga y la certificación de aislamiento de recursos quedan pendientes del ACK de fase 4.
+La fixture OLTP es mínima y sintética: esta evidencia comprueba PostgreSQL/Prisma, DDL, privilegios, publicación y scoring; no aplica toda la cadena histórica de migraciones operacionales ni representa volumen real. Registrar el número de tests ejecutados y omitidos. No se integra infraestructura CI/Compose en esta fase. La prueba comparativa local se ejecutó en fase 4; la certificación productiva de capacidad y aislamiento de recursos sigue pendiente. La suite incluye pg_dump/pg_restore contra otra base nueva: necesita ambas utilidades PostgreSQL en PATH.

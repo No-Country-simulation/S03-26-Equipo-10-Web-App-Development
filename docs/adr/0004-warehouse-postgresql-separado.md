@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-08
 
-**Estado:** Decisión aprobada; warehouse/ETL implementados y probados en fase 3. API/panel y habilitación productiva pendientes de fase 4; sin despliegue persistente verificado.
+**Estado:** Decisión aprobada; warehouse/ETL implementados y probados en fase 3. API/panel, métricas y pruebas locales de capacidad/restauración implementadas en fase 4; habilitación productiva pendiente; sin despliegue persistente verificado.
 
 **Plan:** [Foto de empresa y BI](../plan/2026-10-08_feat-foto-empresa-bi.md).
 
@@ -19,7 +19,7 @@ La base OLTP conserva el estado actual del testimonio, su creación y eventual p
 3. Crear un modelo dimensional con cortes horarios de testimonios y hechos diarios de interacción. Los snapshots empiezan al activar el proceso; importar únicamente interacciones históricas efectivamente disponibles en el origen.
 4. Ejecutar ETL mediante una entrada independiente del workspace API, sin servidor HTTP ni inicialización del outbox/scoring. Extraer columnas autorizadas por empresa en una transacción de lectura consistente, paginar y transformar/agregar en OLAP.
 5. Empezar con reconciliación completa por empresa cada hora. Publicar staging y dimensiones/hechos de forma atómica, usando lease con token de fencing. Los consumidores leen sólo resultados publicados.
-6. Mantener autorización y filtro tenant en NestJS; admin y editor consultan su empresa. No introducir acceso global del operador ni clientes SQL en el navegador.
+6. Mantener autorización y filtro tenant en NestJS; admin y editor consultan su empresa. No introducir un dashboard global del operador ni clientes SQL en el navegador. Métricas agregadas técnicas globales, sin identidades de empresas, se exponen únicamente al monitoreo mediante token de operación.
 7. Usar identidades distintas para lectura del origen, escritura ETL y lectura BI. La API transaccional no recibe las credenciales de extracción/escritura. Fallos de conexión warehouse no detienen el startup ni cambian la readiness operacional.
 
 ## Alternativas consideradas
