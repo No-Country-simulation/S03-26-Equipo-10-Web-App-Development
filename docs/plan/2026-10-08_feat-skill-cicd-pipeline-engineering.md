@@ -49,17 +49,17 @@ Referencias oficiales para verificar instrucciones al redactar y al desplegar:
 
 ## 3. Fases de Ejecución
 
-### `[Actual]` Fase 1: Plan y Registro
+### `[Completada]` Fase 1: Plan y Registro
 
-**Estado de ejecución**: Terminada; pendiente de revisión humana. La marca `[Actual]` se conserva hasta el ACK.
+**Estado de ejecución**: Terminada y aprobada. Commit verificado en Git: `c817a17`, `docs(plan): incorporá el plan HITL de la skill de CI/CD`.
 
 - [x] Crear este plan con contexto, restricciones, decisiones y fases.
 - [x] Incorporarlo al índice de planes como `En Progreso`.
 - [x] Revisar enlaces locales y whitespace del diff; confirmar que sólo cambian el plan y su índice.
 
-**Criterio de completitud**: Plan e índice coherentes y disponibles para revisión; fase 2 permanece pendiente.
+**Criterio de completitud**: Plan e índice coherentes y revisados; fase 2 habilitada por ACK humano.
 
-**Review Humano (ACK)**: `Pendiente`
+**Review Humano (ACK)**: `Aprobado` — mensaje «continua» del usuario, recibido el 2026-10-09 después de la entrega de fase 1.
 
 **Commit sugerido**:
 
@@ -67,15 +67,30 @@ Referencias oficiales para verificar instrucciones al redactar y al desplegar:
 docs(plan): incorporá el plan HITL de la skill de CI/CD
 ```
 
-### `[Pendiente]` Fase 2: Skill y Validación
+### `[Actual]` Fase 2: Skill y Validación
 
-- [ ] Tras ACK explícito, marcar fase 1 completada y fase 2 actual, conservando evidencia real de revisión.
-- [ ] Leer íntegramente el adjunto y crear la skill con sus tres referencias según las decisiones anteriores.
-- [ ] Actualizar catálogo y conteos propios en AGENTS.md y llm.txt, sin afirmar que el despliegue está realizado.
-- [ ] Ejecutar `quick_validate.py` de skill-creator sobre el directorio nuevo; revisar frontmatter, enlaces, identificadores de la especificación fuente y ausencia de placeholders.
-- [ ] Revisar escenarios documentales: PR externo sin secretos, checks fallidos, rollback compatible con datos y reproducción YouTube fallida. Confirmar que la guía produce decisiones compatibles con las restricciones del proyecto.
-- [ ] Revisar diff y límites de alcance; registrar resultados reales en este plan y actualizar el índice a pendiente de revisión de fase 2.
-- [ ] Proponer commit y detenerse; mantener estado global `En Progreso` hasta el ACK final. El cierre documental posterior registrará sólo aprobaciones y commits efectivamente realizados.
+**Estado de ejecución**: Terminada el 2026-10-09; pendiente de revisión humana y commit. Se conserva `[Actual]` hasta el ACK final.
+
+- [x] Tras ACK explícito, marcar fase 1 completada y fase 2 actual, conservando evidencia real de revisión.
+- [x] Leer íntegramente el adjunto y crear la skill con sus tres referencias según las decisiones anteriores.
+- [x] Actualizar catálogo y conteos propios en AGENTS.md y llm.txt, sin afirmar que el despliegue está realizado.
+- [x] Ejecutar `quick_validate.py` de skill-creator sobre el directorio nuevo; revisar frontmatter, enlaces, identificadores de la especificación fuente y ausencia de placeholders.
+- [x] Revisar escenarios documentales: PR externo sin secretos, checks fallidos, rollback compatible con datos y reproducción YouTube fallida. Confirmar que la guía produce decisiones compatibles con las restricciones del proyecto.
+- [x] Revisar diff y límites de alcance; registrar resultados reales en este plan y actualizar el índice a pendiente de revisión de fase 2.
+- [x] Preparar commit sugerido para la entrega y detener el avance de fases; estado global `En Progreso` hasta el ACK final. El cierre documental posterior registrará sólo aprobaciones y commits efectivamente realizados.
+
+**Validación realizada**:
+
+- `quick_validate.py`: `Skill is valid!`; enlaces locales de la skill y del plan resueltos, sin placeholders.
+- Cobertura documental: RF 18/18, RNF 10/10, antipatrones 20/20, diez criterios técnicos, ocho escenarios de resiliencia y diez capacidades de evaluación. El adjunto no asigna códigos de antipatrón: se conservaron sus nombres originales.
+- Inventario: 25 entradas propias SKL con archivo existente; 42 habilidades instaladas en total tras agregar ésta. El catálogo explicita la distinción.
+- Revisión documental de PR externo: separación de validación/publicación y prohibición de secretos y ejecución privilegiada de código no confiable.
+- Revisión documental de checks fallidos: conservar fallo en gates, comprobar branch protection remota antes de afirmar bloqueo de merge.
+- Revisión documental de rollback: esquema compatible, expand-contract, recuperación autorizada y ausencia de reversión destructiva automática.
+- Revisión documental de YouTube fallido: URL inválida, ausencia de clave/item, error HTTP y restricciones de embed tratados como casos distintos; smoke tests remotos pendientes.
+- Diff limitado a skill/referencias, AGENTS.md, llm.txt, plan e índice; sin cambios de runtime, workflows, esquemas, infraestructura o dependencias. `git diff --check` sin errores.
+- Documentación oficial consultada para Supabase/Prisma, Vercel Functions, YouTube IFrame y Cloudinary. El endpoint Markdown del changelog Supabase no pudo leerse con el navegador; la guía requiere verificar changelog y capacidades al implementar un despliegue real.
+- No se ejecutaron pruebas de aplicación ni pruebas externas: cambios exclusivamente documentales; no se acredita compatibilidad remota ni despliegue.
 
 **Criterio de completitud**: Skill válida, referencias accesibles, registros coherentes y ninguna modificación fuera del alcance documental.
 
@@ -89,9 +104,9 @@ feat(skills): agregá la skill de CI/CD adaptada al Testimonial CMS
 
 ## 4. Criterios de Aceptación Finales
 
-- [ ] La skill preserva requisitos, antipatrones y criterios del adjunto con adaptación explícita al proyecto.
-- [ ] Las restricciones HITL, de infraestructura, migraciones y secretos permanecen vigentes.
-- [ ] La guía distingue estado local implementado, destinos previstos y despliegue externo verificado.
-- [ ] Validación sintáctica, enlaces y escenarios documentales revisados; no corresponde ejecutar tests de aplicación por cambios únicamente documentales.
-- [ ] Catálogo propio SKL actualizado sin confundirlo con el total de habilidades instaladas.
+- [x] La skill preserva requisitos, antipatrones y criterios del adjunto con adaptación explícita al proyecto.
+- [x] Las restricciones HITL, de infraestructura, migraciones y secretos permanecen vigentes.
+- [x] La guía distingue estado local implementado, destinos previstos y despliegue externo verificado.
+- [x] Validación sintáctica, enlaces y escenarios documentales revisados; no corresponde ejecutar tests de aplicación por cambios únicamente documentales.
+- [x] Catálogo propio SKL actualizado sin confundirlo con el total de habilidades instaladas.
 - [ ] Ambas fases cuentan con revisión humana; el cierre no inventa ACK ni commits.

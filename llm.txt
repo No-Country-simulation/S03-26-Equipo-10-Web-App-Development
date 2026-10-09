@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-10-08
+# Última actualización: 2026-10-09
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -23,6 +23,8 @@ outbox: polling PostgreSQL cada 3 s en la API; BullMQ no implementado
 redis: cuotas atómicas y caché pública compartida con claves versionadas por tenant; no es cola de webhooks
 infra: Docker Compose local; CI con PostgreSQL y Redis descartables; demostración aún sin despliegue verificado
 ci: GitHub Actions (husky pre-commit)
+deployment_targets: Vercel web + Supabase PostgreSQL + Cloudinary imágenes; previstos, sin despliegue verificado; API/pollers persistentes y Redis requieren proveedor; warehouse separado y scheduler ETL por resolver
+cicd_skill: .agents/skills/cicd-pipeline-engineering/SKILL.md (SKL-DEVOPS-CICD-001); gates, artefactos, recuperación y smoke tests de demo incluyendo YouTube en testimonios; NEXT_PUBLIC_API_URL/CSP de build pueden exigir builds por entorno; autenticación propia conservada
 
 ## ARCHITECTURE
 pattern: Modular Monolith, N-Tier (NestJS standard layers)
@@ -52,7 +54,7 @@ docs/governance/       → Ethics, compliance
 docs/collaboration/    → Contributing, git workflow, coding standards, setup, changelog
 docs/plan/             → Active HITL orchestration plans
 docs/modules/          → Per-module technical specs
-.agents/skills/        → 24 AI engineering skills (SKL-*)
+.agents/skills/        → 25 skills propias de ingeniería (SKL-*) + otras habilidades instaladas
 .agents/rules/         → Operative rules loaded by AI IDE
 .agents/prompts/       → Reusable prompt templates
 infra/                 → Nginx, Docker production configs
@@ -163,7 +165,7 @@ docs/technical/01_architecture.md   → system architecture + C4 diagrams
 docs/domain/business_rules.md       → domain invariants (source of truth)
 docs/domain/diccionario_de_dato.md  → ERD + all table schemas
 apps/api/prisma/schema.prisma       → canonical data model
-.agents/skills/                     → 24 engineering skills (read before coding)
+.agents/skills/                     → 25 skills propias de ingeniería (SKL-*) + otras habilidades instaladas (leer las pertinentes)
 docs/plan/                          → active HITL plans (read before executing)
 
 ## PROHIBITED (NEVER DO)

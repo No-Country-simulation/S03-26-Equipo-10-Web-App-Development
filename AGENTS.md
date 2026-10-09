@@ -50,7 +50,7 @@ Monorepo Root
 ├── apps/api/        → @testimonial-cms/api  (NestJS 11 + Prisma)
 ├── apps/web/        → @testimonial-cms/web  (Next.js 15 App Router)
 ├── docs/            → Documentación técnica, dominio, producto, operaciones
-├── .agents/         → Skills de IA (24 skills) + Reglas operativas + Prompts
+├── .agents/         → 25 skills propias de ingeniería (SKL-*) + otras habilidades instaladas, reglas y prompts
 ├── infra/           → Docker + Nginx configs
 └── scripts/         → Utilidades locales (PowerShell, Bash)
 ```
@@ -181,6 +181,8 @@ Al trabajar con un plan en `docs/plan/`:
 
 ## 10. Skills Disponibles (`.agents/skills/`)
 
+Catálogo de 25 skills propias de ingeniería con código SKL; no representa el total de habilidades instaladas en el directorio.
+
 | Skill | Código | Dominio |
 |-------|--------|---------|
 | `react-interface-engineering` | SKL-REACT-UI-001 | React / Frontend |
@@ -207,7 +209,8 @@ Al trabajar con un plan en `docs/plan/`:
 | `cognitive-interface-engineering` | SKL-UX-PSYCH-001 | UX / Cognitive Interface |
 | `docker-container-engineering` | SKL-DEVOPS-DKR-001 | DevOps / Containers |
 | `monorepo-architecture-engineering` | SKL-MONOREPO-ARCH-001 | Architecture / DevOps / Monorepo |
+| `cicd-pipeline-engineering` | SKL-DEVOPS-CICD-001 | CI/CD / DevSecOps / Despliegue y recuperación |
 
 ---
 
-*Última actualización: 2026-10-08 — Versión del framework: SKL-PRO-001 v1.1.0*
+*Última actualización: 2026-10-09 — Versión del framework: SKL-PRO-001 v1.1.0*
