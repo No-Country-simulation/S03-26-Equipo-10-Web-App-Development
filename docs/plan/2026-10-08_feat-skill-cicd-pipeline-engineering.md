@@ -1,7 +1,7 @@
 # Plan de Ejecución: Skill CI/CD para Testimonial CMS
 
 **Fecha de Inicio**: 2026-10-08  
-**Estado Global**: `En Progreso`  
+**Estado Global**: `Completado`
 **Ticket / Issue Vinculado**: No asignado  
 **Rama Git**: Se conserva la rama actual; este plan no crea ramas ni commits.
 
@@ -67,9 +67,9 @@ Referencias oficiales para verificar instrucciones al redactar y al desplegar:
 docs(plan): incorporá el plan HITL de la skill de CI/CD
 ```
 
-### `[Actual]` Fase 2: Skill y Validación
+### `[Completada]` Fase 2: Skill y Validación
 
-**Estado de ejecución**: Terminada el 2026-10-09; pendiente de revisión humana y commit. Se conserva `[Actual]` hasta el ACK final.
+**Estado de ejecución**: Terminada y aprobada el 2026-10-09. Commit verificado en Git: `9e442e1`, `feat(skills): agregá la skill de CI/CD adaptada al Testimonial CMS`.
 
 - [x] Tras ACK explícito, marcar fase 1 completada y fase 2 actual, conservando evidencia real de revisión.
 - [x] Leer íntegramente el adjunto y crear la skill con sus tres referencias según las decisiones anteriores.
@@ -94,7 +94,7 @@ docs(plan): incorporá el plan HITL de la skill de CI/CD
 
 **Criterio de completitud**: Skill válida, referencias accesibles, registros coherentes y ninguna modificación fuera del alcance documental.
 
-**Review Humano (ACK)**: `Pendiente`
+**Review Humano (ACK)**: `Aprobado` — mensaje «Continuar» del usuario, recibido el 2026-10-09 después de la entrega de fase 2. Autoriza el cierre documental del plan y su índice.
 
 **Commit sugerido**:
 
@@ -109,4 +109,14 @@ feat(skills): agregá la skill de CI/CD adaptada al Testimonial CMS
 - [x] La guía distingue estado local implementado, destinos previstos y despliegue externo verificado.
 - [x] Validación sintáctica, enlaces y escenarios documentales revisados; no corresponde ejecutar tests de aplicación por cambios únicamente documentales.
 - [x] Catálogo propio SKL actualizado sin confundirlo con el total de habilidades instaladas.
-- [ ] Ambas fases cuentan con revisión humana; el cierre no inventa ACK ni commits.
+- [x] Ambas fases cuentan con revisión humana; el cierre no inventa ACK ni commits.
+
+## 5. Cierre Documental
+
+El 2026-10-09 se registró el ACK final y se actualizaron el estado global y el índice a `Completado`. Los commits de ambas fases se verificaron en Git. Este cierre modifica únicamente este plan y su entrada del índice; no ejecuta despliegues ni amplía el alcance de la incorporación.
+
+**Commit sugerido del cierre**:
+
+```text
+docs(plan): cerrá la incorporación de la skill de CI/CD
+```
