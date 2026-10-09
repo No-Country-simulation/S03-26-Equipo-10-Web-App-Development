@@ -101,6 +101,7 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 | [`2026-10-05_docs-alineacion-skill-seo-accesibilidad.md`](./2026-10-05_docs-alineacion-skill-seo-accesibilidad.md) | `Completado` | Alineación HITL de la décima skill web: SEO y accesibilidad; tres fases revisadas con ACK |
 | [`2026-10-05_fix-remediacion-codigo-web.md`](./2026-10-05_fix-remediacion-codigo-web.md) | `Completado` | Remediación HITL del código Next.js y NestJS frente a las diez skills web; seis fases cerradas con ACK y límites de integración documentados |
 | [`2026-10-08_feat-foto-empresa-bi.md`](./2026-10-08_feat-foto-empresa-bi.md) | `En Progreso` | Logo y ETL implementados; fase 3 terminada pendiente de ACK. Panel/observabilidad en fase 4 |
+| [`2026-10-08_feat-skill-cicd-pipeline-engineering.md`](./2026-10-08_feat-skill-cicd-pipeline-engineering.md) | `En Progreso` | Skill SKL-DEVOPS-CICD-001 para CI/CD con Supabase, Vercel, Cloudinary y YouTube; fase 1 terminada pendiente de ACK; fase 2 pendiente |
 
 ---
 
