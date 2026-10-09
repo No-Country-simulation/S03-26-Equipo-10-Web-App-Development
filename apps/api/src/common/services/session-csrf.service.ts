@@ -19,6 +19,8 @@ export class SessionCsrfService {
     if (!supplied || !/^[A-Za-z0-9_-]{43}$/.test(supplied)) return false;
     const actual = Buffer.from(supplied);
     const expected = Buffer.from(this.tokenFor(refreshToken));
-    return actual.length === expected.length && timingSafeEqual(actual, expected);
+    return (
+      actual.length === expected.length && timingSafeEqual(actual, expected)
+    );
   }
 }
