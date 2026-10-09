@@ -21,12 +21,12 @@ export class DashboardRepository {
   constructor(private readonly connection: BiConnection) {}
   dashboard(tenantId: string, range: DateRange) {
     return this.connection.read(async tx => {
-      const [latest] = await tx.$queryRaw<Array<{ id: string; at: Date; finished: Date }>>`
-        SELECT r.id, r.source_snapshot_at AS at, r.finished_at AS finished
-        FROM etl.tenant_load_state s JOIN etl.runs r ON r.tenant_id = s.tenant_id AND r.id = s.last_published_run_id
-        WHERE s.tenant_id = ${tenantId}::uuid AND r.status = 'succeeded'`;
+      const [latest] = await tx.$queryRaw<Array<{ id: string; at: Date; finished: Date; total: bigint }>>`
+        SELECT run_id AS id, snapshot_at AS at, published_at AS finished, testimonial_count AS total
+        FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantId}::uuid
+        ORDER BY snapshot_at DESC, run_id LIMIT 1`;
       const runId = latest?.id ?? null;
-      const [inventory] = await tx.$queryRaw<Inventory[]>`SELECT count(*) AS total, avg(rating) AS rating
+      const [inventory] = await tx.$queryRaw<Array<Pick<Inventory, 'rating'>>>`SELECT avg(rating) AS rating
         FROM dw.fact_testimonial_snapshot WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;
       const states = await tx.$queryRaw<Array<{ code: string; count: bigint }>>`SELECT status_code AS code, count(*) AS count
         FROM dw.fact_testimonial_snapshot WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid
@@ -37,14 +37,17 @@ export class DashboardRepository {
         WHERE f.tenant_id = ${tenantId}::uuid AND f.run_id = ${runId}::uuid
         GROUP BY c.category_key, c.name ORDER BY count DESC, c.category_key`;
       const observed = await tx.$queryRaw<Array<Inventory & { date: string; at: Date }>>`
-        WITH cuts AS (SELECT DISTINCT ON ((source_snapshot_at AT TIME ZONE 'UTC')::date)
-          id, tenant_id, source_snapshot_at FROM etl.runs WHERE tenant_id = ${tenantId}::uuid AND status = 'succeeded'
-          AND source_snapshot_at >= ${range.from}::date AND source_snapshot_at < ${range.to}::date + interval '1 day'
-          ORDER BY (source_snapshot_at AT TIME ZONE 'UTC')::date, source_snapshot_at DESC, id)
-        SELECT (c.source_snapshot_at AT TIME ZONE 'UTC')::date::text AS date, c.source_snapshot_at AS at,
-          count(f.testimonial_id) AS total, avg(f.rating) AS rating FROM cuts c
-        LEFT JOIN dw.fact_testimonial_snapshot f ON f.tenant_id = c.tenant_id AND f.run_id = c.id
-        WHERE c.tenant_id = ${tenantId}::uuid GROUP BY c.id, c.source_snapshot_at ORDER BY c.source_snapshot_at`;
+        WITH cuts AS (SELECT DISTINCT ON (snapshot_date_key)
+          run_id, tenant_id, snapshot_at, snapshot_date_key, testimonial_count FROM dw.fact_tenant_snapshot
+          WHERE tenant_id = ${tenantId}::uuid
+          AND snapshot_at >= (${range.from}::date::timestamp AT TIME ZONE 'UTC')
+          AND snapshot_at < ((${range.to}::date + 1)::timestamp AT TIME ZONE 'UTC')
+          ORDER BY snapshot_date_key, snapshot_at DESC, run_id)
+        SELECT c.snapshot_date_key::text AS date, c.snapshot_at AS at,
+          c.testimonial_count AS total, avg(f.rating) AS rating FROM cuts c
+        LEFT JOIN dw.fact_testimonial_snapshot f ON f.tenant_id = c.tenant_id AND f.run_id = c.run_id
+        WHERE c.tenant_id = ${tenantId}::uuid
+        GROUP BY c.run_id, c.snapshot_at, c.snapshot_date_key, c.testimonial_count ORDER BY c.snapshot_at`;
       const rawEvents = await tx.$queryRaw<Array<{ date: string; views: string; clicks: string; plays: string }>>`
         SELECT f.date_key::text AS date,
           coalesce(sum(f.event_count) FILTER (WHERE k.code = 'view'), 0)::text AS views,
@@ -55,7 +58,7 @@ export class DashboardRepository {
         GROUP BY f.date_key ORDER BY f.date_key`;
       const events: Engagement[] = rawEvents.map(row => ({ date: row.date, views: BigInt(row.views), clicks: BigInt(row.clicks), plays: BigInt(row.plays) }));
       const [history] = await tx.$queryRaw<Array<{ snapshots: Date | null; events: string | null; now: Date }>>`
-        SELECT (SELECT min(source_snapshot_at) FROM etl.runs WHERE tenant_id = ${tenantId}::uuid AND status = 'succeeded') AS snapshots,
+        SELECT (SELECT min(snapshot_at) FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantId}::uuid) AS snapshots,
           (SELECT min(date_key)::text FROM dw.fact_engagement_daily WHERE tenant_id = ${tenantId}::uuid) AS events,
           statement_timestamp() AS now`;
       const days: string[] = [];
@@ -66,7 +69,7 @@ export class DashboardRepository {
         { views: 0n, clicks: 0n, plays: 0n });
       const age = latest ? Math.max(0, Math.floor(((history?.now ?? new Date()).getTime() - latest.at.getTime()) / 1000)) : null;
       return {
-        range, summary: { totalTestimonials: safeCount(inventory?.total ?? 0n), averageRating: inventory?.rating?.toNumber() ?? null,
+        range, summary: { totalTestimonials: safeCount(latest?.total ?? 0n), averageRating: inventory?.rating?.toNumber() ?? null,
           statuses: states.map(row => ({ code: row.code, count: safeCount(row.count) })),
           views: totals.views.toString(), clicks: totals.clicks.toString(), plays: totals.plays.toString(), ctr: ctr(totals.views, totals.clicks) },
         testimonialSeries: days.map(date => { const cut = cutsByDay.get(date); return { date, snapshotAt: cut?.at.toISOString() ?? null,

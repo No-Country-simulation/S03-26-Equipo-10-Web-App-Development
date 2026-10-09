@@ -9,7 +9,8 @@ import type { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { PrismaClient } from '@prisma/client';
-import { migrationStatements, applyWarehouseMigration } from '../src/modules/business-intelligence/repositories/warehouse-migrations';
+import { migrationStatements } from '../src/modules/business-intelligence/repositories/warehouse-migrations';
+import { installBiWarehouse } from './fixtures/bi-warehouse';
 import { SourceRepository } from '../src/modules/business-intelligence/repositories/source.repository';
 import { WarehouseRepository } from '../src/modules/business-intelligence/repositories/warehouse.repository';
 import { EtlService } from '../src/modules/business-intelligence/services/etl.service';
@@ -42,7 +43,7 @@ async function main() {
     for (const sql of migrationStatements(schema)) await source.$executeRawUnsafe(sql);
     const views = await readFile('prisma/migrations/20261008010000_bi_export_views/migration.sql', 'utf8');
     for (const sql of migrationStatements(views)) await source.$executeRawUnsafe(sql);
-    await applyWarehouseMigration(target, '0001_initial.sql', await readFile('warehouse/migrations/0001_initial.sql', 'utf8'));
+    await installBiWarehouse(target);
     const status = await source.testimonialStatus.createMany({ data: ['draft', 'pending', 'approved', 'published', 'rejected'].map(code => ({ code })) });
     if (status.count !== 5) throw new Error('BI_BENCH_SEED');
     const role = await source.role.create({ data: { code: 'admin' } });

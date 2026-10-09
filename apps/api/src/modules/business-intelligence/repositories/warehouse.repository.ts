@@ -135,7 +135,7 @@ export class WarehouseRepository {
   async publish(lease: Lease, snapshot: SourceSnapshot, counts: Counts): Promise<void> {
     await this.transaction(async tx => {
       await this.fence(tx, lease);
-      const [valid] = await tx.$queryRaw<Array<{ categories: bigint; testimonials: bigint; events: bigint; future: boolean; newer: boolean }>>`
+      const [valid] = await tx.$queryRaw<Array<{ categories: bigint; testimonials: bigint; events: bigint; future: boolean; newer: boolean; recorded: boolean }>>`
         SELECT (SELECT count(*) FROM staging.categories WHERE tenant_id = ${lease.tenantId}::uuid AND run_id = ${lease.runId}::uuid) AS categories,
           (SELECT count(*) FROM staging.testimonials WHERE tenant_id = ${lease.tenantId}::uuid AND run_id = ${lease.runId}::uuid) AS testimonials,
           (SELECT count(*) FROM staging.analytics_events WHERE tenant_id = ${lease.tenantId}::uuid AND run_id = ${lease.runId}::uuid) AS events,
@@ -145,9 +145,11 @@ export class WarehouseRepository {
             AND created_at > ${snapshot.at})) AS future,
           NOT EXISTS(SELECT 1 FROM etl.tenant_load_state s JOIN etl.runs r
             ON r.tenant_id = s.tenant_id AND r.id = s.last_published_run_id
-            WHERE s.tenant_id = ${lease.tenantId}::uuid AND r.source_snapshot_at >= ${snapshot.at}) AS newer`;
+            WHERE s.tenant_id = ${lease.tenantId}::uuid AND r.source_snapshot_at >= ${snapshot.at}) AS newer,
+          EXISTS(SELECT 1 FROM etl.runs WHERE tenant_id = ${lease.tenantId}::uuid AND id = ${lease.runId}::uuid
+            AND status = 'running' AND source_snapshot_at = ${snapshot.at}) AS recorded`;
       if (!valid || valid.future || valid.categories !== counts.categories || valid.testimonials !== counts.testimonials
-        || valid.events !== counts.events || snapshot.tenantId !== lease.tenantId) throw new EtlError('BI_SOURCE_INCONSISTENT');
+        || valid.events !== counts.events || !valid.recorded || snapshot.tenantId !== lease.tenantId) throw new EtlError('BI_SOURCE_INCONSISTENT');
       if (!valid.newer) throw new EtlError('BI_SOURCE_NOT_NEWER');
 
       await tx.$executeRaw`INSERT INTO dw.dim_tenant (tenant_id, name, is_active)
@@ -178,10 +180,17 @@ export class WarehouseRepository {
         SELECT DISTINCT (created_at AT TIME ZONE 'UTC')::date FROM staging.analytics_events
         WHERE tenant_id = ${lease.tenantId}::uuid AND run_id = ${lease.runId}::uuid
         UNION SELECT (${snapshot.at} AT TIME ZONE 'UTC')::date ON CONFLICT DO NOTHING`;
+      // The initial publication time is private to this transaction; completion replaces it below.
+      await tx.$executeRaw`INSERT INTO dw.fact_tenant_snapshot
+        (tenant_id, run_id, snapshot_at, snapshot_date_key, published_at, testimonial_count)
+        VALUES (${lease.tenantId}::uuid, ${lease.runId}::uuid, ${snapshot.at},
+          (${snapshot.at} AT TIME ZONE 'UTC')::date, clock_timestamp(), ${counts.testimonials})`;
       const snapshotRows = await tx.$executeRaw`INSERT INTO dw.fact_testimonial_snapshot
-        (tenant_id, run_id, testimonial_id, category_key, status_code, rating, score, created_at, published_at, has_image, has_video)
+        (tenant_id, run_id, testimonial_id, category_key, status_code, rating, score, created_at, published_at, has_image, has_video,
+          snapshot_at, snapshot_date_key)
         SELECT t.tenant_id, t.run_id, t.testimonial_id, c.category_key, t.status_code, t.rating, t.score,
-          t.created_at, t.published_at, t.has_image, t.has_video FROM staging.testimonials t
+          t.created_at, t.published_at, t.has_image, t.has_video, ${snapshot.at}, (${snapshot.at} AT TIME ZONE 'UTC')::date
+          FROM staging.testimonials t
         JOIN dw.dim_category c ON c.tenant_id = t.tenant_id AND c.source_category_id IS NOT DISTINCT FROM t.category_id
         WHERE t.tenant_id = ${lease.tenantId}::uuid AND t.run_id = ${lease.runId}::uuid`;
       await tx.$executeRaw`DELETE FROM dw.fact_engagement_daily WHERE tenant_id = ${lease.tenantId}::uuid`;
@@ -193,17 +202,27 @@ export class WarehouseRepository {
         JOIN dw.dim_event_type k ON k.code = e.event_type_code
         WHERE e.tenant_id = ${lease.tenantId}::uuid AND e.run_id = ${lease.runId}::uuid
         GROUP BY e.tenant_id, e.testimonial_id, (e.created_at AT TIME ZONE 'UTC')::date, s.source_key, k.event_type_key`;
-      const [total] = await tx.$queryRaw<Array<{ count: Prisma.Decimal }>>`
-        SELECT coalesce(sum(event_count), 0) AS count FROM dw.fact_engagement_daily WHERE tenant_id = ${lease.tenantId}::uuid`;
-      if (BigInt(snapshotRows) !== counts.testimonials || !total || total.count.toString() !== counts.events.toString()) {
+      const [total] = await tx.$queryRaw<Array<{ count: Prisma.Decimal; header: bigint; details: bigint }>>`
+        SELECT (SELECT coalesce(sum(event_count), 0) FROM dw.fact_engagement_daily WHERE tenant_id = ${lease.tenantId}::uuid) AS count,
+          h.testimonial_count AS header, (SELECT count(*) FROM dw.fact_testimonial_snapshot f
+            WHERE f.tenant_id = h.tenant_id AND f.run_id = h.run_id) AS details
+        FROM dw.fact_tenant_snapshot h WHERE h.tenant_id = ${lease.tenantId}::uuid AND h.run_id = ${lease.runId}::uuid`;
+      if (BigInt(snapshotRows) !== counts.testimonials || !total || total.count.toString() !== counts.events.toString()
+        || total.header !== counts.testimonials || total.details !== counts.testimonials) {
         throw new EtlError('BI_SOURCE_INCONSISTENT');
       }
       await this.clearStaging(tx, lease.tenantId, lease.runId);
       // Record completion after staging cleanup so freshness and duration include that work.
-      await tx.$executeRaw`UPDATE etl.runs SET status = 'succeeded', finished_at = clock_timestamp(),
-        source_category_count = ${counts.categories}, source_testimonial_count = ${counts.testimonials},
-        source_event_count = ${counts.events}, snapshot_row_count = ${BigInt(snapshotRows)}, engagement_row_count = ${BigInt(engagementRows)}
-        WHERE tenant_id = ${lease.tenantId}::uuid AND id = ${lease.runId}::uuid AND status = 'running'`;
+      const completed = await tx.$queryRaw<Array<{ run_id: string }>>`
+        WITH completed AS (UPDATE etl.runs SET status = 'succeeded', finished_at = clock_timestamp(),
+          source_category_count = ${counts.categories}, source_testimonial_count = ${counts.testimonials},
+          source_event_count = ${counts.events}, snapshot_row_count = ${BigInt(snapshotRows)}, engagement_row_count = ${BigInt(engagementRows)}
+          WHERE tenant_id = ${lease.tenantId}::uuid AND id = ${lease.runId}::uuid AND status = 'running'
+          RETURNING tenant_id, id, finished_at)
+        UPDATE dw.fact_tenant_snapshot h SET published_at = r.finished_at FROM completed r
+        WHERE h.tenant_id = ${lease.tenantId}::uuid AND h.run_id = ${lease.runId}::uuid
+          AND r.tenant_id = h.tenant_id AND r.id = h.run_id RETURNING h.run_id`;
+      if (completed.length !== 1) throw new EtlError('BI_SOURCE_INCONSISTENT');
       // Recheck at the END: a publication that outlives its lease rolls back entirely.
       const changed = await tx.$executeRaw`UPDATE etl.tenant_load_state SET last_published_run_id = ${lease.runId}::uuid,
         lease_run_id = NULL, lease_token = NULL, lease_until = NULL

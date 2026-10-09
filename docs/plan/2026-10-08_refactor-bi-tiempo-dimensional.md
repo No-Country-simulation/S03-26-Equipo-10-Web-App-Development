@@ -1,12 +1,12 @@
 # Plan HITL: tiempo dimensional de los snapshots BI
 
 **Fecha:** 2026-10-08.
-**Estado:** fase 1 implementada y validada localmente; fase 2 pendiente de ACK intermedio. Sin migraciones persistentes.
+**Estado:** fases 1/2 completadas; fase 3 pendiente de ACK intermedio. Sin migraciones persistentes.
 **Origen:** mejora posterior al [plan de logo y BI](2026-10-08_feat-foto-empresa-bi.md). El pedido «Implementa el plan» autorizó ejecutar la fase 1 conforme al flujo HITL; no autoriza desplegar ni agrupar fases.
 
 ## Contexto y Restricciones
 
-- Respetar [AGENTS.md](../../AGENTS.md): ejecutar una fase por vez, entregar evidencia y commit sugerido y esperar ACK intermedio. La fase 1 terminó; la fase 2 espera ese ACK.
+- Respetar [AGENTS.md](../../AGENTS.md): ejecutar una fase por vez, entregar evidencia y commit sugerido y esperar ACK intermedio. El ACK «Continua» autorizó sólo la fase 2, ahora terminada; la fase 3 espera otro ACK.
 - Aplicar las skills de SQL relacional y buenas prácticas PostgreSQL. Para código, revisar además las de API, TypeScript y observabilidad correspondientes.
 - Warehouse PostgreSQL 18 con migraciones propias: no modificar `schema.prisma`, migraciones aplicadas, infraestructura, paquete raíz ni hooks. No ejecutar `prisma migrate deploy` ni `db push`.
 - Todo recurso privado se consulta y relaciona con `tenant_id`. Los inventarios globales del migrador son operaciones explícitas de mantenimiento, sin exposición HTTP y con verificaciones por empresa.
@@ -155,17 +155,17 @@ Antes de 0003 puede volverse al lector anterior dejando datos/columnas aditivas,
 **Salida:** esquema e historial convertibles de forma verificable en PostgreSQL descartable.
 **Commit sugerido:** `feat(bi): incorporá el tiempo dimensional y la migración de snapshots`.
 
-### `[Pendiente — requiere ACK intermedio]` Fase 2: publicación y lectura dimensional
+### `[Completada]` Fase 2: publicación y lectura dimensional
 
-- Adaptar publicador para cabecera/detalle/fecha/publicación atómicos; conservar fencing, reintentos y conciliación.
-- Adaptar DashboardRepository para consultas sólo `dw.*`; contrato HTTP/UI sin cambios funcionales.
-- Actualizar fixtures que hoy simulan horas cambiando sólo `etl.runs`: deben preparar cortes coherentes mediante helpers de prueba, sin alterar historia de producción.
-- Probar nuevos permisos y separación entre lector de dashboard y métricas técnicas.
+- [x] Adaptar publicador para cabecera/detalle/fecha/publicación atómicos; conservar fencing, reintentos y conciliación.
+- [x] Adaptar DashboardRepository para consultas sólo `dw.*`; contrato HTTP/UI sin cambios funcionales.
+- [x] Actualizar fixtures que simulaban horas cambiando sólo `etl.runs`: preparan cortes coherentes mediante helpers de prueba, sin alterar historia de producción.
+- [x] Probar nuevos permisos y separación entre lector de dashboard y métricas técnicas.
 
 **Salida:** misma respuesta funcional, incluyendo último corte vacío y horas ausentes, sin dependencia de SELECT sobre `etl.*` en el dashboard.
 **Commit sugerido:** `refactor(bi): consultá los cortes desde el modelo dimensional`.
 
-### `[Pendiente]` Fase 3: validación integral y preparación operativa
+### `[Pendiente — requiere ACK intermedio]` Fase 3: validación integral y preparación operativa
 
 - Ejecutar pruebas integradas de dos PostgreSQL y backup/restauración, HTTP/roles/aislamiento y tipos/build/lint pertinentes.
 - Comparar consultas y almacenamiento con historia de varios días/horas, múltiples tenants, cortes vacíos y categorías. Registrar planes, buffers y p95/p99 contra baseline con el mismo dataset/hardware; no afirmar mejora sin evidencia.
@@ -206,8 +206,24 @@ Revisión estática del DDL, publicador, lector, migrador y tests actuales. Dete
 - Conversión por lotes de hasta 1 000 filas, verificación de columnas originales, reanudación e idempotencia. Preflight por tenant antes de escribir; bloqueo ante conflictos, actividad ETL y leases incluso vencidos. Locks acotados y revalidación protegen cada lote; se exige detener workers durante toda la ventana.
 - **46 pruebas pasaron en cuatro suites**: 15 nuevas de integración temporal, tres unitarias temporales, 10 unitarias ETL y 18 de integración BI existentes. PostgreSQL 18 descartable para source/warehouse; bases aleatorias de integración eliminadas al terminar.
 - API typecheck/lint/build aprobados; dos advertencias lint preexistentes en archivos ajenos a esta fase. Sin cambios en Prisma, infraestructura, dependencias, paquete raíz ni hooks; sin migraciones persistentes.
-- Procedimiento y límites documentados en [runbook temporal](../operations/19_bi_snapshot_time_migration.md). Las instrucciones anteriores de migración quedan acotadas a 0001 hasta completar la transición compatible.
+- Procedimiento y límites documentados en [runbook temporal](../operations/19_bi_snapshot_time_migration.md). Al terminar fase 1 se acotaron los comandos anteriores a 0001; fase 2 los actualiza para exigir la transición temporal antes de usar el nuevo código.
 
-**Límite de entrega:** publicador/dashboard conservan el comportamiento previo. 0003 es un artefacto probado, no habilitado para despliegue con ese escritor. Fases 2/3 deben completar lectura/publicación dimensional, permisos, capacidad y restauración del warehouse actualizado. La fase 2 requiere ACK intermedio.
+**Límite de la entrega de fase 1:** en ese momento publicador/dashboard conservaban el comportamiento previo y 0003 no era compatible con ese escritor. Fase 2 completa lectura/publicación dimensional y prueba permisos; fase 3 todavía debe validar capacidad y restauración integral del warehouse actualizado. No se habilita despliegue persistente.
 
 **Commit sugerido:** `feat(bi): incorporá el tiempo dimensional y la migración de snapshots`.
+
+## 9. Evidencia de fase 2
+
+- ACK de inicio: «Continua», posterior a la revisión de fase 1. El checkout estaba limpio; no se sobrescribieron cambios locales.
+- [Publicador](../../apps/api/src/modules/business-intelligence/repositories/warehouse.repository.ts): valida coincidencia con el corte fuente del run, escribe calendario/cabecera/detalle conjuntamente y concilia cantidades. Tras limpiar staging, comparte una marca terminal entre `finished_at` y `published_at`, conservando fencing y plazo al final. Rollback incluye cabecera; no hay cabeceras de intentos fallidos ni duplicación tras respuesta perdida de COMMIT.
+- [Dashboard](../../apps/api/src/modules/business-intelligence/repositories/dashboard.repository.ts): consultas exclusivamente `dw`, con filtro por tenant y unión del mismo tenant/run. Último corte global para resumen; último por día UTC para serie, sin sumar existencias. Cabeceras vacías conservan 0/metadata; días ausentes mantienen NULL. Contrato HTTP/UI, engagement/CTR y lectura RR READ ONLY se preservan.
+- Fixtures instalan 0001/0002/0003 en bases nuevas y simulan fechas de cortes coherentes respetando FK inmediatas. El benchmark manual se adaptó al esquema actual, **sin ejecutar una nueva medición** ni actualizar su resultado histórico de 0001.
+- **57 pruebas aprobadas en seis suites:** 21 de integración ETL/BI con identidades restringidas, 15 de migración temporal, tres unitarias temporales, 10 unitarias ETL, cuatro de contratos/rangos/cálculo y cuatro HTTP/permisos/fallos. Dos PostgreSQL 18 descartables; bases y roles de prueba eliminados al terminar.
+- Se verificó el JSON completo con último corte global fuera del rango solicitado; UTC/milisegundos/bisiesto, cortes siempre vacíos y vacíos posteriores, igualdad de marca terminal, reintentos/lease/rollback, aislamiento entre empresas y una publicación concurrente durante lectura consistente.
+- Todos los dashboards de integración se ejecutaron con rol SELECT sólo `dw`: acceso a runs/pointer y escritura denegados. Métricas técnicas se probaron con el lector operativo; el lector `dw` no puede renderizarlas. La conexión runtime compartida conserva los permisos técnicos existentes; no se introdujo configuración de roles adicional.
+- Typecheck, lint y build API aprobados, con las mismas dos advertencias lint preexistentes fuera de esta fase. `git diff --check` y enlaces locales sin errores. Ambos PostgreSQL descartables detenidos al terminar. Sin cambios en SQL versionado, Prisma, infraestructura, dependencias, raíz ni hooks; sin migraciones persistentes.
+- Runbooks 17/18/19 actualizados para impedir usar el código nuevo con sólo 0001 o iniciar el escritor anterior tras 0003. Capacidad, índices medidos, restauración integral y preparación operativa final permanecen en fase 3.
+
+**Commit sugerido:** `refactor(bi): consultá los cortes desde el modelo dimensional`.
+
+**Siguiente fase:** validar integralmente y preparar la operación, sólo después del ACK intermedio conforme a AGENTS.md. Despliegue requiere además entorno, ventana y aprobación específicos.

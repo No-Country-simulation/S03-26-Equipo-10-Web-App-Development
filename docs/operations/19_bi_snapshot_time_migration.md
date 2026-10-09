@@ -1,12 +1,12 @@
 # Migración del tiempo dimensional BI
 
-**Estado:** fase 1 implementada y validada en PostgreSQL 18 descartable. No se aplicó a un entorno persistente. El publicador y el dashboard compatibles corresponden a la fase 2, pendiente de ACK. Este procedimiento prepara el mantenimiento; todavía no habilita despliegue.
+**Estado:** fases 1/2 implementadas y validadas en PostgreSQL 18 descartable. No se aplicó a un entorno persistente. Publicador y dashboard compatibles incorporados; capacidad, mediciones y preparación operativa integral quedan para la fase 3. Este procedimiento prepara el mantenimiento; todavía no habilita despliegue.
 
 **Referencias:** [plan HITL](../plan/2026-10-08_refactor-bi-tiempo-dimensional.md), [expansión 0002](../../apps/api/warehouse/migrations/0002_snapshot_time_expand.sql), [cierre 0003](../../apps/api/warehouse/migrations/0003_snapshot_time_constraints.sql), [backfill](../../apps/api/src/modules/business-intelligence/repositories/snapshot-time-backfill.repository.ts), [validación](../../apps/api/src/modules/business-intelligence/repositories/snapshot-time-validation.ts).
 
 ## Compatibilidad y condiciones de entrada
 
-0002 crea `dw.fact_tenant_snapshot` y agrega `snapshot_at`/`snapshot_date_key` nullable al detalle, sin defaults. 0001 conserva su contenido y checksum. El escritor anterior todavía puede insertar detalles tras 0002, pero no crea cabeceras ni completa las columnas nuevas. **0003 exige el escritor nuevo: no iniciar el ETL anterior después de aplicar el cierre**, incluso en una instalación vacía.
+0002 crea `dw.fact_tenant_snapshot` y agrega `snapshot_at`/`snapshot_date_key` nullable al detalle, sin defaults. 0001 conserva su contenido y checksum. El escritor anterior todavía puede insertar detalles tras 0002, pero no crea cabeceras ni completa las columnas nuevas. **0003 exige el escritor nuevo: no iniciar el ETL anterior después de aplicar el cierre**, incluso en una instalación vacía. El código actual requiere el esquema temporal; no iniciar el ETL/dashboard sobre sólo 0001. La conversión de historial existente precede al cambio de consumidores.
 
 El migrador con `--apply` sin destino intenta todas las versiones disponibles. Usar `--to` para detener la expansión antes del backfill. El destino es un nombre exacto del repositorio, no una ruta. Versiones desconocidas y argumentos extra se rechazan. `--to` limita qué archivos se comprueban/aplican: no revierte versiones que ya consten en el ledger.
 
@@ -50,9 +50,9 @@ Los comandos se ejecutan desde `apps/api`, con el runtime y dependencias ya disp
 
    El migrador vuelve a conciliar todas las empresas, incluyendo runs exitosos sin detalles, bajo locks y en la misma transacción que el DDL/ledger. Rechaza el cierre si falta una cabecera o un dato temporal. Valida CHECK/FK antes de exigir NOT NULL. No insertar manualmente entradas en el ledger ni ejecutar sólo el SQL de 0003: se perdería el preflight que detecta cortes vacíos omitidos.
 
-6. Conceder privilegios explícitos de la nueva tabla al escritor (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) y al lector (`SELECT`) usando los nombres reales de roles del entorno. No asumir que un GRANT previo sobre todas las tablas cubre tablas futuras. La identidad extractora OLTP no requiere cambios. En fase 2 se probará además un lector de dashboard con acceso sólo a `dw`; las métricas técnicas mantienen su identidad con permisos sobre `etl`.
+6. Conceder privilegios explícitos de la nueva tabla al escritor (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) y al lector (`SELECT`) usando los nombres reales de roles del entorno. No asumir que un GRANT previo sobre todas las tablas cubre tablas futuras. La identidad extractora OLTP no requiere cambios. Fase 2 verificó DashboardRepository con un lector de acceso sólo a `dw`. La conexión runtime sigue compartida con métricas: conserva sus permisos sobre `etl.runs` y `etl.tenant_load_state`; no revocarlos por esa prueba. Separar identidades runtime requeriría configuración adicional fuera de esta entrega.
 
-7. Instalar los procesos compatibles, ejecutar un corte y verificar cabecera/detalles/metadata y paridad de consultas antes de habilitar BI y scheduler. Estas verificaciones y la restauración del esquema completo actualizado quedan pendientes de fases 2/3.
+7. Instalar los procesos compatibles, ejecutar un corte y verificar cabecera/detalles/metadata y paridad de consultas antes de habilitar BI y scheduler. La publicación y lectura se verificaron localmente en fase 2; aceptación del entorno, mediciones y restauración validada del esquema completo actualizado quedan pendientes de fase 3.
 
 ## Integridad, concurrencia y límites
 
@@ -76,4 +76,14 @@ Typecheck, lint y build API pasaron. Lint conserva dos advertencias preexistente
 npm test --workspace apps/api -- --runTestsByPath test/bi-snapshot-time.integration.spec.ts test/bi-snapshot-time.spec.ts test/bi-etl.spec.ts
 ```
 
-La regresión `test/bi-postgres.integration.spec.ts` requiere además `TEST_BI_SOURCE_DATABASE_URL` descartable. Esta evidencia no certifica capacidad productiva, backup/restauración del esquema nuevo ni el dashboard dimensional, pendientes de fases posteriores.
+La regresión `test/bi-postgres.integration.spec.ts` requiere además `TEST_BI_SOURCE_DATABASE_URL` descartable. Esta evidencia inicial no certifica capacidad productiva ni la restauración integral del esquema nuevo, pendientes de fase 3. La lectura/publicación dimensional tiene evidencia adicional de fase 2 a continuación.
+
+## Cambios y verificación de fase 2
+
+El publicador verifica que el instante recibido coincida con el run del tenant, crea calendario/cabecera/detalles en la misma transacción y concilia cantidades. Después de limpiar staging obtiene una marca terminal única mediante el UPDATE del run y la copia a la cabecera antes del fencing/plazo final. Errores y pérdida de lease revierten también la cabecera. Los reintentos y la resolución de respuesta perdida tras COMMIT conservan su comportamiento.
+
+DashboardRepository usa exclusivamente `dw` para elegir último corte global, último corte diario e inicio del historial. El total procede de la cabecera; rating/estados/categorías proceden de los detalles del mismo tenant/run. Cortes vacíos devuelven 0 con fecha conocida; días sin corte mantienen NULL. El rango UTC limita series/eventos, mientras el resumen conserva el último corte global. Contrato HTTP/UI y conexión consistente de sólo lectura permanecen vigentes.
+
+Las fixtures de integración/benchmark instalan todas las versiones en bases nuevas vacías. Las fechas históricas de prueba se reconstruyen junto con run, calendario, cabecera y detalles dentro de una transacción respetando FK inmediatas; el runtime no modifica cortes históricos. Se comprobaron publicación normal y vacía, igualdad de marca terminal, rollback, reintentos, pérdida de lease/COMMIT, límites UTC, contrato JSON completo, lectura limitada a `dw`, métricas con permisos técnicos y publicación durante una lectura consistente.
+
+El resultado final de tests/typecheck/lint/build queda registrado en la [evidencia del plan](../plan/2026-10-08_refactor-bi-tiempo-dimensional.md). No se cambió infraestructura, Prisma, dependencias ni configuración de identidades runtime. No hay migraciones persistentes. Las mediciones de índices, capacidad y duración y la validación integral del despliegue corresponden a fase 3.

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { ConsoleLogger } from '@nestjs/common';
 import { SourceRepository } from '../src/modules/business-intelligence/repositories/source.repository';
 import { WarehouseRepository } from '../src/modules/business-intelligence/repositories/warehouse.repository';
@@ -19,6 +19,7 @@ import { main as etlMain } from '../src/modules/business-intelligence/etl.cli';
 import { BiConnection } from '../src/modules/business-intelligence/repositories/bi-connection';
 import { DashboardRepository } from '../src/modules/business-intelligence/repositories/dashboard.repository';
 import { BiMetricsService } from '../src/modules/business-intelligence/services/bi-metrics.service';
+import { installBiWarehouse } from './fixtures/bi-warehouse';
 
 // Explicit opt-in to TWO disposable servers. Create and remove fresh databases and restricted roles.
 const sourceAdminUrl = process.env.TEST_BI_SOURCE_DATABASE_URL;
@@ -33,6 +34,7 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
   const sourceRole = `bi_extract_${suffix}`;
   const writerRole = `bi_writer_${suffix}`;
   const readerRole = `bi_reader_${suffix}`;
+  const dashboardRole = `bi_dashboard_${suffix}`;
   let parentSource: PrismaClient;
   let parentTarget: PrismaClient;
   let sourceAdmin: PrismaClient;
@@ -40,11 +42,13 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
   let source: PrismaClient;
   let target: PrismaClient;
   let reader: PrismaClient;
+  let dashboardReader: PrismaClient;
   let sourceRepo: SourceRepository;
   let warehouse: WarehouseRepository;
   let service: EtlService;
   let warehouseSql: string;
   let bi: BiConnection;
+  let dashboardBi: BiConnection;
   let dashboard: DashboardRepository;
   const tenantA = randomUUID();
   const tenantB = randomUUID();
@@ -79,10 +83,11 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     await sourceAdmin.$transaction(async tx => {
       for (const sql of [...migrationStatements(fixture), ...migrationStatements(sourceViews)]) await tx.$executeRawUnsafe(sql);
     }, { timeout: 20000 });
-    await applyWarehouseMigration(targetAdmin, '0001_initial.sql', warehouseSql);
+    await installBiWarehouse(targetAdmin);
     await parentSource.$executeRawUnsafe(`CREATE ROLE "${sourceRole}" LOGIN`);
     await parentTarget.$executeRawUnsafe(`CREATE ROLE "${writerRole}" LOGIN`);
     await parentTarget.$executeRawUnsafe(`CREATE ROLE "${readerRole}" LOGIN`);
+    await parentTarget.$executeRawUnsafe(`CREATE ROLE "${dashboardRole}" LOGIN`);
     await sourceAdmin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA bi_export TO "${sourceRole}"`);
     await sourceAdmin.$executeRawUnsafe(`GRANT SELECT ON ALL TABLES IN SCHEMA bi_export TO "${sourceRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA staging, dw, etl TO "${writerRole}"`);
@@ -92,9 +97,12 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA dw, etl TO "${readerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON ALL TABLES IN SCHEMA dw TO "${readerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON etl.runs, etl.tenant_load_state TO "${readerRole}"`);
+    await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA dw TO "${dashboardRole}"`);
+    await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON ALL TABLES IN SCHEMA dw TO "${dashboardRole}"`);
     source = client(sourceAdminUrl!, sourceDb, sourceRole, 1);
     target = client(targetAdminUrl!, targetDb, writerRole, 2);
     reader = client(targetAdminUrl!, targetDb, readerRole, 1);
+    dashboardReader = client(targetAdminUrl!, targetDb, dashboardRole, 1);
     sourceRepo = new SourceRepository(source, 1); // Force multiple pages, including IDs above Number.MAX_SAFE_INTEGER.
     warehouse = new WarehouseRepository(target);
     service = new EtlService(sourceRepo, warehouse);
@@ -102,7 +110,9 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     const biUrl = new URL(targetAdminUrl!); biUrl.pathname = `/${targetDb}`; biUrl.username = readerRole; biUrl.password = '';
     try {
       process.env.BI_ENABLED = 'true'; process.env.BI_DATABASE_URL = biUrl.toString();
-      bi = new BiConnection(); dashboard = new DashboardRepository(bi);
+      bi = new BiConnection();
+      biUrl.username = dashboardRole; process.env.BI_DATABASE_URL = biUrl.toString();
+      dashboardBi = new BiConnection(); dashboard = new DashboardRepository(dashboardBi);
     } finally {
       if (previousEnabled === undefined) delete process.env.BI_ENABLED; else process.env.BI_ENABLED = previousEnabled;
       if (previousUrl === undefined) delete process.env.BI_DATABASE_URL; else process.env.BI_DATABASE_URL = previousUrl;
@@ -130,7 +140,8 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
 
   afterAll(async () => {
     await bi?.onModuleDestroy();
-    await Promise.allSettled([source, target, reader, sourceAdmin, targetAdmin].filter(Boolean).map(c => c.$disconnect()));
+    await dashboardBi?.onModuleDestroy();
+    await Promise.allSettled([source, target, reader, dashboardReader, sourceAdmin, targetAdmin].filter(Boolean).map(c => c.$disconnect()));
     if (parentSource) {
       await parentSource.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${sourceDb}" WITH (FORCE)`);
       await parentSource.$executeRawUnsafe(`DROP ROLE IF EXISTS "${sourceRole}"`);
@@ -140,6 +151,7 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       await parentTarget.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${targetDb}" WITH (FORCE)`);
       await parentTarget.$executeRawUnsafe(`DROP ROLE IF EXISTS "${writerRole}"`);
       await parentTarget.$executeRawUnsafe(`DROP ROLE IF EXISTS "${readerRole}"`);
+      await parentTarget.$executeRawUnsafe(`DROP ROLE IF EXISTS "${dashboardRole}"`);
       await parentTarget.$disconnect();
     }
   });
@@ -181,8 +193,29 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
   });
   async function movePreviousCutBack(hours = 3) {
     // Simulated passage of hours, confined to the disposable fixture; real runtime never backdates cuts.
-    await targetAdmin.$executeRaw`UPDATE etl.runs SET slot_at = slot_at - ${hours} * interval '1 hour',
-      source_snapshot_at = source_snapshot_at - ${hours} * interval '1 hour' WHERE tenant_id = ${tenantA}::uuid AND status = 'succeeded'`;
+    const runs = await targetAdmin.$queryRaw<Array<{ id: string; at: Date }>>`
+      SELECT id, source_snapshot_at AS at FROM etl.runs WHERE tenant_id = ${tenantA}::uuid AND status = 'succeeded'`;
+    for (const run of runs) await fixtureCutTime(run.id, new Date(run.at.getTime() - hours * 3600000));
+  }
+  async function fixtureCutTime(runId: string | null | undefined, at: Date) {
+    if (!runId) throw new Error('Expected fixture cut');
+    // Build a coherent synthetic cut under immediate FKs; confined to this disposable database.
+    await targetAdmin.$transaction(async tx => {
+      await tx.$executeRaw`CREATE TEMP TABLE synthetic_cut ON COMMIT DROP AS
+        SELECT * FROM dw.fact_testimonial_snapshot WHERE tenant_id = ${tenantA}::uuid AND run_id = ${runId}::uuid`;
+      await tx.$executeRaw`DELETE FROM dw.fact_testimonial_snapshot WHERE tenant_id = ${tenantA}::uuid AND run_id = ${runId}::uuid`;
+      await tx.$executeRaw`INSERT INTO dw.dim_date (date_key) VALUES ((${at} AT TIME ZONE 'UTC')::date) ON CONFLICT DO NOTHING`;
+      await tx.$executeRaw`UPDATE dw.fact_tenant_snapshot SET snapshot_at = ${at}, snapshot_date_key = (${at} AT TIME ZONE 'UTC')::date
+        WHERE tenant_id = ${tenantA}::uuid AND run_id = ${runId}::uuid`;
+      await tx.$executeRaw`UPDATE etl.runs SET slot_at = ${hourUtc(at)}, source_snapshot_at = ${at}
+        WHERE tenant_id = ${tenantA}::uuid AND id = ${runId}::uuid AND status = 'succeeded'`;
+      await tx.$executeRaw`INSERT INTO dw.fact_testimonial_snapshot
+        (tenant_id, run_id, testimonial_id, category_key, status_code, rating, score, created_at, published_at,
+          has_image, has_video, snapshot_at, snapshot_date_key)
+        SELECT tenant_id, run_id, testimonial_id, category_key, status_code, rating, score, created_at, published_at,
+          has_image, has_video, ${at}, (${at} AT TIME ZONE 'UTC')::date FROM synthetic_cut
+        WHERE tenant_id = ${tenantA}::uuid AND run_id = ${runId}::uuid`;
+    });
   }
   async function prepare(lease?: Lease) {
     const active = lease ?? await warehouse.claim(tenantA, hourUtc(new Date()));
@@ -219,6 +252,15 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       WHERE tenant_id = ${tenantA}::uuid AND testimonial_id = ${testimonialA}::uuid`)
       .toEqual([{ score: '50.1234', has_image: true }]);
     expect(await targetAdmin.$queryRaw`SELECT count(*) AS count FROM staging.analytics_events`).toEqual([{ count: 0n }]);
+    const [cut] = await targetAdmin.$queryRaw<Array<{ at: Date; date: string; published: Date; finished: Date; count: bigint; details: bigint; matching: bigint }>>`
+      SELECT h.snapshot_at AS at, h.snapshot_date_key::text AS date, h.published_at AS published,
+        r.finished_at AS finished, h.testimonial_count AS count, count(f.testimonial_id) AS details,
+        count(f.testimonial_id) FILTER (WHERE f.snapshot_at = h.snapshot_at AND f.snapshot_date_key = h.snapshot_date_key) AS matching
+      FROM dw.fact_tenant_snapshot h JOIN etl.runs r ON r.tenant_id = h.tenant_id AND r.id = h.run_id
+      LEFT JOIN dw.fact_testimonial_snapshot f ON f.tenant_id = h.tenant_id AND f.run_id = h.run_id
+      WHERE h.tenant_id = ${tenantA}::uuid GROUP BY h.tenant_id, h.run_id, r.finished_at`;
+    expect(cut).toMatchObject({ count: 2n, details: 2n, matching: 2n });
+    expect(cut?.date).toBe(cut?.at.toISOString().slice(0, 10)); expect(cut?.published).toEqual(cut?.finished);
   });
 
   it('skips duplicate successful slots and publishes an empty company with a durable pointer', async () => {
@@ -231,6 +273,11 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     expect(await current(empty)).toEqual(expect.any(String));
     expect(await targetAdmin.$queryRaw`SELECT source_event_count, snapshot_row_count FROM etl.runs WHERE tenant_id = ${empty}::uuid`)
       .toEqual([{ source_event_count: 0n, snapshot_row_count: 0n }]);
+    expect(await targetAdmin.$queryRaw`SELECT testimonial_count FROM dw.fact_tenant_snapshot WHERE tenant_id = ${empty}::uuid`)
+      .toEqual([{ testimonial_count: 0n }]);
+    const result = await dashboard.dashboard(empty, { from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10), timezone: 'UTC' });
+    expect(result.testimonialSeries[0]).toMatchObject({ total: 0, averageRating: null, snapshotAt: expect.any(String) });
+    expect(result.freshness).toMatchObject({ status: 'fresh', historyStartedAt: result.freshness.sourceSnapshotAt });
   });
 
   it('runs the standalone once entry with only source and warehouse configuration', async () => {
@@ -315,6 +362,8 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       expect(await targetAdmin.$queryRaw`SELECT name FROM dw.dim_tenant WHERE tenant_id = ${tenantA}::uuid`).toEqual([{ name: 'Synthetic A' }]);
       expect(await targetAdmin.$queryRaw`SELECT count(*) AS count FROM dw.fact_testimonial_snapshot WHERE tenant_id = ${tenantA}::uuid`)
         .toEqual([{ count: 2n }]);
+      expect(await targetAdmin.$queryRaw`SELECT run_id FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantA}::uuid`)
+        .toEqual([{ run_id: previous }]);
       expect(await targetAdmin.$queryRaw`SELECT count(*) AS count FROM etl.runs WHERE tenant_id = ${tenantA}::uuid AND status = 'failed'`)
         .toEqual([{ count: 3n }]);
       expect(await targetAdmin.$queryRaw`SELECT source_event_count, snapshot_row_count FROM etl.runs
@@ -336,6 +385,8 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       expect(await current()).toBeNull();
       expect(await targetAdmin.$queryRaw`SELECT count(*) AS count FROM dw.fact_testimonial_snapshot WHERE tenant_id = ${tenantA}::uuid`)
         .toEqual([{ count: 0n }]);
+      expect(await targetAdmin.$queryRaw`SELECT count(*) AS count FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantA}::uuid`)
+        .toEqual([{ count: 0n }]);
       expect(await warehouse.status(data.lease)).toBe('running');
     } finally { await targetAdmin.$executeRawUnsafe('DROP TRIGGER synthetic_slow_publish ON dw.fact_testimonial_snapshot'); }
   });
@@ -354,6 +405,8 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       .toEqual([{ count: 1n }]);
     expect(await targetAdmin.$queryRaw`SELECT count(*) AS count FROM dw.fact_testimonial_snapshot WHERE tenant_id = ${tenantA}::uuid`)
       .toEqual([{ count: 2n }]);
+    expect(await targetAdmin.$queryRaw`SELECT count(*) AS count FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantA}::uuid`)
+      .toEqual([{ count: 1n }]);
   });
 
   it('recovers an abandoned upload and fences every write and release from the old worker', async () => {
@@ -390,6 +443,8 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     await expect(warehouse.events(data.lease, [{ tenantId: tenantA, eventId: 100n, testimonialId: randomUUID(),
       eventTypeCode: 'view', sourceCode: 'public', createdAt: new Date('2024-01-01Z') }])).rejects.toMatchObject({ code: 'BI_SOURCE_INCONSISTENT' });
     await expect(warehouse.publish(data.lease, data.snapshot, { ...data.counts, events: 9n })).rejects.toMatchObject({ code: 'BI_SOURCE_INCONSISTENT' });
+    await expect(warehouse.publish(data.lease, { ...data.snapshot, at: new Date(data.snapshot.at.getTime() + 1) }, data.counts))
+      .rejects.toMatchObject({ code: 'BI_SOURCE_INCONSISTENT' });
     await targetAdmin.$executeRaw`UPDATE staging.analytics_events SET created_at = ${new Date(data.snapshot.at.getTime() + 1)}
       WHERE tenant_id = ${tenantA}::uuid AND run_id = ${data.lease.runId}::uuid`;
     await expect(warehouse.publish(data.lease, data.snapshot, data.counts)).rejects.toMatchObject({ code: 'BI_SOURCE_INCONSISTENT' });
@@ -418,6 +473,10 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     await expect(target.$executeRaw`UPDATE etl.schema_migrations SET checksum = ${'0'.repeat(64)}`).rejects.toThrow();
     await expect(reader.$queryRaw`SELECT * FROM staging.testimonials`).rejects.toThrow();
     await expect(reader.$executeRaw`DELETE FROM dw.dim_tenant WHERE tenant_id = ${tenantA}::uuid`).rejects.toThrow();
+    await expect(dashboardReader.$queryRaw`SELECT id FROM etl.runs WHERE tenant_id = ${tenantA}::uuid`).rejects.toThrow();
+    await expect(dashboardReader.$queryRaw`SELECT tenant_id FROM etl.tenant_load_state WHERE tenant_id = ${tenantA}::uuid`).rejects.toThrow();
+    await expect(dashboardReader.$executeRaw`DELETE FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantA}::uuid`).rejects.toThrow();
+    await expect(new BiMetricsService(dashboardBi).render()).rejects.toMatchObject({ code: 'BI_UNAVAILABLE' });
     expect(await applyWarehouseMigration(targetAdmin, '0001_initial.sql', warehouseSql)).toBe(false);
     await expect(applyWarehouseMigration(targetAdmin, '0001_initial.sql', warehouseSql + '\n-- altered'))
       .rejects.toMatchObject({ code: 'BI_MIGRATION_DRIFT' });
@@ -461,13 +520,11 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
 
   it('selects one last cut per day instead of summing inventory, and distinguishes missing days from empty cuts', async () => {
     await service.runTenant(tenantA);
-    await targetAdmin.$executeRaw`UPDATE etl.runs SET slot_at = '2024-03-01T01:00:00Z', source_snapshot_at = '2024-03-01T01:01:00Z'
-      WHERE tenant_id = ${tenantA}::uuid AND status = 'succeeded'`;
+    await fixtureCutTime(await current(), new Date('2024-03-01T01:01:00Z'));
     await sourceAdmin.$executeRaw`DELETE FROM analytics_events WHERE tenant_id = ${tenantA}::uuid`;
     await sourceAdmin.$executeRaw`DELETE FROM testimonials WHERE tenant_id = ${tenantA}::uuid`;
     await service.runTenant(tenantA);
-    await targetAdmin.$executeRaw`UPDATE etl.runs SET slot_at = '2024-03-01T02:00:00Z', source_snapshot_at = '2024-03-01T02:01:00Z'
-      WHERE tenant_id = ${tenantA}::uuid AND id = ${await current()}::uuid`;
+    await fixtureCutTime(await current(), new Date('2024-03-01T02:01:00Z'));
     const result = await dashboard.dashboard(tenantA, { from: '2024-02-29', to: '2024-03-01', timezone: 'UTC' });
     expect(result.summary).toMatchObject({ totalTestimonials: 0, averageRating: null, views: '0', clicks: '0', ctr: null });
     expect(result.testimonialSeries.map(row => row.total)).toEqual([null, 0]);
@@ -487,5 +544,83 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     expect(metrics).toContain('tms_bi_etl_runs_total{status="succeeded"} 1');
     expect(metrics).toContain('tms_bi_etl_duration_seconds_bucket{le="+Inf"} 1');
     expect(metrics).not.toContain(tenantA); expect(metrics).not.toContain(readerRole);
+  });
+
+  it('preserves the complete dashboard contract with a dw-only reader and a latest cut outside the requested range', async () => {
+    await service.runTenant(tenantA);
+    const first = await current();
+    await fixtureCutTime(first, new Date('2024-02-29T23:59:59.999Z'));
+    await service.runTenant(tenantA);
+    await fixtureCutTime(await current(), new Date('2024-03-01T00:00:00.000Z'));
+    const [published] = await reader.$queryRaw<Array<{ finished: Date }>>`
+      SELECT finished_at AS finished FROM etl.runs WHERE tenant_id = ${tenantA}::uuid AND id = ${await current()}::uuid`;
+    const keys = await dashboardReader.$queryRaw<Array<{ key: bigint; category: string | null }>>`
+      SELECT category_key AS key, source_category_id AS category FROM dw.dim_category WHERE tenant_id = ${tenantA}::uuid ORDER BY category_key`;
+    const expectedCategories = keys.map(row => ({ categoryKey: row.key.toString(), name: row.category ? 'Category A' : 'Sin categoría',
+      count: 1, averageRating: row.category ? 5 : 4 }));
+    const result = await dashboard.dashboard(tenantA, { from: '2024-02-29', to: '2024-02-29', timezone: 'UTC' });
+    expect(result.freshness.dataAgeSeconds).toBeGreaterThan(7200);
+    expect({ ...result, freshness: { ...result.freshness, dataAgeSeconds: null } }).toEqual({
+      range: { from: '2024-02-29', to: '2024-02-29', timezone: 'UTC' },
+      summary: { totalTestimonials: 2, averageRating: 4.5, statuses: [{ code: 'draft', count: 1 }, { code: 'published', count: 1 }],
+        views: '1', clicks: '0', plays: '0', ctr: 0 },
+      testimonialSeries: [{ date: '2024-02-29', snapshotAt: '2024-02-29T23:59:59.999Z', total: 2, averageRating: 4.5 }],
+      engagementSeries: [{ date: '2024-02-29', views: '1', clicks: '0', plays: '0', ctr: 0 }], categories: expectedCategories,
+      freshness: { status: 'stale', sourceSnapshotAt: '2024-03-01T00:00:00.000Z', lastPublishedAt: published?.finished.toISOString(),
+        historyStartedAt: '2024-02-29T23:59:59.999Z', engagementHistoryStartedAt: '2024-02-29', dataAgeSeconds: null },
+    });
+  });
+
+  it('keeps header, inventory and engagement from the same read snapshot while another publication commits', async () => {
+    await service.runTenant(tenantA); await movePreviousCutBack();
+    const before = await dashboard.dashboard(tenantA, { from: '2024-02-29', to: '2024-03-01', timezone: 'UTC' });
+    let opened!: () => void; let release!: () => void;
+    const started = new Promise<void>(resolve => { opened = resolve; });
+    const resume = new Promise<void>(resolve => { release = resolve; });
+    class PausedConnection extends BiConnection {
+      override read<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+        return dashboardBi.read(async tx => {
+          await tx.$queryRaw`SELECT run_id FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantA}::uuid`;
+          opened(); await resume; return work(tx);
+        });
+      }
+    }
+    const connection = new PausedConnection();
+    const pending = new DashboardRepository(connection).dashboard(tenantA, before.range);
+    // Attach a rejection handler immediately so a setup failure cannot leave an unhandled rejection.
+    const settled = pending.then(value => ({ value }), (error: unknown) => ({ error }));
+    try {
+      await Promise.race([started, pending.then(() => { throw new Error('Expected paused read'); })]);
+      await sourceAdmin.$executeRaw`DELETE FROM analytics_events WHERE tenant_id = ${tenantA}::uuid`;
+      await sourceAdmin.$executeRaw`DELETE FROM testimonials WHERE tenant_id = ${tenantA}::uuid`;
+      expect((await service.runTenant(tenantA)).status).toBe('succeeded');
+      release();
+      const observed = await pending;
+      expect({ ...observed, freshness: { ...observed.freshness, dataAgeSeconds: null } })
+        .toEqual({ ...before, freshness: { ...before.freshness, dataAgeSeconds: null } });
+      const after = await dashboard.dashboard(tenantA, before.range);
+      expect(after.summary).toMatchObject({ totalTestimonials: 0, averageRating: null, views: '0', clicks: '0', plays: '0' });
+      expect(after.freshness.sourceSnapshotAt).not.toBe(before.freshness.sourceSnapshotAt);
+    } finally { release(); await settled; await connection.onModuleDestroy(); }
+  });
+
+  it('publishes observed UTC boundary instants and creates calendar entries even without any details or events', async () => {
+    const empty = randomUUID();
+    for (const at of [new Date('2024-02-29T23:59:59.999Z'), new Date('2024-03-01T00:00:00.000Z')]) {
+      const lease = await warehouse.claim(empty, hourUtc(at));
+      if (!lease) throw new Error('Expected empty boundary lease');
+      const snapshot = { tenantId: empty, name: 'Synthetic boundary', isActive: true, at };
+      await warehouse.snapshot(lease, snapshot);
+      await warehouse.publish(lease, snapshot, { categories: 0n, testimonials: 0n, events: 0n });
+    }
+    expect(await dashboardReader.$queryRaw`SELECT h.snapshot_at, d.date_key::text AS date, h.testimonial_count
+      FROM dw.fact_tenant_snapshot h JOIN dw.dim_date d ON d.date_key = h.snapshot_date_key
+      WHERE h.tenant_id = ${empty}::uuid ORDER BY h.snapshot_at`).toEqual([
+      { snapshot_at: new Date('2024-02-29T23:59:59.999Z'), date: '2024-02-29', testimonial_count: 0n },
+      { snapshot_at: new Date('2024-03-01T00:00:00.000Z'), date: '2024-03-01', testimonial_count: 0n },
+    ]);
+    const result = await dashboard.dashboard(empty, { from: '2024-02-29', to: '2024-03-01', timezone: 'UTC' });
+    expect(result.testimonialSeries.map(row => row.total)).toEqual([0, 0]);
+    expect(result.freshness).toMatchObject({ historyStartedAt: '2024-02-29T23:59:59.999Z', sourceSnapshotAt: '2024-03-01T00:00:00.000Z' });
   });
 });
