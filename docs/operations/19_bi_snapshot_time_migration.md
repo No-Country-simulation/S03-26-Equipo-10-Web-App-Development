@@ -10,6 +10,8 @@
 
 El migrador con `--apply` sin destino intenta todas las versiones disponibles. Usar `--to` para detener la expansión antes del backfill. El destino es un nombre exacto del repositorio, no una ruta. Versiones desconocidas y argumentos extra se rechazan. `--to` limita qué archivos se comprueban/aplican: no revierte versiones que ya consten en el ledger.
 
+0004 prepara la futura consola de operación BI. Este procedimiento temporal termina explícitamente en 0003; no usar un `--apply` sin destino para asumir que se aplican sólo las tres versiones iniciales. [Plan de consola](../plan/2026-10-09_feat-interfaces-operacion-bi.md) y [contrato de control](../modules/api-bi-operations.md).
+
 Antes de un entorno persistente, identificar versión, volumen, ventana y ACK, verificar backup restaurable y aceptar la evidencia de capacidad/SLO del entorno objetivo. La evidencia local de fases 2/3 no la sustituye. Detener todos los workers/schedulers y deshabilitar temporalmente BI; captura y moderación OLTP siguen disponibles. Esperar la finalización de publicaciones. Cualquier run `running` o componente de lease no nulo, aunque esté vencido, bloquea el mantenimiento. Resolver intentos pendientes mediante la recuperación normal del ETL antes de la ventana; el backfill no borra runs ni limpia leases.
 
 Usar `BI_MIGRATION_DATABASE_URL` provista externamente, con identidad migradora del warehouse. No guardar su valor en documentación, contexto o logs. El CLI no usa la conexión OLTP, no inicia HTTP y no se ejecuta automáticamente desde el ETL.

@@ -6,6 +6,8 @@ Referencias: [contrato](../modules/api-business-intelligence.md), [permisos y ET
 
 **Transición temporal:** el benchmark original de este runbook corresponde a 0001. El código actual requiere 0002/0003. Seguir el [procedimiento de mantenimiento temporal](19_bi_snapshot_time_migration.md); no aplicar el cierre con el publicador anterior ni ejecutar el código actual sobre sólo 0001. La [validación temporal del 2026-10-09](20_bi_snapshot_time_validation.md) registra la nueva medición y restauración; no sustituye aceptar capacidad/SLO del entorno productivo.
 
+**Control operativo en preparación:** 0004 agrega persistencia para la futura consola; no cambia el scheduler ni habilita endpoints. Para instalar sólo el sistema temporal vigente, fijar `bi:migrate --apply --to 0003`; aplicar 0004 requiere mantenimiento y autorización específicos. Ver [contrato y condiciones de activación](../modules/api-bi-operations.md).
+
 ## API, panel y aislamiento
 
 `GET /api/v1/bi/dashboard` usa sesión JWT y roles admin/editor; deriva la empresa de la sesión y rechaza `tenantId` y parámetros desconocidos. La pantalla `/admin/business-intelligence` usa el layout y menú administrativos, adaptador validado y transporte de sesión vigente. Sólo envía fechas. El inventario se obtiene del último corte; la serie diaria toma el último corte de cada día y mantiene NULL donde no hubo carga. Los eventos son strings decimales, con formato BigInt en el navegador; CTR sin vistas es «Sin datos».

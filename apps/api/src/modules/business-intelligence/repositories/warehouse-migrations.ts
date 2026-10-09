@@ -53,6 +53,16 @@ export async function applyWarehouseMigration(client: PrismaClient, version: str
       await tx.$executeRaw`LOCK TABLE dw.fact_testimonial_snapshot, dw.fact_tenant_snapshot IN SHARE ROW EXCLUSIVE MODE`;
       await verifySnapshotTimeHistory(tx, true);
     }
+    if (version === '0004_bi_operations.sql') {
+      const [previous] = await tx.$queryRaw<Array<{ exists: boolean }>>`SELECT EXISTS(
+        SELECT 1 FROM etl.schema_migrations WHERE version = '0003_snapshot_time_constraints.sql') AS exists`;
+      if (!previous?.exists) throw new EtlError('BI_MIGRATION_INVALID');
+      await tx.$executeRaw`LOCK TABLE etl.runs, etl.tenant_load_state IN SHARE MODE`;
+      const [active] = await tx.$queryRaw<Array<{ exists: boolean }>>`SELECT
+        EXISTS(SELECT 1 FROM etl.runs WHERE status = 'running') OR
+        EXISTS(SELECT 1 FROM etl.tenant_load_state WHERE lease_run_id IS NOT NULL) AS exists`;
+      if (active?.exists) throw new EtlError('BI_MAINTENANCE_REQUIRED');
+    }
     for (const statement of statements) await tx.$executeRawUnsafe(statement);
     await tx.$executeRaw`INSERT INTO etl.schema_migrations (version, checksum) VALUES (${version}, ${checksum})`;
     return true;

@@ -6,6 +6,8 @@ Referencias: [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [contrato 
 
 **Transición temporal:** 0002/0003, backfill y escritor/lector compatibles están implementados y probados localmente. El código actual requiere el esquema temporal; no iniciar ETL/dashboard con sólo 0001. Para evolucionar un historial existente, seguir el [procedimiento temporal](19_bi_snapshot_time_migration.md). La [validación temporal](20_bi_snapshot_time_validation.md) registra capacidad sintética, costos y restauración; aceptación productiva sigue pendiente. El escritor anterior es incompatible con 0003.
 
+**Preparación de consola operativa (2026-10-09):** 0004 prepara control durable en la fase 1 del [nuevo plan](../plan/2026-10-09_feat-interfaces-operacion-bi.md); scheduler/endpoints/interfaces aún pendientes. El migrador sin `--to` incluye también 0004 y exige mantenimiento. Para instalar sólo la versión temporal actualmente operativa, detenerse explícitamente en 0003; la consola nueva requiere sus propias fases y aceptación antes de habilitarse. [Contrato y permisos de control](../modules/api-bi-operations.md).
+
 ## Artefactos y conexiones
 
 - [Base warehouse 0001](../../apps/api/warehouse/migrations/0001_initial.sql) más 0002/0003: 16 tablas en `staging`, `dw`, `etl`; versionado independiente de Prisma. No hay FK entre servidores. El detalle tiene instante/fecha UTC y una cabecera por corte, incluso vacío.
@@ -63,7 +65,7 @@ Los siguientes comandos se muestran para el operador; esta fase no los ejecuta s
 ```sh
 # Sólo en warehouse nuevo vacío y tras ACK, con BI_MIGRATION_DATABASE_URL:
 # Para un historial existente, seguir el procedimiento temporal: expansión, backfill y cierre.
-npm run bi:migrate --workspace=@testimonial-cms/api -- --apply
+npm run bi:migrate --workspace=@testimonial-cms/api -- --apply --to 0003_snapshot_time_constraints.sql
 
 # Carga manual única, con BI_SOURCE_DATABASE_URL y BI_ETL_DATABASE_URL:
 npm run bi:etl --workspace=@testimonial-cms/api -- --once
@@ -75,7 +77,7 @@ npm run bi:etl --workspace=@testimonial-cms/api
 npm run bi:etl:prod --workspace=@testimonial-cms/api
 ```
 
-El migrador busca `warehouse/migrations` desde el directorio del workspace API. El artefacto de mantenimiento debe incluir esos archivos; en un warehouse nuevo vacío, el proceso compilado puede invocarse desde `apps/api` con `node dist/modules/business-intelligence/migration.cli.js --apply`, sólo tras el ACK correspondiente. En un historial existente usar `--to` y el procedimiento temporal. No se modificó la imagen Docker ni Compose. El ledger guarda SHA-256 del archivo exacto: repetir una versión idéntica no aplica DDL; modificar una ya aplicada se rechaza como `BI_MIGRATION_DRIFT`. Añadir una migración nueva para evolucionar el esquema. El parser inicial admite DDL con comentarios de línea y literales/identificadores entre comillas, no cuerpos dollar-quoted ni comentarios de bloque.
+El migrador busca `warehouse/migrations` desde el directorio del workspace API. El artefacto de mantenimiento debe incluir esos archivos; en un warehouse nuevo vacío, el proceso compilado puede invocarse desde `apps/api` con `node dist/modules/business-intelligence/migration.cli.js --apply --to 0003_snapshot_time_constraints.sql` para la versión temporal, sólo tras el ACK correspondiente. En un historial existente usar `--to` y el procedimiento temporal. No se modificó la imagen Docker ni Compose. El ledger guarda SHA-256 del archivo exacto: repetir una versión idéntica no aplica DDL; modificar una ya aplicada se rechaza como `BI_MIGRATION_DRIFT`. Añadir una migración nueva para evolucionar el esquema. El parser inicial admite DDL con comentarios de línea y literales/identificadores entre comillas, no cuerpos dollar-quoted ni comentarios de bloque.
 
 La carga procesa una empresa por vez y páginas de 1 000 filas en una transacción origen `REPEATABLE READ READ ONLY`. Filtra todos los recursos por empresa. Usa BigInt para IDs y conteos, y Decimal para score. El destino agrega interacciones, mantiene snapshots publicados y reemplaza sólo la serie de engagement de esa empresa. También publica empresas vacías o inactivas.
 
