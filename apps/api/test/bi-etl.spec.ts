@@ -38,11 +38,11 @@ describe('independent ETL configuration and UTC', () => {
 
 describe('ETL lifecycle', () => {
   const lease = { tenantId: 'tenant', runId: 'run', token: 'token', slot: hourUtc(new Date()), deadline: Date.now() + 300000 };
-  const warehouse = { claim: jest.fn(), heartbeat: jest.fn(), snapshot: jest.fn(), extracted: jest.fn(), publish: jest.fn(), status: jest.fn(), fail: jest.fn() };
+  const warehouse = { operations: false, claim: jest.fn(), heartbeat: jest.fn(), snapshot: jest.fn(), extracted: jest.fn(), publish: jest.fn(), status: jest.fn(), fail: jest.fn() };
   const source = { extract: jest.fn() };
   const service = new EtlService(source as any, warehouse as any);
   beforeEach(() => {
-    jest.resetAllMocks(); warehouse.claim.mockResolvedValue(lease); warehouse.status.mockResolvedValue('running');
+    jest.resetAllMocks(); warehouse.operations = false; warehouse.claim.mockResolvedValue(lease); warehouse.status.mockResolvedValue('running');
     source.extract.mockImplementation(async (_tenant, consumer) => {
       await consumer.snapshot({ tenantId: 'tenant', name: 'Synthetic', isActive: true, at: new Date() });
       return { categories: 0n, testimonials: 0n, events: 0n };
@@ -79,6 +79,30 @@ describe('ETL lifecycle', () => {
     const controller = new AbortController(); controller.abort();
     expect(await service.runTenant('tenant', controller.signal)).toMatchObject({ status: 'skipped' });
     expect(source.extract).not.toHaveBeenCalled();
+  });
+  it('does not move a managed request into another observed hour', async () => {
+    warehouse.operations = true;
+    source.extract.mockImplementation(async (_tenant, consumer) => {
+      await consumer.snapshot({ tenantId: 'tenant', name: 'Synthetic', isActive: true, at: new Date(lease.slot.getTime() + 3600001) });
+      return { categories: 0n, testimonials: 0n, events: 0n };
+    });
+    expect(await service.runTenant('tenant', undefined, 'cli')).toMatchObject({ status: 'failed', code: 'BI_SLOT_CHANGED' });
+    expect(warehouse.claim).toHaveBeenCalledTimes(1); expect(warehouse.publish).not.toHaveBeenCalled();
+  });
+  it('drains an active managed load after a shutdown signal instead of interrupting publication', async () => {
+    warehouse.operations = true; const controller = new AbortController();
+    source.extract.mockImplementation(async (_tenant, consumer) => {
+      await consumer.snapshot({ tenantId: 'tenant', name: 'Synthetic', isActive: true, at: new Date() });
+      controller.abort(); return { categories: 0n, testimonials: 0n, events: 0n };
+    });
+    expect(await service.runTenant('tenant', controller.signal)).toMatchObject({ status: 'succeeded' });
+    expect(warehouse.publish).toHaveBeenCalledTimes(1);
+  });
+  it('defers managed automatic retries to later polling rather than burning three attempts in one tick', async () => {
+    warehouse.operations = true; source.extract.mockRejectedValue(new EtlError('BI_SOURCE_INCONSISTENT'));
+    expect(await service.runTenant('tenant')).toMatchObject({ status: 'failed' });
+    expect(warehouse.claim).toHaveBeenCalledTimes(1);
+    expect(warehouse.claim).toHaveBeenCalledWith('tenant', expect.any(Date), 'scheduled');
   });
 });
 

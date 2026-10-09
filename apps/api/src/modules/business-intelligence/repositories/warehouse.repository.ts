@@ -6,9 +6,10 @@ import { EtlError, type CategoryRow, type Counts, type EventRow, type Lease,
 interface State { leaseRunId: string | null; token: string | null; live: boolean; lastPublishedRunId: string | null }
 
 export class WarehouseRepository {
-  constructor(private readonly client: PrismaClient) {}
+  readonly operations: boolean = false;
+  constructor(protected readonly client: PrismaClient) {}
 
-  private transaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>, deadline = Date.now() + 35000): Promise<T> {
+  protected transaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>, deadline = Date.now() + 35000): Promise<T> {
     const remaining = Math.min(35000, Math.floor(deadline - Date.now()));
     if (remaining <= 0) return Promise.reject(new EtlError('BI_DEADLINE_EXCEEDED'));
     return this.client.$transaction(async tx => {
@@ -20,7 +21,7 @@ export class WarehouseRepository {
     }, { maxWait: 5000, timeout: remaining });
   }
 
-  async claim(tenantId: string, slot: Date): Promise<Lease | null> {
+  async claim(tenantId: string, slot: Date, _origin: 'scheduled' | 'cli' = 'scheduled'): Promise<Lease | null> {
     const deadline = Date.now() + 300000;
     return this.transaction(async tx => {
       await tx.$executeRaw`INSERT INTO etl.tenant_load_state (tenant_id) VALUES (${tenantId}::uuid) ON CONFLICT DO NOTHING`;
@@ -57,8 +58,14 @@ export class WarehouseRepository {
         AND lease_token = ${lease.token}::uuid AND lease_until > clock_timestamp()`) === 1, lease.deadline);
   }
 
-  private async fence(tx: Prisma.TransactionClient, lease: Lease): Promise<void> {
+  protected async lockTenant(_tx: Prisma.TransactionClient, _tenantId: string): Promise<void> {}
+  protected async extractionCompleted(_tx: Prisma.TransactionClient, _lease: Lease): Promise<void> {}
+  protected async publicationCompleted(_tx: Prisma.TransactionClient, _lease: Lease): Promise<void> {}
+  protected async attemptFailed(_tx: Prisma.TransactionClient, _lease: Lease, _code: string): Promise<void> {}
+
+  protected async fence(tx: Prisma.TransactionClient, lease: Lease): Promise<void> {
     if (Date.now() >= lease.deadline) throw new EtlError('BI_DEADLINE_EXCEEDED');
+    await this.lockTenant(tx, lease.tenantId);
     const [state] = await tx.$queryRaw<Array<{ live: boolean }>>`
       SELECT lease_until > clock_timestamp() AS live FROM etl.tenant_load_state
       WHERE tenant_id = ${lease.tenantId}::uuid AND lease_run_id = ${lease.runId}::uuid
@@ -84,6 +91,7 @@ export class WarehouseRepository {
       await tx.$executeRaw`UPDATE etl.runs SET source_category_count = ${counts.categories},
         source_testimonial_count = ${counts.testimonials}, source_event_count = ${counts.events}
         WHERE tenant_id = ${lease.tenantId}::uuid AND id = ${lease.runId}::uuid AND status = 'running'`;
+      await this.extractionCompleted(tx, lease);
     }, lease.deadline);
   }
 
@@ -223,6 +231,7 @@ export class WarehouseRepository {
         WHERE h.tenant_id = ${lease.tenantId}::uuid AND h.run_id = ${lease.runId}::uuid
           AND r.tenant_id = h.tenant_id AND r.id = h.run_id RETURNING h.run_id`;
       if (completed.length !== 1) throw new EtlError('BI_SOURCE_INCONSISTENT');
+      await this.publicationCompleted(tx, lease);
       // Recheck at the END: a publication that outlives its lease rolls back entirely.
       const changed = await tx.$executeRaw`UPDATE etl.tenant_load_state SET last_published_run_id = ${lease.runId}::uuid,
         lease_run_id = NULL, lease_token = NULL, lease_until = NULL
@@ -243,6 +252,7 @@ export class WarehouseRepository {
 
   async fail(lease: Lease, code: string): Promise<void> {
     await this.transaction(async tx => {
+      await this.lockTenant(tx, lease.tenantId);
       const [state] = await tx.$queryRaw<Array<{ token: string | null; runId: string | null }>>`
         SELECT lease_token AS token, lease_run_id AS "runId" FROM etl.tenant_load_state
         WHERE tenant_id = ${lease.tenantId}::uuid FOR UPDATE`;
@@ -250,13 +260,14 @@ export class WarehouseRepository {
       const status = code === 'BI_SLOT_CHANGED' ? 'abandoned' : 'failed';
       await tx.$executeRaw`UPDATE etl.runs SET status = ${status}, finished_at = clock_timestamp(), error_code = ${code}
         WHERE tenant_id = ${lease.tenantId}::uuid AND id = ${lease.runId}::uuid AND status = 'running'`;
+      await this.attemptFailed(tx, lease, code);
       await this.clearStaging(tx, lease.tenantId, lease.runId);
       await tx.$executeRaw`UPDATE etl.tenant_load_state SET lease_run_id = NULL, lease_token = NULL, lease_until = NULL
         WHERE tenant_id = ${lease.tenantId}::uuid AND lease_run_id = ${lease.runId}::uuid AND lease_token = ${lease.token}::uuid`;
     });
   }
 
-  private async clearStaging(tx: Prisma.TransactionClient, tenantId: string, runId: string): Promise<void> {
+  protected async clearStaging(tx: Prisma.TransactionClient, tenantId: string, runId: string): Promise<void> {
     await tx.$executeRaw`DELETE FROM staging.analytics_events WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;
     await tx.$executeRaw`DELETE FROM staging.testimonials WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;
     await tx.$executeRaw`DELETE FROM staging.categories WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;

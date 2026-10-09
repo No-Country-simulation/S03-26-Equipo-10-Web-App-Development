@@ -84,6 +84,10 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       for (const sql of [...migrationStatements(fixture), ...migrationStatements(sourceViews)]) await tx.$executeRawUnsafe(sql);
     }, { timeout: 20000 });
     await installBiWarehouse(targetAdmin);
+    // The standalone scheduler now requires the durable control protocol even with web operations disabled.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const controlSql = readFileSync(join(__dirname, '../warehouse/migrations/0004_bi_operations.sql'), 'utf8');
+    await applyWarehouseMigration(targetAdmin, '0004_bi_operations.sql', controlSql);
     await parentSource.$executeRawUnsafe(`CREATE ROLE "${sourceRole}" LOGIN`);
     await parentTarget.$executeRawUnsafe(`CREATE ROLE "${writerRole}" LOGIN`);
     await parentTarget.$executeRawUnsafe(`CREATE ROLE "${readerRole}" LOGIN`);
@@ -93,6 +97,7 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA staging, dw, etl TO "${writerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA staging, dw, etl TO "${writerRole}"`);
     await targetAdmin.$executeRawUnsafe(`REVOKE ALL ON etl.schema_migrations FROM "${writerRole}"`);
+    await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON etl.schema_migrations TO "${writerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON ALL SEQUENCES IN SCHEMA dw, etl TO "${writerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA dw, etl TO "${readerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON ALL TABLES IN SCHEMA dw TO "${readerRole}"`);

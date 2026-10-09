@@ -6,7 +6,7 @@
 
 **Decisión:** [ADR 0004](../adr/0004-warehouse-postgresql-separado.md).
 
-**DDL vigente:** [base 0001](../../apps/api/warehouse/migrations/0001_initial.sql), [expansión 0002](../../apps/api/warehouse/migrations/0002_snapshot_time_expand.sql) y [cierre 0003](../../apps/api/warehouse/migrations/0003_snapshot_time_constraints.sql), 16 tablas entre `staging`, `dw` y `etl`. El [borrador inicial](../plan/2026-10-08_feat-foto-empresa-bi_warehouse-borrador.sql) conserva el diagnóstico histórico. [Operación ETL](../operations/17_business_intelligence_etl.md) y [migración temporal](../operations/19_bi_snapshot_time_migration.md).
+**DDL preparado:** [base 0001](../../apps/api/warehouse/migrations/0001_initial.sql), [expansión 0002](../../apps/api/warehouse/migrations/0002_snapshot_time_expand.sql), [cierre 0003](../../apps/api/warehouse/migrations/0003_snapshot_time_constraints.sql) y [control 0004](../../apps/api/warehouse/migrations/0004_bi_operations.sql), 20 tablas al aplicar la cadena completa entre `staging`, `dw` y `etl`. No acredita migraciones persistentes. El [borrador inicial](../plan/2026-10-08_feat-foto-empresa-bi_warehouse-borrador.sql) conserva el diagnóstico histórico. [Operación ETL](../operations/17_business_intelligence_etl.md) y [migración temporal](../operations/19_bi_snapshot_time_migration.md).
 
 ## Entidades, claves y granularidad
 
@@ -27,6 +27,12 @@ Los IDs fuente son UUID de identidades técnicas; no incorporar identidades de a
 | `etl.runs` | PK `id: uuid`; UNIQUE `(tenant_id, slot_at, attempt_no)` | Intento de carga: `running/succeeded/failed/abandoned`, inicio/fin, corte fuente, cantidades de origen/destino y código de error técnico. Un índice parcial permite sólo un éxito por empresa y hora. |
 | `etl.tenant_load_state` | PK `tenant_id` | Lease `(lease_run_id, lease_token, lease_until)` y `last_published_run_id`. Pointer durable del corte vigente, incluso con cero testimonios/eventos. |
 | `etl.schema_migrations` | PK `version: text` | Checksum SHA-256 del archivo aplicado y fecha de aplicación; ledger propio del migrador DW, sin acceso de escritura para runtime. |
+| `etl.tenant_settings` | PK `tenant_id` | Frecuencia 1/6/24h UTC, pausa, próxima ejecución, alertas/tolerancia y versión de preferencias. Sin FK a dim_tenant para configurar antes del primer corte. |
+| `etl.load_requests` | PK `id`; UNIQUE `(tenant_id,id)` y clave por tenant/actor | Solicitud durable manual/retry, hora/expiración, estado/fechas y referencia al run fallido. Un índice parcial admite sólo una solicitud activa por empresa. |
+| `etl.control_audit` | PK `id`; historial por tenant/fecha | Acción, actor UUID técnico, instante y referencias/configuración permitidas; sin texto libre. Append-only para la identidad de control, sin acceso de escritura del worker. |
+| `etl.worker_health` | PK `worker_id` | Protocolo, inicio, última señal y parada; inventario técnico del servicio. Nunca exponer IDs de workers al navegador. |
+
+0004 amplía runs con origen `legacy/scheduled/cli/manual/retry`, `request_id` con FK compuesta tenant/solicitud/tipo/hora, fase y fin de extracción. Totales desconocidos se representan como NULL en el contrato, no como cero; [detalle de control](../modules/api-bi-operations.md). El esquema analítico dw conserva su modelo dimensional; estas cuatro tablas etl son control operacional.
 
 `slot_at` es el inicio de la hora UTC que identifica la ejecución. `source_snapshot_at` es el instante real observado al abrir la transacción fuente; nunca se presenta la hora redondeada como instante exacto del snapshot. La base exige el slot UTC y un corte fuente dentro de él. Reintentos de una hora sólo se admiten mientras sigan dentro de esa hora; si ya pasó, se marca el intento fallido/abandonado y se observa la hora corriente.
 

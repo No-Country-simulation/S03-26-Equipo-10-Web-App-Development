@@ -1,6 +1,6 @@
 # Contrato de operación BI
 
-**Fecha:** 2026-10-09. **Estado:** fase 1, persistencia y contratos; endpoints/worker/frontend pendientes de fases posteriores. [Plan](../plan/2026-10-09_feat-interfaces-operacion-bi.md). No confundir esta preparación con la consola ya disponible.
+**Fecha:** 2026-10-09. **Estado:** persistencia y worker implementados (fases 1/2); endpoints y frontend pendientes. [Plan](../plan/2026-10-09_feat-interfaces-operacion-bi.md). No confundir esta preparación con una consola operativa ya disponible.
 
 ## Roles, fronteras y disponibilidad
 
@@ -29,7 +29,7 @@ GET settings retorna `frequencyHours`, `scheduleEnabled`, `nextScheduledAt`, `al
 
 PATCH recibe `expectedVersion` y al menos una preferencia editable; rechaza campos desconocidos. Admin no envía `nextScheduledAt`, tenant, timestamps ni una versión nueva. Primera configuración/resume/cambio de frecuencia hacen elegible el corte actual; después el worker avanza al próximo múltiplo UTC. Cambios de alertas conservan próxima ejecución. Pausa deja next NULL. El avance del worker no incrementa la versión de preferencias; ambos procesos usan el mismo lock para no perder ese avance.
 
-Toda escritura de control y futuro claim ETL obtiene primero el advisory lock `hashtextextended(tenant_id, 543004)`, luego las filas de estado/configuración/solicitud. Nunca orden inverso. El lock es por tenant, no global; colisiones de hash sólo serializan empresas adicionales. El worker anterior no participa: controles permanecen sin activar hasta reemplazarlo.
+Toda escritura de control y claim ETL obtiene primero el advisory lock `hashtextextended(tenant_id, 543004)`, luego las filas de estado/configuración/solicitud. Nunca orden inverso. El lock es por tenant, no global; colisiones de hash sólo serializan empresas adicionales. El worker anterior no participa: controles permanecen sin activar hasta reemplazarlo. El [worker nuevo](../operations/21_bi_worker_operations.md) requiere 0004 y siempre respeta la programación durable; la bandera limita los futuros controles HTTP.
 
 Configuración y auditoría se guardan en una transacción. Versión desactualizada -> `409 BI_SETTINGS_CONFLICT`; la UI conserva cambios y ofrece refrescar. La API no toca reservas ni reinicia presupuestos al editar.
 
@@ -41,7 +41,7 @@ POST requests recibe `{ kind: 'manual' }` o `{ kind: 'retry', retryOfRunId }`. E
 
 Una solicitud activa por tenant. Creación rechaza lease activo (`BI_ALREADY_RUNNING`), vencido o run huérfano (`BI_RECOVERY_REQUIRED`), otra solicitud activa (`BI_REQUEST_CONFLICT`), éxito horario (`BI_ALREADY_SUCCEEDED`) o tres intentos (`BI_ATTEMPTS_EXHAUSTED`). No crea un run ni consume presupuesto hasta que el worker reclama. El servidor calcula hora/expiración con reloj DW; acepta aun con programación pausada.
 
-Estados: pending -> running -> succeeded/failed; pending -> cancelled/expired/skipped. Failed puede originarse antes de extracción. Una ejecución comenzada a tiempo puede finalizar después de expires_at dentro de su deadline; una pendiente nunca comienza en otra hora. Reintentos automáticos pertenecen a la misma solicitud mientras conservan hora/presupuesto; fase 2 debe conservar running hasta resultado terminal y usar lease para recuperación.
+Estados: pending -> running -> succeeded/failed; pending -> cancelled/expired/skipped. Failed puede originarse antes de extracción. Una ejecución comenzada a tiempo puede finalizar después de expires_at dentro de su deadline; una pendiente nunca comienza en otra hora. Reintentos automáticos pertenecen a la misma solicitud mientras conservan hora/presupuesto; el worker conserva running hasta resultado terminal y usa lease para recuperación. Éxito de solicitud/run/hechos se confirma conjuntamente.
 
 POST requests/:id/cancel requiere key y sólo cambia pending no vencida a cancelled, junto con auditoría. Scope de key de cancelación = tenant/actor/operación cancel; key repetida del mismo ID devuelve resultado cancelado; otra solicitud con esa key ->409. Cancelar otra empresa ->404; activa/terminal/vencida ->`BI_REQUEST_NOT_PENDING`. Una key nueva después de cancelación no vuelve a cancelar ni crea otra auditoría.
 
@@ -81,7 +81,7 @@ GRANT UPDATE ON etl.tenant_settings TO bi_control;
 GRANT UPDATE (status, finished_at, error_code) ON etl.load_requests TO bi_control;
 ```
 
-No DELETE ni UPDATE de auditoría; no CREATE ni propiedad/herencia privilegiada. Lector operativo SELECT sobre tablas nuevas/worker health; lector del dashboard exclusivamente dw sigue suficiente para su repositorio analítico. Worker DML sobre configuración/solicitudes/heartbeat además de sus tablas vigentes; auditoría sólo INSERT cuando corresponde. Roles administrativos humanos no equivalen a usuarios SQL.
+No DELETE ni UPDATE de auditoría; no CREATE ni propiedad/herencia privilegiada. Lector operativo SELECT sobre tablas nuevas/worker health; lector del dashboard exclusivamente dw sigue suficiente para su repositorio analítico. Worker SELECT/INSERT/UPDATE sobre configuración/heartbeat, SELECT/UPDATE de solicitudes y SELECT del ledger, además de sus tablas vigentes; no necesita escribir auditoría ni crear solicitudes. Roles administrativos humanos no equivalen a usuarios SQL.
 
 Al aplicar 0004, detener ETL, esperar publicaciones y comprobar ausencia de runs running/reservas incluso vencidas. Migrador verifica 0003, bloquea escrituras de control ETL y rechaza actividad antes de DDL. Repetición comprueba checksum. Añadir tablas no habilita endpoints ni convierte el scheduler antiguo; fase 1 no registra providers de control en el módulo HTTP.
 
@@ -89,7 +89,7 @@ No activar operaciones antes de fases 2/3/4 y aceptación integral. Caída DW no
 
 ## Evidencia de persistencia
 
-Fase 1: 17 pruebas de integración PostgreSQL y cuatro unitarias nuevas; regresión BI completa de 79 casos. Ver [plan y resultados](../plan/2026-10-09_feat-interfaces-operacion-bi.md#evidencia-de-fase-1). Los guards, endpoints, worker y UI se validarán al implementar sus fases; estos tests no certifican autorización HTTP nueva.
+Fase 1: 17 pruebas de integración PostgreSQL y cuatro unitarias nuevas; regresión BI completa de 79 casos. Ver [plan y resultados](../plan/2026-10-09_feat-interfaces-operacion-bi.md#evidencia-de-fase-1) y [operación/verificación del worker de fase2](../operations/21_bi_worker_operations.md). Los guards, endpoints y UI se validarán al implementar sus fases; estos tests no certifican autorización HTTP nueva.
 
 Para reproducir planes, usar una base **descartable vacía** con 0001–0004 y ejecutar `psql -v ON_ERROR_STOP=1 -f apps/api/test/fixtures/bi-operations-plans.sql` con conexión local provista por operación. La fixture usa 100 empresas con 200 horas de historia y 500 solicitudes pendientes de empresas adicionales; hace ROLLBACK. No ejecutarla sobre un entorno persistente.
 

@@ -20,16 +20,18 @@ export class EtlService {
     }
   }
 
-  async runTenant(tenantId: string, signal?: AbortSignal): Promise<EtlResult> {
+  async runTenant(tenantId: string, signal?: AbortSignal, origin: 'scheduled' | 'cli' = 'scheduled'): Promise<EtlResult> {
     let slot = hourUtc(new Date());
     let failure: EtlResult | undefined;
     // Persistent attempt limits survive restarts. This bound also prevents clock-skew loops.
     for (let attempt = 0; attempt < 3 && !signal?.aborted; attempt += 1) {
-      const lease = await this.warehouse.claim(tenantId, slot);
+      const lease = this.warehouse.operations ? await this.warehouse.claim(tenantId, slot, origin) : await this.warehouse.claim(tenantId, slot);
       if (!lease) return failure ?? { tenantId, status: 'skipped' };
-      const outcome = await this.load(lease, signal);
+      // Graceful shutdown stops new claims; a managed active publication drains within its deadline.
+      const outcome = await this.load(lease, this.warehouse.operations ? undefined : signal);
       if (outcome.result.status === 'succeeded') return outcome.result;
       failure = outcome.result;
+      if (this.warehouse.operations && (origin === 'scheduled' || outcome.result.code === 'BI_SLOT_CHANGED')) return failure;
       slot = outcome.nextSlot ?? hourUtc(new Date());
     }
     return failure ?? { tenantId, status: 'skipped' };

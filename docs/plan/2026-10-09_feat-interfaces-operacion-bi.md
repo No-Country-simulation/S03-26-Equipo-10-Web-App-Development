@@ -1,6 +1,6 @@
 # Plan HITL: interfaces de consulta y administración BI
 
-**Fecha:** 2026-10-09. **Estado:** fase 1 terminada, pendiente de revisión y ACK para fase 2. **ACK:** pedido «PLEASE IMPLEMENT THIS PLAN»; autoriza sólo la fase actual. [Contrato detallado](../modules/api-bi-operations.md).
+**Fecha:** 2026-10-09. **Estado:** fase 2 terminada, pendiente de revisión y ACK para fase 3. **ACK:** «Continuar» después del cierre de fase 1; autoriza la fase 2. [Contrato detallado](../modules/api-bi-operations.md).
 
 ## Contexto y Restricciones
 
@@ -43,7 +43,7 @@
 
 ## Fases
 
-### [Actual] 1. Contratos y persistencia
+### [Completada] 1. Contratos y persistencia
 
 - [x] Documentar interfaces, transiciones, mínimos privilegios y compatibilidad.
 - [x] Preparar 0004 sin alterar migraciones previas; registrar origen legacy y valores desconocidos.
@@ -53,9 +53,15 @@
 
 **Commit sugerido:** `feat(bi): agregá la persistencia y los contratos de operación`.
 
-### [Pendiente] 2. Orquestación ETL
+### [Actual] 2. Orquestación ETL
 
 Integrar cola, programación y lock por tenant, origen/fase/extracción completa, heartbeat 20s y señal perdida tras 60s, vencimiento, recuperación y resultado atómico con publicación. Probar competencia automática/manual, dos workers, cruce UTC, pausa/reanudación, presupuestos y respuesta perdida tras COMMIT.
+
+- [x] Entrada CLI con protocolo1/0004 obligatorio, polling15s sin solapamientos, inventario paginado<=1/min y candidato DW acotado, una empresa por vez.
+- [x] Solicitudes priorizadas, frecuencia/pausa UTC, presupuesto compartido y éxito conjunto con hechos/run; no trasladar solicitudes a otra hora.
+- [x] Fases/cantidades conocidas, señal independiente del worker, recuperación de leases y runs huérfanos, fencing y apagado con drenaje.
+- [x] Integración con dos PostgreSQL descartables y roles restringidos, regresión BI y documentación de compatibilidad/permisos.
+- [x] Cerrar fase y detenerse antes de endpoints. API/frontend operativos siguen desactivados.
 
 **Commit sugerido:** `feat(bi): integrá solicitudes y programación del ETL`.
 
@@ -91,3 +97,13 @@ Aceptación: admin solicita, cierra página y recupera resultado persistente; ed
 - `npm run typecheck --workspace apps/api`, `npm run build --workspace apps/api` y `npm run lint --workspace apps/api` aprobados. Lint conserva sólo dos advertencias preexistentes en idempotency/public-testimonials; ninguna advertencia nueva.
 - Planes `EXPLAIN (ANALYZE, BUFFERS)` con 20.500 solicitudes, 20.000 runs y 20.500 auditorías sintéticas: índices para cola, tres historiales y conteo; ejecución local 0,068–0,325ms, sin forzar el optimizador. Fixture reproducible en `apps/api/test/fixtures/bi-operations-plans.sql`; no certifica capacidad productiva, costo de polling ni filtros de las futuras pantallas.
 - Sin migraciones persistentes, cambios de infraestructura, Prisma, dependencias o commits automáticos. Bases y roles de prueba eliminados. Fases 2–5 pendientes; no hay nuevas operaciones habilitadas ni pantallas administrativas adicionales.
+
+## Evidencia de fase 2
+
+- `ManagedWarehouseRepository` usa el mismo advisory lock por UUID canónico que el control, antes del estado/solicitud. Mantiene los primitivos de publicación verificados; reserva, fase, reintento, recuperación, éxito de solicitud y avance de programación respetan tenant y presupuesto. Los cambios de mayúsculas del UUID no evaden el bloqueo.
+- `WorkerControlRepository` y `EtlScheduler`: configuración provisionada sin sobrescrituras, inventario en páginas de1000 y como máximo una vez por minuto, candidatos DW de100, polling15s sin ciclos superpuestos y una empresa a la vez por proceso. `--once` respeta controles y límites; origen CLI/scheduled sólo cuando no hay solicitud manual/retry.
+- Heartbeat independiente20s/protocolo1 y marca stopping; pérdida prevista tras60s en el futuro servicio de status. SIGTERM/SIGINT detienen nuevas reservas y drenan carga activa<=5min. Fallo de inventario no impide atender solicitudes conocidas; fallo DW no confirma resultados inexistentes.
+- **106 pruebas aprobadas en diez suites BI**, con dos PostgreSQL18.6 descartables. Incremento de27 casos: 19 integración del worker, cinco scheduler y tres ciclo ETL; aceptación durable después de cerrar cliente, carreras auto/manual/dos workers/cancelación, frecuencias, pausa, agotamiento, fases/desconocidos, vencimiento, recuperación/retry actual, rollback de transición final y respuesta perdida tras COMMIT.
+- Tras el ajuste de UUID canónico se repitieron **36 pruebas de integración** control/worker. Se verificó contención entre representaciones del mismo UUID y ausencia de solicitudes parciales. Tras separar el evento técnico de inventario de los resultados por tenant, se repitieron **18 pruebas unitarias** de scheduler/ETL. Tests/typecheck/build/lint API aprobados; lint conserva sólo dos advertencias preexistentes.
+- No se modificaron migraciones 0001–0004, infraestructura, Prisma, dependencias ni hooks. DDL de prueba sólo en bases aleatorias descartables; roles/bases eliminados al terminar. Nuevo [runbook del worker](../operations/21_bi_worker_operations.md) y documentación/contexto actualizados.
+- Pendiente: endpoints/RBAC/CSRF/cuotas/alertas y vigencia en fase3, pantallas/CSV/polling web en fase4, restauración de controles, capacidad y costo de polling en fase5. Sin despliegue persistente y sin controles nuevos habilitados.

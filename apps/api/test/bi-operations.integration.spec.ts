@@ -125,14 +125,14 @@ databaseTests('BI control persistence in disposable PostgreSQL 18', () => {
     expect(outcomes.find(x => x.status === 'rejected')).toMatchObject({ reason: { code: 'BI_SETTINGS_CONFLICT' } });
     expect((await reads.audit(tenantA, filter())).meta.total).toBe(1);
   });
-  it('bounds contention and resumes without partial requests after releasing the tenant lock', async () => {
+  it('bounds contention across UUID casing and resumes without partial requests after releasing the tenant lock', async () => {
     let locked!: () => void; let release!: () => void;
     const ready = new Promise<void>(resolve => { locked = resolve; }); const resume = new Promise<void>(resolve => { release = resolve; });
     const pending = admin.$transaction(async tx => { await lockOperationsTenant(tx, tenantA); locked(); await resume; }, { timeout: 15000 });
     const settled = pending.then(() => undefined, () => undefined);
     try {
       await Promise.race([ready, pending.then(() => { throw new Error('Expected lock holder'); })]);
-      await expect(repository.createRequest(identity, 'blocked', { kind: 'manual' })).rejects.toMatchObject({ code: 'BI_OPERATION_BUSY' });
+      await expect(repository.createRequest({ ...identity, tenantId: tenantA.toUpperCase() }, 'blocked', { kind: 'manual' })).rejects.toMatchObject({ code: 'BI_OPERATION_BUSY' });
       expect((await reads.requests(tenantA, filter())).meta.total).toBe(0);
       release(); await pending;
       expect((await repository.createRequest(identity, 'blocked', { kind: 'manual' })).request.status).toBe('pending');

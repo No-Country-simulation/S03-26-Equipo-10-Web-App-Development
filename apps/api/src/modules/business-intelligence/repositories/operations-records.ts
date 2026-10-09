@@ -35,7 +35,7 @@ export async function findRequest(tx: Prisma.TransactionClient, tenantId: string
 
 /** Same lock and order required in all future worker claims: advisory -> state/settings/request rows. */
 export async function lockOperationsTenant(tx: Prisma.TransactionClient, tenantId: string): Promise<void> {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId}::text, 543004))`;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${tenantId}::uuid::text, 543004))`;
 }
 
 export const runProjection = Prisma.sql`id, request_id AS "requestId", origin, slot_at AS "slotAt", attempt_no AS "attemptNo",

@@ -6,11 +6,11 @@ Referencias: [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [contrato 
 
 **Transición temporal:** 0002/0003, backfill y escritor/lector compatibles están implementados y probados localmente. El código actual requiere el esquema temporal; no iniciar ETL/dashboard con sólo 0001. Para evolucionar un historial existente, seguir el [procedimiento temporal](19_bi_snapshot_time_migration.md). La [validación temporal](20_bi_snapshot_time_validation.md) registra capacidad sintética, costos y restauración; aceptación productiva sigue pendiente. El escritor anterior es incompatible con 0003.
 
-**Preparación de consola operativa (2026-10-09):** 0004 prepara control durable en la fase 1 del [nuevo plan](../plan/2026-10-09_feat-interfaces-operacion-bi.md); scheduler/endpoints/interfaces aún pendientes. El migrador sin `--to` incluye también 0004 y exige mantenimiento. Para instalar sólo la versión temporal actualmente operativa, detenerse explícitamente en 0003; la consola nueva requiere sus propias fases y aceptación antes de habilitarse. [Contrato y permisos de control](../modules/api-bi-operations.md).
+**Worker operativo (2026-10-09):** fases 1/2 del [nuevo plan](../plan/2026-10-09_feat-interfaces-operacion-bi.md) agregan 0004 y scheduler configurable con solicitudes durables. La entrada ETL actual requiere 0004; endpoints/interfaces operativos siguen pendientes y apagados. El migrador exige mantenimiento; `--to 0003` sólo prepara el esquema temporal previo y no basta para iniciar el worker actual. [Contrato de control](../modules/api-bi-operations.md) y [programación/recuperación](21_bi_worker_operations.md).
 
 ## Artefactos y conexiones
 
-- [Base warehouse 0001](../../apps/api/warehouse/migrations/0001_initial.sql) más 0002/0003: 16 tablas en `staging`, `dw`, `etl`; versionado independiente de Prisma. No hay FK entre servidores. El detalle tiene instante/fecha UTC y una cabecera por corte, incluso vacío.
+- [Base warehouse 0001](../../apps/api/warehouse/migrations/0001_initial.sql) más 0002/0003/0004: 20 tablas en `staging`, `dw`, `etl`, incluidas cuatro de control; versionado independiente de Prisma. No hay FK entre servidores. El detalle tiene instante/fecha UTC y una cabecera por corte, incluso vacío.
 - [Migración de exportación OLTP](../../apps/api/prisma/migrations/20261008010000_bi_export_views/migration.sql): cuatro vistas `bi_export`. Permiten proyectar presencia de medios y normalizar fuentes sin conceder al extractor acceso a URLs ni al texto libre original.
 - [Entrada ETL](../../apps/api/src/modules/business-intelligence/etl.cli.ts): configuración, logger y dos clientes Prisma independientes. No importa AppModule ni inicia HTTP, outbox, scoring o Redis.
 - [Migrador warehouse](../../apps/api/src/modules/business-intelligence/migration.cli.ts): proceso manual separado; necesita `--apply` y credenciales propias. El ETL y el arranque HTTP no ejecutan migraciones.
@@ -46,9 +46,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
     staging.categories, staging.testimonials, staging.analytics_events,
     dw.dim_date, dw.dim_tenant, dw.dim_testimonial, dw.dim_category,
     dw.dim_status, dw.dim_source, dw.dim_event_type,
-    dw.fact_tenant_snapshot, dw.fact_testimonial_snapshot, dw.fact_engagement_daily,
-    etl.runs, etl.tenant_load_state TO bi_etl_writer;
+    dw.fact_tenant_snapshot, dw.fact_testimonial_snapshot, dw.fact_engagement_daily TO bi_etl_writer;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA dw TO bi_etl_writer;
+GRANT SELECT ON etl.schema_migrations TO bi_etl_writer;
+GRANT SELECT, INSERT, UPDATE ON etl.runs, etl.tenant_load_state,
+    etl.tenant_settings, etl.worker_health TO bi_etl_writer;
+GRANT SELECT, UPDATE ON etl.load_requests TO bi_etl_writer;
 
 -- API BI y métricas de operación:
 GRANT USAGE ON SCHEMA dw, etl TO bi_api_reader;
@@ -56,7 +59,7 @@ GRANT SELECT ON ALL TABLES IN SCHEMA dw TO bi_api_reader;
 GRANT SELECT ON etl.runs, etl.tenant_load_state TO bi_api_reader;
 ```
 
-No conceder al escritor acceso a `etl.schema_migrations`, TRUNCATE ni DDL. El lector no recibe staging, escritura ni ledger. Las pruebas ejecutadas verifican denegaciones con identidades distintas; las concesiones efectivas de producción requieren su propia comprobación.
+No conceder al escritor escritura de `etl.schema_migrations`, auditoría, creación de solicitudes, TRUNCATE ni DDL. Sólo lee el ledger para comprobar versión. El lector no recibe staging, escritura ni ledger. Las pruebas ejecutadas verifican denegaciones con identidades distintas; las concesiones efectivas de producción requieren su propia comprobación.
 
 ## Migración y ejecución
 
@@ -65,25 +68,25 @@ Los siguientes comandos se muestran para el operador; esta fase no los ejecuta s
 ```sh
 # Sólo en warehouse nuevo vacío y tras ACK, con BI_MIGRATION_DATABASE_URL:
 # Para un historial existente, seguir el procedimiento temporal: expansión, backfill y cierre.
-npm run bi:migrate --workspace=@testimonial-cms/api -- --apply --to 0003_snapshot_time_constraints.sql
+npm run bi:migrate --workspace=@testimonial-cms/api -- --apply --to 0004_bi_operations.sql
 
-# Carga manual única, con BI_SOURCE_DATABASE_URL y BI_ETL_DATABASE_URL:
+# Barrido único elegible, respetando programación/pausa/presupuesto y solicitudes:
 npm run bi:etl --workspace=@testimonial-cms/api -- --once
 
-# Scheduler UTC: intenta el corte actual y luego cada hora:
+# Worker continuo: revisa cada 15s, programación 1/6/24h UTC por empresa:
 npm run bi:etl --workspace=@testimonial-cms/api
 
 # Proceso compilado, tras build (no necesita ts-node):
 npm run bi:etl:prod --workspace=@testimonial-cms/api
 ```
 
-El migrador busca `warehouse/migrations` desde el directorio del workspace API. El artefacto de mantenimiento debe incluir esos archivos; en un warehouse nuevo vacío, el proceso compilado puede invocarse desde `apps/api` con `node dist/modules/business-intelligence/migration.cli.js --apply --to 0003_snapshot_time_constraints.sql` para la versión temporal, sólo tras el ACK correspondiente. En un historial existente usar `--to` y el procedimiento temporal. No se modificó la imagen Docker ni Compose. El ledger guarda SHA-256 del archivo exacto: repetir una versión idéntica no aplica DDL; modificar una ya aplicada se rechaza como `BI_MIGRATION_DRIFT`. Añadir una migración nueva para evolucionar el esquema. El parser inicial admite DDL con comentarios de línea y literales/identificadores entre comillas, no cuerpos dollar-quoted ni comentarios de bloque.
+El migrador busca `warehouse/migrations` desde el directorio del workspace API. El artefacto de mantenimiento debe incluir esos archivos; en un warehouse nuevo vacío, el proceso compilado puede invocarse desde `apps/api` con `node dist/modules/business-intelligence/migration.cli.js --apply --to 0004_bi_operations.sql`, sólo tras el ACK correspondiente y con el worker anterior detenido. En un historial existente completar primero el procedimiento temporal y después 0004. No se modificó la imagen Docker ni Compose. El ledger guarda SHA-256 del archivo exacto: repetir una versión idéntica no aplica DDL; modificar una ya aplicada se rechaza como `BI_MIGRATION_DRIFT`. Añadir una migración nueva para evolucionar el esquema. El parser inicial admite DDL con comentarios de línea y literales/identificadores entre comillas, no cuerpos dollar-quoted ni comentarios de bloque.
 
 La carga procesa una empresa por vez y páginas de 1 000 filas en una transacción origen `REPEATABLE READ READ ONLY`. Filtra todos los recursos por empresa. Usa BigInt para IDs y conteos, y Decimal para score. El destino agrega interacciones, mantiene snapshots publicados y reemplaza sólo la serie de engagement de esa empresa. También publica empresas vacías o inactivas.
 
 Lease: 90 segundos; heartbeat: 20 segundos; máximo tres intentos por empresa/hora. Bloqueo corto por empresa y token impiden ejecuciones superpuestas. La publicación comprueba la vigencia al inicio **y al final**; si vence durante las escrituras, todo revierte. El corte fuente debe avanzar respecto al último publicado. No se reconstruyen horas perdidas.
 
-SQL por sentencia: 30 segundos; espera de lock: un segundo; transacciones destino: hasta 35 segundos. La carga completa de una empresa, incluida publicación, dispone de cinco minutos. El origen limita también el idle en transacción a 60 segundos. PostgreSQL 18 aplica `transaction_timeout`; si se agota cualquiera de esos límites se conserva el último resultado publicado. El pool puede agregar una espera previa de hasta cinco segundos para tomar conexión. SIGINT/SIGTERM interrumpen entre lotes; una consulta en curso termina bajo sus límites antes del cierre de clientes.
+SQL por sentencia: 30 segundos; espera de lock: un segundo; transacciones destino: hasta 35 segundos. La carga completa de una empresa, incluida publicación, dispone de cinco minutos. El origen limita también el idle en transacción a 60 segundos. PostgreSQL 18 aplica `transaction_timeout`; si se agota cualquiera de esos límites se conserva el último resultado publicado. El pool puede agregar una espera previa de hasta cinco segundos para tomar conexión. SIGINT/SIGTERM detienen nuevas reservas; la carga activa drena bajo su plazo y luego se cierran los clientes. El supervisor debe permitir ese apagado; terminación forzada se recupera por lease.
 
 En modo `--once`, cargas fallidas producen salida 1. Scheduler y ejecuciones manuales emiten JSON con eventos `bi.etl_tenant_finished`, `bi.etl_cycle_finished` y, si termina por error, `bi.etl_stopped`; sólo IDs técnicos, estado, duración y código acotado. No registrar mensajes completos del driver, filas exportadas, leases, cadenas de conexión ni payloads. Se añade `bi.etl_phase_finished` para extracción/publicación completadas. Métricas y alertas propuestas: [runbook de fase 4](18_business_intelligence_rollout.md).
 
@@ -94,6 +97,8 @@ Consultar bajo la identidad de mantenimiento o lectura y con parámetros `tenant
 `etl.tenant_load_state.last_published_run_id` señala el único resultado vigente, incluso si está vacío. Un fallo revierte dimensiones, hechos y pointer; nunca deja una publicación parcial. Una respuesta de red ambigua se resuelve leyendo el estado durable del run antes de declarar fracaso o reintentar.
 
 Si cae el proceso o el destino, no borrar leases/staging manualmente ni editar el pointer. Al recuperar servicio, ejecutar otra carga: si el lease sigue vivo, se omite; tras vencer se marca el intento anterior `abandoned`, se limpia sólo su staging y se reclama uno nuevo dentro del presupuesto de esa hora. El trabajador viejo no puede renovar, publicar ni liberar el lease nuevo. Si agotó tres intentos, corregir la causa y esperar el siguiente corte; no reiniciar contadores ni fabricar un éxito.
+
+Solicitudes manuales vencen si no empezaron en su hora de aceptación. La recuperación de una solicitud running de una hora anterior la finaliza como failed; un retry posterior observa la hora actual mediante una solicitud nueva. Las fases, heartbeat del servicio, programación y éxito atómico de solicitud/publicación se detallan en [operación del worker](21_bi_worker_operations.md).
 
 Los snapshots históricos conservan observaciones de testimonios borrados del origen. Engagement refleja sólo eventos aún disponibles tras reconciliación. No hay retención/purga automática. Backup/restauración y capacidad local: [runbook de fase 4](18_business_intelligence_rollout.md). La capacidad productiva sigue pendiente.
 
