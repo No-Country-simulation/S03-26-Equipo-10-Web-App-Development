@@ -14,7 +14,7 @@ export const settingsPatchSchema = z.object({
 }).strict().refine(value => Object.keys(value).length > 1, 'At least one setting is required');
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>;
 export const loadRequestInputSchema = z.object({
-  kind: z.enum(['manual', 'retry']), retryOfRunId: z.uuid().optional(),
+  kind: z.enum(['manual', 'retry']), retryOfRunId: z.uuid().transform(id => id.toLowerCase()).optional(),
 }).strict().refine(value => (value.kind === 'retry') === (value.retryOfRunId !== undefined), 'Retry requires its failed run');
 export type LoadRequestInput = z.infer<typeof loadRequestInputSchema>;
 export type RunOrigin = 'legacy' | 'scheduled' | 'cli' | 'manual' | 'retry';
@@ -71,4 +71,21 @@ export class BiOperationsError extends ApplicationError {
 export function nextScheduledAt(at: Date, frequencyHours: BiSettings['frequencyHours']): Date {
   const width = frequencyHours * 3600000;
   return new Date((Math.floor(at.getTime() / width) + 1) * width);
+}
+
+/** Internal, tenant-scoped observation from a single read-only warehouse transaction. */
+export interface OperationsState {
+  now: string;
+  settings: BiSettings;
+  workerLastSeenAt: string | null;
+  activeRequest: LoadRequest | null;
+  activeRun: BiRun | null;
+  lease: { runId: string; until: string | null } | null;
+  attempts: number;
+  succeededThisHour: boolean;
+  latestFailure: BiRun | null;
+  lastSuccessAt: string | null;
+  latestExpiredRequest: LoadRequest | null;
+  sourceSnapshotAt: string | null;
+  lastPublishedAt: string | null;
 }

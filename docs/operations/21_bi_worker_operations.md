@@ -1,6 +1,6 @@
 # Worker BI: programación y solicitudes durables
 
-**Estado:** fase 2 del [plan de interfaces](../plan/2026-10-09_feat-interfaces-operacion-bi.md). Worker implementado y verificado localmente; API operativa, controles web, alertas de aplicación y despliegue pendientes. No se aplicaron migraciones persistentes.
+**Estado:** fase 2 del [plan de interfaces](../plan/2026-10-09_feat-interfaces-operacion-bi.md). Worker implementado y verificado localmente; API operativa y alertas de aplicación incorporadas en fase3; controles web y despliegue pendientes. No se aplicaron migraciones persistentes.
 
 ## Compatibilidad y permisos
 
@@ -44,7 +44,7 @@ Caída después de reclamar: esperar vencimiento, registrar run anterior abandon
 
 Pendiente que no empezó al vencer su hora -> expired; running de una hora anterior sin lease vivo -> failed. Un retry posterior es otra solicitud actual vinculada al run failed/abandoned anterior. Una publicación que empezó a tiempo puede terminar después de vencer la hora, dentro de su deadline y lease. No se cancela desde el panel.
 
-La señal del servicio usa `worker_health`: protocolo1, heartbeat independiente cada20s, incluso mientras una empresa carga, y stopping al salir. El futuro servicio de status considerará perdida la señal tras60s; esta fase no añade ese endpoint. Si cae DW, señal/ciclo fallan de forma segura; el bucle continúa y no informa aceptación ficticia.
+La señal del servicio usa `worker_health`: protocolo1, heartbeat independiente cada20s, incluso mientras una empresa carga, y stopping al salir. El servicio GET /bi/status de fase3 considera perdida la señal tras60s. La API rechaza solicitudes nuevas sin señal vigente; replays durables siguen devolviendo su identificador. Si cae DW, señal/ciclo fallan de forma segura; el bucle continúa y no informa aceptación ficticia.
 
 SIGINT/SIGTERM detienen nuevas reservas y la espera del siguiente tick. La carga activa termina bajo su plazo de cinco minutos, con heartbeat vigente; después se registra stopping y se cierran conexiones. El supervisor necesita un grace period compatible; una terminación forzada se recupera por lease. No se modificó infraestructura.
 
@@ -53,7 +53,7 @@ SIGINT/SIGTERM detienen nuevas reservas y la espera del siguiente tick. La carga
 1. Mantener controles apagados y detener el worker antiguo durante toda la ventana. Esperar publicaciones y resolver reservas vencidas con el procedimiento autorizado antes del DDL; el migrador rechaza runs running/reservas.
 2. Completar expansión/backfill/cierre temporal si corresponde, aplicar 0004 con ACK del entorno y provisionar permisos mínimos. No modificar migraciones anteriores.
 3. Instalar el nuevo worker y ejecutar `--once` para verificar esquema, permisos, conciliación y programación. Instalar supervisor continuo independiente; no usar un cron horario como sustituto del bucle que atiende manuales.
-4. Mantener API operativa y UI desactivadas hasta fases3/4 y aceptación5. La vigencia del dashboard y métricas existentes sigue su política anterior hasta integrar fase3; no certificar todavía alertas adaptadas a 6/24h.
+4. Mantener API operativa y UI desactivadas hasta fases3/4 y aceptación5. La fase3 adapta vigencia y métrica de atraso a frecuencia+tolerancia; pausa suspende el atraso programado. El lector HTTP requiere SELECT de controles/heartbeat además de `dw` y runs/estado, y el rol de control agrega SELECT de heartbeat. Ver [contrato HTTP](../modules/api-bi-operations.md).
 
 Backup/restauración de controles y prueba de costo de polling con volumen representativo pertenecen a fase5. Preservar todas las tablas etl en backups; no borrar solicitudes, auditoría ni historial para liberar presupuestos. No retroceder al scheduler antiguo con configuración nueva.
 
@@ -67,4 +67,4 @@ npm test --workspace=@testimonial-cms/api -- --runTestsByPath \
   test/bi-postgres.integration.spec.ts test/bi-operations.integration.spec.ts
 ```
 
-La integración verifica extractor/escritor restringidos, aceptación durable con cliente cerrado, carreras manual/automática/dos workers, pausa, frecuencias, recuperación, agotamiento, vencimiento, retry actual, fases/cantidades, rollback final y respuesta perdida tras COMMIT. Fixtures sintéticas, sin certificar capacidad productiva ni autorización HTTP futura.
+La integración verifica extractor/escritor restringidos, aceptación durable con cliente cerrado, carreras manual/automática/dos workers, pausa, frecuencias, recuperación, agotamiento, vencimiento, retry actual, fases/cantidades, rollback final y respuesta perdida tras COMMIT. Fixtures sintéticas, sin certificar capacidad productiva ni capacidad productiva. Las pruebas HTTP de fase3 verifican autorización por empresa, CSRF, cuotas, indisponibilidad y receipts durables; ver evidencia en el plan.

@@ -15,9 +15,12 @@ export class BiMetricsService {
       const [freshness] = await tx.$queryRaw<Array<{ age: number | null; unloaded: bigint; stale: bigint }>>`
         SELECT max(extract(epoch FROM statement_timestamp() - r.source_snapshot_at))::float8 AS age,
           count(*) FILTER (WHERE r.id IS NULL) AS unloaded,
-          count(*) FILTER (WHERE r.source_snapshot_at < statement_timestamp() - interval '2 hours') AS stale
+          count(*) FILTER (WHERE coalesce(c.schedule_enabled, true) AND
+            r.source_snapshot_at < statement_timestamp() - make_interval(secs =>
+              coalesce(c.frequency_hours, 1) * 3600 + coalesce(c.delay_tolerance_minutes, 60) * 60)) AS stale
         FROM etl.tenant_load_state s LEFT JOIN etl.runs r
-          ON r.tenant_id = s.tenant_id AND r.id = s.last_published_run_id AND r.status = 'succeeded'`;
+          ON r.tenant_id = s.tenant_id AND r.id = s.last_published_run_id AND r.status = 'succeeded'
+        LEFT JOIN etl.tenant_settings c ON c.tenant_id = s.tenant_id`;
       const [lease] = await tx.$queryRaw<Array<{ count: bigint }>>`SELECT count(*) AS count FROM etl.runs WHERE error_code = 'BI_LEASE_LOST'`;
       const buckets = await tx.$queryRaw<Array<{ le: number; count: bigint }>>`
         SELECT b.le::float8 AS le, count(r.id) AS count FROM (VALUES (1), (5), (15), (30), (60), (120), (300), (360)) b(le)
@@ -38,7 +41,7 @@ export class BiMetricsService {
     new Counter({ name: 'tms_bi_etl_lease_lost_total', help: 'Lease losses retained in the ledger', registers: [registry] }).inc(Number(snapshot.lease?.count ?? 0n));
     new Gauge({ name: 'tms_bi_oldest_snapshot_age_seconds', help: 'Age of oldest current published tenant snapshot', registers: [registry] }).set(Math.max(0, snapshot.freshness?.age ?? 0));
     new Gauge({ name: 'tms_bi_tenants_not_loaded', help: 'Known ETL tenants without a publication', registers: [registry] }).set(Number(snapshot.freshness?.unloaded ?? 0n));
-    new Gauge({ name: 'tms_bi_tenants_stale', help: 'Known ETL tenants with a snapshot older than two hours', registers: [registry] }).set(Number(snapshot.freshness?.stale ?? 0n));
+    new Gauge({ name: 'tms_bi_tenants_stale', help: 'Known unpaused ETL tenants with a snapshot older than frequency plus tolerance', registers: [registry] }).set(Number(snapshot.freshness?.stale ?? 0n));
     // Durable histogram reconstructed from bounded aggregates, without materializing all ledger rows.
     const histogram = ['# HELP tms_bi_etl_duration_seconds Completed attempt wall time from the durable ledger',
       '# TYPE tms_bi_etl_duration_seconds histogram', ...snapshot.buckets.map(b => `tms_bi_etl_duration_seconds_bucket{le="${b.le}"} ${b.count}`),

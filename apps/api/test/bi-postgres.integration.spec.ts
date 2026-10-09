@@ -101,7 +101,7 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
     await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON ALL SEQUENCES IN SCHEMA dw, etl TO "${writerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA dw, etl TO "${readerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON ALL TABLES IN SCHEMA dw TO "${readerRole}"`);
-    await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON etl.runs, etl.tenant_load_state TO "${readerRole}"`);
+    await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON etl.runs, etl.tenant_load_state, etl.tenant_settings TO "${readerRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT USAGE ON SCHEMA dw TO "${dashboardRole}"`);
     await targetAdmin.$executeRawUnsafe(`GRANT SELECT ON ALL TABLES IN SCHEMA dw TO "${dashboardRole}"`);
     source = client(sourceAdminUrl!, sourceDb, sourceRole, 1);

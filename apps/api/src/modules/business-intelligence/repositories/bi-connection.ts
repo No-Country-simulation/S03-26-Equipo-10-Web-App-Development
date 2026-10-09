@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { databaseUrl } from '../etl.config';
-import { UnavailableError } from '../../../common/errors/application.error';
+import { ApplicationError, UnavailableError } from '../../../common/errors/application.error';
 
 @Injectable()
 export class BiConnection implements OnModuleDestroy {
@@ -26,7 +26,10 @@ export class BiConnection implements OnModuleDestroy {
         await tx.$executeRaw`SET LOCAL transaction_timeout = '10s'`;
         return work(tx);
       }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: 10000, maxWait: 1000 });
-    } catch { throw new UnavailableError('Business intelligence is unavailable', 'BI_UNAVAILABLE'); }
+    } catch (error) {
+      if (error instanceof ApplicationError) throw error;
+      throw new UnavailableError('Business intelligence is unavailable', 'BI_UNAVAILABLE');
+    }
   }
   async onModuleDestroy(): Promise<void> { await this.client?.$disconnect(); }
 }

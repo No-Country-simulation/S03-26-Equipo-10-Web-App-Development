@@ -90,7 +90,7 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 
 | Archivo | Estado | Descripción |
 |---------|--------|-------------|
-| [`2026-10-09_feat-interfaces-operacion-bi.md`](./2026-10-09_feat-interfaces-operacion-bi.md) | `En Progreso` | Persistencia y orquestación ETL terminadas (fases 1/2); pendiente de ACK para API operativa. Pantallas y aceptación integral en fases posteriores |
+| [`2026-10-09_feat-interfaces-operacion-bi.md`](./2026-10-09_feat-interfaces-operacion-bi.md) | `En Progreso` | Persistencia, worker y API operativa terminados (fases 1–3); pendiente de ACK para frontend fase4. Aceptación integral en fase5 |
 | [`2026-09-18_feat-skill-layered-architecture.md`](./2026-09-18_feat-skill-layered-architecture.md) | `Completado` | Incorporación de la skill SKL-ARCH-LAYERED-001 (Senior Layered Architecture) |
 | [`2026-09-18_feat-skill-cognitive-interface.md`](./2026-09-18_feat-skill-cognitive-interface.md) | `Completado` | Incorporación de la skill SKL-UX-PSYCH-001 (Cognitive Interface Engineering) |
 | [`2026-09-18_feat-skill-docker-engineering.md`](./2026-09-18_feat-skill-docker-engineering.md) | `Completado` | Incorporación de la skill SKL-DEVOPS-DKR-001 (Docker Container Engineering) |

@@ -2,7 +2,8 @@ import { Prisma } from '@prisma/client';
 import { ApplicationError, InvalidInputError, NotFoundError } from '../../../common/errors/application.error';
 import { DashboardQueryDto, dateRange } from '../dtos/dashboard-query.dto';
 import { operationIdentitySchema, type BiRun, type ControlAudit, type OperationsFilter, type OperationsPage,
-  type RequestFilter, type RunFilter } from '../operations.types';
+  type RequestFilter, type RunFilter, type OperationsState } from '../operations.types';
+import { hourUtc } from '../etl.types';
 import { databaseTime, findRequest, readSettings, requestProjection, requestRecord, runProjection, runRecord,
   type RequestRow, type RunRow } from './operations-records';
 
@@ -23,6 +24,40 @@ export class OperationsReadRepository {
   settings(tenantId: string) {
     operationIdentitySchema.shape.tenantId.parse(tenantId);
     return this.connection.read(async tx => readSettings(tx, tenantId, await databaseTime(tx)));
+  }
+  state(tenantId: string): Promise<OperationsState> {
+    operationIdentitySchema.shape.tenantId.parse(tenantId);
+    return this.connection.read(async tx => {
+      const now = await databaseTime(tx);
+      const settings = await readSettings(tx, tenantId, now);
+      // The heartbeat is service-wide technical metadata; no worker IDs or foreign tenant activity leave this boundary.
+      const [worker] = await tx.$queryRaw<Array<{ at: Date | null }>>`SELECT max(last_seen_at) AS at
+        FROM etl.worker_health WHERE protocol_version = 1 AND NOT stopping`;
+      const [request] = await tx.$queryRaw<RequestRow[]>(Prisma.sql`SELECT ${requestProjection} FROM etl.load_requests
+        WHERE tenant_id = ${tenantId}::uuid AND status IN ('pending', 'running') ORDER BY created_at DESC, id DESC LIMIT 1`);
+      const [run] = await tx.$queryRaw<RunRow[]>(Prisma.sql`SELECT ${runProjection} FROM etl.runs
+        WHERE tenant_id = ${tenantId}::uuid AND status = 'running' ORDER BY started_at DESC, id DESC LIMIT 1`);
+      const [lease] = await tx.$queryRaw<Array<{ runId: string; until: Date | null }>>`SELECT lease_run_id AS "runId", lease_until AS until
+        FROM etl.tenant_load_state WHERE tenant_id = ${tenantId}::uuid AND lease_run_id IS NOT NULL`;
+      const [history] = await tx.$queryRaw<Array<{ attempts: number; succeeded: boolean }>>`SELECT
+        coalesce(max(attempt_no), 0)::int AS attempts, coalesce(bool_or(status = 'succeeded'), false) AS succeeded
+        FROM etl.runs WHERE tenant_id = ${tenantId}::uuid AND slot_at = ${hourUtc(now)}`;
+      const [failure] = await tx.$queryRaw<RunRow[]>(Prisma.sql`SELECT ${runProjection} FROM etl.runs
+        WHERE tenant_id = ${tenantId}::uuid AND status IN ('failed', 'abandoned') ORDER BY started_at DESC, id DESC LIMIT 1`);
+      const [success] = await tx.$queryRaw<Array<{ at: Date | null }>>`SELECT max(finished_at) AS at FROM etl.runs
+        WHERE tenant_id = ${tenantId}::uuid AND status = 'succeeded'`;
+      const [expired] = await tx.$queryRaw<RequestRow[]>(Prisma.sql`SELECT ${requestProjection} FROM etl.load_requests
+        WHERE tenant_id = ${tenantId}::uuid AND status = 'expired' ORDER BY created_at DESC, id DESC LIMIT 1`);
+      const [cut] = await tx.$queryRaw<Array<{ at: Date; published: Date }>>`SELECT snapshot_at AS at, published_at AS published
+        FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantId}::uuid ORDER BY snapshot_at DESC LIMIT 1`;
+      return { now: now.toISOString(), settings, workerLastSeenAt: worker?.at?.toISOString() ?? null,
+        activeRequest: request ? requestRecord(request) : null, activeRun: run ? runRecord(run) : null,
+        lease: lease ? { runId: lease.runId, until: lease.until?.toISOString() ?? null } : null,
+        attempts: history?.attempts ?? 0, succeededThisHour: history?.succeeded ?? false,
+        latestFailure: failure ? runRecord(failure) : null, lastSuccessAt: success?.at?.toISOString() ?? null,
+        latestExpiredRequest: expired ? requestRecord(expired) : null,
+        sourceSnapshotAt: cut?.at.toISOString() ?? null, lastPublishedAt: cut?.published.toISOString() ?? null };
+    });
   }
   runs(tenantId: string, filter: RunFilter): Promise<OperationsPage<BiRun>> {
     validateFilter(filter);

@@ -1,6 +1,6 @@
 # Plan HITL: interfaces de consulta y administración BI
 
-**Fecha:** 2026-10-09. **Estado:** fase 2 terminada, pendiente de revisión y ACK para fase 3. **ACK:** «Continuar» después del cierre de fase 1; autoriza la fase 2. [Contrato detallado](../modules/api-bi-operations.md).
+**Fecha:** 2026-10-09. **Estado:** fase 3 terminada, pendiente de revisión y ACK para fase 4. **ACK:** «Continua» después del cierre de fase 2; autoriza exclusivamente la API operativa de fase 3. [Contrato detallado](../modules/api-bi-operations.md).
 
 ## Contexto y Restricciones
 
@@ -53,7 +53,7 @@
 
 **Commit sugerido:** `feat(bi): agregá la persistencia y los contratos de operación`.
 
-### [Actual] 2. Orquestación ETL
+### [Completada] 2. Orquestación ETL
 
 Integrar cola, programación y lock por tenant, origen/fase/extracción completa, heartbeat 20s y señal perdida tras 60s, vencimiento, recuperación y resultado atómico con publicación. Probar competencia automática/manual, dos workers, cruce UTC, pausa/reanudación, presupuestos y respuesta perdida tras COMMIT.
 
@@ -65,9 +65,15 @@ Integrar cola, programación y lock por tenant, origen/fase/extracción completa
 
 **Commit sugerido:** `feat(bi): integrá solicitudes y programación del ETL`.
 
-### [Pendiente] 3. API operativa
+### [Actual] 3. API operativa
 
 Agregar endpoints/DTOs/servicios, guards/CSRF/cuotas, idempotencia y auditoría. Implementar status/acciones y alertas/vigencia; mantener DashboardRepository exclusivamente `dw`. Probar admin/editor/dos tenants, entradas inválidas, conflictos y caída DW.
+
+- [x] Registrar endpoints/DTOs y repositorios DW independientes; no ejecutar ETL dentro de HTTP.
+- [x] Autenticar tenant/actor de sesión, RBAC admin/editor, CSRF vigente, cuotas y respuestas privadas incluso ante errores.
+- [x] Solicitudes/cancelación idempotentes, configuración versionada, auditoría y explicaciones seguras.
+- [x] Estado, acciones permitidas/motivos, señal del worker y política de vigencia/alertas según frecuencia y pausa.
+- [x] Completar regresión con dos PostgreSQL descartables, checks API y documentación; cerrar y detenerse antes de frontend.
 
 **Commit sugerido:** `feat(bi): exponé la operación y la configuración por empresa`.
 
@@ -107,3 +113,18 @@ Aceptación: admin solicita, cierra página y recupera resultado persistente; ed
 - Tras el ajuste de UUID canónico se repitieron **36 pruebas de integración** control/worker. Se verificó contención entre representaciones del mismo UUID y ausencia de solicitudes parciales. Tras separar el evento técnico de inventario de los resultados por tenant, se repitieron **18 pruebas unitarias** de scheduler/ETL. Tests/typecheck/build/lint API aprobados; lint conserva sólo dos advertencias preexistentes.
 - No se modificaron migraciones 0001–0004, infraestructura, Prisma, dependencias ni hooks. DDL de prueba sólo en bases aleatorias descartables; roles/bases eliminados al terminar. Nuevo [runbook del worker](../operations/21_bi_worker_operations.md) y documentación/contexto actualizados.
 - Pendiente: endpoints/RBAC/CSRF/cuotas/alertas y vigencia en fase3, pantallas/CSV/polling web en fase4, restauración de controles, capacidad y costo de polling en fase5. Sin despliegue persistente y sin controles nuevos habilitados.
+
+
+## Evidencia de fase 3
+
+- `BiOperationsController` y DTOs strict exponen las diez rutas operativas acordadas, además del dashboard existente. Admin/editor consultan; sólo admin muta y consulta auditoría. Tenant/actor se obtienen de sesión; IDs ajenos devuelven404 y no aceptan tenant/actor/horas del navegador. Middleware privado cubre incluso errores de guards.
+- Mecanismos HTTP vigentes: JWT/roles, CSRF global de cookies/Bearer explícito y cuotas por ruta/tenant/IP. Creación6/min, settings/cancel20/min, lecturas120/min. Mutaciones fallan cerradas ante cuota caída. Respuesta202 confirma un receipt estable, sin ejecutar ETL en HTTP; GET devuelve ciclo durable e intentos.
+- Repositorios DW registrados mediante conexión de lectura y conexión de control pool2 independientes y lazy. Control sólo settings/requests/audit; comprobación de worker vivo dentro de su transacción, después de resolver replay. Claves permanecen durables tras cancelación/éxito/worker detenido; UUIDs de reintento/cancelación canónicos. `BiConnection` preserva errores de aplicación como404 y traduce fallos técnicos a503 seguro.
+- Servicio status READ ONLY/RR con reloj DW, worker protocolo1/señal<60s, actividad propia, próximo horario y presupuesto compartido. Acciones devuelven permiso/motivo, incluidos recuperación, éxito horario, intentos agotados y worker ausente. Catálogo seguro de mensajes; cantidades desconocidas NULL. Lectura nunca altera cola/configuración.
+- Alertas separadas de fallo sin recuperación, vencimiento, ausencia de señal y atraso. Frecuencia+tolerancia, pausa explícita/supresión de atraso, preferencias y recuperación sin borrar historial. `DashboardRepository` permanece intacto y consulta exclusivamente `dw`; servicio combina settings/metadatos. La métrica técnica stale también respeta frecuencia+tolerancia y excluye pausas.
+- **165 casos BI distintos aprobados**, en12 suites: regresión completa inicial de163; tras los últimos ajustes se repitieron los afectados y se incorporaron dos casos más (métrica configurable y desconexión real). Nuevos59 = **41 HTTP/integración** + **18 políticas**. Dos PostgreSQL18.6 descartables y roles de lectura/control restringidos; autenticación/roles/tenant, CSRF, validación, cuotas, conflictos, idempotencia/concurrencia, presupuesto, vacío/desconocido y receipt/resultados durables.
+- Las pruebas terminan conexiones SQL de los roles temporales y niegan nuevos logins para simular pérdida de acceso; status/dashboard/creación responden503 sin falsa aceptación. Al restaurar LOGIN, configuración/auditoría permanecen y no existe solicitud parcial. Fallo de INSERT de auditoría revierte solicitud; ausencia de SELECT se informa sin SQL/stack/conexiones.
+- Ocho pruebas adicionales de CSRF/cuotas vigentes aprobadas. Una prueba integral preexistente de cookies se omitió explícitamente por falta de `TEST_DATABASE_URL`/`TEST_REDIS_URL`; el nuevo HTTP BI sí ejercita cookies, Origin y token CSRF reales del guard con credenciales sintéticas. No se afirma ejecutar toda la suite del CMS ni integración Redis en esta fase.
+- `npm run typecheck --workspace apps/api`, `npm run build --workspace apps/api`, `npm run lint --workspace apps/api` aprobados; lint conserva sólo dos advertencias preexistentes fuera de BI. `git diff --check` sin problemas.
+- Documentación de contratos/roles y [runbook API](../operations/22_bi_http_operations.md) actualizados. Fixture del benchmark HTTP/ETL prepara0004 para compatibilidad; no se repitió prueba de carga ni se alteraron resultados históricos. Costo de status/polling, restauración de controles y SLO siguen en fase5.
+- Sin cambios de migraciones0001–0004, Prisma, infraestructura, dependencias ni hooks; sin despliegue ni commit automático. Bandera desactivada por defecto. Pruebas eliminaron sus bases/roles (0 remanentes en ambas instancias); PostgreSQL temporales apagados y directorios propios eliminados. Frontend/CSV/polling web quedan exclusivamente para fase4 tras ACK.

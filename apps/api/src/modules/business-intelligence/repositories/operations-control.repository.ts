@@ -1,13 +1,13 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { NotFoundError } from '../../../common/errors/application.error';
+import { NotFoundError, UnavailableError } from '../../../common/errors/application.error';
 import { hourUtc } from '../etl.types';
 import { BiOperationsError, idempotencyKeySchema, loadRequestInputSchema, operationIdentitySchema, settingsPatchSchema,
   type OperationIdentity, type LoadRequestInput, type SettingsPatch } from '../operations.types';
 import type { ControlTransactions } from './bi-control-connection';
 import { databaseTime, findRequest, lockOperationsTenant, readSettings } from './operations-records';
 
-/** Persistence only in phase 1. HTTP authorization/CSRF is added in phase 3. */
+/** Tenant-serialized durable control. HTTP authorization belongs to the transport boundary. */
 export class OperationsControlRepository {
   constructor(private readonly connection: ControlTransactions) {}
 
@@ -39,7 +39,7 @@ export class OperationsControlRepository {
     });
   }
 
-  async createRequest(identity: OperationIdentity, key: string, input: LoadRequestInput) {
+  async createRequest(identity: OperationIdentity, key: string, input: LoadRequestInput, requireLiveWorker = false) {
     const { tenantId, actorId } = operationIdentitySchema.parse(identity);
     const idempotencyKey = idempotencyKeySchema.parse(key); const value = loadRequestInputSchema.parse(input);
     const hash = createHash('sha256').update(JSON.stringify([value.kind, value.retryOfRunId ?? null])).digest('hex');
@@ -75,6 +75,12 @@ export class OperationsControlRepository {
         FROM etl.runs WHERE tenant_id = ${tenantId}::uuid AND slot_at = ${slot}`;
       if (history?.succeeded) throw new BiOperationsError('BI_ALREADY_SUCCEEDED');
       if (history && history.attempts >= 3) throw new BiOperationsError('BI_ATTEMPTS_EXHAUSTED');
+      // Only new HTTP requests require a live, compatible worker. Durable replays above always survive outages.
+      if (requireLiveWorker) {
+        const [health] = await tx.$queryRaw<Array<{ live: boolean }>>`SELECT EXISTS(SELECT 1 FROM etl.worker_health
+          WHERE protocol_version = 1 AND NOT stopping AND last_seen_at > ${now} - interval '60 seconds') AS live`;
+        if (!health?.live) throw new UnavailableError('El servicio de cargas no está disponible', 'BI_WORKER_UNAVAILABLE');
+      }
       const [created] = await tx.$queryRaw<Array<{ id: string }>>`INSERT INTO etl.load_requests
         (tenant_id, actor_id, kind, retry_of_run_id, idempotency_key, payload_hash, slot_at, expires_at, created_at)
         VALUES (${tenantId}::uuid, ${actorId}::uuid, ${value.kind}, ${value.retryOfRunId ?? null}::uuid,
@@ -88,7 +94,7 @@ export class OperationsControlRepository {
 
   async cancelRequest(identity: OperationIdentity, requestId: string, key: string) {
     const { tenantId, actorId } = operationIdentitySchema.parse(identity);
-    const id = operationIdentitySchema.shape.tenantId.parse(requestId); const idempotencyKey = idempotencyKeySchema.parse(key);
+    const id = operationIdentitySchema.shape.tenantId.parse(requestId).toLowerCase(); const idempotencyKey = idempotencyKeySchema.parse(key);
     return this.connection.write(async tx => {
       await lockOperationsTenant(tx, tenantId);
       const [previous] = await tx.$queryRaw<Array<{ requestId: string }>>`SELECT request_id AS "requestId" FROM etl.control_audit

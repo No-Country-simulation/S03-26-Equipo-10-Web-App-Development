@@ -8,6 +8,7 @@ import { BiController } from '../src/modules/business-intelligence/controllers/b
 import { BiMetricsController } from '../src/modules/business-intelligence/controllers/bi-metrics.controller';
 import { DashboardService } from '../src/modules/business-intelligence/services/dashboard.service';
 import { BiMetricsService } from '../src/modules/business-intelligence/services/bi-metrics.service';
+import { OperationsReadRepository } from '../src/modules/business-intelligence/repositories/operations-read.repository';
 import { DashboardRepository } from '../src/modules/business-intelligence/repositories/dashboard.repository';
 import { CredentialRepository } from '../src/common/repositories/credential.repository';
 import { ApiExceptionFilter } from '../src/common/filters/api-exception.filter';
@@ -24,7 +25,8 @@ describe('BI HTTP authorization and failures', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({ controllers: [BiController, BiMetricsController], providers: [DashboardService, JwtService,
       { provide: ConfigService, useValue: { getOrThrow: () => ({ jwt: { secret }, metricsToken: 'synthetic-metrics-token' }) } },
-      { provide: DashboardRepository, useValue: repository }, { provide: BiMetricsService, useValue: metrics },
+      { provide: DashboardRepository, useValue: repository },
+      { provide: OperationsReadRepository, useValue: { settings: async () => ({ frequencyHours: 1, delayToleranceMinutes: 60, scheduleEnabled: true }) } }, { provide: BiMetricsService, useValue: metrics },
       { provide: CredentialRepository, useValue: { findActiveUser: async (id: string) => ({ userId: id, tenantId: id === 'other' ? other : tenant,
         roles: [id === 'none' ? 'viewer' : id === 'editor' ? 'editor' : 'admin'] }) } },
     ] }).compile();
@@ -33,7 +35,7 @@ describe('BI HTTP authorization and failures', () => {
     await app.init();
     tokens = Object.fromEntries(['admin', 'editor', 'other', 'none'].map(sub => [sub, app.get(JwtService).sign({ sub, tenantId: sub === 'other' ? other : tenant }, { secret })]));
   });
-  beforeEach(() => { repository.dashboard.mockReset().mockImplementation(async (tenantId, range) => ({ tenant: tenantId, range })); metrics.render.mockClear(); });
+  beforeEach(() => { repository.dashboard.mockReset().mockImplementation(async (tenantId, range) => ({ tenant: tenantId, range, freshness: { dataAgeSeconds: null } })); metrics.render.mockClear(); });
   afterAll(async () => { await app?.close(); });
   it('requires authentication and accepts both admin and editor with session-derived ownership', async () => {
     await request(app.getHttpServer()).get('/api/v1/bi/dashboard').expect(401);

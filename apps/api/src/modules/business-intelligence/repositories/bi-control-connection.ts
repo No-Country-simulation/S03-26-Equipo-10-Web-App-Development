@@ -8,7 +8,7 @@ export interface ControlTransactions {
   write<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T>;
 }
 
-/** Not registered in HTTP until phase 3; no OLTP fallback and no DDL privileges. */
+/** Independent HTTP control identity; no OLTP fallback, analytical writes or DDL privileges. */
 @Injectable()
 export class BiControlConnection implements ControlTransactions, OnModuleDestroy {
   private readonly enabled = process.env.BI_ENABLED === 'true' && process.env.BI_OPERATIONS_ENABLED === 'true';
@@ -19,6 +19,7 @@ export class BiControlConnection implements ControlTransactions, OnModuleDestroy
       catch { /* Report configuration failures at the BI boundary without credentials. */ }
     }
   }
+  get configured(): boolean { return this.enabled && this.client !== undefined; }
   async write<T>(work: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     if (!this.enabled) throw new BiOperationsError('BI_OPERATIONS_DISABLED');
     if (!this.client) throw new UnavailableError('Business intelligence is unavailable', 'BI_UNAVAILABLE');
