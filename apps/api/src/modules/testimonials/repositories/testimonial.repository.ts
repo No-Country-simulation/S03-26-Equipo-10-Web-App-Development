@@ -284,10 +284,19 @@ export class TestimonialRepository {
     return row ? this.toView(row) : null;
   }
 
-  async findAllPublishedForScoring(): Promise<Array<{ id: string; rating: number; publishedAt: Date | null }>> {
+  /** System worker discovery; resource operations below always receive the tenant. */
+  async findScoringTenantIds(): Promise<string[]> {
+    const tenants = await this.prisma.tenant.findMany({ where: {
+      tenantFeatureFlags: { some: { featureFlag: { name: 'enable_scoring' }, enabled: true } },
+    }, select: { id: true }, orderBy: { id: 'asc' } });
+    return tenants.map(tenant => tenant.id);
+  }
+
+  async findPublishedForScoring(tenantId: string): Promise<Array<{ id: string; rating: number; publishedAt: Date | null }>> {
     const publishedStatusId = await this.resolveStatusId('published');
     return this.prisma.testimonial.findMany({
       where: {
+        tenantId,
         statusId: publishedStatusId,
         tenant: {
           tenantFeatureFlags: {
@@ -302,14 +311,15 @@ export class TestimonialRepository {
     });
   }
 
-  async updateScores(updates: { id: string; score: number }[]): Promise<void> {
+  async updateScores(tenantId: string, updates: { id: string; score: number }[]): Promise<void> {
     if (updates.length === 0) return;
 
     // Use withRetry to handle transient deadlocks during batch score updates (R-1)
     await this.prisma.withRetry(async (tx) => {
       for (const { id, score } of updates) {
-        await tx.testimonial.update({
-          where: { id },
+        await tx.testimonial.updateMany({
+          where: { id, tenantId, status: { code: 'published' },
+            tenant: { tenantFeatureFlags: { some: { featureFlag: { name: 'enable_scoring' }, enabled: true } } } },
           data: { score },
         });
       }

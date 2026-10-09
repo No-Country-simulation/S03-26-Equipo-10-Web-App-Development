@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-08
 
-**Estado:** Decisión de diseño aprobada por el usuario; implementación y despliegue pendientes.
+**Estado:** Decisión aprobada; warehouse/ETL implementados y probados en fase 3. API/panel y habilitación productiva pendientes de fase 4; sin despliegue persistente verificado.
 
 **Plan:** [Foto de empresa y BI](../plan/2026-10-08_feat-foto-empresa-bi.md).
 

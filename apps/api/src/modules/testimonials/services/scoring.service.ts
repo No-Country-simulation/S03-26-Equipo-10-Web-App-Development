@@ -39,48 +39,23 @@ export class ScoringService implements OnApplicationBootstrap, OnApplicationShut
     const startTime = Date.now();
 
     try {
-      this.logger.log('Fetching published testimonials for scoring');
-      const testimonials = await this.testimonialRepo.findAllPublishedForScoring();
-      
-      if (testimonials.length === 0) {
-        this.logger.log('No published testimonials found — skipping scoring run');
-        return;
+      let updatedCount = 0;
+      for (const tenantId of await this.testimonialRepo.findScoringTenantIds()) {
+        const testimonials = await this.testimonialRepo.findPublishedForScoring(tenantId);
+        if (!testimonials.length) continue;
+        const engagementMap = await this.analyticsService.getEngagementCounts(tenantId, testimonials.map(t => t.id));
+        const now = Date.now();
+        const updates = testimonials.map(t => {
+          const metrics = engagementMap.get(t.id) ?? { views: 0, clicks: 0 };
+          const daysSincePublished = t.publishedAt ? Math.max(0, (now - t.publishedAt.getTime()) / 86400000) : 0;
+          // Preserve the existing rating + engagement - age formula and four-decimal rounding.
+          const rawScore = t.rating * 10 + (metrics.views * 0.1 + metrics.clicks * 0.5) - daysSincePublished * 0.05;
+          return { id: t.id, score: Math.max(0, Math.round(rawScore * 10000) / 10000) };
+        });
+        await this.testimonialRepo.updateScores(tenantId, updates);
+        updatedCount += updates.length;
       }
-
-      this.logger.log({ count: testimonials.length }, 'Calculating testimonial scores');
-      const testimonialIds = testimonials.map(t => t.id);
-      
-      // Get all engagement metrics in one query (O(1) database roundtrip)
-      const engagementMap = await this.analyticsService.getEngagementCounts(testimonialIds);
-      
-      const now = new Date().getTime();
-      const updates: { id: string; score: number }[] = [];
-
-      for (const t of testimonials) {
-        const metrics = engagementMap.get(t.id) || { views: 0, clicks: 0 };
-        
-        let daysSincePublished = 0;
-        if (t.publishedAt) {
-          const msSincePublished = now - t.publishedAt.getTime();
-          daysSincePublished = Math.max(0, msSincePublished / (1000 * 60 * 60 * 24));
-        }
-
-        // BR-SCORE-001: Score calculation logic
-        const baseScore = t.rating * 10;
-        const engagementScore = (metrics.views * 0.1) + (metrics.clicks * 0.5);
-        const decayPenalty = daysSincePublished * 0.05;
-        
-        const rawScore = baseScore + engagementScore - decayPenalty;
-        // Keep score positive and round to 4 decimals to match Postgres Decimal(10,4)
-        const finalScore = Math.max(0, Math.round(rawScore * 10000) / 10000);
-
-        updates.push({ id: t.id, score: finalScore });
-      }
-
-      await this.testimonialRepo.updateScores(updates);
-      
-      const durationMs = Date.now() - startTime;
-      this.logger.log({ durationMs, updatedCount: updates.length }, 'Score calculation completed');
+      this.logger.log({ durationMs: Date.now() - startTime, updatedCount }, 'Score calculation completed');
     } finally {
       this.isProcessing = false;
     }

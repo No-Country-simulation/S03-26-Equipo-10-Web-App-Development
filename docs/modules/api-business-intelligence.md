@@ -1,19 +1,20 @@
-# Contrato propuesto: Business Intelligence
+# Contrato: Business Intelligence
 
-**Fecha:** 2026-10-08. **Estado:** diseño; implementación en fases 3 y 4.
+**Fecha:** 2026-10-08. **Estado:** warehouse/ETL/scoring implementados en fase 3; endpoint/panel y métricas pendientes de fase 4. Despliegue persistente no verificado.
 
-**Referencias:** [Plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md), [diccionario DW](../domain/warehouse_diccionario_de_datos.md), [borrador SQL](../plan/2026-10-08_feat-foto-empresa-bi_warehouse-borrador.sql).
+**Referencias:** [Plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md), [diccionario DW](../domain/warehouse_diccionario_de_datos.md), [migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql), [operación ETL](../operations/17_business_intelligence_etl.md).
 
 ## Fronteras y configuración
 
-`apps/api/src/modules/business-intelligence/` contiene consultas BI y carga, con providers separados. La API HTTP sólo importa la parte de lectura; la entrada ETL crea únicamente configuración, logger, clientes y servicios de carga. No importar AppModule ni iniciar scoring, outbox, HTTP o Redis en ETL. El frontend compone `/admin/business-intelligence` desde su feature y usa `useSession`/adaptadores de respuesta vigentes.
+`apps/api/src/modules/business-intelligence/` contiene configuración, repositorios y servicios de carga. La entrada ETL crea únicamente configuración, logger, clientes y servicios de carga. No importa AppModule ni inicia scoring, outbox, HTTP o Redis. En fase 4 la API HTTP sólo importará la parte de lectura, con providers separados; el frontend compondrá `/admin/business-intelligence` desde su feature y los adaptadores vigentes.
 
-| Variable propuesta | Consumidor | Uso |
+| Variable | Consumidor | Uso |
 | --- | --- | --- |
 | `BI_ENABLED` | API HTTP | Default false; si false responder BI deshabilitado sin abrir conexión DW. |
 | `BI_DATABASE_URL` | API HTTP | Identidad warehouse con SELECT exclusivamente sobre tablas BI/metadatos necesarios. |
-| `BI_SOURCE_DATABASE_URL` | ETL | Identidad OLTP con SELECT sólo sobre columnas autorizadas de tenants, testimonios, categorías, catálogos y eventos. |
+| `BI_SOURCE_DATABASE_URL` | ETL | Identidad OLTP con SELECT sólo sobre las vistas allowlist `bi_export`; sin acceso a tablas privadas. |
 | `BI_ETL_DATABASE_URL` | ETL | Identidad DW con DML sobre staging/dimensiones/hechos/control; sin permisos DDL. |
+| `BI_MIGRATION_DATABASE_URL` | Migrador manual | Identidad propietaria independiente; nunca consumida por HTTP/ETL. |
 
 No usar `DATABASE_URL` como fallback warehouse/extractor. Validar URLs PostgreSQL sin incluirlas en mensajes o logs. Cuando BI_ENABLED sea true pero el destino no sea accesible, el endpoint devuelve 503; la API operacional debe arrancar y mantener su readiness. Los errores de configuración BI no invalidan el esquema de configuración global de la aplicación.
 
@@ -28,16 +29,16 @@ La ejecución CLI acepta `--once` para prueba/manual y modo scheduler horario en
 3. Abrir la transacción fuente. La primera consulta fija el snapshot y obtiene `date_trunc('milliseconds', statement_timestamp())` junto con nombre/is_active del tenant; ese instante es `source_snapshot_at`. Truncar a la precisión de origen evita redondear el último milisegundo hacia la hora siguiente. Si cae en otra hora que el slot reservado, abandonar y observar la hora corriente con un nuevo run. No usar `now()` del servidor destino como corte fuente.
 4. Extraer categorías y testimonios por cursor UUID y eventos por cursor BigInt, ordenados y paginados **dentro de esa misma transacción**. Hacer joins de categorías/testimonios con tenant; catálogos globales por código. Los límites/cursor incluyen tenant. No usar `updated_at` ni el máximo ID como watermark de la próxima carga.
 5. Insertar staging por lotes parametrizados, ligados a tenant/run. Antes de cada lote y después de esperas de red comprobar que el token sigue vigente. Todo timestamp fuente conserva su precisión. No convertir IDs BigInt a Number. Normalizar `source` en la consulta fuente mediante CASE: admitir `public`, `public-browser`, `api`, `widget`; otros valores se exportan como `other`. No transportar ni loguear el texto original arbitrario.
-6. Al completar extracción, cerrar la transacción fuente y validar cantidades, duplicados y referencias. Si hay evento de otro tenant o referencia ausente, abortar con código técnico; no omitirlo silenciosamente. Excluir datos futuros respecto al corte no es una corrección silenciosa: reportarlos como origen inconsistente.
+6. Al completar extracción, cerrar la transacción fuente y guardar sus cantidades en el run, antes de publicar. Validar cantidades, duplicados y referencias. Si hay evento de otro tenant o referencia ausente, abortar con código técnico; no omitirlo silenciosamente. Excluir datos futuros respecto al corte no es una corrección silenciosa: reportarlos como origen inconsistente.
 7. En una sola transacción destino, bloquear `tenant_load_state`, comprobar run/token/lease vigente y comprobar que el run sigue `running`. Si no cumple, abortar. Actualizar nombre/dimensiones, marcar testimonios y categorías ausentes, resolver «Sin categoría», insertar snapshot y agregar staging de eventos por fecha UTC/testimonio/origen/tipo.
-8. Reemplazar **sólo** la serie diaria de interacción del tenant y registrar su run de reconciliación. Validar `SUM(event_count)` contra los eventos extraídos. Insertar fechas necesarias, marcar run `succeeded` con cantidades y fin, actualizar pointer `last_published_run_id`, limpiar staging y liberar lease, todo en la misma transacción.
+8. Reemplazar **sólo** la serie diaria de interacción del tenant y registrar su run de reconciliación. Validar `SUM(event_count)` contra los eventos extraídos. Insertar fechas necesarias, marcar run `succeeded` con cantidades y fin, actualizar pointer `last_published_run_id`, limpiar staging y liberar lease, todo en la misma transacción. Comprobar token y vigencia del lease nuevamente al final: si venció durante las escrituras, revertir todo.
 9. El pointer no retrocede: un corte fuente menor o igual al último publicado no se publica. Si hay rollback, persisten dimensiones/hechos/pointer anteriores. Marcar el intento fallido sólo si el token continúa propio; no liberar el lease de otro worker. Cualquier resultado ambiguo tras commit se resuelve consultando el run/éxito del slot antes de reintentar.
 
 Un run exitoso vacío actualiza el pointer y demuestra extracción completada. Si el proceso cae, el siguiente worker recupera el lease y abandona el intento incompleto; nunca mezcla staging de runs. La limpieza de staging abandonado se hace por tenant/run, tras confirmar estado terminal y ausencia de lease vigente.
 
 El lease se mantiene en el destino, nunca bloquea escrituras OLTP. Un worker obsoleto puede dejar staging de su propio run, pero no publicar: el token y la fila bloqueada actúan como fencing. Usar parámetros para datos; el rol de lectura no recibe SELECT sobre passwords, texto, autores, URLs, ip_hash, tokens o notas.
 
-## Endpoint del panel
+## Endpoint del panel (pendiente de fase 4)
 
 `GET /api/v1/bi/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD`, con JwtAuthGuard/RolesGuard y roles `admin`, `editor`. Tenant exclusivamente de sesión. Rechazar query `tenantId` y claves desconocidas. Las fechas son fechas de calendario reales UTC, rango inclusivo, `from <= to`, máximo 366 días; fechas inválidas dan 400. `to` sólo: completar 29 días anteriores. `from` sólo: completar `to` con hoy UTC. Sin ambas: hoy UTC y 29 días anteriores. Rechazar `to` futura.
 
@@ -66,7 +67,7 @@ Métricas propuestas: duración/extracción/publicación, filas leídas, runs ex
 
 ## Permisos, compatibilidad y pruebas
 
-Provisionar `testimonial_dw` fuera del runtime, con propietario/migrador independiente. Los scripts no contienen CREATE DATABASE, credenciales ni GRANT a PUBLIC. En origen, SELECT por columna sobre el allowlist; en destino, ETL puede DML en staging/dw/etl y usar secuencias, lector BI sólo SELECT sobre dimensiones/hechos y runs/estado. Nadie del runtime tiene superuser, CREATE o permisos de migrador. El acceso por tenant sigue siendo el contrato del proyecto sin RLS; conexiones BI nunca se entregan a empresas.
+Provisionar `testimonial_dw` fuera del runtime, con propietario/migrador independiente. Las migraciones no contienen CREATE DATABASE, credenciales ni GRANT a PUBLIC. En origen, SELECT sólo sobre cuatro vistas `bi_export` con `security_barrier`, propiedad de la identidad que puede leer las tablas: convierten URLs a booleanos y fuente libre a catálogo antes de exportar. El extractor no tiene SELECT sobre tablas privadas. En destino, ETL puede DML en staging/dw/etl excepto `schema_migrations`, y usar secuencias; lector BI sólo SELECT sobre dimensiones/hechos y runs/estado. Nadie del runtime tiene superuser, CREATE o permisos de migrador. El acceso por tenant sigue siendo el contrato del proyecto sin RLS; conexiones BI nunca se entregan a empresas.
 
 El SQL warehouse es aditivo y migra separado del Prisma OLTP. Mantener archivos numerados y ledger `etl.schema_migrations` (version/checksum/applied_at) exclusivamente bajo la identidad migradora; rechazar una versión aplicada cuyo checksum cambió. El runtime ETL no aplica DDL. Activar BI después de esquema y primera carga verificada; con BI_ENABLED=false, el CMS funciona sin destino. No modificar el ciclo de borrado ni procesar datos del outbox como una fuente histórica completa.
 

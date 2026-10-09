@@ -14,7 +14,10 @@
     "db:seed": "prisma db seed",
     "db:migrate:dev": "prisma migrate dev",
     "webhooks:encrypt-legacy": "ts-node scripts/encrypt-legacy-webhook-secrets.ts",
-    "test:cov": "jest --runInBand --coverage"
+    "test:cov": "jest --runInBand --coverage",
+    "bi:etl": "ts-node src/modules/business-intelligence/etl.cli.ts",
+    "bi:etl:prod": "node dist/modules/business-intelligence/etl.cli.js",
+    "bi:migrate": "ts-node src/modules/business-intelligence/migration.cli.ts"
   },
   "dependencies": {
     "@nestjs/common": "11.2.6",

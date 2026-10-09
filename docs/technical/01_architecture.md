@@ -111,17 +111,20 @@ flowchart LR
     A --> H[Destinos webhook HTTPS]
     A --> X[Cloudinary y YouTube]
     A -.-> O[Métricas protegidas y OTLP opcional]
+    P -->|Vistas bi_export; lectura acotada| E[ETL independiente cada hora]
+    E --> D[(PostgreSQL DW: staging/dw/etl)]
 ```
 
 ### 3.2. Responsabilidades por Módulo/Servicio
 
-**Evolución (2026-10-08):** el [logo de tenant](../modules/api-tenant-logo.md) está implementado en tenants, con carga/eliminación firmadas y polling de limpieza cada 30 s sobre PostgreSQL OLTP. La migración está preparada y probada en una fixture descartable; despliegue persistente no verificado. [ADR 0004](../adr/0004-warehouse-postgresql-separado.md) define el futuro warehouse PostgreSQL con recursos separados, extracción por empresa cada hora y cortes del estado observado. ETL y endpoint/panel BI permanecen pendientes de las fases 3/4 del [plan](../plan/2026-10-08_feat-foto-empresa-bi.md); todavía no forman parte del runtime.
+**Evolución (2026-10-08):** el [logo de tenant](../modules/api-tenant-logo.md) está implementado con limpieza durable. El [ETL](../operations/17_business_intelligence_etl.md) de fase 3 tiene entrada independiente, lectura consistente de las vistas `bi_export` por empresa, reconciliación completa horaria y publicación atómica con fencing en `staging/dw/etl`. Scoring pasa `tenantId` por lecturas y escrituras. Las migraciones están preparadas y probadas en fixtures descartables (dos PostgreSQL para BI); despliegue persistente y separación productiva de recursos no verificados. El proceso no importa AppModule: sólo se inicia explícitamente. Endpoint/panel y métricas BI permanecen pendientes de fase 4 del [plan](../plan/2026-10-08_feat-foto-empresa-bi.md), según [ADR 0004](../adr/0004-warehouse-postgresql-separado.md).
 
 | Módulo/Servicio | Responsabilidad Principal | Endpoints Clave | Escalabilidad | Persistencia |
 |-----------------|---------------------------|-----------------|---------------|--------------|
 | **Auth Module** | Registro, login, refresh tokens, gestión de roles y permisos | `/auth/login`, `/auth/refresh`, `/auth/logout`, `/users` | Horizontal (stateless) | PostgreSQL (users, refresh_tokens, roles, permissions) |
 | **Testimonial Module** | CRUD de testimonios, moderación, asignación de tags/categorías, cálculo de scoring | `/testimonials`, `/testimonials/:id/moderate`, `/testimonials?sort=top` | Horizontal | PostgreSQL + Redis (caching de listas públicas) |
 | **Analytics Module** | Recepción de vistas/clicks y reportes | `/analytics/events`, `/analytics/dashboard` | Horizontal | PostgreSQL (eventos), Redis para cuotas de ruta |
+| **Business Intelligence ETL** | Extracción por empresa, snapshots e interacción diaria reconciliada | CLI `bi:etl`; sin HTTP propio en fase 3 | Una empresa por vez; leases coordinan procesos | PostgreSQL OLTP (lectura de vistas), PostgreSQL DW independiente (DML) |
 | **Webhook Module** | Registro de destinos, outbox, entregas e intentos | `/webhooks`, `/webhooks/:id/deliveries` | Poller dentro de cada réplica API | PostgreSQL (outbox, ledger, intentos); sin cola Redis |
 | **Feature Flags Module** | Consulta y actualización de feature flags por tenant | `/flags`, `/flags/:name` | Horizontal | PostgreSQL (feature_flags, tenant_feature_flags) |
 | **OutboxProcessor** | Reclama entregas con lease y las envía con concurrencia acotada | (no expone API propia) | Una instancia dentro de cada réplica API | PostgreSQL |

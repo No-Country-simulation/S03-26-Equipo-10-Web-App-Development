@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-08
 
-**Estado global:** En progreso; fase 1 aprobada, fase 2 implementada y verificada, pendiente de ACK de cierre. Fases 3–4 pendientes.
+**Estado global:** En progreso; fases 1 y 2 aprobadas, fase 3 terminada pendiente de ACK. Fase 4 pendiente.
 
 **Autorización inicial:** El usuario solicitó implementar el plan acordado, conservando el ACK entre sus cuatro fases. No se creó rama ni commit.
 
@@ -63,7 +63,7 @@
 
 **Commit sugerido:** `docs(bi): definí el logo de empresa y el warehouse separado`.
 
-### `[Actual]` Fase 2: foto de empresa y formulario público
+### `[Completada]` Fase 2: foto de empresa y formulario público
 
 - [x] Implementar columnas/modelos del borrador OLTP, servicios, PUT/DELETE del logo y cola durable de limpieza; ACK de `schema.prisma` recibido antes de editarlo.
 - [x] Validar formato/contenedor, Base64 canónico y máximo 2 MiB; JSON máximo 3 MiB sólo para PUT del logo, con errores 400/413.
@@ -81,21 +81,33 @@
 
 **Límites:** Cloudinary se verifica mediante protocolo/respuestas simuladas; falta smoke test con cuenta real e invalidación CDN. Las pruebas DOM verifican respaldo y cambio de slug, selección/reintento y visibilidad admin/editor; no se realizó revisión visual en navegador. No se certifican producción ni volumen/retención. No se alteraron infraestructura, paquetes, hooks ni migraciones existentes; no se creó commit. BI/ETL/scoring permanecen en fase 3.
 
-**Estado de ejecución:** fase 2 terminada. Conservarla como `[Actual]` hasta recibir ACK; no activar ni ejecutar fase 3 en esta entrega.
+**Estado de ejecución:** fase 2 terminada y aprobada. ACK recibido el 2026-10-08: «Continua», en respuesta al pedido de aprobación para fase 3. No autoriza despliegues ni aplicación de migraciones persistentes.
 
-**Review humano (ACK):** pendiente.
+**Review humano (ACK):** recibido el 2026-10-08: «Continua».
 
 **Commit sugerido:** `feat(tenants): agregá el logo de empresa al formulario público`.
 
-### `[Pendiente]` Fase 3: warehouse, ETL y aislamiento de scoring
+### `[Actual]` Fase 3: warehouse, ETL y aislamiento de scoring (terminada, pendiente de ACK)
 
-- Crear migraciones warehouse independientes y entrada CLI ETL mínima dentro de `apps/api`; conexiones independientes de origen y destino.
-- Implementar extracción por empresa, staging, reconciliación completa, leases con fencing y publicación atómica; conservar resultados ante fallos y no inventar horas perdidas.
-- Corregir scoring por empresa: listado, engagement y escrituras con `tenantId`; sin cambiar la fórmula.
-- Probar con dos PostgreSQL descartables ya provisionados/migrados por el procedimiento autorizado; nunca usar bases persistentes como destino de tests.
-- Verificar conciliación, cambios/borrados, empresa vacía, reintento, crash, lease vencido, corte UTC, BigInt y snapshot consistente.
+- [x] Crear migraciones warehouse independientes y entrada CLI ETL mínima dentro de `apps/api`; conexiones independientes de origen y destino.
+- [x] Implementar extracción por empresa, staging, reconciliación completa, leases con fencing y publicación atómica; conservar resultados ante fallos y no inventar horas perdidas.
+- [x] Corregir scoring por empresa: listado, engagement y escrituras con `tenantId`; sin cambiar la fórmula.
+- [x] Probar con dos PostgreSQL descartables provisionados exclusivamente para integración; nunca usar bases persistentes como destino de tests.
+- [x] Verificar conciliación, cambios/borrados, empresa vacía, reintento, crash, lease vencido, corte UTC, BigInt y snapshot consistente.
 
 **Criterio de salida:** migraciones y proceso verificables; integración real sólo se declara si se ejecutó.
+
+**Evidencia (2026-10-08):** 65 tests aprobados en ocho suites API pertinentes. Incluyen 14 casos de integración real sobre dos procesos PostgreSQL 18.6 descartables, con bases/roles aleatorios eliminados al finalizar. Extractor restringido a vistas `bi_export`, escritor DML sin DDL/ledger y lector sin staging/escritura; las pruebas comprueban permisos efectivos. Fixture OLTP mínima, sintética, y migración warehouse completa de 15 tablas: no se aplicó toda la cadena histórica de migraciones OLTP.
+
+Verificados: dos empresas (incluida inactiva), empresa vacía y pointer durable, páginas de una fila y IDs mayores a MAX_SAFE_INTEGER, score Decimal, agrupación UTC/bisiesto y fuentes desconocidas normalizadas, consistencia ante mutaciones entre páginas, cambios/borrados con snapshots previos conservados y horas ausentes, éxito duplicado omitido, tres intentos máximos, caída durante publicación con rollback y resultado anterior preservado, staging abandonado/lease reclamado, fencing de trabajador viejo, vencimiento durante publicación, commit real con respuesta simulada perdida, límites de tiempo/corte, conteos incoherentes/referencias cruzadas/filas duplicadas rechazados y checksum de migración. Scoring conserva fórmula y flag, pasa tenant por toda la cadena y rechaza escrituras/métricas de IDs ajenos o testimonios que ya dejaron de estar publicados. La entrada `--once` se ejecuta con las identidades restringidas sin configuración HTTP/Redis.
+
+La suite histórica `testimonial-persistence.integration.spec.ts` omite sus seis tests porque no se suministró `TEST_DATABASE_URL` con todo el esquema operacional migrado; esa omisión no se cuenta como integración aprobada. Typecheck (incluye tests), lint y build NestJS pasan. Lint conserva dos warnings preexistentes fuera del cambio. `git diff --check`, espacios finales de archivos nuevos, inventario de tablas/datos permitidos y 23 enlaces locales verificados. La integración/arranque de tests requieren sockets fuera del sandbox; aprobación automática concedida, sin rechazos.
+
+**Artefactos:** [migración DW](../../apps/api/warehouse/migrations/0001_initial.sql), [vistas OLTP](../../apps/api/prisma/migrations/20261008010000_bi_export_views/migration.sql), [entrada ETL](../../apps/api/src/modules/business-intelligence/etl.cli.ts), [operación y permisos](../operations/17_business_intelligence_etl.md). Migrador independiente con `--apply`, ledger SHA-256 e identidad separada; nunca se invoca desde ETL/HTTP. Conteos de extracción completada se conservan incluso si falla publicación; logs sólo técnicos. Se actualizan contexto, contrato, diccionario y arquitectura distinguiendo implementación local del despliegue.
+
+**Límites y preservación:** no se ejecutaron `prisma migrate deploy`/`db push`, ni SQL sobre bases persistentes. No se modificaron schema Prisma, infraestructura, paquete raíz, lockfile ni hooks; sólo se añadieron scripts al paquete API, sin dependencias. Se preservó una modificación de formato ajena en `rate-limit.service.ts`. No se creó commit. Sin benchmark de capacidad, aislamiento físico productivo, métricas, backup/restauración o panel: pertenecen a fase 4. Revisar planes de consulta e índices de paginación del origen real durante esa prueba de carga; la fixture no representa su distribución ni todos sus índices. Los dos servidores de prueba se detienen al cerrar la validación.
+
+**Estado de ejecución:** fase 3 terminada. No iniciar fase 4 sin el ACK intermedio que exige `AGENTS.md`. El siguiente ACK autoriza panel/observabilidad/validación de fase 4, no infraestructura ni aplicación de migraciones persistentes.
 
 **Review humano (ACK):** pendiente.
 

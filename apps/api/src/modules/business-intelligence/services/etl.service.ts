@@ -1,0 +1,90 @@
+import { SourceRepository } from '../repositories/source.repository';
+import { WarehouseRepository } from '../repositories/warehouse.repository';
+import { EtlError, hourUtc, type EtlResult, type Lease, type SourceSnapshot } from '../etl.types';
+
+export class EtlService {
+  constructor(private readonly source: SourceRepository, private readonly warehouse: WarehouseRepository) {}
+
+  async *cycle(signal?: AbortSignal): AsyncGenerator<EtlResult> {
+    let cursor: string | null = null;
+    while (!signal?.aborted) {
+      const ids = await this.source.tenantIds(cursor);
+      if (!ids.length) return;
+      for (const tenantId of ids) {
+        if (signal?.aborted) return;
+        try { yield await this.runTenant(tenantId, signal); }
+        catch { yield { tenantId, status: 'failed', code: 'BI_ETL_FAILED' }; }
+      }
+      cursor = ids.at(-1)!;
+    }
+  }
+
+  async runTenant(tenantId: string, signal?: AbortSignal): Promise<EtlResult> {
+    let slot = hourUtc(new Date());
+    let failure: EtlResult | undefined;
+    // Persistent attempt limits survive restarts. This bound also prevents clock-skew loops.
+    for (let attempt = 0; attempt < 3 && !signal?.aborted; attempt += 1) {
+      const lease = await this.warehouse.claim(tenantId, slot);
+      if (!lease) return failure ?? { tenantId, status: 'skipped' };
+      const outcome = await this.load(lease, signal);
+      if (outcome.result.status === 'succeeded') return outcome.result;
+      failure = outcome.result;
+      slot = outcome.nextSlot ?? hourUtc(new Date());
+    }
+    return failure ?? { tenantId, status: 'skipped' };
+  }
+
+  private async load(lease: Lease, signal?: AbortSignal): Promise<{ result: EtlResult; nextSlot?: Date }> {
+    let lost = false;
+    let heartbeat: Promise<void> | undefined;
+    let snapshot: SourceSnapshot | undefined;
+    let nextSlot: Date | undefined;
+    const check = () => {
+      if (lost) throw new EtlError('BI_LEASE_LOST');
+      if (signal?.aborted || Date.now() >= lease.deadline) throw new EtlError('BI_DEADLINE_EXCEEDED');
+    };
+    const timer = setInterval(() => {
+      if (heartbeat) return;
+      heartbeat = this.warehouse.heartbeat(lease).then(live => { if (!live) lost = true; })
+        .catch(() => { lost = true; }).finally(() => { heartbeat = undefined; });
+    }, 20000);
+    const stop = async () => { clearInterval(timer); await heartbeat; };
+    try {
+      const counts = await this.source.extract(lease.tenantId, {
+        snapshot: async value => {
+          check();
+          if (value.tenantId !== lease.tenantId) throw new EtlError('BI_SOURCE_INCONSISTENT');
+          if (hourUtc(value.at).getTime() !== lease.slot.getTime()) {
+            nextSlot = hourUtc(value.at);
+            throw new EtlError('BI_SLOT_CHANGED');
+          }
+          snapshot = value;
+          await this.warehouse.snapshot(lease, value);
+          check();
+        },
+        categories: async rows => { check(); await this.warehouse.categories(lease, rows); check(); },
+        testimonials: async rows => { check(); await this.warehouse.testimonials(lease, rows); check(); },
+        events: async rows => { check(); await this.warehouse.events(lease, rows); check(); },
+      }, lease.deadline);
+      await stop();
+      check();
+      if (!snapshot) throw new EtlError('BI_SOURCE_INCONSISTENT');
+      await this.warehouse.extracted(lease, counts);
+      check();
+      await this.warehouse.publish(lease, snapshot, counts);
+      return { result: { tenantId: lease.tenantId, runId: lease.runId, status: 'succeeded' } };
+    } catch (error) {
+      await stop();
+      // A lost connection after COMMIT is not proof of failure. Resolve durable outcome first.
+      try {
+        if (await this.warehouse.status(lease) === 'succeeded') {
+          return { result: { tenantId: lease.tenantId, runId: lease.runId, status: 'succeeded' } };
+        }
+      } catch { /* Unreachable destination: leave lease/staging for fenced recovery. */ }
+      const code = error instanceof EtlError ? error.code : 'BI_ETL_FAILED';
+      try { await this.warehouse.fail(lease, code); } catch { /* Recovery after lease expiry. */ }
+      const result: EtlResult = { tenantId: lease.tenantId, runId: lease.runId, status: 'failed', code };
+      return nextSlot ? { result, nextSlot } : { result };
+    } finally { clearInterval(timer); }
+  }
+}

@@ -117,7 +117,7 @@ export class AnalyticsRepository {
     return { views, clicks, plays };
   }
 
-  async getEngagementCounts(testimonialIds: string[]): Promise<Map<string, { views: number; clicks: number }>> {
+  async getEngagementCounts(tenantId: string, testimonialIds: string[]): Promise<Map<string, { views: number; clicks: number }>> {
     const result = new Map<string, { views: number; clicks: number }>();
     if (!testimonialIds.length) return result;
 
@@ -127,7 +127,7 @@ export class AnalyticsRepository {
 
     const counts = await this.prisma.analyticsEvent.groupBy({
       by: ['testimonialId', 'eventTypeId'],
-      where: { testimonialId: { in: testimonialIds } },
+      where: { tenantId, testimonialId: { in: testimonialIds }, testimonial: { tenantId } },
       _count: true,
     });
 

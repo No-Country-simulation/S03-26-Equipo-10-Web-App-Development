@@ -47,7 +47,7 @@ export class AnalyticsService {
     return this.analyticsRepo.getTestimonialMetrics(tenantId, testimonialId);
   }
 
-  getEngagementCounts(testimonialIds: string[]) {
-    return this.analyticsRepo.getEngagementCounts(testimonialIds);
+  getEngagementCounts(tenantId: string, testimonialIds: string[]) {
+    return this.analyticsRepo.getEngagementCounts(tenantId, testimonialIds);
   }
 }

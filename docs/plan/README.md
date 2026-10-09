@@ -100,7 +100,7 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 | [`2026-10-05_docs-correccion-skills-web.md`](./2026-10-05_docs-correccion-skills-web.md) | `Completado` | Corrección HITL de nueve skills web; cuatro fases cerradas con ACK |
 | [`2026-10-05_docs-alineacion-skill-seo-accesibilidad.md`](./2026-10-05_docs-alineacion-skill-seo-accesibilidad.md) | `Completado` | Alineación HITL de la décima skill web: SEO y accesibilidad; tres fases revisadas con ACK |
 | [`2026-10-05_fix-remediacion-codigo-web.md`](./2026-10-05_fix-remediacion-codigo-web.md) | `Completado` | Remediación HITL del código Next.js y NestJS frente a las diez skills web; seis fases cerradas con ACK y límites de integración documentados |
-| [`2026-10-08_feat-foto-empresa-bi.md`](./2026-10-08_feat-foto-empresa-bi.md) | `En Progreso` | Logo implementado; cierre de fase 2 pendiente de ACK. Warehouse/BI en fases 3–4 |
+| [`2026-10-08_feat-foto-empresa-bi.md`](./2026-10-08_feat-foto-empresa-bi.md) | `En Progreso` | Logo y ETL implementados; fase 3 terminada pendiente de ACK. Panel/observabilidad en fase 4 |
 
 ---
 

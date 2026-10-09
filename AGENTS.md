@@ -108,6 +108,7 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 | `testimonials/` | Lifecycle de testimonios, moderación, scoring, tags, categorías |
 | `webhooks/` | Outbox transaccional, polling, delivery HTTP, reintentos, HMAC signing |
 | `analytics/` | Tracking de vistas y clicks en widgets |
+| `business-intelligence/` | ETL horario independiente y migrador DW; endpoint/panel pendientes de fase 4 |
 | `api-keys/` | Gestión de API Keys para acceso público |
 | `feature-flags/` | Feature toggles por tenant |
 | `health/` | Liveness + readiness probes |

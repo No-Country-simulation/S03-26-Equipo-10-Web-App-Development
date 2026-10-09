@@ -17,12 +17,19 @@ export class RateLimitService {
   constructor(private readonly redis: RedisStoreService) {}
 
   /** Comprueba todas las dimensiones y las consume en un único comando atómico. */
-  async assertWithinLimit(keys: string[], limit: number, windowSeconds: number,
-    message = 'Too many requests'): Promise<void> {
+  async assertWithinLimit(
+    keys: string[],
+    limit: number,
+    windowSeconds: number,
+    message = 'Too many requests',
+  ): Promise<void> {
     const client = await this.redis.connection();
-    const exceeded = Number(await client.eval(TAKE_QUOTA, {
-      keys, arguments: [String(limit), String(windowSeconds * 1000)],
-    }));
+    const exceeded = Number(
+      await client.eval(TAKE_QUOTA, {
+        keys,
+        arguments: [String(limit), String(windowSeconds * 1000)],
+      }),
+    );
     if (exceeded > 0) throw new RateLimitedError(message, 'TOO_MANY_REQUESTS');
   }
 }

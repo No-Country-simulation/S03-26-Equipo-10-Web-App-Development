@@ -1,12 +1,12 @@
 # Diccionario dimensional: Testimonial DW
 
-**Fecha:** 2026-10-08. **Estado:** propuesto; SQL no aplicado.
+**Fecha:** 2026-10-08. **Estado:** migración implementada y probada en PostgreSQL descartable; no aplicada a bases persistentes.
 
 **Motor:** PostgreSQL 18, base `testimonial_dw` en instancia separada.
 
 **Decisión:** [ADR 0004](../adr/0004-warehouse-postgresql-separado.md).
 
-**DDL revisable:** [Borrador warehouse](../plan/2026-10-08_feat-foto-empresa-bi_warehouse-borrador.sql).
+**DDL vigente:** [Migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql). El [borrador de fase 1](../plan/2026-10-08_feat-foto-empresa-bi_warehouse-borrador.sql) conserva el diagnóstico inicial. [Operación ETL](../operations/17_business_intelligence_etl.md).
 
 ## Entidades, claves y granularidad
 
