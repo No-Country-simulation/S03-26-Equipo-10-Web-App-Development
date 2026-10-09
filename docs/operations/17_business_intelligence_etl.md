@@ -4,6 +4,8 @@
 
 Referencias: [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [contrato BI](../modules/api-business-intelligence.md), [diccionario dimensional](../domain/warehouse_diccionario_de_datos.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md).
 
+**Transición temporal:** 0002/0003 y el backfill están preparados; el escritor compatible todavía está pendiente de fase 2. Los comandos de este runbook se limitan a 0001. Para evolucionar el historial, seguir el [procedimiento temporal](19_bi_snapshot_time_migration.md); no aplicar 0003 y luego iniciar el escritor anterior.
+
 ## Artefactos y conexiones
 
 - [Migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql): 15 tablas en `staging`, `dw`, `etl`; versionado independiente de Prisma. No hay FK entre servidores.
@@ -60,7 +62,7 @@ Los siguientes comandos se muestran para el operador; esta fase no los ejecuta s
 
 ```sh
 # Sólo tras ACK de mantenimiento, con BI_MIGRATION_DATABASE_URL:
-npm run bi:migrate --workspace=@testimonial-cms/api -- --apply
+npm run bi:migrate --workspace=@testimonial-cms/api -- --apply --to 0001_initial.sql
 
 # Carga manual única, con BI_SOURCE_DATABASE_URL y BI_ETL_DATABASE_URL:
 npm run bi:etl --workspace=@testimonial-cms/api -- --once
@@ -72,7 +74,7 @@ npm run bi:etl --workspace=@testimonial-cms/api
 npm run bi:etl:prod --workspace=@testimonial-cms/api
 ```
 
-El migrador busca `warehouse/migrations` desde el directorio del workspace API. El artefacto de mantenimiento debe incluir esos archivos; el proceso compilado puede invocarse desde `apps/api` con `node dist/modules/business-intelligence/migration.cli.js --apply`. No se modificó la imagen Docker ni Compose. El ledger guarda SHA-256 del archivo exacto: repetir una versión idéntica no aplica DDL; modificar una ya aplicada se rechaza como `BI_MIGRATION_DRIFT`. Añadir una migración nueva para evolucionar el esquema. El parser inicial admite DDL con comentarios de línea y literales/identificadores entre comillas, no cuerpos dollar-quoted ni comentarios de bloque.
+El migrador busca `warehouse/migrations` desde el directorio del workspace API. El artefacto de mantenimiento debe incluir esos archivos; el proceso compilado puede invocarse desde `apps/api` con `node dist/modules/business-intelligence/migration.cli.js --apply --to 0001_initial.sql`. No se modificó la imagen Docker ni Compose. El ledger guarda SHA-256 del archivo exacto: repetir una versión idéntica no aplica DDL; modificar una ya aplicada se rechaza como `BI_MIGRATION_DRIFT`. Añadir una migración nueva para evolucionar el esquema. El parser inicial admite DDL con comentarios de línea y literales/identificadores entre comillas, no cuerpos dollar-quoted ni comentarios de bloque.
 
 La carga procesa una empresa por vez y páginas de 1 000 filas en una transacción origen `REPEATABLE READ READ ONLY`. Filtra todos los recursos por empresa. Usa BigInt para IDs y conteos, y Decimal para score. El destino agrega interacciones, mantiene snapshots publicados y reemplaza sólo la serie de engagement de esa empresa. También publica empresas vacías o inactivas.
 

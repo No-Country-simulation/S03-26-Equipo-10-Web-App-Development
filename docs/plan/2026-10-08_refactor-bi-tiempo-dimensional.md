@@ -1,12 +1,12 @@
 # Plan HITL: tiempo dimensional de los snapshots BI
 
 **Fecha:** 2026-10-08.
-**Estado:** propuesta para revisión; sólo se creó este plan. Implementación y migraciones pendientes.
-**Origen:** mejora posterior al [plan de logo y BI](2026-10-08_feat-foto-empresa-bi.md). El pedido actual autoriza explicar y planificar, no desplegar.
+**Estado:** fase 1 implementada y validada localmente; fase 2 pendiente de ACK intermedio. Sin migraciones persistentes.
+**Origen:** mejora posterior al [plan de logo y BI](2026-10-08_feat-foto-empresa-bi.md). El pedido «Implementa el plan» autorizó ejecutar la fase 1 conforme al flujo HITL; no autoriza desplegar ni agrupar fases.
 
 ## Contexto y Restricciones
 
-- Respetar [AGENTS.md](../../AGENTS.md): ejecutar una fase por vez, entregar evidencia y commit sugerido y esperar ACK intermedio. La fase 1 queda señalada como próxima fase de implementación, todavía sin ejecutar.
+- Respetar [AGENTS.md](../../AGENTS.md): ejecutar una fase por vez, entregar evidencia y commit sugerido y esperar ACK intermedio. La fase 1 terminó; la fase 2 espera ese ACK.
 - Aplicar las skills de SQL relacional y buenas prácticas PostgreSQL. Para código, revisar además las de API, TypeScript y observabilidad correspondientes.
 - Warehouse PostgreSQL 18 con migraciones propias: no modificar `schema.prisma`, migraciones aplicadas, infraestructura, paquete raíz ni hooks. No ejecutar `prisma migrate deploy` ni `db push`.
 - Todo recurso privado se consulta y relaciona con `tenant_id`. Los inventarios globales del migrador son operaciones explícitas de mantenimiento, sin exposición HTTP y con verificaciones por empresa.
@@ -145,17 +145,17 @@ Antes de 0003 puede volverse al lector anterior dejando datos/columnas aditivas,
 
 ## 5. Fases HITL
 
-### `[Actual — pendiente de ACK para implementar]` Fase 1: evolución del warehouse e historial
+### `[Completada]` Fase 1: evolución del warehouse e historial
 
-- Preparar 0002/0003, migrador con destino, backfill reanudable/check y preflight de cierre.
-- Probar instalación nueva y actualización de fixture 0001 con historial, cortes vacíos y errores controlados.
-- Probar repetición, interrupción y reanudación del backfill; checksum de 0001 sin cambios y cierre prematuro rechazado.
-- No ejecutar contra bases persistentes. Actualizar evidencia y detenerse.
+- [x] Preparar 0002/0003, migrador con destino, backfill reanudable/check y preflight de cierre.
+- [x] Probar instalación nueva y actualización de fixture 0001 con historial, cortes vacíos y errores controlados.
+- [x] Probar repetición, interrupción y reanudación del backfill; checksum de 0001 sin cambios y cierre prematuro rechazado.
+- [x] No ejecutar contra bases persistentes. Actualizar evidencia y detenerse.
 
 **Salida:** esquema e historial convertibles de forma verificable en PostgreSQL descartable.
 **Commit sugerido:** `feat(bi): incorporá el tiempo dimensional y la migración de snapshots`.
 
-### `[Pendiente]` Fase 2: publicación y lectura dimensional
+### `[Pendiente — requiere ACK intermedio]` Fase 2: publicación y lectura dimensional
 
 - Adaptar publicador para cabecera/detalle/fecha/publicación atómicos; conservar fencing, reintentos y conciliación.
 - Adaptar DashboardRepository para consultas sólo `dw.*`; contrato HTTP/UI sin cambios funcionales.
@@ -189,7 +189,7 @@ Antes de 0003 puede volverse al lector anterior dejando datos/columnas aditivas,
 9. Publicación concurrente durante lectura BI: respuesta consistente sin mezclar cabecera nueva y detalles antiguos.
 10. Restauración de warehouse actualizado conserva ambos hechos, fechas, FK, ledger y equivalencia de consultas. No alcanza con restaurar sólo 0001.
 
-## 7. Evidencia de planificación y referencias
+## 7. Evidencia de planificación y referencias (previa a implementación)
 
 Revisión estática del DDL, publicador, lector, migrador y tests actuales. Detectados dos puntos que afectan el diseño: snapshots vacíos hoy representados por runs exitosos, y CLI migrador que aplica todos los archivos sin pausa. Este documento no cambia aplicaciones, SQL ejecutable ni bases; no se ejecutaron tests de implementación.
 
@@ -198,3 +198,16 @@ Revisión estática del DDL, publicador, lector, migrador y tests actuales. Dete
 - [Diccionario vigente](../domain/warehouse_diccionario_de_datos.md), [contrato BI](../modules/api-business-intelligence.md), [runbook actual](../operations/18_business_intelligence_rollout.md).
 
 **Commit sugerido de esta entrega documental:** `docs(bi): planificá el tiempo dimensional de los snapshots`.
+
+## 8. Evidencia de fase 1
+
+- Añadidos 0002/0003 sin cambiar 0001: cabecera por corte incluso vacío, instante/fecha UTC en detalle, calendario y relación compuesta con cabecera. No se añadieron índices sin medición.
+- Migrador con `--to` validado y preflight del cierre dentro de la transacción DDL/ledger. Backfill manual `--check` o `--apply --maintenance`, sin arranque automático ni acceso OLTP.
+- Conversión por lotes de hasta 1 000 filas, verificación de columnas originales, reanudación e idempotencia. Preflight por tenant antes de escribir; bloqueo ante conflictos, actividad ETL y leases incluso vencidos. Locks acotados y revalidación protegen cada lote; se exige detener workers durante toda la ventana.
+- **46 pruebas pasaron en cuatro suites**: 15 nuevas de integración temporal, tres unitarias temporales, 10 unitarias ETL y 18 de integración BI existentes. PostgreSQL 18 descartable para source/warehouse; bases aleatorias de integración eliminadas al terminar.
+- API typecheck/lint/build aprobados; dos advertencias lint preexistentes en archivos ajenos a esta fase. Sin cambios en Prisma, infraestructura, dependencias, paquete raíz ni hooks; sin migraciones persistentes.
+- Procedimiento y límites documentados en [runbook temporal](../operations/19_bi_snapshot_time_migration.md). Las instrucciones anteriores de migración quedan acotadas a 0001 hasta completar la transición compatible.
+
+**Límite de entrega:** publicador/dashboard conservan el comportamiento previo. 0003 es un artefacto probado, no habilitado para despliegue con ese escritor. Fases 2/3 deben completar lectura/publicación dimensional, permisos, capacidad y restauración del warehouse actualizado. La fase 2 requiere ACK intermedio.
+
+**Commit sugerido:** `feat(bi): incorporá el tiempo dimensional y la migración de snapshots`.

@@ -4,6 +4,8 @@
 
 Referencias: [contrato](../modules/api-business-intelligence.md), [permisos y ETL](17_business_intelligence_etl.md), [plan](../plan/2026-10-08_feat-foto-empresa-bi.md), [resultado JSON](18_business_intelligence_benchmark.json), [benchmark reproducible](../../apps/api/test/bi-load-benchmark.ts).
 
+**Transición temporal:** este runbook describe el sistema con 0001. La evolución 0002/0003 requiere el [procedimiento de mantenimiento temporal](19_bi_snapshot_time_migration.md) y un escritor compatible de fase 2, todavía pendiente. No aplicar todas las nuevas migraciones con el publicador anterior.
+
 ## API, panel y aislamiento
 
 `GET /api/v1/bi/dashboard` usa sesión JWT y roles admin/editor; deriva la empresa de la sesión y rechaza `tenantId` y parámetros desconocidos. La pantalla `/admin/business-intelligence` usa el layout y menú administrativos, adaptador validado y transporte de sesión vigente. Sólo envía fechas. El inventario se obtiene del último corte; la serie diaria toma el último corte de cada día y mantiene NULL donde no hubo carga. Los eventos son strings decimales, con formato BigInt en el navegador; CTR sin vistas es «Sin datos».
@@ -78,7 +80,7 @@ Asignar responsable, severidad y canal externo durante el despliegue. No se cre�
 ## Habilitación con ACK del entorno
 
 1. Registrar SLO y capacidad aprobados, ubicación de dos instancias con recursos independientes, relojes UTC sincronizados, TLS/red, backups y responsables. Separar credenciales extractor/escritor/lector/migrador y verificar permisos negativos del [runbook ETL](17_business_intelligence_etl.md).
-2. Mantener `BI_ENABLED=false`. Aplicar migraciones OLTP de logo/vistas mediante el procedimiento vigente y migraciones DW mediante `bi:migrate -- --apply`, sólo con ACK explícito. Verificar ledger/checksum y existencia de las cuatro vistas. HTTP/ETL nunca migran al arrancar.
+2. Mantener `BI_ENABLED=false`. Aplicar migraciones OLTP de logo/vistas mediante el procedimiento vigente y migraciones DW mediante `bi:migrate -- --apply --to 0001_initial.sql`, sólo con ACK explícito. Verificar ledger/checksum y existencia de las cuatro vistas. HTTP/ETL nunca migran al arrancar. Para versiones posteriores, usar el procedimiento temporal enlazado arriba; el destino no revierte versiones ya aplicadas.
 3. Ejecutar ETL `--once`. Conciliar conteos del origen en su corte, agregados diarios y snapshots por empresa, incluido origen vacío; comprobar pointer asociado a un run succeeded y ausencia de staging pendiente. No usar el estado OLTP de un instante posterior como si fuera el mismo corte.
 4. Preparar backup/restauración y monitoreo, probar interrupción OLAP manteniendo liveness/readiness/captura/moderación operacionales. Revisar `BI_DATABASE_URL` como lector y denegación efectiva de escritura/staging/ledger. No entregar ninguna credencial al navegador.
 5. Activar supervisor horario ETL y `BI_ENABLED=true` en HTTP mediante cambio autorizado del entorno. Reiniciar el proceso HTTP al cambiar esas variables (se leen al construir providers). Comprobar admin/editor de dos empresas, rangos, cortes/CTR, actualización y respuesta privada; revisar freshness tras dos horas.

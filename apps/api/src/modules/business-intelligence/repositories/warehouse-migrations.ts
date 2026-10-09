@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { EtlError } from '../etl.types';
+import { requireSnapshotTimeExpansion, verifySnapshotTimeHistory } from './snapshot-time-validation';
 
 /** Initial DDL grammar: quoted strings/identifiers and comments; function bodies are deliberately unsupported. */
 export function migrationStatements(sql: string): string[] {
@@ -35,6 +36,7 @@ export async function applyWarehouseMigration(client: PrismaClient, version: str
   return client.$transaction(async tx => {
     await tx.$executeRaw`SET LOCAL lock_timeout = '1s'`;
     await tx.$executeRaw`SET LOCAL statement_timeout = '30s'`;
+    await tx.$executeRaw`SET LOCAL transaction_timeout = '35s'`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(543001)`;
     const [ledger] = await tx.$queryRaw<Array<{ exists: boolean }>>`SELECT to_regclass('etl.schema_migrations') IS NOT NULL AS exists`;
     if (ledger?.exists) {
@@ -45,6 +47,12 @@ export async function applyWarehouseMigration(client: PrismaClient, version: str
         return false;
       }
     } else if (version !== '0001_initial.sql') throw new EtlError('BI_MIGRATION_INVALID');
+    if (version === '0003_snapshot_time_constraints.sql') {
+      await requireSnapshotTimeExpansion(tx);
+      await tx.$executeRaw`LOCK TABLE etl.runs, etl.tenant_load_state IN SHARE MODE`;
+      await tx.$executeRaw`LOCK TABLE dw.fact_testimonial_snapshot, dw.fact_tenant_snapshot IN SHARE ROW EXCLUSIVE MODE`;
+      await verifySnapshotTimeHistory(tx, true);
+    }
     for (const statement of statements) await tx.$executeRawUnsafe(statement);
     await tx.$executeRaw`INSERT INTO etl.schema_migrations (version, checksum) VALUES (${version}, ${checksum})`;
     return true;

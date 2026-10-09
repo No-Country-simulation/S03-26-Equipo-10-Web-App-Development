@@ -3,7 +3,8 @@ import type { Prisma } from '@prisma/client';
 export class EtlError extends Error {
   constructor(readonly code: 'BI_CONFIGURATION_INVALID' | 'BI_ETL_FAILED' | 'BI_LEASE_LOST'
     | 'BI_SOURCE_INCONSISTENT' | 'BI_SOURCE_NOT_NEWER' | 'BI_DEADLINE_EXCEEDED' | 'BI_SLOT_CHANGED'
-    | 'BI_MIGRATION_DRIFT' | 'BI_MIGRATION_INVALID') {
+    | 'BI_MIGRATION_DRIFT' | 'BI_MIGRATION_INVALID' | 'BI_BACKFILL_REQUIRED'
+    | 'BI_BACKFILL_INCONSISTENT' | 'BI_MAINTENANCE_REQUIRED' | 'BI_BACKFILL_INTERRUPTED') {
     super(code);
   }
 }
