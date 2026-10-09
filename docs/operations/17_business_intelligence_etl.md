@@ -4,11 +4,11 @@
 
 Referencias: [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [contrato BI](../modules/api-business-intelligence.md), [diccionario dimensional](../domain/warehouse_diccionario_de_datos.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md).
 
-**Transición temporal:** 0002/0003, backfill y escritor/lector compatibles están implementados y probados localmente. El código actual requiere el esquema temporal; no iniciar ETL/dashboard con sólo 0001. Para evolucionar un historial existente, seguir el [procedimiento temporal](19_bi_snapshot_time_migration.md). La validación de capacidad y preparación final de despliegue quedan para la fase 3; el escritor anterior es incompatible con 0003.
+**Transición temporal:** 0002/0003, backfill y escritor/lector compatibles están implementados y probados localmente. El código actual requiere el esquema temporal; no iniciar ETL/dashboard con sólo 0001. Para evolucionar un historial existente, seguir el [procedimiento temporal](19_bi_snapshot_time_migration.md). La [validación temporal](20_bi_snapshot_time_validation.md) registra capacidad sintética, costos y restauración; aceptación productiva sigue pendiente. El escritor anterior es incompatible con 0003.
 
 ## Artefactos y conexiones
 
-- [Migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql): 15 tablas en `staging`, `dw`, `etl`; versionado independiente de Prisma. No hay FK entre servidores.
+- [Base warehouse 0001](../../apps/api/warehouse/migrations/0001_initial.sql) más 0002/0003: 16 tablas en `staging`, `dw`, `etl`; versionado independiente de Prisma. No hay FK entre servidores. El detalle tiene instante/fecha UTC y una cabecera por corte, incluso vacío.
 - [Migración de exportación OLTP](../../apps/api/prisma/migrations/20261008010000_bi_export_views/migration.sql): cuatro vistas `bi_export`. Permiten proyectar presencia de medios y normalizar fuentes sin conceder al extractor acceso a URLs ni al texto libre original.
 - [Entrada ETL](../../apps/api/src/modules/business-intelligence/etl.cli.ts): configuración, logger y dos clientes Prisma independientes. No importa AppModule ni inicia HTTP, outbox, scoring o Redis.
 - [Migrador warehouse](../../apps/api/src/modules/business-intelligence/migration.cli.ts): proceso manual separado; necesita `--apply` y credenciales propias. El ETL y el arranque HTTP no ejecutan migraciones.
@@ -44,7 +44,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
     staging.categories, staging.testimonials, staging.analytics_events,
     dw.dim_date, dw.dim_tenant, dw.dim_testimonial, dw.dim_category,
     dw.dim_status, dw.dim_source, dw.dim_event_type,
-    dw.fact_testimonial_snapshot, dw.fact_engagement_daily,
+    dw.fact_tenant_snapshot, dw.fact_testimonial_snapshot, dw.fact_engagement_daily,
     etl.runs, etl.tenant_load_state TO bi_etl_writer;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA dw TO bi_etl_writer;
 

@@ -161,8 +161,30 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       SELECT last_published_run_id AS "runId" FROM etl.tenant_load_state WHERE tenant_id = ${tenantId}::uuid`;
     return state?.runId;
   }
-  it('restores a consistent warehouse backup including facts, pointers and migration ledger', async () => {
+  it('restores the complete temporal warehouse with empty cuts, calendar, constraints, ledger and dashboard parity', async () => {
     expect((await service.runTenant(tenantA)).status).toBe('succeeded');
+    await movePreviousCutBack();
+    await sourceAdmin.$executeRaw`DELETE FROM analytics_events WHERE tenant_id = ${tenantA}::uuid`;
+    await sourceAdmin.$executeRaw`DELETE FROM testimonials WHERE tenant_id = ${tenantA}::uuid`;
+    expect((await service.runTenant(tenantA)).status).toBe('succeeded');
+    expect((await service.runTenant(tenantB)).status).toBe('succeeded');
+    const empty = randomUUID();
+    await sourceAdmin.$executeRaw`INSERT INTO tenants (id, name) VALUES (${empty}::uuid, 'Synthetic restored empty')`;
+    expect((await service.runTenant(empty)).status).toBe('succeeded');
+    const tenants = [tenantA, tenantB, empty];
+    const day = new Date().toISOString().slice(0, 10); const range = { from: day, to: day, timezone: 'UTC' as const };
+    const normalize = (result: Awaited<ReturnType<DashboardRepository['dashboard']>>) => ({ ...result,
+      freshness: { ...result.freshness, dataAgeSeconds: null } });
+    const expected = await Promise.all(tenants.map(async id => normalize(await dashboard.dashboard(id, range))));
+    const digest = (db: PrismaClient) => db.$transaction(async tx => {
+      await tx.$executeRaw`SET LOCAL timezone = 'UTC'`;
+      return tx.$queryRaw`SELECT
+        (SELECT md5(string_agg(to_jsonb(h)::text, ',' ORDER BY tenant_id, run_id)) FROM dw.fact_tenant_snapshot h) AS headers,
+        (SELECT md5(string_agg(to_jsonb(f)::text, ',' ORDER BY tenant_id, run_id, testimonial_id)) FROM dw.fact_testimonial_snapshot f) AS details,
+        (SELECT md5(string_agg(to_jsonb(d)::text, ',' ORDER BY date_key)) FROM dw.dim_date d) AS calendar,
+        (SELECT md5(string_agg(to_jsonb(m)::text, ',' ORDER BY version)) FROM etl.schema_migrations m) AS ledger`;
+    });
+    const expectedDigest = await digest(targetAdmin);
     const published = await current();
     const restoredDb = `bi_restore_${suffix}`;
     const directory = await mkdtemp(join(tmpdir(), 'tms-bi-restore-'));
@@ -173,6 +195,8 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       PGPORT: parsed.port || '5432', PGUSER: decodeURIComponent(parsed.username),
       PGPASSWORD: decodeURIComponent(parsed.password), PGDATABASE: targetDb };
     let restored: PrismaClient | undefined;
+    let restoredReader: PrismaClient | undefined;
+    let restoredBi: BiConnection | undefined;
     try {
       await promisify(execFile)('pg_dump', ['--format=custom', '--no-owner', '--no-acl', '--file', archive], { env: backupEnv });
       await parentTarget.$executeRawUnsafe(`CREATE DATABASE "${restoredDb}"`);
@@ -181,11 +205,38 @@ databaseTests('hourly ETL with two PostgreSQL servers and restricted identities'
       const [check] = await restored.$queryRaw<Array<{ pointer: string; snapshots: bigint; events: string }>>`
         SELECT s.last_published_run_id AS pointer,
           (SELECT count(*) FROM dw.fact_testimonial_snapshot f WHERE f.tenant_id = s.tenant_id AND f.run_id = s.last_published_run_id) AS snapshots,
-          (SELECT sum(event_count)::text FROM dw.fact_engagement_daily f WHERE f.tenant_id = s.tenant_id) AS events
+          (SELECT coalesce(sum(event_count), 0)::text FROM dw.fact_engagement_daily f WHERE f.tenant_id = s.tenant_id) AS events
         FROM etl.tenant_load_state s WHERE s.tenant_id = ${tenantA}::uuid`;
-      expect(check).toEqual({ pointer: published, snapshots: 2n, events: '3' });
-      expect(await applyWarehouseMigration(restored, '0001_initial.sql', warehouseSql)).toBe(false);
+      expect(check).toEqual({ pointer: published, snapshots: 0n, events: '0' });
+      expect(await digest(restored)).toEqual(expectedDigest);
+      expect(await restored.$queryRaw`SELECT count(*) AS count FROM dw.fact_tenant_snapshot`).toEqual([{ count: 4n }]);
+      const constraints = (db: PrismaClient) => db.$queryRaw`SELECT conname, convalidated FROM pg_constraint c
+        JOIN pg_namespace n ON n.oid = c.connamespace WHERE n.nspname = 'dw' ORDER BY conname`;
+      expect(await constraints(restored)).toEqual(await constraints(targetAdmin));
+      await expect(restored.$executeRaw`UPDATE dw.fact_testimonial_snapshot SET snapshot_at = NULL WHERE tenant_id = ${tenantB}::uuid`).rejects.toThrow();
+      await expect(restored.$executeRaw`UPDATE dw.fact_testimonial_snapshot SET run_id = ${published}::uuid WHERE tenant_id = ${tenantB}::uuid`).rejects.toThrow();
+      // --no-acl intentionally omits permissions; recover only the reader's required privileges.
+      await restored.$executeRawUnsafe(`GRANT USAGE ON SCHEMA dw TO "${dashboardRole}"`);
+      await restored.$executeRawUnsafe(`GRANT SELECT ON ALL TABLES IN SCHEMA dw TO "${dashboardRole}"`);
+      restoredReader = client(targetAdminUrl!, restoredDb, dashboardRole, 1);
+      await expect(restoredReader.$executeRaw`DELETE FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenantA}::uuid`).rejects.toThrow();
+      await expect(restoredReader.$queryRaw`SELECT version FROM etl.schema_migrations`).rejects.toThrow();
+      await expect(restoredReader.$queryRaw`SELECT testimonial_id FROM staging.testimonials WHERE tenant_id = ${tenantA}::uuid`).rejects.toThrow();
+      const previousEnabled = process.env.BI_ENABLED; const previousUrl = process.env.BI_DATABASE_URL;
+      try {
+        const parsed = new URL(targetAdminUrl!); parsed.pathname = `/${restoredDb}`;
+        parsed.username = dashboardRole; parsed.password = '';
+        process.env.BI_ENABLED = 'true'; process.env.BI_DATABASE_URL = parsed.toString(); restoredBi = new BiConnection();
+      } finally {
+        if (previousEnabled === undefined) delete process.env.BI_ENABLED; else process.env.BI_ENABLED = previousEnabled;
+        if (previousUrl === undefined) delete process.env.BI_DATABASE_URL; else process.env.BI_DATABASE_URL = previousUrl;
+      }
+      const restoredDashboard = new DashboardRepository(restoredBi);
+      expect(await Promise.all(tenants.map(async id => normalize(await restoredDashboard.dashboard(id, range))))).toEqual(expected);
+      await installBiWarehouse(restored); // All three ledger checksums survive restore unchanged.
     } finally {
+      await restoredBi?.onModuleDestroy();
+      await restoredReader?.$disconnect();
       await restored?.$disconnect();
       await parentTarget.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${restoredDb}" WITH (FORCE)`);
       await rm(directory, { recursive: true, force: true });

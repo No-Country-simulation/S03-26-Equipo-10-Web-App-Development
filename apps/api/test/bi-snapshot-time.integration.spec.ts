@@ -74,6 +74,25 @@ databaseTests('snapshot time evolution on disposable PostgreSQL 18', () => {
   }
   async function expandedSeed() { const runs = await seed(); await apply('0002_snapshot_time_expand.sql'); return runs; }
 
+  it('bounds maintenance lock waits and resumes after a conflicting transaction is released', async () => {
+    await expandedSeed();
+    const blocker = new PrismaClient({ datasources: { db: { url } } });
+    let locked!: () => void; let release!: () => void;
+    const started = new Promise<void>(resolve => { locked = resolve; });
+    const resume = new Promise<void>(resolve => { release = resolve; });
+    const pending = blocker.$transaction(async tx => {
+      await tx.$executeRaw`LOCK TABLE etl.runs IN ROW EXCLUSIVE MODE`; locked(); await resume;
+    }, { timeout: 15000 });
+    const settled = pending.then(() => undefined, () => undefined);
+    try {
+      await Promise.race([started, pending.then(() => { throw new Error('Expected maintenance blocker'); })]);
+      await expect(repository.apply()).rejects.toMatchObject({ code: 'P2010', meta: expect.objectContaining({ code: '55P03' }) });
+      expect(await client.$queryRaw`SELECT count(*) AS count FROM dw.fact_tenant_snapshot`).toEqual([{ count: 0n }]);
+      release(); await pending;
+      expect(await repository.apply()).toMatchObject({ pendingRuns: 0n, pendingRows: 0n });
+    } finally { release(); await settled; await blocker.$disconnect(); }
+  });
+
   it('installs fresh, respects the CLI boundary and preserves the initial migration ledger', async () => {
     const previous = process.env.BI_MIGRATION_DATABASE_URL; const log = jest.spyOn(ConsoleLogger.prototype, 'log').mockImplementation(() => undefined);
     try {

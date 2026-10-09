@@ -108,7 +108,7 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 | `testimonials/` | Lifecycle de testimonios, moderación, scoring, tags, categorías |
 | `webhooks/` | Outbox transaccional, polling, delivery HTTP, reintentos, HMAC signing |
 | `analytics/` | Tracking de vistas y clicks en widgets |
-| `business-intelligence/` | ETL horario independiente, migrador DW, panel admin/editor y métricas técnicas; caída OLAP aislada del CMS |
+| `business-intelligence/` | ETL horario, migrador/backfill DW manual, snapshots con tiempo dimensional y cabecera de cortes vacíos; dashboard sólo `dw`, métricas técnicas `etl`; caída OLAP aislada del CMS |
 | `api-keys/` | Gestión de API Keys para acceso público |
 | `feature-flags/` | Feature toggles por tenant |
 | `health/` | Liveness + readiness probes |

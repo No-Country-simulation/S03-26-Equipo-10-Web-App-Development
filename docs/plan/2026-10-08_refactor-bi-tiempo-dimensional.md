@@ -1,12 +1,12 @@
 # Plan HITL: tiempo dimensional de los snapshots BI
 
 **Fecha:** 2026-10-08.
-**Estado:** fases 1/2 completadas; fase 3 pendiente de ACK intermedio. Sin migraciones persistentes.
+**Estado:** tres fases completadas con ACK intermedio; fase 3 terminada el 2026-10-09. Validación local descartable; sin migraciones ni despliegue persistentes.
 **Origen:** mejora posterior al [plan de logo y BI](2026-10-08_feat-foto-empresa-bi.md). El pedido «Implementa el plan» autorizó ejecutar la fase 1 conforme al flujo HITL; no autoriza desplegar ni agrupar fases.
 
 ## Contexto y Restricciones
 
-- Respetar [AGENTS.md](../../AGENTS.md): ejecutar una fase por vez, entregar evidencia y commit sugerido y esperar ACK intermedio. El ACK «Continua» autorizó sólo la fase 2, ahora terminada; la fase 3 espera otro ACK.
+- Respetar [AGENTS.md](../../AGENTS.md): ejecutar una fase por vez, entregar evidencia y commit sugerido y esperar ACK intermedio. El ACK «Continua» autorizó sólo la fase 2, ahora terminada; el ACK «Continuar» del 2026-10-09 autoriza la fase 3.
 - Aplicar las skills de SQL relacional y buenas prácticas PostgreSQL. Para código, revisar además las de API, TypeScript y observabilidad correspondientes.
 - Warehouse PostgreSQL 18 con migraciones propias: no modificar `schema.prisma`, migraciones aplicadas, infraestructura, paquete raíz ni hooks. No ejecutar `prisma migrate deploy` ni `db push`.
 - Todo recurso privado se consulta y relaciona con `tenant_id`. Los inventarios globales del migrador son operaciones explícitas de mantenimiento, sin exposición HTTP y con verificaciones por empresa.
@@ -16,7 +16,7 @@
 
 ## 1. Problema y beneficio esperado
 
-El [hecho de testimonios](../../apps/api/warehouse/migrations/0001_initial.sql) almacena `run_id`, pero no el instante/fecha de observación. El [dashboard](../../apps/api/src/modules/business-intelligence/repositories/dashboard.repository.ts) consulta `etl.runs` para seleccionar cortes diarios, obtener el inicio del historial y calcular frescura. Una tabla de control de cargas actúa así como fuente temporal de negocio.
+En el diagnóstico inicial, el [hecho de testimonios](../../apps/api/warehouse/migrations/0001_initial.sql) almacenaba `run_id`, pero no el instante/fecha de observación. El dashboard consultaba `etl.runs` para seleccionar cortes diarios, obtener el inicio del historial y calcular frescura. Una tabla de control de cargas actuaba así como fuente temporal de negocio. Las fases completadas sustituyen ese acceso por hechos de `dw`.
 
 El objetivo es que **las consultas analíticas del dashboard lean únicamente `dw.*`**, incluido el tiempo observado. `etl.*` continúa administrando intentos, leases, reintentos, pointer y métricas técnicas. `run_id` permanece como trazabilidad y conserva sus referencias: este cambio no autoriza purgar `etl.runs`.
 
@@ -121,7 +121,7 @@ Estrategia recomendada: **expandir → completar historial → validar → cambi
 - `apps/api/warehouse/migrations/0002_snapshot_time_expand.sql`: cabecera nueva y dos columnas nullable en detalle. Sin modificación de `0001_initial.sql` ni de su checksum.
 - Entrada manual `snapshot-time-backfill.cli.ts` bajo `business-intelligence`, con `--check` de sólo lectura y `--apply` explícito. Usa identidad migradora, nunca se inicia desde HTTP/ETL ni lee OLTP. Sin dependencias nuevas.
 - `0003_snapshot_time_constraints.sql`: cierre de nulabilidad, CHECK, FK e índices aprobados; cierre impedido si el historial no está conciliado.
-- Extender el CLI migrador con selección validada `--to 0002_snapshot_time_expand.sql`, rechazando versiones desconocidas y conservando checksum/orden/lock de migraciones. Hoy aplica todos los archivos seguidos: necesita poder detenerse antes del backfill.
+- Extender el CLI migrador con selección validada `--to 0002_snapshot_time_expand.sql`, rechazando versiones desconocidas y conservando checksum/orden/lock de migraciones. En el diagnóstico inicial aplicaba todos los archivos seguidos; la fase 1 incorpora la pausa antes del backfill.
 
 ### Procedimiento de datos
 
@@ -165,13 +165,13 @@ Antes de 0003 puede volverse al lector anterior dejando datos/columnas aditivas,
 **Salida:** misma respuesta funcional, incluyendo último corte vacío y horas ausentes, sin dependencia de SELECT sobre `etl.*` en el dashboard.
 **Commit sugerido:** `refactor(bi): consultá los cortes desde el modelo dimensional`.
 
-### `[Pendiente — requiere ACK intermedio]` Fase 3: validación integral y preparación operativa
+### `[Completada]` Fase 3: validación integral y preparación operativa
 
-- Ejecutar pruebas integradas de dos PostgreSQL y backup/restauración, HTTP/roles/aislamiento y tipos/build/lint pertinentes.
-- Comparar consultas y almacenamiento con historia de varios días/horas, múltiples tenants, cortes vacíos y categorías. Registrar planes, buffers y p95/p99 contra baseline con el mismo dataset/hardware; no afirmar mejora sin evidencia.
-- Medir backfill, locks, crecimiento de tablas/índices y duración de publicación. Si la ventana prevista no alcanza, ajustar el procedimiento antes de ofrecer despliegue.
-- Actualizar diccionario, contrato BI, ADR 0004, runbooks 17/18, contexto y plan con cambios implementados y límites reales. No declarar aquí que el código ya cambió.
-- Entregar comandos y checklist de mantenimiento con orden/roles/versión; detenerse antes de ejecutar sobre un entorno persistente.
+- [x] Ejecutar pruebas integradas de dos PostgreSQL y backup/restauración, HTTP/roles/aislamiento y tipos/build/lint pertinentes.
+- [x] Comparar consultas y almacenamiento con historia de varios días/horas, múltiples tenants, cortes vacíos y categorías. Registrar planes, buffers y p95/p99 contra baseline con el mismo dataset/hardware; no afirmar mejora sin evidencia.
+- [x] Medir backfill, locks, crecimiento de tablas/índices y duración de publicación. Condicionar la ventana y habilitación productivas a datos representativos y presupuesto acordado.
+- [x] Actualizar diccionario, contrato BI, ADR 0004, runbooks 17/18/19/20, contexto y plan con cambios implementados y límites reales.
+- [x] Entregar comandos y checklist de mantenimiento con orden/roles/versión; detenerse antes de ejecutar sobre un entorno persistente.
 
 **Salida:** evidencia, operación/reversión revisables y commit sugerido. Despliegue posterior requiere identificar entorno, ventana y ACK específico conforme a AGENTS.md.
 **Commit sugerido:** `test(bi): validá la evolución temporal y documentá su operación`.
@@ -226,4 +226,19 @@ Revisión estática del DDL, publicador, lector, migrador y tests actuales. Dete
 
 **Commit sugerido:** `refactor(bi): consultá los cortes desde el modelo dimensional`.
 
-**Siguiente fase:** validar integralmente y preparar la operación, sólo después del ACK intermedio conforme a AGENTS.md. Despliegue requiere además entorno, ventana y aprobación específicos.
+**Cierre histórico de fase 2:** se detuvo antes de validar integralmente y preparar la operación; el ACK «Continuar» habilitó la fase 3. Despliegue requiere además entorno, ventana y aprobación específicos.
+
+## 10. Evidencia de fase 3 y cierre del plan
+
+- ACK de inicio: «Continuar» del 2026-10-09. Checkout inicialmente limpio; se ejecutó sólo esta fase. Sin cambios en código de producción, migraciones SQL versionadas, Prisma, infraestructura, dependencias, paquete raíz ni hooks.
+- **58 pruebas aprobadas en seis suites** con dos PostgreSQL 18.6 descartables: 21 de integración ETL/BI, 16 de migración temporal, tres unitarias temporales, 10 unitarias ETL, cuatro de dashboard y cuatro HTTP/permisos/fallos. Tras reforzar permisos de restauración se repitieron las 21 de integración, también aprobadas. Typecheck, lint y build API aprobados; permanecen únicamente las dos advertencias lint preexistentes ajenas a esta fase.
+- Backup/restauración del warehouse actualizado: cuatro cortes de tres empresas, empresa siempre vacía y vacía posterior, digests de cabecera/detalle/calendario/ledger, constraints y checksums de las tres migraciones intactos. JSON completo equivalente con lector sólo `dw` tras reprovisionar permisos; escritura, staging y ledger denegados. No certifica PITR ni RPO/RTO productivos.
+- Nueva prueba de contención: lock ETL incompatible produce `55P03` sin cabeceras parciales; el backfill se reanuda al liberarlo. Se conservan los límites actuales y el mantenimiento obligatorio con workers detenidos.
+- [Benchmark dimensional](../operations/20_bi_snapshot_time_benchmark.json): tres empresas, siete días, 160 cortes y 98 000 detalles; expansión 50,27 ms, backfill 30,85 s y cierre 530,85 ms. Paridad del dashboard; p95 antiguo/nuevo 42,14/41,33 ms y p99 50,05/51,79 ms. Latencia similar en esta muestra, sin afirmar una mejora estadística.
+- Se midieron planes/buffers, índices candidatos, almacenamiento y publicación. Se conservan los índices actuales: candidatos descartables eliminados, costo de escritura no certificado. Detalle 21,96 → 38,22 MB tras backfill/VACUUM normal, incluida retención de espacio de actualización; cabecera 90 112 bytes. No extrapolar crecimiento o ventana linealmente.
+- [Impacto OLTP actual](../operations/20_bi_snapshot_time_oltp_benchmark.json): 12 000 testimonios/60 000 eventos iniciales, 449 → 338 solicitudes sin errores, tres tenants publicados en 69,19 s; mayor run 26,06 s. Aumenta latencia de las cuatro rutas medidas; capacidad productiva pendiente de SLO y datos representativos. BI 503 ante caída OLAP, liveness/readiness/listado 200 con ejecutor sin checker residente; se preserva también el primer ensayo liveness 503 y su limitación en el informe, sin cambiar umbrales.
+- [Informe y checklist](../operations/20_bi_snapshot_time_validation.md), [orden de mantenimiento/reversión](../operations/19_bi_snapshot_time_migration.md), diccionario, módulo, ADR 0004, arquitectura, runbooks 17/18 y contexto actualizados. Bases/roles de pruebas eliminados y ambos PostgreSQL descartables detenidos al finalizar.
+
+**Plan completado localmente.** No hay otra fase de implementación pendiente. La habilitación persistente exige entorno, backup restaurable, ventana, presupuesto de rendimiento y ACK específico; si la reconciliación completa no cumple, requiere captura incremental antes de producción.
+
+**Commit sugerido:** `test(bi): validá la evolución temporal y documentá su operación`.

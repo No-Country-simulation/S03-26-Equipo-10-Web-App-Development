@@ -4,7 +4,7 @@
 
 Referencias: [contrato](../modules/api-business-intelligence.md), [permisos y ETL](17_business_intelligence_etl.md), [plan](../plan/2026-10-08_feat-foto-empresa-bi.md), [resultado JSON](18_business_intelligence_benchmark.json), [benchmark reproducible](../../apps/api/test/bi-load-benchmark.ts).
 
-**Transición temporal:** el benchmark y la evidencia original de este runbook corresponden a 0001. El código actual incluye escritor/lector temporal de fase 2 y requiere 0002/0003. Seguir el [procedimiento de mantenimiento temporal](19_bi_snapshot_time_migration.md); no aplicar el cierre con el publicador anterior ni ejecutar el código actual sobre sólo 0001. La nueva medición de capacidad y validación integral quedan pendientes de fase 3.
+**Transición temporal:** el benchmark original de este runbook corresponde a 0001. El código actual requiere 0002/0003. Seguir el [procedimiento de mantenimiento temporal](19_bi_snapshot_time_migration.md); no aplicar el cierre con el publicador anterior ni ejecutar el código actual sobre sólo 0001. La [validación temporal del 2026-10-09](20_bi_snapshot_time_validation.md) registra la nueva medición y restauración; no sustituye aceptar capacidad/SLO del entorno productivo.
 
 ## API, panel y aislamiento
 

@@ -143,8 +143,10 @@ async function main() {
     process.env.BI_ENABLED = 'true'; process.env.BI_DATABASE_URL = connection(targetUrl, `absent_${suffix}`, 2);
     app = await createApi(); const secondBase = await app.getUrl();
     const statuses = new Map<string, number>();
+    let liveness: unknown;
     for (const route of ['/bi/dashboard', '/health/live', '/health/ready', '/testimonials?limit=20']) {
-      statuses.set(route, (await fetch(`${secondBase}/api/v1${route}`, { headers })).status);
+      const response = await fetch(`${secondBase}/api/v1${route}`, { headers }); statuses.set(route, response.status);
+      if (route === '/health/live') liveness = await response.json() as unknown;
     }
     const stringifyStats = (row: typeof ioStart) => row ? { sharedHits: row.hits.toString(), sharedReads: row.reads.toString(), tempBytes: row.writes.toString() } : null;
     const report = { generatedAt: new Date().toISOString(), node: process.version, postgres: '18.6', hostCpuLogical: cpus().length,
@@ -155,7 +157,8 @@ async function main() {
       baseline: { ...baseline, postgresBackendCpuMs: baselinePostgresCpuMs }, withEtl: { ...withEtl, postgresBackendCpuMs: withEtlPostgresCpuMs },
       etl: { statuses: results, cycleMs: etlCycleMs, maxTenantRunMs: snapshotTime?.maxMs, phases },
       ioCumulative: { start: stringifyStats(ioStart), baseline: stringifyStats(ioBaseline), withEtlStart: stringifyStats(ioWithStart), afterEtl: stringifyStats(ioAfter) },
-      extractionPlan: plan?.['QUERY PLAN'], olapUnavailableHttp: Object.fromEntries(statuses) };
+      extractionPlan: plan?.['QUERY PLAN'], olapUnavailableHttp: Object.fromEntries(statuses),
+      liveness, runner: { typescriptTranspileOnly: process.env.TS_NODE_TRANSPILE_ONLY === 'true', heapUsedBytes: process.memoryUsage().heapUsed } };
     process.stdout.write(JSON.stringify(report, null, 2) + '\n');
   } catch { process.stderr.write(JSON.stringify({ code: 'BI_BENCH_FAILED', stage }) + '\n'); process.exitCode = 1; }
   finally {

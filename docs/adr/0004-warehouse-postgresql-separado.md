@@ -6,9 +6,11 @@
 
 **Plan:** [Foto de empresa y BI](../plan/2026-10-08_feat-foto-empresa-bi.md).
 
+**Evolución temporal (2026-10-09):** [plan de tiempo dimensional](../plan/2026-10-08_refactor-bi-tiempo-dimensional.md). Los hechos incorporan instante/fecha de observación y cabecera por tenant/corte, incluidos vacíos. El dashboard lee sólo `dw`, mientras control y métricas siguen en `etl`. La separación OLTP/OLAP y el proceso horario se conservan. Migración con mantenimiento BI, backfill explícito y cierre validado; sin despliegue persistente autorizado.
+
 ## Contexto
 
-El CMS persiste testimonios, autenticación, outbox y eventos de interacción en PostgreSQL. La analítica actual agrupa las tablas operacionales; no existe warehouse. El usuario requiere tendencias por empresa y eligió instancias separadas en producción, actualización horaria y cortes del estado observado. No hay volumetría de producción medida.
+El CMS persiste testimonios, autenticación, outbox y eventos de interacción en PostgreSQL. En el diagnóstico inicial, la analítica agrupaba las tablas operacionales y no existía warehouse. El usuario requiere tendencias por empresa y eligió instancias separadas en producción, actualización horaria y cortes del estado observado. No hay volumetría de producción medida.
 
 La base OLTP conserva el estado actual del testimonio, su creación y eventual publicación; no un historial completo de transiciones. La captura anónima y la moderación deben seguir disponibles aunque falle BI.
 
@@ -21,6 +23,8 @@ La base OLTP conserva el estado actual del testimonio, su creación y eventual p
 5. Empezar con reconciliación completa por empresa cada hora. Publicar staging y dimensiones/hechos de forma atómica, usando lease con token de fencing. Los consumidores leen sólo resultados publicados.
 6. Mantener autorización y filtro tenant en NestJS; admin y editor consultan su empresa. No introducir un dashboard global del operador ni clientes SQL en el navegador. Métricas agregadas técnicas globales, sin identidades de empresas, se exponen únicamente al monitoreo mediante token de operación.
 7. Usar identidades distintas para lectura del origen, escritura ETL y lectura BI. La API transaccional no recibe las credenciales de extracción/escritura. Fallos de conexión warehouse no detienen el startup ni cambian la readiness operacional.
+8. Modelar explícitamente `snapshot_at` y `snapshot_date_key` en detalle y cabecera, relacionados con `dim_date`; conservar `run_id` para trazabilidad. `fact_tenant_snapshot` representa el corte vacío y evita depender de tablas operativas para el tiempo de negocio. Mantener FK de detalle a cabecera con tenant/run/instante/fecha. El total de cabecera es no aditivo entre cortes.
+9. El flujo combina transformaciones previas mínimas de proyección/normalización con carga en staging y transformación/agregación en destino: ETL/ELT pragmático, reconciliación completa por empresa. `staging/dw/etl` son responsabilidades de carga, modelo y control; no capas Bronze/Silver/Gold. El destino es dimensional con estrellas que comparten dimensiones y un hecho agregado de cortes, sin introducir medallón, cubos físicos ni minería predictiva.
 
 ## Alternativas consideradas
 

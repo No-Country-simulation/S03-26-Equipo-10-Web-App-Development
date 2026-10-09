@@ -1,6 +1,6 @@
 # Migración del tiempo dimensional BI
 
-**Estado:** fases 1/2 implementadas y validadas en PostgreSQL 18 descartable. No se aplicó a un entorno persistente. Publicador y dashboard compatibles incorporados; capacidad, mediciones y preparación operativa integral quedan para la fase 3. Este procedimiento prepara el mantenimiento; todavía no habilita despliegue.
+**Estado:** fases 1/2/3 implementadas y validadas localmente en PostgreSQL 18 descartable. No se aplicó a un entorno persistente. [Mediciones y restauración](20_bi_snapshot_time_validation.md) documentadas; capacidad/SLO del entorno productivo y ACK de despliegue siguen pendientes. Este procedimiento prepara el mantenimiento.
 
 **Referencias:** [plan HITL](../plan/2026-10-08_refactor-bi-tiempo-dimensional.md), [expansión 0002](../../apps/api/warehouse/migrations/0002_snapshot_time_expand.sql), [cierre 0003](../../apps/api/warehouse/migrations/0003_snapshot_time_constraints.sql), [backfill](../../apps/api/src/modules/business-intelligence/repositories/snapshot-time-backfill.repository.ts), [validación](../../apps/api/src/modules/business-intelligence/repositories/snapshot-time-validation.ts).
 
@@ -10,7 +10,7 @@
 
 El migrador con `--apply` sin destino intenta todas las versiones disponibles. Usar `--to` para detener la expansión antes del backfill. El destino es un nombre exacto del repositorio, no una ruta. Versiones desconocidas y argumentos extra se rechazan. `--to` limita qué archivos se comprueban/aplican: no revierte versiones que ya consten en el ledger.
 
-Antes de un entorno persistente, identificar versión, volumen, ventana y ACK, verificar backup restaurable y completar la evidencia de las fases 2/3. Detener todos los workers/schedulers y deshabilitar temporalmente BI; captura y moderación OLTP siguen disponibles. Esperar la finalización de publicaciones. Cualquier run `running` o componente de lease no nulo, aunque esté vencido, bloquea el mantenimiento. Resolver intentos pendientes mediante la recuperación normal del ETL antes de la ventana; el backfill no borra runs ni limpia leases.
+Antes de un entorno persistente, identificar versión, volumen, ventana y ACK, verificar backup restaurable y aceptar la evidencia de capacidad/SLO del entorno objetivo. La evidencia local de fases 2/3 no la sustituye. Detener todos los workers/schedulers y deshabilitar temporalmente BI; captura y moderación OLTP siguen disponibles. Esperar la finalización de publicaciones. Cualquier run `running` o componente de lease no nulo, aunque esté vencido, bloquea el mantenimiento. Resolver intentos pendientes mediante la recuperación normal del ETL antes de la ventana; el backfill no borra runs ni limpia leases.
 
 Usar `BI_MIGRATION_DATABASE_URL` provista externamente, con identidad migradora del warehouse. No guardar su valor en documentación, contexto o logs. El CLI no usa la conexión OLTP, no inicia HTTP y no se ejecuta automáticamente desde el ETL.
 
@@ -52,7 +52,7 @@ Los comandos se ejecutan desde `apps/api`, con el runtime y dependencias ya disp
 
 6. Conceder privilegios explícitos de la nueva tabla al escritor (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) y al lector (`SELECT`) usando los nombres reales de roles del entorno. No asumir que un GRANT previo sobre todas las tablas cubre tablas futuras. La identidad extractora OLTP no requiere cambios. Fase 2 verificó DashboardRepository con un lector de acceso sólo a `dw`. La conexión runtime sigue compartida con métricas: conserva sus permisos sobre `etl.runs` y `etl.tenant_load_state`; no revocarlos por esa prueba. Separar identidades runtime requeriría configuración adicional fuera de esta entrega.
 
-7. Instalar los procesos compatibles, ejecutar un corte y verificar cabecera/detalles/metadata y paridad de consultas antes de habilitar BI y scheduler. La publicación y lectura se verificaron localmente en fase 2; aceptación del entorno, mediciones y restauración validada del esquema completo actualizado quedan pendientes de fase 3.
+7. Instalar los procesos compatibles, ejecutar un corte y verificar cabecera/detalles/metadata y paridad de consultas antes de habilitar BI y scheduler. Publicación, lectura y restauración completa se verificaron localmente; aceptar capacidad y recuperación en el entorno concreto antes de habilitarlo.
 
 ## Integridad, concurrencia y límites
 
@@ -62,7 +62,7 @@ El preflight completo precede a la primera escritura. Se comprueba cada tenant p
 
 Cada lote de escritura comparte el advisory lock del migrador y bloquea escritura sobre control ETL y hechos. Usa `READ COMMITTED` para observar los claims confirmados antes de adquirir esos locks. Los chequeos de sólo lectura usan `REPEATABLE READ READ ONLY`. Si un worker vuelve a reclamar entre lotes, el siguiente guard detiene la conversión y conserva su run. Estos locks no reemplazan detener workers durante toda la ventana.
 
-Una conexión migradora; `statement_timeout=30s`, `lock_timeout=1s`, `transaction_timeout=35s`, timeout Prisma de 35s y espera de conexión de 5s. El chequeo completo también debe caber en esos límites. No aumentarlos sin medir el entorno y revisar el mantenimiento. No se añadieron índices especulativos: EXPLAIN, costos de escritura, tamaño y duración con volumen representativo se evalúan en fase 3.
+Una conexión migradora; `statement_timeout=30s`, `lock_timeout=1s`, `transaction_timeout=35s`, timeout Prisma de 35s y espera de conexión de 5s. El chequeo completo también debe caber en esos límites. No aumentarlos sin medir el entorno y revisar el mantenimiento. La [evaluación sintética](20_bi_snapshot_time_validation.md) conserva los índices actuales; nuevos índices requieren evidencia del entorno y una migración independiente.
 
 Antes de 0003 se puede conservar el esquema expandido y el lector anterior con ETL detenido. Después del cierre, volver al código escritor anterior requiere una migración correctiva autorizada o restauración verificada. `--to 0002` no es rollback. Ante fallo, mantener BI deshabilitado y conservar el historial; no ejecutar DROP/CASCADE ni borrar metadatos para forzar el cierre.
 
@@ -76,7 +76,7 @@ Typecheck, lint y build API pasaron. Lint conserva dos advertencias preexistente
 npm test --workspace apps/api -- --runTestsByPath test/bi-snapshot-time.integration.spec.ts test/bi-snapshot-time.spec.ts test/bi-etl.spec.ts
 ```
 
-La regresión `test/bi-postgres.integration.spec.ts` requiere además `TEST_BI_SOURCE_DATABASE_URL` descartable. Esta evidencia inicial no certifica capacidad productiva ni la restauración integral del esquema nuevo, pendientes de fase 3. La lectura/publicación dimensional tiene evidencia adicional de fase 2 a continuación.
+La regresión `test/bi-postgres.integration.spec.ts` requiere además `TEST_BI_SOURCE_DATABASE_URL` descartable. Esta evidencia inicial no certifica capacidad productiva. Fase 2 agrega lectura/publicación dimensional y fase 3 comprueba restauración integral y mediciones locales.
 
 ## Cambios y verificación de fase 2
 
@@ -86,4 +86,4 @@ DashboardRepository usa exclusivamente `dw` para elegir último corte global, ú
 
 Las fixtures de integración/benchmark instalan todas las versiones en bases nuevas vacías. Las fechas históricas de prueba se reconstruyen junto con run, calendario, cabecera y detalles dentro de una transacción respetando FK inmediatas; el runtime no modifica cortes históricos. Se comprobaron publicación normal y vacía, igualdad de marca terminal, rollback, reintentos, pérdida de lease/COMMIT, límites UTC, contrato JSON completo, lectura limitada a `dw`, métricas con permisos técnicos y publicación durante una lectura consistente.
 
-El resultado final de tests/typecheck/lint/build queda registrado en la [evidencia del plan](../plan/2026-10-08_refactor-bi-tiempo-dimensional.md). No se cambió infraestructura, Prisma, dependencias ni configuración de identidades runtime. No hay migraciones persistentes. Las mediciones de índices, capacidad y duración y la validación integral del despliegue corresponden a fase 3.
+El resultado final de tests/typecheck/lint/build queda registrado en la [evidencia del plan](../plan/2026-10-08_refactor-bi-tiempo-dimensional.md). No se cambió infraestructura, Prisma, dependencias ni configuración de identidades runtime. No hay migraciones persistentes. [Fase 3](20_bi_snapshot_time_validation.md) documenta mediciones, restauración, límites y checklist de aceptación; el despliegue persistente requiere su propio ACK.

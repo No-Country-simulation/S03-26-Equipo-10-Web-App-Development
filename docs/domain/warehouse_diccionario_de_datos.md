@@ -1,12 +1,12 @@
 # Diccionario dimensional: Testimonial DW
 
-**Fecha:** 2026-10-08. **Estado:** migración implementada y probada en PostgreSQL descartable; no aplicada a bases persistentes.
+**Fecha:** 2026-10-09. **Estado:** modelo temporal implementado y probado en PostgreSQL descartable; no aplicado a bases persistentes.
 
 **Motor:** PostgreSQL 18, base `testimonial_dw` en instancia separada.
 
 **Decisión:** [ADR 0004](../adr/0004-warehouse-postgresql-separado.md).
 
-**DDL vigente:** [Migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql). El [borrador de fase 1](../plan/2026-10-08_feat-foto-empresa-bi_warehouse-borrador.sql) conserva el diagnóstico inicial. [Operación ETL](../operations/17_business_intelligence_etl.md).
+**DDL vigente:** [base 0001](../../apps/api/warehouse/migrations/0001_initial.sql), [expansión 0002](../../apps/api/warehouse/migrations/0002_snapshot_time_expand.sql) y [cierre 0003](../../apps/api/warehouse/migrations/0003_snapshot_time_constraints.sql), 16 tablas entre `staging`, `dw` y `etl`. El [borrador inicial](../plan/2026-10-08_feat-foto-empresa-bi_warehouse-borrador.sql) conserva el diagnóstico histórico. [Operación ETL](../operations/17_business_intelligence_etl.md) y [migración temporal](../operations/19_bi_snapshot_time_migration.md).
 
 ## Entidades, claves y granularidad
 
@@ -21,7 +21,8 @@ Los IDs fuente son UUID de identidades técnicas; no incorporar identidades de a
 | `dw.dim_status` | PK `status_code: text` | Código estable del catálogo operacional; no asumir coincidencia de IDs autoincrementales entre servidores. |
 | `dw.dim_source` | PK `source_key: bigint`; UNIQUE `(tenant_id, source_key)` y `(tenant_id, code)` | Origen técnico de interacción, propio de una empresa. No convertirlo en identidad de visitante. |
 | `dw.dim_event_type` | PK `event_type_key: bigint`; UNIQUE `code` | Código de tipo de evento; el panel contabiliza `view`, `click`, `play`. |
-| `dw.fact_testimonial_snapshot` | PK `(tenant_id, run_id, testimonial_id)` | Una fila por testimonio observado en un corte exitoso. Categoría, estado, rating 1–5, score numeric(10,4), creación, publicación opcional y booleanos de imagen/video. El instante del corte se obtiene de `etl.runs`. |
+| `dw.fact_testimonial_snapshot` | PK `(tenant_id, run_id, testimonial_id)` | Una fila por testimonio observado en un corte exitoso. `snapshot_at: timestamptz(3) NOT NULL` y `snapshot_date_key: date NOT NULL`, FK directa a calendario. Categoría, estado, rating 1–5, score numeric(10,4), creación, publicación opcional y booleanos de imagen/video. |
+| `dw.fact_tenant_snapshot` | PK `(tenant_id, run_id)`; UNIQUE `(tenant_id, run_id, snapshot_at, snapshot_date_key)` | Una cabecera por empresa/corte publicado, incluso vacío. `snapshot_at: timestamptz(3)`, `snapshot_date_key: date` FK a calendario, `published_at: timestamptz(3)` terminal y `testimonial_count: bigint >= 0`; todos NOT NULL. FK a tenant y a `(tenant_id, id)` del run. |
 | `dw.fact_engagement_daily` | PK `(tenant_id, testimonial_id, date_key, source_key, event_type_key)` | Cantidad `bigint > 0` de eventos disponibles en origen. Referencia `last_reconciled_run_id` para trazabilidad de la carga que reemplazó la serie. |
 | `etl.runs` | PK `id: uuid`; UNIQUE `(tenant_id, slot_at, attempt_no)` | Intento de carga: `running/succeeded/failed/abandoned`, inicio/fin, corte fuente, cantidades de origen/destino y código de error técnico. Un índice parcial permite sólo un éxito por empresa y hora. |
 | `etl.tenant_load_state` | PK `tenant_id` | Lease `(lease_run_id, lease_token, lease_until)` y `last_published_run_id`. Pointer durable del corte vigente, incluso con cero testimonios/eventos. |
@@ -29,7 +30,9 @@ Los IDs fuente son UUID de identidades técnicas; no incorporar identidades de a
 
 `slot_at` es el inicio de la hora UTC que identifica la ejecución. `source_snapshot_at` es el instante real observado al abrir la transacción fuente; nunca se presenta la hora redondeada como instante exacto del snapshot. La base exige el slot UTC y un corte fuente dentro de él. Reintentos de una hora sólo se admiten mientras sigan dentro de esa hora; si ya pasó, se marca el intento fallido/abandonado y se observa la hora corriente.
 
-`run_id` conserva el corte y la trazabilidad sin duplicar timestamps en cada hecho. La clave única de hechos por run evita duplicación. `etl.runs` exitoso existe aunque ambas tablas de hechos tengan cero filas.
+`run_id` conserva trazabilidad; no es la fuente temporal de las consultas del dashboard. Cabecera y detalles comparten `snapshot_at` y su fecha UTC mediante FK compuesta `(tenant_id, run_id, snapshot_at, snapshot_date_key)`. CHECK exige `snapshot_date_key = (snapshot_at AT TIME ZONE 'UTC')::date`, sin defaults que inventen observaciones. `published_at` de cabecera coincide con el `finished_at` terminal del run, después de limpiar staging; no representa el instante exacto de COMMIT.
+
+Un corte exitoso siempre tiene cabecera. Con cero testimonios tiene cantidad 0 y ningún detalle; una hora no observada no tiene cabecera. La igualdad de cantidad y detalles se verifica mediante publicación atómica/conciliación, no mediante un CHECK de fila. Se conservan las FK a `etl.runs`; este diseño no autoriza purgar el ledger referenciado.
 
 ## Staging permitido
 
@@ -55,7 +58,12 @@ erDiagram
     DIM_TESTIMONIAL ||--o{ FACT_TESTIMONIAL_SNAPSHOT : observa
     DIM_CATEGORY ||--o{ FACT_TESTIMONIAL_SNAPSHOT : categoria_observada
     DIM_STATUS ||--o{ FACT_TESTIMONIAL_SNAPSHOT : estado_observado
-    ETL_RUN ||--o{ FACT_TESTIMONIAL_SNAPSHOT : corte
+    DIM_DATE ||--o{ FACT_TESTIMONIAL_SNAPSHOT : fecha_corte
+    DIM_TENANT ||--o{ FACT_TENANT_SNAPSHOT : observa
+    DIM_DATE ||--o{ FACT_TENANT_SNAPSHOT : fecha_corte
+    FACT_TENANT_SNAPSHOT ||--o{ FACT_TESTIMONIAL_SNAPSHOT : detalle_del_corte
+    ETL_RUN ||--o{ FACT_TENANT_SNAPSHOT : trazabilidad
+    ETL_RUN ||--o{ FACT_TESTIMONIAL_SNAPSHOT : trazabilidad
     DIM_TESTIMONIAL ||--o{ FACT_ENGAGEMENT_DAILY : recibe
     DIM_DATE ||--o{ FACT_ENGAGEMENT_DAILY : fecha_evento
     DIM_SOURCE ||--o{ FACT_ENGAGEMENT_DAILY : origen
@@ -65,17 +73,17 @@ erDiagram
 
 ## Semántica y borrados
 
-- Snapshots: hechos aditivos entre testimonios del mismo corte; **no aditivos en el tiempo**. Para evolución diaria, seleccionar un único run exitoso por fecha y tenant, el de mayor `source_snapshot_at`.
+- Snapshots: hechos aditivos entre testimonios del mismo corte; **no aditivos en el tiempo**. Para evolución diaria, seleccionar una cabecera por fecha y tenant, la de mayor `snapshot_at`, con desempate estable por `run_id`. La cabecera es un hecho agregado; el modelo conserva dimensiones conformadas y no es una arquitectura medallón.
 - Interacciones: conteos diarios por fecha del evento en UTC; reconciliación completa reemplaza la serie de la empresa con el estado disponible en origen. No existe promesa de conteos históricos que el origen ya no conserva.
 - CTR: dividir la suma de clics por la suma de vistas del rango; no promediar CTR por día. Cero vistas da NULL, presentado como «Sin datos».
 - Categorías: distribución actual tomada del último snapshot completo. La categoría observada en cada corte conserva su identidad; un cambio de nombre se refleja con el nombre actual.
-- Empresa vacía: resumen en cero, rating y CTR NULL, distribuciones vacías; actualización conocida mediante el run. Empresa nunca cargada: metadatos de carga NULL, estado `not_loaded`.
+- Empresa vacía: inventario cero, rating NULL y distribuciones vacías; actualización conocida mediante cabecera. Engagement es independiente del inventario y conserva los eventos disponibles del rango; CTR es NULL sólo sin vistas. Empresa nunca cargada: metadatos de carga NULL, estado `not_loaded`.
 - Desaparición de testimonios: la dimensión queda `is_present=false`, el próximo snapshot no contiene ese testimonio; los snapshots anteriores se conservan. Borrados de eventos se reflejan al reconciliar interacciones.
 - Una eliminación legal/expresa de historia requiere un procedimiento específico de purga y tratamiento de respaldos. El borrado operacional no dispara una purga implícita.
 - No copiar tags en v1: agregarlas como puente sin regla de agregación podría multiplicar métricas al hacer joins. No hay sentimiento, embeddings, visitantes únicos, ventas ni predicciones en este modelo.
 
 ## Índices y crecimiento
 
-Las PK/UNIQUE cubren las identidades y el acceso por tenant/run. Se añade índice por `(tenant_id, date_key)` para rangos de engagement y por `(tenant_id, source_snapshot_at)` de cargas exitosas para resolver cortes diarios. Revisar `EXPLAIN (ANALYZE, BUFFERS)` de consultas reales antes de añadir índices por rating/estado/categoría o particiones.
+Las PK/UNIQUE cubren identidades y acceso por tenant/run. 0001 conserva el índice `(tenant_id, date_key)` de engagement y el índice parcial de runs exitosos `(tenant_id, source_snapshot_at DESC, id)` para control técnico. Dashboard ya no usa ese índice de runs. La evaluación temporal compara índices de cabecera y detalle por fecha en bases descartables; no se añade un índice sin justificar costo y acceso en el entorno objetivo. No retirar índices existentes por esta separación. Calendar FK inversa y purgas globales deben medirse específicamente: un prefijo tenant no garantiza acceso eficiente por fecha para todo el warehouse.
 
 No hay retención automática inicial. Medir filas, bytes y duración por carga; el historial horario crece con la cantidad de testimonios multiplicada por los cortes exitosos.

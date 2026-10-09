@@ -1,0 +1,365 @@
+{
+  "generatedAt": "2026-10-09T13:15:46.601Z",
+  "node": "v24.21.0",
+  "postgres": "18.6",
+  "hostCpuLogical": 4,
+  "hostMemoryBytes": 8191959040,
+  "dataset": {
+    "tenants": 3,
+    "testimonials": 12000,
+    "events": 60000
+  },
+  "concurrency": 4,
+  "roundMs": 8000,
+  "postgresSettings": {
+    "sharedBuffers": "32MB",
+    "sourceMaxConnections": 30,
+    "targetMaxConnections": 20
+  },
+  "pools": {
+    "api": 8,
+    "extraction": 1,
+    "publication": 2
+  },
+  "limitations": [
+    "same physical host; no resource isolation certificate",
+    "synthetic data and warm cache",
+    "Redis quotas/cache replaced by a test adapter",
+    "DDL generated from Prisma plus export views, not the full historical migration chain",
+    "PostgreSQL block counters are not physical disk IO",
+    "no agreed production SLO"
+  ],
+  "baseline": {
+    "durationMs": 8039.556461,
+    "overlapRequests": 0,
+    "nodeCpuMs": 10806.172,
+    "nodeRssBytes": 897966080,
+    "routes": [
+      {
+        "route": "/testimonials?limit=20",
+        "requests": 122,
+        "errors": 0,
+        "p95Ms": 75.72101500000281,
+        "p99Ms": 120.7555429999993
+      },
+      {
+        "route": "/analytics/dashboard",
+        "requests": 122,
+        "errors": 0,
+        "p95Ms": 90.01991999999882,
+        "p99Ms": 139.4299350000001
+      },
+      {
+        "route": "/testimonials",
+        "requests": 121,
+        "errors": 0,
+        "p95Ms": 116.4206020000056,
+        "p99Ms": 185.25973099999828
+      },
+      {
+        "route": "/testimonials/:id/approve",
+        "requests": 121,
+        "errors": 0,
+        "p95Ms": 111.06468200000381,
+        "p99Ms": 149.81300599999668
+      }
+    ],
+    "postgresBackendCpuMs": 4200
+  },
+  "withEtl": {
+    "durationMs": 8050.533245999999,
+    "overlapRequests": 381,
+    "nodeCpuMs": 10039.861,
+    "nodeRssBytes": 907284480,
+    "routes": [
+      {
+        "route": "/testimonials?limit=20",
+        "requests": 96,
+        "errors": 0,
+        "p95Ms": 94.51547500000015,
+        "p99Ms": 225.31385600000067
+      },
+      {
+        "route": "/analytics/dashboard",
+        "requests": 95,
+        "errors": 0,
+        "p95Ms": 138.7954100000061,
+        "p99Ms": 319.67649399999937
+      },
+      {
+        "route": "/testimonials",
+        "requests": 95,
+        "errors": 0,
+        "p95Ms": 156.92654699999548,
+        "p99Ms": 619.5335269999996
+      },
+      {
+        "route": "/testimonials/:id/approve",
+        "requests": 95,
+        "errors": 0,
+        "p95Ms": 176.26467100000445,
+        "p99Ms": 611.6335090000066
+      }
+    ],
+    "postgresBackendCpuMs": 4120
+  },
+  "etl": {
+    "statuses": [
+      {
+        "status": "succeeded"
+      },
+      {
+        "status": "succeeded"
+      },
+      {
+        "status": "succeeded"
+      }
+    ],
+    "cycleMs": 51276.385822,
+    "maxTenantRunMs": 20059,
+    "phases": [
+      {
+        "phase": "extraction",
+        "durationMs": 4641,
+        "status": "succeeded",
+        "rows": {
+          "categories": "0",
+          "testimonials": "4000",
+          "events": "20000"
+        }
+      },
+      {
+        "phase": "publication",
+        "durationMs": 15304,
+        "status": "succeeded"
+      },
+      {
+        "phase": "extraction",
+        "durationMs": 2322,
+        "status": "succeeded",
+        "rows": {
+          "categories": "0",
+          "testimonials": "4095",
+          "events": "20000"
+        }
+      },
+      {
+        "phase": "publication",
+        "durationMs": 13111,
+        "status": "succeeded"
+      },
+      {
+        "phase": "extraction",
+        "durationMs": 2562,
+        "status": "succeeded",
+        "rows": {
+          "categories": "0",
+          "testimonials": "4000",
+          "events": "20000"
+        }
+      },
+      {
+        "phase": "publication",
+        "durationMs": 13123,
+        "status": "succeeded"
+      }
+    ]
+  },
+  "ioCumulative": {
+    "start": {
+      "sharedHits": "1557331",
+      "sharedReads": "77",
+      "tempBytes": "0"
+    },
+    "baseline": {
+      "sharedHits": "1658350",
+      "sharedReads": "77",
+      "tempBytes": "0"
+    },
+    "withEtlStart": {
+      "sharedHits": "1658523",
+      "sharedReads": "77",
+      "tempBytes": "0"
+    },
+    "afterEtl": {
+      "sharedHits": "1782148",
+      "sharedReads": "77",
+      "tempBytes": "0"
+    }
+  },
+  "extractionPlan": [
+    {
+      "Plan": {
+        "Node Type": "Limit",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 2501.52,
+        "Total Cost": 2504.02,
+        "Plan Rows": 1000,
+        "Plan Width": 8,
+        "Actual Startup Time": 7.555,
+        "Actual Total Time": 7.72,
+        "Actual Rows": 1000,
+        "Actual Loops": 1,
+        "Disabled": false,
+        "Shared Hit Blocks": 245,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0,
+        "Plans": [
+          {
+            "Node Type": "Sort",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 2501.52,
+            "Total Cost": 2551.51,
+            "Plan Rows": 19996,
+            "Plan Width": 8,
+            "Actual Startup Time": 7.553,
+            "Actual Total Time": 7.614,
+            "Actual Rows": 1000,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Sort Key": [
+              "analytics_events.event_id"
+            ],
+            "Sort Method": "top-N heapsort",
+            "Sort Space Used": 49,
+            "Sort Space Type": "Memory",
+            "Shared Hit Blocks": 245,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Subquery Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Alias": "analytics_events",
+                "Startup Cost": 223.26,
+                "Total Cost": 1405.16,
+                "Plan Rows": 19996,
+                "Plan Width": 8,
+                "Actual Startup Time": 0.657,
+                "Actual Total Time": 6.12,
+                "Actual Rows": 20000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 245,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Bitmap Heap Scan",
+                    "Parent Relationship": "Subquery",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "analytics_events",
+                    "Alias": "e",
+                    "Startup Cost": 223.26,
+                    "Total Cost": 1205.2,
+                    "Plan Rows": 19996,
+                    "Plan Width": 112,
+                    "Actual Startup Time": 0.656,
+                    "Actual Total Time": 4.358,
+                    "Actual Rows": 20000,
+                    "Actual Loops": 1,
+                    "Disabled": false,
+                    "Recheck Cond": "(tenant_id = '91ed737a-7361-4ad6-b865-b5f20673d676'::uuid)",
+                    "Rows Removed by Index Recheck": 0,
+                    "Filter": "(id > 0)",
+                    "Rows Removed by Filter": 0,
+                    "Exact Heap Blocks": 228,
+                    "Lossy Heap Blocks": 0,
+                    "Shared Hit Blocks": 245,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Bitmap Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Index Name": "idx_analytics_tenant_time",
+                        "Startup Cost": 0,
+                        "Total Cost": 218.26,
+                        "Plan Rows": 19996,
+                        "Plan Width": 0,
+                        "Actual Startup Time": 0.605,
+                        "Actual Total Time": 0.605,
+                        "Actual Rows": 20000,
+                        "Actual Loops": 1,
+                        "Disabled": false,
+                        "Index Cond": "(tenant_id = '91ed737a-7361-4ad6-b865-b5f20673d676'::uuid)",
+                        "Index Searches": 1,
+                        "Shared Hit Blocks": 17,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "Planning": {
+        "Shared Hit Blocks": 76,
+        "Shared Read Blocks": 0,
+        "Shared Dirtied Blocks": 0,
+        "Shared Written Blocks": 0,
+        "Local Hit Blocks": 0,
+        "Local Read Blocks": 0,
+        "Local Dirtied Blocks": 0,
+        "Local Written Blocks": 0,
+        "Temp Read Blocks": 0,
+        "Temp Written Blocks": 0
+      },
+      "Planning Time": 0.8,
+      "Triggers": [],
+      "Execution Time": 7.809
+    }
+  ],
+  "olapUnavailableHttp": {
+    "/bi/dashboard": 503,
+    "/health/live": 503,
+    "/health/ready": 200,
+    "/testimonials?limit=20": 200
+  }
+}
