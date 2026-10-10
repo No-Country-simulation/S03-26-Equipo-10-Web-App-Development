@@ -1,6 +1,6 @@
 # Contrato de operación BI
 
-**Fecha:** 2026-10-09. **Estado:** persistencia, worker y API operativa implementados (fases 1–3); pantallas adicionales pendientes de fase 4. [Plan](../plan/2026-10-09_feat-interfaces-operacion-bi.md). La bandera permanece desactivada por defecto; no hubo despliegue persistente ni consola web nueva.
+**Fecha:** 2026-10-09. **Estado:** persistencia, worker, API e interfaces implementados (fases 1–4); validación integral pendiente de fase 5. [Interfaz web](web-business-intelligence.md). [Plan](../plan/2026-10-09_feat-interfaces-operacion-bi.md). La bandera permanece desactivada por defecto; no hubo despliegue persistente.
 
 ## Roles, fronteras y disponibilidad
 
@@ -108,7 +108,7 @@ No activar operaciones antes de fases 2/3/4 y aceptación integral. Caída DW no
 
 ## Evidencia de persistencia
 
-Fase 1: 17 pruebas de integración PostgreSQL y cuatro unitarias nuevas; regresión BI completa de 79 casos. Ver [plan y resultados](../plan/2026-10-09_feat-interfaces-operacion-bi.md#evidencia-de-fase-1) y [operación/verificación del worker de fase2](../operations/21_bi_worker_operations.md). La fase 3 agrega59 pruebas (41 HTTP/integración y18 políticas), con roles SQL restringidos, alertas y bandera apagada; ver evidencia de su cierre en el plan. La UI y el costo de polling quedan para fases 4/5.
+Fase 1: 17 pruebas de integración PostgreSQL y cuatro unitarias nuevas; regresión BI completa de 79 casos. Ver [plan y resultados](../plan/2026-10-09_feat-interfaces-operacion-bi.md#evidencia-de-fase-1) y [operación/verificación del worker de fase2](../operations/21_bi_worker_operations.md). La fase 3 agrega59 pruebas (41 HTTP/integración y18 políticas), con roles SQL restringidos, alertas y bandera apagada; ver evidencia de su cierre en el plan. La fase 4 incorpora las interfaces, exportaciones y pruebas web; el costo del polling y la aceptación integral quedan para fase 5.
 
 Para reproducir planes, usar una base **descartable vacía** con 0001–0004 y ejecutar `psql -v ON_ERROR_STOP=1 -f apps/api/test/fixtures/bi-operations-plans.sql` con conexión local provista por operación. La fixture usa 100 empresas con 200 horas de historia y 500 solicitudes pendientes de empresas adicionales; hace ROLLBACK. No ejecutarla sobre un entorno persistente.
 

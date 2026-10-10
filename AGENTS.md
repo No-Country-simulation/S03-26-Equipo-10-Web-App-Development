@@ -108,7 +108,7 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 | `testimonials/` | Lifecycle de testimonios, moderación, scoring, tags, categorías |
 | `webhooks/` | Outbox transaccional, polling, delivery HTTP, reintentos, HMAC signing |
 | `analytics/` | Tracking de vistas y clicks en widgets |
-| `business-intelligence/` | Worker independiente con control durable 0004, frecuencias 1/6/24h UTC, solicitudes/leases y publicación atómica; migrador/backfill manual, snapshots temporales y cortes vacíos; dashboard sólo `dw`, métricas técnicas `etl`; API operativa admin/editor con control separado, alertas y vigencia configurable; UI ampliada pendiente, caída OLAP aislada del CMS |
+| `business-intelligence/` | Worker independiente con control durable 0004, frecuencias 1/6/24h UTC, solicitudes/leases y publicación atómica; migrador/backfill manual, snapshots temporales y cortes vacíos; dashboard sólo `dw`, métricas técnicas `etl`; API operativa admin/editor con control separado, alertas y vigencia configurable; UI admin/editor con historial, operación, configuración y CSV; validación integral pendiente, caída OLAP aislada del CMS |
 | `api-keys/` | Gestión de API Keys para acceso público |
 | `feature-flags/` | Feature toggles por tenant |
 | `health/` | Liveness + readiness probes |

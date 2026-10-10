@@ -1,6 +1,6 @@
 # Plan HITL: interfaces de consulta y administración BI
 
-**Fecha:** 2026-10-09. **Estado:** fase 3 terminada, pendiente de revisión y ACK para fase 4. **ACK:** «Continua» después del cierre de fase 2; autoriza exclusivamente la API operativa de fase 3. [Contrato detallado](../modules/api-bi-operations.md).
+**Fecha:** 2026-10-09. **Estado:** fase 4 terminada; pendiente de ACK para fase 5. **ACK:** «Continuar» después del cierre de fase 3; autoriza exclusivamente el frontend de fase 4. [Contrato detallado](../modules/api-bi-operations.md).
 
 ## Contexto y Restricciones
 
@@ -65,7 +65,7 @@ Integrar cola, programación y lock por tenant, origen/fase/extracción completa
 
 **Commit sugerido:** `feat(bi): integrá solicitudes y programación del ETL`.
 
-### [Actual] 3. API operativa
+### [Completada] 3. API operativa
 
 Agregar endpoints/DTOs/servicios, guards/CSRF/cuotas, idempotencia y auditoría. Implementar status/acciones y alertas/vigencia; mantener DashboardRepository exclusivamente `dw`. Probar admin/editor/dos tenants, entradas inválidas, conflictos y caída DW.
 
@@ -77,9 +77,16 @@ Agregar endpoints/DTOs/servicios, guards/CSRF/cuotas, idempotencia y auditoría.
 
 **Commit sugerido:** `feat(bi): exponé la operación y la configuración por empresa`.
 
-### [Pendiente] 4. Frontend
+### [Actual] 4. Frontend — terminada; esperar ACK
 
 Agregar navegación/pantallas/seguimiento, formularios con versión, CSV y estados accesibles. Validar contratos con Zod, permisos/identidad, filtros URL, polling visible y errores recuperables. Revisar visualmente móvil/escritorio/teclado.
+
+- [x] Navegación interna, Resumen/CSV, Ejecuciones/solicitudes, detalles, Operación, Configuración y Auditoría admin.
+- [x] Contratos Zod, permisos, filtros/paginación URL, cantidades decimales y desconocido distinto de cero.
+- [x] Seguimiento visible 5/30s sin solapamientos, limpieza por identidad, abort/discard de respuestas obsoletas e idempotencia de intención.
+- [x] Edición versionada con conservación/comparación de cambios, accesibilidad y revisión móvil/escritorio/teclado.
+- [x] Regresión web, tipos/lint/build, documentación y evidencia; detenerse antes de integración integral fase5.
+
 
 **Commit sugerido:** `feat(web): incorporá las interfaces completas de inteligencia de negocio`.
 
@@ -128,3 +135,16 @@ Aceptación: admin solicita, cierra página y recupera resultado persistente; ed
 - `npm run typecheck --workspace apps/api`, `npm run build --workspace apps/api`, `npm run lint --workspace apps/api` aprobados; lint conserva sólo dos advertencias preexistentes fuera de BI. `git diff --check` sin problemas.
 - Documentación de contratos/roles y [runbook API](../operations/22_bi_http_operations.md) actualizados. Fixture del benchmark HTTP/ETL prepara0004 para compatibilidad; no se repitió prueba de carga ni se alteraron resultados históricos. Costo de status/polling, restauración de controles y SLO siguen en fase5.
 - Sin cambios de migraciones0001–0004, Prisma, infraestructura, dependencias ni hooks; sin despliegue ni commit automático. Bandera desactivada por defecto. Pruebas eliminaron sus bases/roles (0 remanentes en ambas instancias); PostgreSQL temporales apagados y directorios propios eliminados. Frontend/CSV/polling web quedan exclusivamente para fase4 tras ACK.
+
+
+## Evidencia de fase 4
+
+- [Interfaz documentada](../modules/web-business-intelligence.md): seis vistas internas incluyendo auditoría admin, historial independiente de solicitudes e intentos, detalles enlazables y acciones con permisos/motivos del servidor. Composición App Router con Suspense; adaptadores privados existentes con cookies/CSRF y Zod, sin nuevos endpoints, dependencias o almacenes de sesión.
+- «Actualizar vista» sólo GET; aceptar una carga abre seguimiento y no afirma publicación. Cancelación sólo pendiente y reintento de observación actual. Doble envío bloqueado síncronamente; respuesta ambigua conserva cuerpo/key para repetición explícita; una mutación tardía no navega después del cambio de cuenta.
+- Polling serial 5s activo y 30s para estado operativo, detenido en pestaña oculta y reanudado al volver. Configuración/Resumen/Auditoría no tienen sondeo periódico propio. Workspace por usuario/tenant/roles, descarte de lecturas obsoletas y retirada de datos ante 400/401/403/404. Un fallo temporal conserva el último resultado identificado como anterior y bloquea acciones.
+- Configuración 1/6/24h y preferencias con versión esperada. Un 409 conserva los campos; comparar la versión vigente precede a elegir descartar o conservar campos editados y mantener valores vigentes en los no editados, antes de otro guardado explícito. Editor sólo consulta; auditoría y mutaciones no se ofrecen a ese rol. NestJS mantiene la autorización real.
+- Cuatro CSV desde resultado visible: rango/UTC, BOM/CRLF, escape de comillas, categorías con fórmulas neutralizadas, BigInt sin redondeo y cortes ausentes distintos de cero. Descarga de resumen realizada en navegador y archivo leído con parser CSV: rango UTC y `9007199254740993` conservados.
+- **113 pruebas web aprobadas en22 suites, incluidas70 BI en5 suites** (24 UI,13 lifecycle/idempotencia,10 adaptadores operativos,22 CSV/filtros y1 dashboard). Incluyen aislamiento al cambiar empresa/logout, editor/admin, 403/404, pausa/vigencia, aceptación pendiente/cancelación, edición concurrente, respuesta perdida/misma key, no solapamiento, ocultación de pestaña, cuotas y validación de red.
+- `npm run typecheck --workspace apps/web`, `npm run lint --workspace apps/web` y `NEXT_PUBLIC_API_URL=<URL local sintética> npm run build --workspace apps/web` aprobados. Lint conserva diez advertencias preexistentes fuera del feature. Build Next15 genera la ruta estática con frontera cliente/Suspense; conserva el aviso previo de raíz inferida por un lockfile externo. `git diff --check` sin problemas.
+- Navegador local sobre build de producción y API **sintética temporal**: Resumen, navegación, configuración guardada/pausa, solicitud aceptada -> pendiente -> resultado, escritorio1366×900, móvil390×844, temas claro/oscuro y foco de teclado visible de2px. Formularios/acciones envuelven, tabla con scroll propio (343px de contenedor frente a880px de tabla en una de las vistas móviles); no se modificó el shell global. No se certifica auditoría WCAG completa ni rendimiento con esta revisión.
+- Sin cambios API/worker/SQL, Prisma, infraestructura, dependencias o hooks, ni migraciones persistentes, despliegue o commit automático. `BI_OPERATIONS_ENABLED` permanece false por defecto. Los servicios sintéticos se cierran al terminar; no contienen credenciales reales. La aceptación navegador/API/worker/DW con dos PostgreSQL, restauración de controles y costo del polling permanecen en fase5, que requiere el siguiente ACK.
