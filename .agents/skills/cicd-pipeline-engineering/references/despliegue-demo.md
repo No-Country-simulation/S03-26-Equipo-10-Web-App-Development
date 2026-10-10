@@ -1,16 +1,16 @@
 # Preparación de la demo remota
 
-Vercel, Supabase y Cloudinary son destinos previstos; YouTube sirve videos en testimonios. Esta guía no acredita despliegue ni autoriza recursos externos. Verificar capacidades, versiones, límites y plan contratado al implementar.
+El plan de demo del 2026-10-10 acuerda Vercel, Railway, dos proyectos Supabase independientes y Cloudinary; YouTube sirve videos en testimonios. Esta guía no acredita despliegue ni autoriza recursos externos. Verificar capacidades, versiones, límites y presupuesto al implementar cada fase.
 
 ## Topología previa a CD
 
 | Componente | Estado / destino | Decisión o evidencia necesaria |
 |---|---|---|
-| Next.js | Local; Vercel previsto. | Proyecto/equipo/root del monorepo, workspaces, build y URL pública API por entorno. |
-| NestJS y pollers | API, outbox y limpieza Cloudinary locales. | Proveedor persistente pendiente, reinicio, red, health checks y continuidad. |
+| Next.js | Local; Vercel acordado. | Proyecto/equipo/root del monorepo, workspaces, build y proxy `/api/v1` de mismo origen pendiente. |
+| NestJS y pollers | API, outbox y limpieza Cloudinary locales; Railway acordado. | Servicio persistente, reinicio, red, health checks y continuidad por validar. |
 | OLTP PostgreSQL | Supabase previsto; PostgreSQL 18 local. | Versión/DDL compatibles, red/pool, roles, migración autorizada y restauración. |
-| Redis | Compose/CI, cuotas/caché. | Proveedor pendiente, cliente compatible, TLS/autenticación, límites y caída. |
-| Warehouse y ETL | PostgreSQL separado y ETL horario. | Instancia OLAP separada, roles independientes, scheduler y límites; caída OLAP aislada del CMS. |
+| Redis | Compose/CI, cuotas/caché; Railway privado acordado. | Cliente compatible, autenticación, red privada, límites y caída. |
+| Warehouse y ETL | Segundo proyecto Supabase y worker/scheduler Railway independiente acordados. | Instancia OLAP separada, roles independientes, scheduler y límites; caída OLAP aislada del CMS. |
 | Cloudinary | Subida y limpieza durable locales. | Cuenta/configuración, permisos/cuota, lectura pública y poller activo. |
 | YouTube | Parser/metadatos/reproductor locales. | Video disponible/embebible, clave backend si requiere metadatos, CSP/red y navegador real. |
 
@@ -18,7 +18,7 @@ Comparar duración, payloads y scheduling de [Vercel Functions](https://vercel.c
 
 ## Supabase y Prisma
 
-Conservar acceso NestJS y autenticación propia. Elegir Supabase PostgreSQL no implica Supabase Auth, Storage o acceso directo del navegador.
+Conservar acceso NestJS y autenticación propia. Elegir Supabase PostgreSQL no implica Supabase Auth, Storage o acceso directo del navegador. El plan acuerda deshabilitar Data API en ambos proyectos y usar conexiones directas con TLS y salida IPv6 de Railway; verificar conectividad, permisos, pools y compatibilidad antes del despliegue.
 
 - Revisar [changelog](https://supabase.com/changelog) y [guía Prisma](https://supabase.com/docs/guides/database/prisma). Los ejemplos actuales pueden usar configuración distinta a Prisma 6.5; no copiar `prisma.config.ts` ni cambiar versión/schema automáticamente.
 - Para proceso persistente evaluar conexión directa si la red soporta endpoint, o pooler de sesión si lo requiere conectividad. Para serverless/autoscaling evaluar pooler transaccional, Prisma instalado, prepared statements y transacciones. Migraciones mediante conexión directa/sesión compatible, sin asumir pool transaccional apto para DDL.

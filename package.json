@@ -26,16 +26,20 @@
   "devDependencies": {
     "concurrently": "9.1.2",
     "husky": "8.0.3",
-    "lint-staged": "15.5.2",
+    "lint-staged": "17.6.0",
     "prettier": "3.5.3",
     "supabase": "2.120.0"
   },
   "overrides": {
-    "picomatch": "4.0.4",
+    "picomatch": "4.0.7",
     "path-to-regexp": "8.4.2",
     "lodash": "4.18.1",
     "qs": "6.16.0",
-    "postcss": "8.5.28"
+    "postcss": "8.5.29",
+    "postcss-selector-parser": "7.1.6",
+    "@nestjs/swagger": {
+      "js-yaml": "5.4.3"
+    }
   },
   "engines": {
     "node": ">=24.21.0 <25",
@@ -49,6 +53,7 @@
     "esbuild@0.28.2": true,
     "prisma@6.5.0": true,
     "protobufjs@7.6.6": false,
-    "unrs-resolver@1.11.1": true
+    "unrs-resolver@1.12.2": true,
+    "@parcel/watcher@2.6.0": false
   }
 }

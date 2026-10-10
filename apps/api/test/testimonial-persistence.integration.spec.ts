@@ -1,4 +1,4 @@
-import { ConflictError } from '../src/common/errors/application.error';
+import { ConflictError, NotFoundError } from '../src/common/errors/application.error';
 
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
@@ -98,7 +98,7 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
     });
     const foreignTag = await prisma.tag.create({ data: { tenantId: otherTenantId, name: `foreign-${randomUUID()}` } });
 
-    await expect(repo.updateStatus(otherTenantId, created.id, 'draft', 'pending')).rejects.toThrow(ConflictError);
+    await expect(repo.updateStatus(otherTenantId, created.id, 'draft', 'pending')).rejects.toThrow(NotFoundError);
     await expect(repo.updateFields(otherTenantId, created.id, { content: 'Intrusion' }, 'draft')).rejects.toThrow();
     await expect(repo.updateMedia(otherTenantId, created.id, 'draft', { imageUrl: 'https://example.com/x' })).rejects.toThrow();
     await expect(repo.updateFields(tenantId, created.id, { tagIds: [foreignTag.id] }, 'draft')).rejects.toThrow();
@@ -119,6 +119,9 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
 
     expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
     expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
+    expect(results.find(result => result.status === 'rejected')).toMatchObject({
+      reason: expect.any(ConflictError),
+    });
     expect((await repo.findById(tenantId, created.id))?.status).toBe('pending');
   });
 
