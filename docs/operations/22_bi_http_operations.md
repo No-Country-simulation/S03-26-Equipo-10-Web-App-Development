@@ -1,6 +1,6 @@
 # API de consulta y administración BI
 
-**Estado:** fase3 implementada localmente, bandera desactivada por defecto, sin despliegue persistente. Pantallas nuevas y aceptación operativa integral siguen pendientes de fases4/5 del [plan HITL](../plan/2026-10-09_feat-interfaces-operacion-bi.md). [Contrato y permisos SQL](../modules/api-bi-operations.md).
+**Estado:** fase3 implementada localmente, bandera desactivada por defecto, sin despliegue persistente. Interfaces implementadas y aceptación operativa integral local completada; despliegue pendiente según el [plan HITL](../plan/2026-10-09_feat-interfaces-operacion-bi.md). [Contrato y permisos SQL](../modules/api-bi-operations.md).
 
 ## Compatibilidad y provisión
 
@@ -8,7 +8,7 @@ HTTP y worker actuales requieren warehouse0004. La API no migra, no carga OLTP n
 
 El lector HTTP necesita SELECT de `dw` y `etl.tenant_settings/load_requests/control_audit/runs/tenant_load_state/worker_health`. El rol de control necesita permisos limitados publicados en el contrato, incluido SELECT de heartbeat; carece de escritura de hechos, runs, reservas y heartbeat. Verificar herencias, propietarios y privilegios efectivos, no sólo los GRANT nominales.
 
-`BI_OPERATIONS_ENABLED=false` impide todas las nuevas rutas antes de consultar DW; dashboard existente conserva su bandera `BI_ENABLED`. Activación técnica requiere mantenimiento autorizado, detener el scheduler anterior, aplicar0004 sin alterar checksums anteriores, provisionar identidades y desplegar worker/API/web compatibles. No habilitar hasta concluir fases4/5 y comprobar una carga. Apagar controles no elimina historial ni cambia configuración del worker.
+`BI_OPERATIONS_ENABLED=false` impide todas las nuevas rutas antes de consultar DW; dashboard existente conserva su bandera `BI_ENABLED`. Activación técnica requiere mantenimiento autorizado, detener el scheduler anterior, aplicar0004 sin alterar checksums anteriores, provisionar identidades y desplegar worker/API/web compatibles. No habilitar hasta validar el entorno objetivo y comprobar una carga. Apagar controles no elimina historial ni cambia configuración del worker.
 
 ## Ciclo de una solicitud
 
@@ -48,4 +48,4 @@ Respuestas privadas incluso ante error; catálogo seguro para mensajes, nunca SQ
 
 Las suites `bi-operations-http.integration.spec.ts` y `bi-operations-policy.spec.ts` cubren permisos, aislamiento, CSRF, cuotas, validación, bandera, conflictos, receipts/replays, resultado publicado, indisponibilidad y alertas. El conjunto BI prueba dos PostgreSQL18 descartables con bases/roles aleatorios que elimina al terminar. Las URLs se inyectan externamente; no usar bases persistentes como destino de tests.
 
-Typecheck/build/lint API y regresión verifican implementación local. La lectura de status contiene varias consultas acotadas dentro de una transacción y pool2 compartido con dashboard; medir costo con volumen/polling concurrente en fase5. El benchmark HTTP/ETL ahora prepara0004 para seguir siendo compatible; no se regeneraron resultados de rendimiento históricos en esta fase. Backup/restauración de controles, supervisor productivo, SLO y privilegios desplegados aún requieren validación integral.
+Typecheck/build/lint API y regresión verifican implementación local. La lectura de status contiene varias consultas acotadas dentro de una transacción y pool2 compartido con dashboard; el costo local con historial/polling concurrente se documenta en [validación integral](23_bi_validation_and_release.md). El benchmark HTTP/ETL ahora prepara0004 para seguir siendo compatible; los resultados históricos se conservan y fase5 agrega un benchmark operativo independiente. Backup/restauración local verificados; supervisor productivo, SLO y privilegios desplegados requieren validación del entorno objetivo.

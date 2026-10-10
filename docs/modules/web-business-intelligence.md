@@ -1,6 +1,6 @@
 # Interfaz de inteligencia de negocio
 
-**Estado:** frontend de fase 4 implementado; aceptación integral y despliegue pendientes de fase 5. [Plan HITL](../plan/2026-10-09_feat-interfaces-operacion-bi.md), [contratos HTTP](api-bi-operations.md).
+**Estado:** frontend implementado y aceptación integral local de fase5 completada; despliegue pendiente. [Evidencia y habilitación](../operations/23_bi_validation_and_release.md). [Plan HITL](../plan/2026-10-09_feat-interfaces-operacion-bi.md), [contratos HTTP](api-bi-operations.md).
 
 ## Entrada, roles y navegación
 
@@ -41,4 +41,4 @@ La UI utiliza los tokens HSL y primitivas existentes; navegación semántica, `a
 
 ## Evidencia y límites
 
-Pruebas de contratos, UI, permisos, sesión, idempotencia, polling, configuración y CSV en el feature, más regresión web. La revisión visual usa build local y una API sintética temporal: no certifica integración real con ETL/PostgreSQL ni capacidad productiva. La fase 5 debe verificar el flujo navegador/API/worker/warehouse con dos PostgreSQL descartables, restauración, privilegios y costo del polling. `BI_OPERATIONS_ENABLED` permanece desactivada por defecto; no se modificó infraestructura ni se aplicaron migraciones persistentes.
+Pruebas de contratos, UI, permisos, sesión, idempotencia, polling, configuración y CSV en el feature, más regresión web. La revisión móvil/teclado de fase4 usa una API sintética. Fase5 agrega un recorrido con navegador, API real del CMS, worker CLI independiente, dos PostgreSQL18.6 y Redis7 descartables: solicitud pendiente, cierre, nueva sesión y resultado correcto. Las pruebas verifican restauración, privilegios y caída OLAP aislada; el benchmark registra costo local de polling. Estas pruebas no certifican capacidad productiva ni auditoría WCAG completa. Los instantes usan UTC y ciclo explícito de24h para distinguir medianoche de mediodía. `BI_OPERATIONS_ENABLED` permanece desactivada por defecto; no se modificó infraestructura ni se aplicaron migraciones persistentes.

@@ -58,7 +58,11 @@ databaseTests('managed ETL protocol with two disposable PostgreSQL servers', () 
     warehouse = new ManagedWarehouseRepository(writer); worker = new WorkerControlRepository(writer); sourceRepo = new SourceRepository(source, 1);
     service = new EtlService(sourceRepo, warehouse);
     controls = new OperationsControlRepository({ write: work => admin.$transaction(work) });
-    reads = new OperationsReadRepository({ read: work => admin.$transaction(work) });
+    reads = new OperationsReadRepository({ read: work => admin.$transaction(async tx => {
+      // Match BiConnection: date filters are UTC even if the disposable server uses another zone.
+      await tx.$executeRaw`SET LOCAL timezone = 'UTC'`;
+      return work(tx);
+    }) });
   });
   beforeEach(async () => {
     await admin.$executeRawUnsafe('TRUNCATE etl.tenant_settings, etl.load_requests, etl.control_audit, etl.worker_health, etl.tenant_load_state, etl.runs, dw.dim_tenant, dw.dim_date, dw.dim_status, dw.dim_event_type RESTART IDENTITY CASCADE');

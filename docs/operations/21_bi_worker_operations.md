@@ -1,12 +1,12 @@
 # Worker BI: programación y solicitudes durables
 
-**Estado:** fase 2 del [plan de interfaces](../plan/2026-10-09_feat-interfaces-operacion-bi.md). Worker implementado y verificado localmente; API operativa y alertas de aplicación incorporadas en fase3; controles web y despliegue pendientes. No se aplicaron migraciones persistentes.
+**Estado:** fase 2 del [plan de interfaces](../plan/2026-10-09_feat-interfaces-operacion-bi.md). Worker implementado y verificado localmente; API operativa y alertas de aplicación incorporadas en fase3; interfaces web incorporadas en fase4 y validación integral local en fase5; despliegue pendiente. No se aplicaron migraciones persistentes.
 
 ## Compatibilidad y permisos
 
 La entrada `bi:etl`/`bi:etl:prod` ahora usa el protocolo 1 de control y **requiere 0004**, además del esquema temporal. Comprueba el ledger antes de reclamar trabajo; sólo 0003 produce `BI_MIGRATION_REQUIRED`. No migra al arrancar. `WarehouseRepository` conserva los primitivos de publicación y el claim anterior para fixtures/regresiones; la entrada de producción usa `ManagedWarehouseRepository`.
 
-`BI_OPERATIONS_ENABLED=false` mantiene apagados los futuros controles HTTP. El nuevo worker siempre respeta configuración y solicitudes durables, aun con la bandera apagada; apagar controles no cancela trabajo aceptado. No necesita `BI_CONTROL_DATABASE_URL`, `BI_DATABASE_URL`, secretos HTTP ni Redis. Mantiene extractor OLTP pool1 y escritor DW pool2.
+`BI_OPERATIONS_ENABLED=false` mantiene apagados los controles HTTP. El nuevo worker siempre respeta configuración y solicitudes durables, aun con la bandera apagada; apagar controles no cancela trabajo aceptado. No necesita `BI_CONTROL_DATABASE_URL`, `BI_DATABASE_URL`, secretos HTTP ni Redis. Mantiene extractor OLTP pool1 y escritor DW pool2.
 
 Además de DML de staging/dw y SELECT/INSERT/UPDATE de runs/estado, el escritor necesita:
 
@@ -53,9 +53,9 @@ SIGINT/SIGTERM detienen nuevas reservas y la espera del siguiente tick. La carga
 1. Mantener controles apagados y detener el worker antiguo durante toda la ventana. Esperar publicaciones y resolver reservas vencidas con el procedimiento autorizado antes del DDL; el migrador rechaza runs running/reservas.
 2. Completar expansión/backfill/cierre temporal si corresponde, aplicar 0004 con ACK del entorno y provisionar permisos mínimos. No modificar migraciones anteriores.
 3. Instalar el nuevo worker y ejecutar `--once` para verificar esquema, permisos, conciliación y programación. Instalar supervisor continuo independiente; no usar un cron horario como sustituto del bucle que atiende manuales.
-4. Mantener API operativa y UI desactivadas hasta fases3/4 y aceptación5. La fase3 adapta vigencia y métrica de atraso a frecuencia+tolerancia; pausa suspende el atraso programado. El lector HTTP requiere SELECT de controles/heartbeat además de `dw` y runs/estado, y el rol de control agrega SELECT de heartbeat. Ver [contrato HTTP](../modules/api-bi-operations.md).
+4. Mantener API operativa y UI desactivadas hasta validar el despliegue en el entorno objetivo. La fase3 adapta vigencia y métrica de atraso a frecuencia+tolerancia; pausa suspende el atraso programado. El lector HTTP requiere SELECT de controles/heartbeat además de `dw` y runs/estado, y el rol de control agrega SELECT de heartbeat. Ver [contrato HTTP](../modules/api-bi-operations.md).
 
-Backup/restauración de controles y prueba de costo de polling con volumen representativo pertenecen a fase5. Preservar todas las tablas etl en backups; no borrar solicitudes, auditoría ni historial para liberar presupuestos. No retroceder al scheduler antiguo con configuración nueva.
+Backup/restauración de controles y costo local de polling verificados en fase5; ver [validación y habilitación](23_bi_validation_and_release.md). La capacidad del entorno objetivo sigue pendiente. Preservar todas las tablas etl en backups; no borrar solicitudes, auditoría ni historial para liberar presupuestos. No retroceder al scheduler antiguo con configuración nueva.
 
 ## Verificación reproducible
 
@@ -67,4 +67,4 @@ npm test --workspace=@testimonial-cms/api -- --runTestsByPath \
   test/bi-postgres.integration.spec.ts test/bi-operations.integration.spec.ts
 ```
 
-La integración verifica extractor/escritor restringidos, aceptación durable con cliente cerrado, carreras manual/automática/dos workers, pausa, frecuencias, recuperación, agotamiento, vencimiento, retry actual, fases/cantidades, rollback final y respuesta perdida tras COMMIT. Fixtures sintéticas, sin certificar capacidad productiva ni capacidad productiva. Las pruebas HTTP de fase3 verifican autorización por empresa, CSRF, cuotas, indisponibilidad y receipts durables; ver evidencia en el plan.
+La integración verifica extractor/escritor restringidos, aceptación durable con cliente cerrado, carreras manual/automática/dos workers, pausa, frecuencias, recuperación, agotamiento, vencimiento, retry actual, fases/cantidades, rollback final y respuesta perdida tras COMMIT. Fixtures sintéticas, sin certificar capacidad productiva. Las pruebas HTTP de fase3 verifican autorización por empresa, CSRF, cuotas, indisponibilidad y receipts durables; ver evidencia en el plan.

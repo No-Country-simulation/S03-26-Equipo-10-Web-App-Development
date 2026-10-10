@@ -1,6 +1,6 @@
 # Plan HITL: interfaces de consulta y administración BI
 
-**Fecha:** 2026-10-09. **Estado:** fase 4 terminada; pendiente de ACK para fase 5. **ACK:** «Continuar» después del cierre de fase 3; autoriza exclusivamente el frontend de fase 4. [Contrato detallado](../modules/api-bi-operations.md).
+**Fecha:** 2026-10-09. **Estado:** cinco fases terminadas localmente; revisión/commit de cierre pendientes. **ACK:** «Continuar» después del cierre de fase 4; autoriza validación integral en entornos descartables y documentación, sin despliegue ni migraciones persistentes. [Contrato detallado](../modules/api-bi-operations.md).
 
 ## Contexto y Restricciones
 
@@ -77,7 +77,7 @@ Agregar endpoints/DTOs/servicios, guards/CSRF/cuotas, idempotencia y auditoría.
 
 **Commit sugerido:** `feat(bi): exponé la operación y la configuración por empresa`.
 
-### [Actual] 4. Frontend — terminada; esperar ACK
+### [Completada] 4. Frontend
 
 Agregar navegación/pantallas/seguimiento, formularios con versión, CSV y estados accesibles. Validar contratos con Zod, permisos/identidad, filtros URL, polling visible y errores recuperables. Revisar visualmente móvil/escritorio/teclado.
 
@@ -90,9 +90,16 @@ Agregar navegación/pantallas/seguimiento, formularios con versión, CSV y estad
 
 **Commit sugerido:** `feat(web): incorporá las interfaces completas de inteligencia de negocio`.
 
-### [Pendiente] 5. Validación integral
+### [Actual] 5. Validación integral — terminada; revisión final pendiente
 
 Verificar solicitud durable tras cerrar navegador, recuperación ante fallos, regresión BI/OLTP, backup/restauración de controles/historial, mínimos privilegios y costo polling/consultas con planes y volumetría explícita. Actualizar runbooks/contexto y checklist de despliegue. No certificar capacidad productiva con fixtures.
+
+- [x] CMS/API real, worker CLI independiente, dos PostgreSQL y Redis descartables; solicitud durable tras cerrar cliente y reiniciar API.
+- [x] Navegador con sesión/cookies/CSRF reales: pendiente, cierre, nueva sesión y resultado persistente; permisos editor y conciliación del resumen.
+- [x] Fallo final de publicación con rollback, historial de tres intentos y conservación del corte correcto; caída OLAP sin bloquear captura/moderación/readiness OLTP.
+- [x] Backup/restauración completa, digests por tabla, idempotencia/auditoría, ACL restringidas y reanudación sin duplicados.
+- [x] Benchmark operativo con historial, filtros y polling concurrente, planes/recursos/limitaciones documentados; capacidad y SLO del entorno objetivo como condición de habilitación.
+- [x] Regresión, tipos/lint/build, documentación de restauración/habilitación y actualización de contexto. Sin despliegue ni migraciones persistentes.
 
 **Commit sugerido:** `test(bi): validá las interfaces y la recuperación operativa`.
 
@@ -148,3 +155,15 @@ Aceptación: admin solicita, cierra página y recupera resultado persistente; ed
 - `npm run typecheck --workspace apps/web`, `npm run lint --workspace apps/web` y `NEXT_PUBLIC_API_URL=<URL local sintética> npm run build --workspace apps/web` aprobados. Lint conserva diez advertencias preexistentes fuera del feature. Build Next15 genera la ruta estática con frontera cliente/Suspense; conserva el aviso previo de raíz inferida por un lockfile externo. `git diff --check` sin problemas.
 - Navegador local sobre build de producción y API **sintética temporal**: Resumen, navegación, configuración guardada/pausa, solicitud aceptada -> pendiente -> resultado, escritorio1366×900, móvil390×844, temas claro/oscuro y foco de teclado visible de2px. Formularios/acciones envuelven, tabla con scroll propio (343px de contenedor frente a880px de tabla en una de las vistas móviles); no se modificó el shell global. No se certifica auditoría WCAG completa ni rendimiento con esta revisión.
 - Sin cambios API/worker/SQL, Prisma, infraestructura, dependencias o hooks, ni migraciones persistentes, despliegue o commit automático. `BI_OPERATIONS_ENABLED` permanece false por defecto. Los servicios sintéticos se cierran al terminar; no contienen credenciales reales. La aceptación navegador/API/worker/DW con dos PostgreSQL, restauración de controles y costo del polling permanecen en fase5, que requiere el siguiente ACK.
+
+## Evidencia de fase 5
+
+- Nuevo entorno opt-in `bi-system-environment.ts` con AppModule completo, OLTP y DW en PostgreSQL18.6 separados, Redis7 real, autenticación persistida y cuatro identidades SQL BI. Bases y roles aleatorios; datos exclusivamente sintéticos. DDL OLTP generado desde Prisma más export views, sin aplicar la cadena histórica a servidores persistentes.
+- Cinco pruebas nuevas de integración de sistema: aceptación HTTP seguida de cierre/reinicio de API y publicación por proceso CLI independiente; fallo de transición final con tres rollbacks e historial durable; backup/restauración de todas las tablas y ACL con idempotencia, auditoría, preferencias y publicación posterior sin duplicados; privilegios efectivos sin propiedad/DDL; pérdida de acceso DW con captura, envío a revisión, aprobación y sondas del CMS disponibles.
+- Dump custom restaurado en base nueva vacía, digests/cantidades de las20 tablas iguales antes de reanudar. Roles ya provisionados; lecturas/control y worker restringidos siguen funcionando después de restaurar y se rechaza escritura de runs desde control. No se afirma validar PITR ni recuperar roles/secretos entre clusters. Backup y fuente OLTP no forman una transacción distribuida; RPO/RTO del entorno objetivo pendientes.
+- Aceptación real en navegador: admin solicita, se observa pending sin intentos, se cierra pestaña y se vuelve con una nueva sesión al mismo enlace. Resultado succeeded y un intento manual; resumen1 testimonio/2 vistas/1 clic/1 reproducción/CTR50 %. Editor consulta el mismo resultado y operación sin mutaciones/auditoría. No se usó la API simulada de fase4 para esta aceptación.
+- **170 casos backend BI aprobados en13 suites**, sin skips; **115 pruebas web aprobadas en23 suites**, incluidas72 BI. Seis fallos iniciales del fixture del worker cerca de medianoche UTC se resolvieron fijando UTC en su adaptador de lectura, como ya hace `BiConnection` productivo. Un timeout preexistente de testimonios durante build/pruebas paralelas se repitió con un worker de Vitest: suite completa aprobada, sin ampliar timeout ni editar ese caso.
+- Formato web UTC con ciclo explícito `h23`; dos pruebas adicionales distinguen00:xx/12:xx y cambio de fecha por offset. Verificado en navegador con la solicitud observada a00:52 UTC. No se alteraron contratos de API ni lógica productiva del worker.
+- Benchmark nuevo:100 empresas ×200 horas,20.000 solicitudes/20.000 runs/20.002 auditorías; fuente4.002 testimonios/20.013 eventos.30 consultas baseline y40 tandas de cinco rutas concurrentes durante proceso ETL;200/200 HTTP200, carga correcta de4.001 testimonios/20.009 eventos. Status p95~424ms; listado CMS p95~121→307ms. Run33,8s, CLI42,1s; seis planes con índices,0,132–0,639ms y4–11 buffers. [JSON reproducible](../technical/bi-operations-benchmark-2026-10-10.json). Una muestra corta en el mismo host, con arranque y otras verificaciones locales, no certifica SLO ni atribuye todo el costo al extractor.
+- Typecheck/lint/build API y web aprobados; lint conserva dos advertencias API y diez web preexistentes. Build web conserva avisos previos de raíz inferida/lockfile externo. `git diff --check` sin problemas. No se cambiaron migraciones0001–0004, Prisma, infraestructura, dependencias ni hooks.
+- [Runbook integral](../operations/23_bi_validation_and_release.md): reproducción, capacidad/pools/cuotas, backup/restauración, límites de RPO, prevención de dos warehouses activos, compatibilidad, habilitación y reversión. No se habilitaron controles persistentes ni se desplegó; recursos de prueba eliminados al terminar. La habilitación exige ACK de entorno/ventana, recursos objetivos y SLO, sin otra fase de implementación pendiente en este plan.

@@ -1,7 +1,7 @@
 export const number = (value: string | number) => typeof value === 'string' ? BigInt(value).toLocaleString('es-AR') : value.toLocaleString('es-AR');
 export const rating = (value: number | null) => value === null ? 'Sin datos' : value.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 export const percentage = (value: number | null) => value === null ? 'Sin datos' : `${rating(value)} %`;
-export const timestamp = (value: string | null) => value ? `${new Date(value).toLocaleString('es-AR', { timeZone: 'UTC' })} UTC` : 'Sin datos';
+export const timestamp = (value: string | null) => value ? `${new Date(value).toLocaleString('es-AR', { timeZone: 'UTC', hourCycle: 'h23' })} UTC` : 'Sin datos';
 export const statusNames: Record<string, string> = { draft: 'Borrador', pending: 'Pendiente', approved: 'Aprobado', published: 'Publicado',
   rejected: 'Rechazado', running: 'En ejecución', succeeded: 'Correcta', failed: 'Fallida', abandoned: 'Abandonada', cancelled: 'Cancelada', expired: 'Vencida', skipped: 'Omitida' };
 export const originNames: Record<string, string> = { legacy: 'Legado (origen desconocido)', scheduled: 'Automática', cli: 'Operación técnica', manual: 'Manual', retry: 'Reintento manual' };
