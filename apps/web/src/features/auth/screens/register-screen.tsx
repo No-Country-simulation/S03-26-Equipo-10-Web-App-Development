@@ -19,7 +19,7 @@ export default function AdminRegisterPage() {
   }
 
   return (
-    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1fr,1.2fr]">
+    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1fr_1.2fr]">
       {/* Left Panel: Striking Identity */}
       <div className="relative hidden flex-col justify-between bg-foreground p-12 text-background lg:flex">
         <div className="flex items-center gap-2">
@@ -28,7 +28,7 @@ export default function AdminRegisterPage() {
         </div>
         
         <div>
-          <h1 className="font-caption text-6xl italic leading-tight text-background opacity-90 xl:text-7xl">
+          <h1 className="font-caption text-6xl italic leading-tight text-background opacity-90 xl:text-7xl xl:leading-none">
             Tu imperio <br /> <span className="font-body font-bold not-italic text-primary">Comienza.</span>
           </h1>
           <p className="mt-6 max-w-sm font-body text-sm font-light leading-relaxed opacity-60">

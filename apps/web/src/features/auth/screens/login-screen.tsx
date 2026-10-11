@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
         </div>
         
         <div>
-          <h1 className="font-caption text-6xl italic leading-tight text-background opacity-90 xl:text-7xl">
+          <h1 className="font-caption text-6xl italic leading-tight text-background opacity-90 xl:text-7xl xl:leading-none">
             Gestioná la <br /> <span className="font-body font-bold not-italic text-primary">Prueba Social.</span>
           </h1>
           <p className="mt-6 max-w-sm font-body text-sm font-light leading-relaxed opacity-60">

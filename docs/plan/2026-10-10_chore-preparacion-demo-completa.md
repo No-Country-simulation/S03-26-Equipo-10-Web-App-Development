@@ -10,6 +10,7 @@
 - Ejecutar una sola fase; mostrar evidencia y commit sugerido, detenerse y esperar ACK. No contratar recursos, desplegar ni ejecutar migraciones persistentes con esta autorización.
 - `AGENTS.md` exige ACK específico para el manifiesto raíz, infraestructura, schema Prisma, hooks y ejecución de `prisma migrate deploy`/`db push`. No registrar secretos ni datos reales.
 - No modificar checksums de migraciones existentes ni debilitar filtros tenant o gates de seguridad para conseguir un resultado verde.
+- ACK posterior: resolver primero las dependencias de fase 1 mediante su migración. Se autorizaron exactamente tres instrucciones COPY del adaptador local en Dockerfiles: API deps, API production-deps y web deps; no otros cambios de infraestructura.
 - ACK específico recibido en el chat: cambios acotados de dependencias/overrides/allowlist del manifiesto raíz y `prisma migrate deploy` sólo sobre los PostgreSQL descartables de fase 1. No alcanza bases persistentes ni las fases siguientes.
 
 ## [Actual] Fase 1 — CI confiable
@@ -20,11 +21,12 @@
 - [x] Fallar ante configuración incompleta y pruebas omitidas en CI.
 - [x] Fijar acciones por SHA; timeouts y cancelación de CI obsoleto, sin CD.
 - [x] Validar instalación, tipos, lint, pruebas completas, builds y controles disponibles; registrar límites reales.
-- [ ] Resolver el gate de auditoría alta/crítica y obtener un run remoto aprobado del commit final.
+- [x] Resolver localmente el gate de auditoría alta/crítica sin excepciones.
+- [ ] Obtener un run remoto aprobado del commit final y revisión humana de fase 1.
 
-**Bloqueo actual:** `braces@3.0.3` no tiene parche publicado; auditoría con 7 altas/0 críticas y 20 moderadas. Se conserva el gate rojo. Hace falta acordar remediación de Tailwind 3 y la cadena de lint de Next 15 o esperar un parche verificado. No avanzar de fase ni declarar demo lista.
+**Estado actual:** el bloqueo por `braces` se resolvió localmente migrando Tailwind a 4.3.3 y reemplazando el globbing del lint de Next 15 por un adaptador acotado con tinyglobby. Auditoría completa: 0 altas/0 críticas/20 moderadas; producción: 0 vulnerabilidades; gate alta/crítica aprobado sin excepciones. El commit final y su run remoto aprobado todavía están pendientes. No avanzar de fase ni declarar demo lista.
 
-**Evidencia:** [runbook de fase 1](../operations/24_demo_ci_preparation.md): 471 pruebas API y 115 web aprobadas, cero omitidas; builds/smoke aprobados y escaneos de ambas imágenes sin altas/críticas. La auditoría npm completa todavía bloquea el cierre de esta fase. Revisión humana pendiente. Commit sugerido: `ci(pipeline): reforzá las validaciones de la demo y corregí dependencias`.
+**Evidencia:** [runbook de fase 1](../operations/24_demo_ci_preparation.md), con resultados históricos del commit `4d0b612` separados de la continuación local. Instalación, firmas, tipos, lint, 471 pruebas API y 119 web aprobados; cero omisiones. El runbook conserva el primer fallo BI intermitente y su repetición final aprobada; falta validar su estabilidad remota. Builds Docker, smoke y escaneos de ambas imágenes aprobados, sin altas/críticas; identidades y SBOM registrados en el runbook. La fase sigue `[Actual]` hasta su revisión y ACK. Commit sugerido para la continuación: `fix(deps): eliminá la cadena vulnerable de braces`.
 
 ## [Pendiente] Fase 2 — Integración web/API
 

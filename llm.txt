@@ -18,7 +18,7 @@ backend: NestJS 11
 orm: Prisma 6.5+
 database: PostgreSQL 18
 frontend: Next.js 15 (App Router, React 18)
-styles: Tailwind CSS v3 + Radix UI + next-themes
+styles: Tailwind CSS 4.3.3/PostCSS + Radix UI; tokens HSL y config TS conservados; ThemeProvider propio por clase .dark
 outbox: polling PostgreSQL cada 3 s en la API; BullMQ no implementado
 redis: cuotas atómicas y caché pública compartida con claves versionadas por tenant; no es cola de webhooks
 infra: Docker Compose local; CI con PostgreSQL y Redis descartables; demostración aún sin despliegue verificado

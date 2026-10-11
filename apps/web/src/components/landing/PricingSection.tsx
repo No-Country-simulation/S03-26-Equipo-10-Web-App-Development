@@ -39,7 +39,7 @@ export const PricingSection = () => {
         <div className="mb-20 flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b border-foreground/10 pb-16">
           <div className="max-w-2xl">
             <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">Precios</span>
-            <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl">
+            <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl md:leading-none">
               Inversión <br />
               <strong className="font-body font-bold not-italic">transparente.</strong>
             </h2>

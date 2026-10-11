@@ -142,7 +142,7 @@ export default function SettingsPage() {
             <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
               Buzón de Recepción Público
             </h2>
-            <div className="border p-6 shadow-sm">
+            <div className="border p-6 shadow-xs">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
                 <div>
                   <h3 className="font-body text-sm font-medium text-foreground">Habilitar Recepción Externa</h3>

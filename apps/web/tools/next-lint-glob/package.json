@@ -1,0 +1,10 @@
+{
+  "name": "@testimonial-cms/next-lint-glob",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Adaptador acotado de globSync para el plugin ESLint de Next 15",
+  "main": "index.cjs",
+  "dependencies": {
+    "tinyglobby": "0.2.17"
+  }
+}

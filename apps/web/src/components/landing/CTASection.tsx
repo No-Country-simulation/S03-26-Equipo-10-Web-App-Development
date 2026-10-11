@@ -12,7 +12,7 @@ export const CTASection = () => {
           </div>
           
           <div className="relative z-10 max-w-2xl">
-            <h2 className="font-caption text-4xl font-light italic leading-tight md:text-6xl">
+            <h2 className="font-caption text-4xl font-light italic leading-tight md:text-6xl md:leading-none">
               Comienza a mostrar el <strong className="font-body font-bold not-italic text-primary">verdadero valor</strong> de tus clientes.
             </h2>
             <p className="mt-6 font-body text-sm leading-relaxed opacity-60">

@@ -193,7 +193,7 @@ export default function PublicCapturePage() {
     <main className="relative min-h-screen bg-background">
       <NoiseOverlay />
 
-      <div className="relative z-10 grid min-h-screen grid-cols-[minmax(0,1fr)] lg:grid-cols-[1fr,1.2fr]">
+      <div className="relative z-10 grid min-h-screen grid-cols-[minmax(0,1fr)] lg:grid-cols-[1fr_1.2fr]">
         
         {/* Left Column: Brand & Context */}
         <div className="flex flex-col justify-center border-b lg:border-b-0 lg:border-r p-8 sm:p-12 lg:p-16 xl:p-24">

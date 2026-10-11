@@ -244,7 +244,7 @@ export function TestimonialSheet({
               <div className="grid gap-2 mt-2 pt-4 border-t">
                 <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-destructive">Motivos del rechazo</Label>
                 <textarea 
-                  className="w-full border p-2 bg-[#F5F2EA]/20 font-body text-sm focus:outline-none focus:ring-1 focus:ring-destructive resize-none mt-1 min-h-[80px]"
+                  className="w-full border p-2 bg-[#F5F2EA]/20 font-body text-sm focus:outline-hidden focus:ring-1 focus:ring-destructive resize-none mt-1 min-h-[80px]"
                   placeholder="Escribe la razón (Opcional)"
                   value={rejectReason}
                   onChange={e => setRejectReason(e.target.value)}

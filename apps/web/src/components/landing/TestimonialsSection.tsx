@@ -46,7 +46,7 @@ export const TestimonialsSection = () => {
       <div className="container p-0">
         <div className="mb-20 flex flex-col items-start gap-6 md:flex-row md:items-end md:justify-between border-b border-foreground/10 pb-16">
           <div className="max-w-2xl">
-            <h2 className="font-caption text-5xl font-light italic leading-tight text-foreground md:text-7xl">
+            <h2 className="font-caption text-5xl font-light italic leading-tight text-foreground md:text-7xl md:leading-none">
               Autoridad en <br />cada <strong className="font-body font-bold not-italic">palabra.</strong>
             </h2>
           </div>
@@ -91,7 +91,7 @@ export const TestimonialsSection = () => {
                 </div>
               </div>
 
-              <blockquote className="font-caption text-2xl italic leading-relaxed md:text-3xl lg:text-4xl">
+              <blockquote className="font-caption text-2xl italic leading-relaxed md:text-3xl lg:text-4xl lg:leading-10">
                 &quot;{t.quote}&quot;
               </blockquote>
 

@@ -168,6 +168,7 @@ integration('BI complete CMS, independent CLI worker, backup and restricted perm
       for (const role of [system.roles.readRole, system.roles.controlRole]) await system.target.$executeRawUnsafe(`ALTER ROLE "${role}" LOGIN`);
     }
     expect((await get('bi/requests')).body.meta.total).toBe(1);
-    await create('system-close-page').expect(202); // The original receipt survives the outage.
+    const replay = await create('system-close-page'); // The original receipt survives the outage.
+    expect({ status: replay.status, code: replay.body.code }).toEqual({ status: 202, code: undefined });
   });
 });

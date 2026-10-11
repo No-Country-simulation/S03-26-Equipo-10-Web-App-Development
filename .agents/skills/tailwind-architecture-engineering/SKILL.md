@@ -1,7 +1,7 @@
 ---
 name: tailwind-architecture-engineering
 description: >-
-  Uso y evolución de Tailwind CSS 3.4 en el Testimonial CMS (SKL-FE-TW-001). Usar para clases utilitarias, tokens HSL, variantes CVA, modo oscuro, composición responsiva y accesibilidad; reservar directivas CSS-first de Tailwind 4 para una migración explícita.
+  Uso y evolución de Tailwind CSS 4.3 en el Testimonial CMS (SKL-FE-TW-001). Usar para clases utilitarias, tokens HSL, variantes CVA, modo oscuro, composición responsiva y accesibilidad; conservar tokens HSL y configuración TS cargada explícitamente; separar futuras reorganizaciones de tokens.
 ---
 
 # SKL-FE-TW-001 — Tailwind CSS del Testimonial CMS
@@ -12,22 +12,22 @@ Aplicar esta skill a estilos construidos con Tailwind en `apps/web`. Leer `AGENT
 
 | Estado | Regla |
 | --- | --- |
-| **Vigente** | Tailwind CSS 3.4.19, configuración TS, `content` explícito, `@tailwind base/components/utilities`, plugin `tailwindcss-animate`. |
-| **Vigente** | Colores semánticos enlazados a variables HSL de `globals.css`; `darkMode: ["class"]`; variantes en primitivas con CVA. |
+| **Vigente** | Tailwind CSS 4.3.3 con `@tailwindcss/postcss`; configuración TS vía `@config`, fuentes explícitas y plugin `tailwindcss-animate`. |
+| **Vigente** | Colores semánticos enlazados a variables HSL de `globals.css`; `darkMode: "class"`; variantes en primitivas con CVA. |
 | **Opción contextual** | Nuevos tokens, `@layer` adicional, plugin o container query, solo ante un uso que el sistema actual no cubra. |
-| **Migración futura** | Tailwind 4, `@import "tailwindcss"`, `@theme`, `@source`, `@utility` y detección automática de fuentes. |
+| **Opción contextual** | Migrar la configuración TS a `@theme`; no hacerlo por defecto ni activar detección de fuentes fuera del workspace. |
 
-## Modelo ejecutable de Tailwind 3
+## Modelo ejecutable de Tailwind 4
 
 El CSS global empieza con:
 
 ```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@config "../../tailwind.config.ts";
+@source "../";
 ```
 
-La configuración operativa vive en `apps/web/tailwind.config.ts`. Su propiedad `content` incluye `./src/**/*.{ts,tsx}` y algunos directorios adicionales. Al crear archivos fuera de esas rutas, comprobar que Tailwind los escanea antes de esperar clases en el CSS generado. No usar `@source` para arreglar un proyecto v3.
+La configuración operativa vive en `apps/web/tailwind.config.ts`. Su propiedad `content` incluye `./src/**/*.{ts,tsx}` y algunos directorios adicionales. Al crear archivos fuera de esas rutas, comprobar que Tailwind los escanea antes de esperar clases en el CSS generado. `@source "../"` incluye `src`; `source(none)` evita escanear artefactos y el resto del monorepo. Comprobar fuentes explícitas al añadir directorios.
 
 El repositorio usa npm workspaces. Ejecutar comandos del workspace con npm según los scripts existentes; no introducir `pnpm` o un `packages/ui` inexistente en ejemplos de trabajo actual.
 
@@ -64,7 +64,7 @@ No convertir cada combinación de clases en una abstracción. El objetivo es red
 
 ## Clases detectables estáticamente
 
-Tailwind v3 extrae candidatos de los archivos listados en `content`. Mantener nombres completos en el código fuente:
+Tailwind 4 extrae candidatos de `@source` y de la configuración de compatibilidad cargada explícitamente. Mantener nombres completos en el código fuente:
 
 ```tsx
 const statusClasses = {
@@ -99,7 +99,7 @@ Las cards y diálogos existentes son primitivas; no reimplementar una variante c
 
 ## Modo oscuro
 
-`darkMode: ["class"]` activa variantes `dark:` por la clase `.dark`. El `ThemeProvider` actual alterna esa clase en `document.documentElement` y persiste preferencia. Los tokens HSL de `.dark` resuelven la mayoría de superficies sin duplicar `dark:` en cada uso.
+`darkMode: "class"` activa variantes `dark:` por la clase `.dark`. El `ThemeProvider` actual alterna esa clase en `document.documentElement` y persiste preferencia. Los tokens HSL de `.dark` resuelven la mayoría de superficies sin duplicar `dark:` en cada uso.
 
 - Preferir `bg-background`, `text-foreground`, `border-border` para superficies con token.
 - Usar `dark:` cuando existe una excepción real y verificable en un componente.
@@ -116,8 +116,8 @@ Usar `flex` para un eje y `grid` para dos ejes o columnas de contenido. Preferir
 - Las acciones críticas deben seguir visibles o descubribles en móvil sin solaparse con navegación.
 - Un `grid-cols-3` fijo puede romper con traducciones o textos largos; comprobar contenido real.
 - Revisar zoom al 200 % y 400 % antes de agregar anchuras rígidas.
-- `container` tiene padding y ancho máximo definidos en `tailwind.config.ts`; comprobar la ruta donde se usa.
-- Container queries requieren decidir soporte y sintaxis para Tailwind v3 o CSS nativo; no asumir el plugin de v4.
+- `container` conserva padding 2rem y máximo 1400px mediante `@utility` en `globals.css`; comprobar overrides como `p-0`.
+- Container queries y utilidades nuevas requieren soporte de navegador y una necesidad comprobable.
 - Evitar `h-screen` para formularios que pueden crecer con errores y zoom.
 
 ## Accesibilidad y estados
@@ -202,7 +202,7 @@ No cambiar la clase `.dark` desde un componente de feature: el proveedor actual 
 
 La presencia de un valor arbitrario no es fallo automático. El problema es una decisión repetida o incompatible con tema, contenido y accesibilidad. Revisar el CSS generado y la intención del valor.
 
-## Comprobaciones de salida Tailwind 3
+## Comprobaciones de salida Tailwind 4
 
 - Confirmar que `tailwind.config.ts` carga desde el workspace web y mantiene `content` correcto.
 - Al añadir un archivo nuevo, verificar que su ruta coincide con un glob `content`.
@@ -217,7 +217,7 @@ La presencia de un valor arbitrario no es fallo automático. El problema es una 
 
 ## Límites de alcance
 
-Una tarea de styling no autoriza a actualizar Tailwind, mover tokens, instalar plugins o reorganizar el monorepo. Proponer esas medidas solo si la necesidad supera las utilidades y componentes actuales. La migración v4 modifica compilación y compatibilidad; no mezclarla con un ajuste visual menor.
+Una tarea de styling no autoriza a actualizar Tailwind, mover tokens, instalar plugins o reorganizar el monorepo. Proponer esas medidas solo si la necesidad supera las utilidades y componentes actuales. Una actualización mayor modifica compilación y compatibilidad; no mezclarla con un ajuste visual menor.
 
 ### Señales para detener una abstracción
 
@@ -228,24 +228,26 @@ Una tarea de styling no autoriza a actualizar Tailwind, mover tokens, instalar p
 - La clase global afectaría más features de los que intenta ayudar.
 - Un plugin resolvería un caso que CSS estándar ya cubre.
 - La mejora depende de un breakpoint no probado con contenido real.
-- El estilo exige cambiar Tailwind 4 para funcionar en v3.
+- El estilo exige otra actualización mayor sin relación con el comportamiento solicitado.
 - La documentación de la variante sería más compleja que el propio JSX.
 
 En estos casos, usar una solución local y revisarla cuando exista repetición verificable. La consistencia del sistema se preserva con tokens y primitivas ya disponibles.
 
 Revisar la excepción cuando cambie el componente compartido del que depende.
 
-## Migración futura a Tailwind 4
+## Migración de seguridad del 2026-10-10
 
-La [guía oficial de actualización](https://tailwindcss.com/docs/upgrade-guide) describe cambios de instalación, import CSS, detección de fuentes y utilidades. `@theme`, `@source` y `@utility` pertenecen a esa migración, no al CSS actual. Un cambio requiere actualizar dependencias/PostCSS, revisar compatibilidad de navegadores, adaptar configuración y tokens HSL, comprobar CVA/`tailwind-merge`, ejecutar build y revisar pantallas clave en ambos temas.
+La fase 1 autorizó migrar Tailwind 3 a 4 para retirar `braces` sin debilitar el gate npm. Se conservan tokens HSL, configuración TS y animaciones; no se trasladaron tokens a archivos preparatorios. PostCSS usa `@tailwindcss/postcss` y el merge de clases usa `tailwind-merge` 3.7.0.
 
-No convertir `styles/tokens.css` o `styles/themes.css` en fuente de verdad solo porque existen: ambos son marcadores preparatorios. Mover tokens fuera de `globals.css` es otra tarea con alcance y verificación propios.
+Seguir la [guía oficial](https://tailwindcss.com/docs/upgrade-guide): navegador mínimo Safari 16.4, Chrome 111 y Firefox 128. Usar `outline-hidden` para conservar el outline invisible accesible anterior, `shadow-xs` para la antigua `shadow-sm`, guiones bajos entre columnas arbitrarias y paréntesis para variables (`w-(--sidebar-width)`). Las comas de funciones CSS como `minmax(0,1fr)` se conservan. Los radios semánticos `sm/md/lg` siguen definidos por la configuración; no renombrarlos como si fueran defaults.
+
+Revisar interlineado responsive, selectores de `space-*`, animaciones, foco y ambos temas en navegador. Las reglas de hover de v4 dependen del dispositivo; no diseñar una acción que sólo exista al pasar el mouse. Para nuevas utilidades con variantes usar `@utility`; una clase en `@layer utilities` no recibe variantes automáticamente. Evidencia y límites en `docs/operations/24_demo_ci_preparation.md`.
 
 ## Definition of Done
 
-- Las clases existen bajo la configuración Tailwind 3.4 y se detectan en el build.
+- Las clases existen bajo la configuración Tailwind 4.3 y se detectan en el build.
 - Colores y tipografía reutilizan tokens vigentes o justifican una excepción local.
 - Variantes y estados no rompen foco, contraste, tema oscuro, móvil ni contenido largo.
 - El componente conserva semántica y comportamiento, sin adjudicar permisos desde CSS.
-- Las opciones Tailwind 4 y nuevos archivos de tokens están señalados como migración futura.
+- La configuración TS y los tokens HSL vigentes se conservan; cualquier reorganización adicional tiene alcance propio.
 - La revisión se limita al cambio solicitado y usa npm y rutas reales del monorepo.

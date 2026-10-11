@@ -6,6 +6,7 @@ FROM base AS deps
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
+COPY apps/web/tools/next-lint-glob ./apps/web/tools/next-lint-glob/
 RUN npm ci
 
 FROM deps AS builder

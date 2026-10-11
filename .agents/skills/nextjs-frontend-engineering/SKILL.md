@@ -12,7 +12,7 @@ Aplicar esta guía al crear o revisar pantallas de `apps/web`. Antes de cambiar 
 
 | Estado | Uso |
 | --- | --- |
-| **Vigente** | Next.js 15.5, React 18.3, TypeScript, Tailwind 3.4, Radix, App Router, sesiones web mediante `useSession`. |
+| **Vigente** | Next.js 15.5, React 18.3, TypeScript, Tailwind 4.3, Radix, App Router, sesiones web mediante `useSession`. |
 | **Opción contextual** | Fetch en Server Component, SSR privado, SWR/TanStack Query, Server Actions y BFF solo con contrato y necesidad explícitos. |
 | **Migración futura** | Next 16 Cache Components y React 19; no asumir sus APIs en ejemplos de trabajo actual. |
 
@@ -244,7 +244,7 @@ Los Problem Details contienen `code` y `traceId`; mostrar al usuario el mensaje 
 
 ## Migraciones futuras
 
-Next 16 y React 19 requieren actualización deliberada de dependencias, configuración y pruebas. Cache Components no se habilita con una frase en una skill. Un traslado de panel privado al servidor requiere contrato de cookies, CSRF, refresh y caché por usuario. Nuevos archivos de tokens o Tailwind 4 pertenecen a otra migración; `globals.css` y Tailwind 3 siguen vigentes.
+Next 16 y React 19 requieren actualización deliberada de dependencias, configuración y pruebas. Cache Components no se habilita con una frase en una skill. Un traslado de panel privado al servidor requiere contrato de cookies, CSRF, refresh y caché por usuario. Los nuevos archivos de tokens pertenecen a otra migración; siguen vigentes `globals.css`, tokens HSL y configuración TS explícita bajo Tailwind 4.
 
 ## Definition of Done
 

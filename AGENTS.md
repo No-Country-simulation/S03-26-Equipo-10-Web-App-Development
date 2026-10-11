@@ -27,7 +27,7 @@
 | **Base de datos** | PostgreSQL | 18+ |
 | **Frontend** | Next.js (App Router) | 15.x |
 | **UI** | React | 18.x |
-| **Estilos** | Tailwind CSS + Radix UI | v3 |
+| **Estilos** | Tailwind CSS + Radix UI | 4.3.3 |
 | **Outbox** | Polling PostgreSQL en la API | cada 3 s |
 | **Cuotas y caché pública** | Redis compartido en Compose y descartable en CI; alojamiento futuro pendiente | 7 |
 | **Package manager** | npm | 11.19.0 |
@@ -213,4 +213,4 @@ Catálogo de 25 skills propias de ingeniería con código SKL; no representa el 
 
 ---
 
-*Última actualización: 2026-10-09 — Versión del framework: SKL-PRO-001 v1.1.0*
+*Última actualización: 2026-10-10 — Versión del framework: SKL-PRO-001 v1.1.0*

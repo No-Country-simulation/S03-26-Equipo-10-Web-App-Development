@@ -1,6 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@config "../../tailwind.config.ts";
+@source "../";
+
+/* Conservá el ancho y padding del container de Tailwind 3. */
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  max-width: min(100%, 1400px);
+}
 
 @layer base {
   :root {
@@ -68,8 +75,14 @@
 }
 
 @layer base {
-  * {
+  *, ::before, ::after, ::backdrop, ::file-selector-button {
     @apply border-border;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  input::placeholder, textarea::placeholder {
+    color: var(--color-gray-400);
   }
   body {
     @apply bg-background text-foreground;

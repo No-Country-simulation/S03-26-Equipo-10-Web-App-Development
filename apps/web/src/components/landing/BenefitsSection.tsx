@@ -24,7 +24,7 @@ export const BenefitsSection = () => {
       <div className="container">
         <header className="mb-20 max-w-3xl animate-fade-in-up">
           <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">Producto</span>
-          <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl text-balance">
+          <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl md:leading-none text-balance">
             Todo lo que necesitas,<br />
             <strong className="font-body font-bold not-italic">nada que no.</strong>
           </h2>

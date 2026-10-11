@@ -284,7 +284,7 @@ function TestimonialCard({
   return (
     <article
       ref={cardRef}
-      className="border bg-background/80 p-6 shadow-sm backdrop-blur-sm transition-colors hover:bg-card"
+      className="border bg-background/80 p-6 shadow-xs backdrop-blur-xs transition-colors hover:bg-card"
     >
       <div className="flex items-start justify-between gap-4">
         <div>

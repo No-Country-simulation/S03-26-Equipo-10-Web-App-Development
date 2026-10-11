@@ -8,7 +8,7 @@ export const Footer = () => {
   return (
     <footer className="border-t py-20">
       <div className="container">
-        <div className="grid gap-12 md:grid-cols-[2fr,1fr,1fr,1fr]">
+        <div className="grid gap-12 md:grid-cols-[2fr_1fr_1fr_1fr]">
           {/* Brand column */}
           <div>
             <div className="flex items-center gap-3">

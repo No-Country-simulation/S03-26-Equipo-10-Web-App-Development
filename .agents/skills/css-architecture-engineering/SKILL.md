@@ -1,7 +1,7 @@
 ---
 name: css-architecture-engineering
 description: >-
-  Arquitectura CSS y design tokens vigentes del Testimonial CMS (SKL-FE-CSS-001). Usar para cascada, variables HSL, temas, layout responsivo, foco, movimiento y estilos reutilizables en Next.js 15/Tailwind 3; tratar nuevos archivos de tokens y CSS avanzado como opciones condicionadas.
+  Arquitectura CSS y design tokens vigentes del Testimonial CMS (SKL-FE-CSS-001). Usar para cascada, variables HSL, temas, layout responsivo, foco, movimiento y estilos reutilizables en Next.js 15/Tailwind 4; tratar nuevos archivos de tokens y CSS avanzado como opciones condicionadas.
 ---
 
 # SKL-FE-CSS-001 — Arquitectura CSS del Testimonial CMS
@@ -12,10 +12,10 @@ Usar esta guía al crear o revisar CSS escrito a mano y decisiones de tokens. Le
 
 | Estado | Regla |
 | --- | --- |
-| **Vigente** | Tailwind CSS 3.4 y capas `@layer base`/`@layer utilities` en `globals.css`; tokens HSL en `:root` y `.dark`. |
+| **Vigente** | Tailwind CSS 4.3 con PostCSS y capas `@layer base`/`@layer utilities` en `globals.css`; tokens HSL en `:root` y `.dark`. |
 | **Vigente** | Geometría editorial con `--radius: 0rem`, paleta crema/obsidiana/terracota y fuentes Funnel Sans, Geist, Newsreader. |
 | **Opción contextual** | CSS Modules, `:where`, `:has`, container queries, subgrid, `@scope` o capas adicionales si resuelven un problema concreto y hay soporte probado. |
-| **Migración futura** | Separar tokens en `styles/tokens.css` y temas en `styles/themes.css`, o adoptar Tailwind 4/OKLCH; hoy esos archivos son marcadores. |
+| **Migración futura** | Separar tokens en `styles/tokens.css` y temas en `styles/themes.css`, o adoptar tokens OKLCH; hoy esos archivos son marcadores. |
 
 ## Fuentes de estilo actuales
 
@@ -46,14 +46,14 @@ Las variables de tema son semánticas: un componente usa `--card` por función, 
 
 1. Preferir propiedades de token o utilidad existente antes de aumentar especificidad.
 2. Colocar reglas globales de base en `@layer base`, como hacen `body` y el borde por defecto.
-3. Colocar una utilidad transversal nueva en `@layer utilities` solo si expresa un patrón reutilizable.
+3. Registrar una utilidad transversal con variantes mediante `@utility`; reservar `@layer utilities` para clases CSS ordinarias.
 4. Mantener reglas de un componente o feature cerca de su dueño cuando Tailwind se vuelve ilegible.
 5. Usar selectores de baja especificidad; `:where()` puede ayudar si una regla global necesita ceder a variantes locales.
 6. No recurrir a `!important` para resolver un conflicto sin rastrear primero origen y orden.
 7. Evitar que una regla global seleccione todos los `button`, `div` o `svg` de Radix por accidente.
 8. Revisar CSS calculado, no solo el orden visual de `className`.
 
-`@layer` ya existe por Tailwind 3. Agregar otra capa nativa o una taxonomía ITCSS/CUBE no es requisito del repositorio. CSS Modules son una opción si un bloque escrito a mano necesita aislamiento; no sustituir la estructura de features solo por adoptar una metodología.
+`@layer` usa la cascada nativa en Tailwind 4. Agregar otra capa nativa o una taxonomía ITCSS/CUBE no es requisito del repositorio. CSS Modules son una opción si un bloque escrito a mano necesita aislamiento; no sustituir la estructura de features solo por adoptar una metodología.
 
 ## Responsabilidad de cada estilo
 
@@ -228,7 +228,7 @@ Antes de mover variables de `globals.css` a `styles/tokens.css` o `styles/themes
 
 ## Opciones condicionadas y migración
 
-`@scope`, container queries, subgrid y `@property` son herramientas de CSS moderno; usarlas cuando simplifican un problema real y el soporte de navegadores del proyecto lo permite. No son requisitos de cada pantalla. Separar tokens y temas en nuevos archivos exige mover imports, revisar precedencia y probar ambos temas. Tailwind 4 cambiaría directivas y configuración; seguir su guía de migración en una tarea separada.
+`@scope`, container queries, subgrid y `@property` son herramientas de CSS moderno; usarlas cuando simplifican un problema real y el soporte de navegadores del proyecto lo permite. No son requisitos de cada pantalla. Separar tokens y temas en nuevos archivos exige mover imports, revisar precedencia y probar ambos temas. Tailwind 4 está adoptado con configuración TS explícita y tokens HSL; reorganizarlos requiere una tarea separada.
 
 No tratar `docs/technical/04_design_system.md` o ejemplos históricos con otra paleta como prueba de que el CSS activo cambió. Si un documento y `globals.css` divergen, verificar cuál está ejecutándose y registrar la discrepancia en la tarea pertinente.
 
