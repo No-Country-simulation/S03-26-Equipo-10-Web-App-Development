@@ -69,6 +69,14 @@ Configuración reproducible Railway/Vercel, roles/secretos separados, conexiones
 
 **Commit sugerido de esta continuación:** `build(deploy): configurá Railway y Vercel para la demo`.
 
+**Seguimiento 2026-10-11:** los cuatro archivos quedaron publicados en `695828283b194e51da713eb0746aff640ff21f01`, junto con la skill Railway instalada. Su [CI 38151400859](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38151400859) aprobó `verify` completo, pero falló en `secret-scan`: dos candidatos MongoDB corresponden a una plantilla de variables de entorno en `use-railway/scripts/analyze-mongo.py`, sin credenciales literales. Se separó la interpolación de autenticación conservando el comando generado; cuatro casos de equivalencia y la expansión de argumentos con un `mongosh` simulado aprobaron. El archivo corregido no produce candidatos en TruffleHog 3.97.5 sin red/verificación y con `verified,unknown,unverified`. La validación remota del nuevo SHA sigue pendiente; no se excluyeron archivos ni se alteraron gates o historial.
+
+**Alcance confirmado:** todavía no existen los proyectos Vercel, Railway ni los dos Supabase. Respuesta humana: «Todavía no; prepará la entrega sin crear recursos». La fase 4 podrá preparar la entrega una vez cumplido el gate de fase 3, sin aprovisionar, contratar, desplegar ni ejecutar migraciones persistentes.
+
+El rango prospectivo de la corrección/documentación también aprobó TruffleHog con todos los candidatos en una copia Git temporal; sintaxis Python y `git diff --check` aprobados. Artefacto API del CI de infraestructura: 68 suites/474 pruebas aprobadas, cero omisiones. La skill CI/CD y `llm.txt` reflejan el bloqueo y el alcance sin recursos.
+
+**Commit sugerido de la corrección:** `fix(ci): corregí el falso positivo de la skill Railway`.
+
 ## [Pendiente] Fase 4 — Despliegue controlado y aceptación
 
 Workflow manual de SHA validado de main; identidad de artefacto, serialización, migraciones separadas y autorizadas, protección de rama, smoke tests y recuperación remota. Cada servicio externo requiere entorno y presupuesto confirmados.
