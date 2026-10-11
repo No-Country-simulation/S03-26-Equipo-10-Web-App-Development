@@ -9,6 +9,7 @@
 
 ## Contrato
 
+- Para dominios Vercel/Railway distintos, usar el [proxy de mismo origen](25_demo_same_origin_proxy.md): `NEXT_PUBLIC_API_URL=/api/v1`, destino backend separado y `CORS_ORIGIN` exacto de la web. Conservar cookies actuales `SameSite=Strict`, HttpOnly, Secure en producción, host-only y Path=/; no hay prefijo `__Host-` implementado.
 - La web usa `X-Auth-Mode: cookie`, `credentials: include` y no recibe tokens en login, registro ni refresh.
 - `GET /api/v1/auth/csrf` devuelve `{ csrfToken }` para un refresh cookie activo. El valor es un HMAC ligado al refresh token y cambia al rotarlo.
 - Toda mutación autenticada por cookie envía `x-csrf-token`. Refresh y logout también requieren Origin permitido. Bearer explícito mantiene el contrato `{ user, tokens }` y no establece cookies.

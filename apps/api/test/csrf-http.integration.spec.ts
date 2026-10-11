@@ -1,3 +1,4 @@
+import { privateApiCache } from '../src/common/middleware/private-cache.middleware';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { Controller, Post, Req } from '@nestjs/common';
@@ -62,11 +63,20 @@ describe('CSRF y proxy por HTTP', () => {
       .compile();
 
     app = module.createNestApplication();
+    app.use(privateApiCache);
     app.use(cookieParser());
     await app.init();
   });
 
   afterAll(async () => { if (app) await app.close(); });
+
+  it('impide caché compartida también en errores de CSRF', async () => {
+    const result = await request(app.getHttpServer()).post('/auth/login')
+      .set('Origin', 'https://evil.example.test').send({}).expect(403);
+    expect(result.headers['cache-control']).toBe('private, no-store');
+    expect(result.headers['cdn-cache-control']).toBe('no-store');
+    expect(result.headers['vercel-cdn-cache-control']).toBe('no-store');
+  });
 
   it('acepta login y registro con Origin permitido, incluso con cookies previas', async () => {
     await request(app.getHttpServer()).post('/auth/login')

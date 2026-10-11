@@ -4,6 +4,10 @@ description: >-
   Diseño, implementación, auditoría y endurecimiento de sistemas de autenticación, autorización y seguridad web adaptado a NestJS 11, Next.js 15 y PostgreSQL (código SKL-WEB-SEC-001). Usar cuando se requiera implementar sesiones híbridas seguras (cookies HttpOnly __Host-, Bearer fallback, Refresh Token Rotation con hash), mitigación estricta de BOLA/IDOR en arquitecturas multi-tenant, RBAC con roles y permisos atómicos, hashing de contraseñas con Argon2id, guardias perimetrales (CSRF Double-Submit, Rate Limiting, API Keys con timingSafeEqual), sanitización contra XSS/SSRF/SQLi, y cumplimiento de OWASP Top 10:2025 y ASVS 5.0.
 ---
 
+## Contrato vigente del repositorio
+
+Antes de aplicar ejemplos de esta skill, verificar los controladores y guards instalados: las cookies actuales se llaman `accessToken`/`refreshToken`, son host-only, Path=/, HttpOnly, `SameSite=Strict` y Secure en producción; no hay prefijo `__Host-`. CSRF usa HMAC ligado al refresh token obtenido por `/auth/csrf`, no una cookie double-submit independiente. Preservar este contrato: los ejemplos Lax/double-submit de abajo son históricos y no autorizan cambiarlo. Para Vercel/Railway usar el [proxy de mismo origen](../../../docs/operations/25_demo_same_origin_proxy.md), con Origin original, no-store y headers permitidos explícitos. No confiar automáticamente en X-Forwarded-*; verificar ingress, acceso directo y cuotas antes de configurar `TRUST_PROXY_HOPS`.
+
 # Especificación Técnica de Habilidad: Web Security, Authentication & Authorization Engineering
 
 ```text

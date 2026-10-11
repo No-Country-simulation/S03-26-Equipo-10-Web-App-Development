@@ -119,6 +119,7 @@ Orden de lectura recomendado al comenzar una tarea nueva:
 
 - `apps/web/src/features/`: pantallas y adaptadores HTTP de administración, autenticación y páginas públicas activas.
 - `apps/web/src/app/`: composición de rutas; las rutas preparatorias simples permanecen en `app/`.
+- `apps/web/src/middleware.ts`: proxy externo de mismo origen bajo `/api/v1`, destino fijo `API_BACKEND_ORIGIN` de servidor, allowlist de headers, rutas internas bloqueadas y no-store. Validación remota Vercel/Railway pendiente; no habilitar confianza del ingress sin verificar sus saltos y cuotas por IP.
 - `apps/web/src/hooks/use-session.ts`: mecanismo de sesión usado por las rutas activas.
 
 ---

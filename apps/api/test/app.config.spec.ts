@@ -1,4 +1,4 @@
-import { appConfigValidationSchema } from '../src/config/app.config';
+import { appConfig, appConfigValidationSchema } from '../src/config/app.config';
 
 const validEnvironment = {
   PORT: '4000',
@@ -11,6 +11,27 @@ const validEnvironment = {
 describe('application environment validation', () => {
   it('accepts a valid runtime configuration', () => {
     expect(appConfigValidationSchema.safeParse(validEnvironment).success).toBe(true);
+  });
+
+  it('does not trust ingress headers without an explicit hop configuration', () => {
+    expect(appConfigValidationSchema.parse(validEnvironment).TRUST_PROXY_HOPS).toBe(0);
+  });
+
+  it('uses zero trusted hops in the production runtime factory too', () => {
+    const previousEnvironment = process.env;
+    try {
+      process.env = { ...previousEnvironment, NODE_ENV: 'production',
+        REDIS_URL: 'redis://127.0.0.1:6379',
+        API_KEY_PEPPERS_JSON: validEnvironment.API_KEY_PEPPERS_JSON,
+        WEBHOOK_SECRET_KEYS_JSON: JSON.stringify({ 1: Buffer.alloc(32, 7).toString('base64url') }),
+      };
+      delete process.env.TRUST_PROXY_HOPS;
+      expect(appConfig().trustedProxyHops).toBe(0);
+      process.env.TRUST_PROXY_HOPS = '2';
+      expect(appConfig().trustedProxyHops).toBe(2);
+    } finally {
+      process.env = previousEnvironment;
+    }
   });
 
   it.each([

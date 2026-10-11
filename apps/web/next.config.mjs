@@ -1,14 +1,12 @@
-import { z } from "zod";
+import { fileURLToPath } from 'node:url';
+import { normalizeApiBaseUrl, getBackendOrigin } from './config/api.mjs';
 
-const { NEXT_PUBLIC_API_URL } = z.object({
-  NEXT_PUBLIC_API_URL: z.string().url().refine((value) => {
-    if (!URL.canParse(value)) return false;
-    const url = new URL(value);
-    return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password;
-  }, 'NEXT_PUBLIC_API_URL must be an HTTP(S) URL without credentials'),
-}).parse({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL });
+const apiBase = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
+const apiOrigin = apiBase === '/api/v1' ? '' : new URL(apiBase).origin;
+if (apiBase === '/api/v1') {
+  getBackendOrigin(process.env.API_BACKEND_ORIGIN, process.env.NODE_ENV === 'production');
+}
 
-const apiOrigin = new URL(NEXT_PUBLIC_API_URL).origin;
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -16,7 +14,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data: https://res.cloudinary.com https://img.youtube.com https://i.ytimg.com",
   "font-src 'self' data:",
-  `connect-src 'self' ${apiOrigin}${isDevelopment ? ' ws: wss:' : ''}`,
+  `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''}${isDevelopment ? ' ws: wss:' : ''}`,
   'frame-src https://www.youtube.com',
   "object-src 'none'",
   "base-uri 'self'",
@@ -28,6 +26,9 @@ const contentSecurityPolicy = [
 const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
+  // Image JSON reaches 14 MiB; middleware must not truncate the forwarded body.
+  experimental: { middlewareClientMaxBodySize: '15mb', proxyTimeout: 30_000 },
   async headers() {
     return [
       {

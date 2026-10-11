@@ -33,6 +33,8 @@ Confirmar proyecto/equipo/root antes de operar; [vercel-cli](../../vercel-cli/SK
 
 `NEXT_PUBLIC_API_URL` es pública, se procesa en build y determina `connect-src` en `next.config.mjs`. No reutilizar preview con API distinta sin verificar; registrar build/deployment específicos cuando cambie. [Variables públicas Next.js](https://nextjs.org/docs/app/guides/environment-variables).
 
+La fase 2 prepara el proxy externo de mismo origen: `NEXT_PUBLIC_API_URL=/api/v1` y `API_BACKEND_ORIGIN` separado, sólo servidor. Conserva cookies actuales Strict/HttpOnly/Secure y CSRF; bloquea `/internal` y filtraciones de headers de identidad, sin caché compartida. No envolver imágenes de hasta 14 MiB en una Vercel Function sin revisar su límite de cuerpo. Consultar [runbook de proxy](../../../../docs/operations/25_demo_same_origin_proxy.md); la fixture HTTP/navegador local no acredita límites ni ingress del proveedor. La confianza en proxies predetermina 0 y las cuotas por IP agrupan al peer hasta verificar la cadena real.
+
 Usar HTTPS y probar dominio real. Actualmente `CORS_ORIGIN` admite un origen: previews nuevos no quedan admitidos por defecto. Elegir dominio de demo o autorizar cambio de allowlist sin comodines con credenciales. Verificar cookies HttpOnly/Secure/SameSite, requests con credenciales, refresh y CSRF; dominios de proveedores distintos exigen revisar same-site y restricciones del navegador. CORS por sí solo no resuelve cookies. Leer [rollout de sesión](../../../../docs/operations/11_cookie_session_rollout.md).
 
 ## Cloudinary y YouTube

@@ -44,7 +44,7 @@ export interface AppConfig {
 export const appConfigValidationSchema = z.object({
   METRICS_TOKEN: z.string().default(''),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
-  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(process.env.NODE_ENV === 'production' ? 1 : 0),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   WEBHOOK_LEGACY_HTTP_STARTED_AT: z.union([
     z.literal(''),
     z.iso.datetime({ offset: false, local: false })
@@ -159,7 +159,7 @@ export const appConfig = registerAs('app', (): AppConfig => {
     metricsToken: process.env.METRICS_TOKEN ?? '',
     port: Number(process.env.PORT ?? 4000),
     corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
-    trustedProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? (process.env.NODE_ENV === 'production' ? 1 : 0)),
+    trustedProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? 0),
     webhookLegacyHttpStartedAt: process.env.WEBHOOK_LEGACY_HTTP_STARTED_AT || null,
     webhookSignatureLegacyStartedAt: process.env.WEBHOOK_SIGNATURE_LEGACY_STARTED_AT || null,
     webhookSecrets: {

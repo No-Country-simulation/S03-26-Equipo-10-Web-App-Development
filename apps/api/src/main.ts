@@ -13,6 +13,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import type { AppConfig } from './config/app.config';
 import { boundedJsonBody, formBody } from './common/middleware/body-limits.middleware';
+import { privateApiCache } from './common/middleware/private-cache.middleware';
 import { MetricsService } from './common/observability/metrics.service';
 
 /**
@@ -39,6 +40,8 @@ async function bootstrap() {
   // Confiar solo en los saltos del ingress controlado; nunca leer XFF a mano.
   // La API debe permanecer inaccesible directamente cuando este valor sea > 0.
   app.getHttpAdapter().getInstance().set('trust proxy', appConfig.trustedProxyHops);
+
+  app.use(privateApiCache);
 
   // Configuración de CORS basada en la configuración de entorno
   app.enableCors({

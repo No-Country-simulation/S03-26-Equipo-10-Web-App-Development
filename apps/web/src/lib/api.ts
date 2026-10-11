@@ -1,3 +1,5 @@
+import { normalizeApiBaseUrl } from '../../config/api.mjs';
+
 /**
  * Envoltorio estándar (envelope) devuelto por el interceptor `ApiResponseInterceptor` del backend.
  */
@@ -80,20 +82,7 @@ export class ApiError extends Error {
 }
 
 export function getApiBaseUrl() {
-  const configured = process.env.NEXT_PUBLIC_API_URL;
-  if (!configured) {
-    throw new Error('NEXT_PUBLIC_API_URL is required');
-  }
-
-  if (configured.endsWith('/api/v1')) {
-    return configured;
-  }
-
-  if (configured.endsWith('/api')) {
-    return `${configured}/v1`;
-  }
-
-  return configured;
+  return normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 }
 
 /**
