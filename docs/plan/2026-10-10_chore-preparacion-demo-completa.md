@@ -1,6 +1,6 @@
 # Preparación de la demo completa
 
-**Inicio:** 2026-10-10. **Estado:** cierre de preparación CI/CD (fase 4). Recursos y despliegue diferidos por instrucción humana; una fase por ACK.
+**Inicio:** 2026-10-10. **Estado:** preparación CI/CD completada; cierre entregado mediante PR #4 con checks obligatorios. Recursos, activación y despliegue diferidos por instrucción humana; una fase por ACK.
 
 ## Contexto y Restricciones
 
@@ -83,7 +83,7 @@ El rango prospectivo de la corrección/documentación también aprobó TruffleHo
 
 **Cierre de fase 3:** el usuario integró el [PR #2](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/2) como `06186df8064e438101c79fb22d8ec4f3ce48408c`. Su [CI de main 38156809417](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38156809417) aprobó. El fallo de concurrencia histórico queda resuelto sin cambiar producción. ACK posterior: «Continuar [...] Termina y deja todo preparado», con entrega disparada por tags y creación de recursos/despliegue diferidos. Autoriza preparar fase 4; no recursos ni SQL persistente.
 
-## [Actual] Fase 4 — Preparación de entrega controlada
+## [Completada: preparación] Fase 4 — Preparación de entrega controlada
 
 El alcance autorizado cierra la preparación; la activación y aceptación remotas quedan diferidas expresamente. Runbook: [entrega por tags](../operations/27_demo_tag_delivery.md).
 
@@ -98,7 +98,7 @@ El alcance autorizado cierra la preparación; la activación y aceptación remot
 - [x] Entrega inicial integrada humanamente por PR #3 como `aeef546b0a7de1cb8beb6074779faf3b58fa808d`; [CI de main 38160840942](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38160840942) aprobado.
 - [x] ACK posterior «Continua con los pendientes hasta terminar el plan de dejar listo el ci/cd» para aplicar la propuesta mínima de mantenimiento; Dockerfile activo idéntico a la propuesta revisada.
 - [x] Agregar build, smoke offline, SBOM y gate HIGH/CRITICAL de maintenance al CI de PR/main; conservar runtime API por defecto y gates anteriores.
-- [ ] CI de la corrección final e integración humana de su PR; registrar el run final en el seguimiento del PR.
+- [x] CI de la implementación final `124c50e873c7b6295123ca451b28d7145dfddde2`: [38172308957](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38172308957) aprobado, incluidos verify, secret-scan y dependency-review. Autorización humana posterior: «Continua con los pendientes hasta terminar el plan de dejar listo el ci/cd». Entrega del cierre mediante [PR #4](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/4), respetando PR/checks y sin bypass; el seguimiento del PR conserva el CI del commit documental y del merge resultante.
 
 ### Trabajo diferido fuera del cierre de preparación
 
@@ -110,6 +110,8 @@ El alcance autorizado cierra la preparación; la activación y aceptación remot
 **Corrección final:** propuesta aplicada únicamente a `apps/api/Dockerfile`, conservando `runner` como target por defecto. El smoke nuevo verifica sin red los bytes de los 19 archivos de esquema/migraciones, carga los CLI compilados BI y Prisma, prueba el engine nativo generando SQL sin conexión ni ejecución, valida usuario no root/filesystem de sólo lectura y el rechazo de una invocación sin comando explícito. No se ejecutaron migraciones persistentes ni se publicaron imágenes, tags o despliegues. El CI debe acreditar la imagen mínima y adjuntar sus reportes antes de integrar el PR final.
 
 **Validación de la corrección:** build y smoke offline aprobados; 49 pruebas de entrega aprobadas, cero omisiones; actionlint y formato aprobados. Trivy 0.74.0 con base pública actualizada: cero HIGH/CRITICAL en la imagen maintenance activa, sin exclusiones; SBOM generado de esa misma exportación local. Control negativo del gate real de CI: un reporte maintenance con HIGH sin parche y la ausencia de su reporte bloquean; reportes limpios permiten continuar. Ningún resultado local se atribuye a una imagen publicada o despliegue remoto.
+
+**Evidencia remota de implementación:** CI `38172308957` aprobó 68 suites/476 pruebas API y cero omisiones; tests web, tipos/lint/build, smoke proxy, permisos/configuración/runtime, build/smoke maintenance y API/web, SBOM y gates de escaneo/auditoría. La integración debe conservar todos los checks aprobados; antes de activar, consultar también el CI más reciente de main para el SHA elegido. La entrega continúa apagada. No queda desarrollo pendiente identificado dentro del alcance de preparación; el funcionamiento remoto sólo se acepta con los recursos y las pruebas diferidas.
 
 **Commit sugerido de cierre:** `ci(maintenance): validá la imagen mínima antes de entregar`.
 
