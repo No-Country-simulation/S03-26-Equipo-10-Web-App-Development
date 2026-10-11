@@ -77,6 +77,8 @@ El rango prospectivo de la corrección/documentación también aprobó TruffleHo
 
 **Commit sugerido de la corrección:** `fix(ci): corregí el falso positivo de la skill Railway`.
 
+**Publicación de la corrección:** autorización explícita recibida para publicar `codex/fix-railway-secret-scan` en este repositorio y abrir un PR borrador, sin merge ni despliegues. [PR #1](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/1): corrección `9741b7b` y formato `0ee1696ffaeedea118bb4664f911d38c3a6d2167`. El escaneo offline de ambos commits aprobó con todos los candidatos. El [CI del PR 38152713874](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38152713874) terminó aprobado en el intento 2: `verify`, `secret-scan` y `dependency-review`. El primer intento falló únicamente en Dependency Review porque Dependency Graph estaba deshabilitado. El usuario confirmó su habilitación; la API de comparación respondió y se reejecutó sólo el job fallido, sin cambiar gates. El reporte API confirma 68 suites/474 pruebas aprobadas y cero omisiones. La corrección está validada en el PR; faltan revisión, merge humano y CI del SHA resultante de `main` para cerrar fase 3. La fase 4 no comenzó.
+
 ## [Pendiente] Fase 4 — Despliegue controlado y aceptación
 
 Workflow manual de SHA validado de main; identidad de artefacto, serialización, migraciones separadas y autorizadas, protección de rama, smoke tests y recuperación remota. Cada servicio externo requiere entorno y presupuesto confirmados.

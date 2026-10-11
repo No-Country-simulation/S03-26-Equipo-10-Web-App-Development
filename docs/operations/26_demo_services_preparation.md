@@ -148,3 +148,15 @@ La reproducción con verificación y acceso de red fue rechazada por la revisió
 El usuario confirmó que los proyectos externos todavía no existen y pidió preparar la entrega sin crear recursos. Esa preparación futura no autoriza aprovisionamiento, contratación, despliegues ni migraciones persistentes.
 
 Commit sugerido: `fix(ci): corregí el falso positivo de la skill Railway`.
+
+## PR de corrección y requisito de Dependency Graph
+
+Con autorización explícita del usuario se publicó la rama `codex/fix-railway-secret-scan` y se abrió el [PR borrador #1](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/1), base `main`: corrección `9741b7b`, formato `0ee1696ffaeedea118bb4664f911d38c3a6d2167`. El rango publicado desde `6958282` aprobó TruffleHog 3.97.5 offline con todas las clases de candidatos. Prettier y diff sin errores. Git informó que el hook existente no es ejecutable: se aplicó y verificó manualmente su formatter, sin modificar `.husky/`.
+
+El primer intento del [CI 38152713874](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38152713874), disparado por PR, aprobó `secret-scan` y `verify`. `dependency-review`, que se omitía en los pushes anteriores, falló con `Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled`. Era un requisito remoto sin habilitar; no fue evidencia de nuevas vulnerabilidades ni justificaba desactivar el gate.
+
+La [documentación oficial de GitHub](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/enable-dependency-graph) indica habilitar **Dependency Graph** en Settings → Advanced Security. GitHub lee los manifests/lockfiles y puede tardar varios minutos en poblar el grafo. El repositorio es público y la CLI tiene rol ADMIN; no se encontró una mutación específica en el esquema GraphQL consultado. El navegador disponible no tenía sesión. El usuario confirmó «Ya habilité Dependency Graph»; la API de comparación del rango del PR respondió correctamente con cero cambios de dependencias. Se reejecutó únicamente el job fallido mediante `gh run rerun 38152713874 --failed`. El intento 2 terminó aprobado: `verify`, `secret-scan` y `dependency-review`; el artefacto API confirma 68 suites/474 pruebas aprobadas, cero omisiones. No se modificaron permisos del token del workflow ni gates. No atribuir esa aprobación al SHA todavía vigente de `main` ni a futuros cambios.
+
+La autorización de publicación no incluye merge. Antes de cerrar fase 3, integrar mediante revisión humana y comprobar el CI del SHA de `main`; la preparación de fase 4 sigue pendiente. Los proyectos Vercel/Railway/Supabase no fueron creados.
+
+Commit sugerido de la evidencia del PR: `docs(ci): registrá la validación del PR de la demo`. Esta evidencia describe el SHA `0ee1696`; el commit documental posterior requiere su propio CI.
