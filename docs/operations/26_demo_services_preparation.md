@@ -4,12 +4,12 @@ Fase 3 del [plan](../plan/2026-10-10_chore-preparacion-demo-completa.md), sobre 
 
 ## Artefactos y autorización
 
-| Propuesta revisable conservada | Archivo aplicado con ACK |
-|---|---|
-| [Parche API](demo/api-Dockerfile.patch) | [Dockerfile API](../../apps/api/Dockerfile): target `maintenance` separado y copia de cuatro scripts de runtime/preflight en runner. |
-| [Railway API](demo/railway-api.json.example) | [infra/railway/api.json](../../infra/railway/api.json) |
-| [Railway worker](demo/railway-worker.json.example) | [infra/railway/worker.json](../../infra/railway/worker.json) |
-| [Vercel](demo/vercel.json.example) | [apps/web/vercel.json](../../apps/web/vercel.json) |
+| Propuesta revisable conservada                     | Archivo aplicado con ACK                                                                                                             |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [Parche API](demo/api-Dockerfile.patch)            | [Dockerfile API](../../apps/api/Dockerfile): target `maintenance` separado y copia de cuatro scripts de runtime/preflight en runner. |
+| [Railway API](demo/railway-api.json.example)       | [infra/railway/api.json](../../infra/railway/api.json)                                                                               |
+| [Railway worker](demo/railway-worker.json.example) | [infra/railway/worker.json](../../infra/railway/worker.json)                                                                         |
+| [Vercel](demo/vercel.json.example)                 | [apps/web/vercel.json](../../apps/web/vercel.json)                                                                                   |
 
 `AGENTS.md` exige ACK para infraestructura. Se recibió «Continuar» en respuesta a la solicitud acotada y los cuatro cambios se aplicaron el 2026-10-11. Los ejemplos y el parche se conservan como evidencia de lo aprobado; los SQL de bootstrap/grants siguen siendo propuestas sin ejecución persistente. Aplicar los cuatro archivos no autoriza publicar imágenes, contratar servicios, activar despliegues ni ejecutar SQL persistente. Compose, Dockerfile web, manifiesto raíz, lockfile y schema Prisma quedan fuera de esta autorización.
 
@@ -19,11 +19,11 @@ Los scripts `scripts/demo/` están separados de las entradas existentes de Compo
 
 Raíz de build: repositorio completo. Seleccionar explícitamente el archivo de configuración de cada servicio desde la raíz; ambos usan `apps/api/Dockerfile`. API y worker reutilizan la misma imagen compatible, con entradas diferentes. Deshabilitar despliegue automático desde Git en la configuración del proveedor durante esta preparación; los JSON no certifican esa opción externa. En fase 4 promover digest validado y registrar deployment/configuración, sin recompilar silenciosamente durante la promoción.
 
-| Servicio | Entrada | Supervisión |
-|---|---|---|
-| API | `node scripts/demo/runtime.mjs api` | Readiness real `/api/v1/health/ready`, timeout 120 s; incluye OLTP, no warehouse. Outbox y limpieza siguen en la API. |
-| Worker continuo | `node scripts/demo/runtime.mjs worker` | Sin servidor HTTP ni cron; gate futuro mediante heartbeat protocolo 1 vigente en `etl.worker_health` y solicitud BI completada. `healthcheckPath: null` no demuestra salud. |
-| Redis privado | Servicio independiente, URL sólo en API | Verificar autenticación, red privada y fallo controlado de cuotas/caché; no participa en entrega durable. |
+| Servicio        | Entrada                                 | Supervisión                                                                                                                                                                 |
+| --------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API             | `node scripts/demo/runtime.mjs api`     | Readiness real `/api/v1/health/ready`, timeout 120 s; incluye OLTP, no warehouse. Outbox y limpieza siguen en la API.                                                       |
+| Worker continuo | `node scripts/demo/runtime.mjs worker`  | Sin servidor HTTP ni cron; gate futuro mediante heartbeat protocolo 1 vigente en `etl.worker_health` y solicitud BI completada. `healthcheckPath: null` no demuestra salud. |
+| Redis privado   | Servicio independiente, URL sólo en API | Verificar autenticación, red privada y fallo controlado de cuotas/caché; no participa en entrega durable.                                                                   |
 
 Propuestas: una réplica, `sleepApplication: false`, reinicio `ON_FAILURE` con diez reintentos, `overlapSeconds: 0`, drenaje 330 s. El worker tarda hasta cinco minutos en drenar una carga activa; el ledger/lease recupera terminaciones forzadas. Confirmar que el plan del proveedor admite y aplica ese drenaje; el schema JSON no demuestra su comportamiento. Aunque overlap sea cero, presupuestar conexiones de versiones vieja/nueva durante el drenaje. No exponer el worker públicamente.
 
@@ -39,16 +39,16 @@ Root Directory `apps/web`, framework Next.js, Node 24.x del proveedor; registrar
 
 Inyectar desde gestores del proveedor; no guardar valores en `.env` del repositorio, contexto, argumentos de consola, SQL, imágenes o reportes. Los CA son certificados públicos, nunca claves privadas. Descargar los CA oficiales de cada proyecto y revisar huella/vigencia por canal confiable; rotación requiere reiniciar con configuración revisada.
 
-| Destino | Variables / responsabilidad |
-|---|---|
-| API | `NODE_ENV=production`, `PORT` provisto por Railway, `CORS_ORIGIN` exacto de la web, `TRUST_PROXY_HOPS=0`; `DATABASE_URL` para `cms_runtime`. |
-| API con BI completo | `BI_ENABLED=true`, `BI_OPERATIONS_ENABLED=true`, `BI_DATABASE_URL` para `bi_api_reader`, `BI_CONTROL_DATABASE_URL` para `bi_control`. Durante instalación/mantenimiento mantener controles apagados hasta validar esquema y worker. |
-| Worker | Sólo `BI_SOURCE_DATABASE_URL` para `bi_source_reader` y `BI_ETL_DATABASE_URL` para `bi_etl_writer`; no necesita banderas HTTP, Redis, JWT, Cloudinary ni claves de métricas. |
-| API/worker | `SUPABASE_OLTP_HOST`, `SUPABASE_WAREHOUSE_HOST` distintos; formato directo `db.<project-ref>.supabase.co`. `OLTP_CA_PEM` y, cuando corresponda, `WAREHOUSE_CA_PEM`. |
-| API, secretos de aplicación | `JWT_SECRET`, `API_KEY_PEPPERS_JSON`, versión activa; `WEBHOOK_SECRET_KEYS_JSON`, versión activa; `METRICS_TOKEN`; `REDIS_URL` privado. Conservar claves anteriores durante ventanas de rotación y restauración compatibles. |
-| API, proveedores | Variables Cloudinary actuales, preset revisado, credencial firmada para logos y limpieza; `CLOUDINARY_LOCAL_PLACEHOLDER=false`. `YOUTUBE_API_KEY` backend para metadatos cuando corresponda; reproducción no depende de ella. |
-| Migración OLTP | Identidad exclusiva `cms_migrator` en `DATABASE_URL` del job de mantenimiento; nunca en el servicio API. |
-| Migración warehouse | Identidad exclusiva `bi_migrator` en `BI_MIGRATION_DATABASE_URL` del job; nunca en worker/API. |
+| Destino                     | Variables / responsabilidad                                                                                                                                                                                                         |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API                         | `NODE_ENV=production`, `PORT` provisto por Railway, `CORS_ORIGIN` exacto de la web, `TRUST_PROXY_HOPS=0`; `DATABASE_URL` para `cms_runtime`.                                                                                        |
+| API con BI completo         | `BI_ENABLED=true`, `BI_OPERATIONS_ENABLED=true`, `BI_DATABASE_URL` para `bi_api_reader`, `BI_CONTROL_DATABASE_URL` para `bi_control`. Durante instalación/mantenimiento mantener controles apagados hasta validar esquema y worker. |
+| Worker                      | Sólo `BI_SOURCE_DATABASE_URL` para `bi_source_reader` y `BI_ETL_DATABASE_URL` para `bi_etl_writer`; no necesita banderas HTTP, Redis, JWT, Cloudinary ni claves de métricas.                                                        |
+| API/worker                  | `SUPABASE_OLTP_HOST`, `SUPABASE_WAREHOUSE_HOST` distintos; formato directo `db.<project-ref>.supabase.co`. `OLTP_CA_PEM` y, cuando corresponda, `WAREHOUSE_CA_PEM`.                                                                 |
+| API, secretos de aplicación | `JWT_SECRET`, `API_KEY_PEPPERS_JSON`, versión activa; `WEBHOOK_SECRET_KEYS_JSON`, versión activa; `METRICS_TOKEN`; `REDIS_URL` privado. Conservar claves anteriores durante ventanas de rotación y restauración compatibles.        |
+| API, proveedores            | Variables Cloudinary actuales, preset revisado, credencial firmada para logos y limpieza; `CLOUDINARY_LOCAL_PLACEHOLDER=false`. `YOUTUBE_API_KEY` backend para metadatos cuando corresponda; reproducción no depende de ella.       |
+| Migración OLTP              | Identidad exclusiva `cms_migrator` en `DATABASE_URL` del job de mantenimiento; nunca en el servicio API.                                                                                                                            |
+| Migración warehouse         | Identidad exclusiva `bi_migrator` en `BI_MIGRATION_DATABASE_URL` del job; nunca en worker/API.                                                                                                                                      |
 
 Las variables legadas `*_LEGACY_STARTED_AT` se configuran según los runbooks de corte existentes, con fechas reales del primer despliegue compatible; no inventar una fecha ni reiniciar la ventana en cada despliegue. `runtime.mjs` elimina credenciales no utilizadas antes de lanzar el hijo; esto no sustituye separar variables y permisos en cada servicio del proveedor.
 
@@ -60,13 +60,13 @@ Conexión directa, puerto 5432, base `postgres`, TLS con validación estricta de
 
 El wrapper materializa cada CA en un directorio temporal privado y archivo modo 0600; cierra y elimina al terminar. Tiempo de conexión/pool: 5 s. No usar pooler transaccional para el worker con locks de sesión ni para migraciones. Estos límites no representan un SLO remoto.
 
-| Conexión | Pool máximo |
-|---|---:|
-| CMS runtime | 5 |
-| Extractor OLTP | 1 |
-| Lector warehouse API | 2 |
-| Control warehouse API | 2 |
-| Escritor warehouse | 2 |
+| Conexión              | Pool máximo |
+| --------------------- | ----------: |
+| CMS runtime           |           5 |
+| Extractor OLTP        |           1 |
+| Lector warehouse API  |           2 |
+| Control warehouse API |           2 |
+| Escritor warehouse    |           2 |
 
 Total estable: 6 OLTP y 6 warehouse. Presupuestar hasta 12 por proyecto durante reemplazo con dos versiones, más mantenimiento/preflight (un cliente activo por identidad), conexiones administrativas y servicios internos. Verificar `max_connections`, límites reservados del proveedor y uso real antes de activar réplicas; el preflight informa el máximo, no certifica capacidad disponible.
 
@@ -76,13 +76,13 @@ Los cuatro SQL de `demo/` son propuestas exclusivas para **proyectos nuevos dedi
 
 Orden futuro, con ACK específico del entorno: revisar extensiones existentes (`pgcrypto`, `pg_stat_statements`, `uuid-ossp`) y habilitarlas como administrador gestionado si faltan; bootstrap; migraciones con su identidad propietaria; grants; preflight. No otorgar privilegios de administrador al migrador para sortear una extensión faltante. Las migraciones mantienen sus checksums.
 
-| Rol | Acceso efectivo |
-|---|---|
-| `cms_runtime` | DML de las 27 tablas CMS según uso; catálogos necesarios para registro con upsert. Permisos, relaciones de permisos y eventos webhook sólo lectura; auditoría SELECT/INSERT. USAGE de cinco secuencias necesarias, no todas. |
-| `bi_source_reader` | SELECT de cuatro vistas `bi_export`; sin SELECT directo de usuarios/PII. |
-| `bi_api_reader` | SELECT de diez tablas `dw` y seis controles técnicos `etl`; sin escritura. |
-| `bi_control` | Preferencias SELECT/INSERT/UPDATE; solicitudes SELECT/INSERT y UPDATE sólo `status`, `finished_at`, `error_code`; auditoría SELECT/INSERT; runs/estado/heartbeat sólo lectura. |
-| `bi_etl_writer` | DML staging/dw, secuencias dw; runs/estado/preferencias/heartbeat SELECT/INSERT/UPDATE; solicitudes SELECT/UPDATE; ledger sólo SELECT. Sin escritura de auditoría ni INSERT de solicitudes. |
+| Rol                | Acceso efectivo                                                                                                                                                                                                              |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cms_runtime`      | DML de las 27 tablas CMS según uso; catálogos necesarios para registro con upsert. Permisos, relaciones de permisos y eventos webhook sólo lectura; auditoría SELECT/INSERT. USAGE de cinco secuencias necesarias, no todas. |
+| `bi_source_reader` | SELECT de cuatro vistas `bi_export`; sin SELECT directo de usuarios/PII.                                                                                                                                                     |
+| `bi_api_reader`    | SELECT de diez tablas `dw` y seis controles técnicos `etl`; sin escritura.                                                                                                                                                   |
+| `bi_control`       | Preferencias SELECT/INSERT/UPDATE; solicitudes SELECT/INSERT y UPDATE sólo `status`, `finished_at`, `error_code`; auditoría SELECT/INSERT; runs/estado/heartbeat sólo lectura.                                               |
+| `bi_etl_writer`    | DML staging/dw, secuencias dw; runs/estado/preferencias/heartbeat SELECT/INSERT/UPDATE; solicitudes SELECT/UPDATE; ledger sólo SELECT. Sin escritura de auditoría ni INSERT de solicitudes.                                  |
 
 Bootstrap revoca default grants del propietario hacia PUBLIC/anon/authenticated/service_role. Grants revoca permisos sobre objetos CMS/BI conocidos y secuencias de sus schemas; por eso no se aplica sin revisión a proyectos compartidos. No concede acceso automático a futuras tablas. El preflight inspecciona privilegios **efectivos** de tablas/columnas/secuencias, propiedad, membresías, CREATE, funciones SECURITY DEFINER ejecutables y accesos de roles Data API. No hace cambios ni reemplaza la autorización por `tenant_id` de NestJS: no se incorpora RLS de aplicación en esta fase.
 
@@ -131,6 +131,32 @@ TruffleHog 3.97.5 sobre nuevos archivos y diff preparado, contenedor sin red/mon
 
 La preparación quedó registrada en `368db56ae0277ca34a96ba59022cd8a3c56c4744`; su [CI 38150470333](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38150470333) aprobó verify y secret-scan (dependency-review omitido por push). Se verificó expresamente el gate `Verify demo configuration, runtime and restricted database identities`, además de build API, smoke de imágenes y escaneo API. Los cuatro archivos de infraestructura aplicados después coinciden exactamente con las propuestas: JSON byte a byte y reverse-check del parche; schemas oficiales aprobados. No se repitieron las integraciones ni builds de una propuesta idéntica. Las identidades locales anteriores documentan el ensayo del contenido aprobado, no un build del futuro commit.
 
-Quedan pendientes commit/revisión y CI del SHA final, aprovisionamiento/presupuesto, migraciones persistentes autorizadas, Data API off, IPv6/TLS real, capacidad/restore, credenciales/proveedores reales y aceptación HTTPS. **Ingress y cuotas por IP siguen siendo bloqueantes de aceptación multiusuario**: el wrapper exige `TRUST_PROXY_HOPS=0`, que agrupa por peer. Verificar limpieza de headers/caminos alternativos y diseñar atribución autenticada o confianza demostrada antes de cambiarlo; no aceptar headers de identidad/IP proporcionados por el visitante. Fase 4 permanece sin iniciar.
+Quedan pendientes corrección/revisión y CI aprobado del SHA final, aprovisionamiento/presupuesto, migraciones persistentes autorizadas, Data API off, IPv6/TLS real, capacidad/restore, credenciales/proveedores reales y aceptación HTTPS. **Ingress y cuotas por IP siguen siendo bloqueantes de aceptación multiusuario**: el wrapper exige `TRUST_PROXY_HOPS=0`, que agrupa por peer. Verificar limpieza de headers/caminos alternativos y diseñar atribución autenticada o confianza demostrada antes de cambiarlo; no aceptar headers de identidad/IP proporcionados por el visitante. Fase 4 permanece sin iniciar.
 
 Commit sugerido para la aplicación de infraestructura: `build(deploy): configurá Railway y Vercel para la demo`.
+
+## CI del commit de infraestructura y corrección del escaneo
+
+El commit `695828283b194e51da713eb0746aff640ff21f01` incluye los cuatro archivos autorizados y la incorporación de la skill `use-railway`. El [CI 38151400859](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38151400859) terminó el 2026-10-11 con `verify` aprobado y `secret-scan` fallido; dependency-review omitido por push. El artefacto API confirma 68 suites y 474 pruebas aprobadas, cero omisiones. Aprobaron tipos/lint, firmas/auditoría, builds, smoke del proxy, configuración/runtime/roles, imágenes, SBOM y gates de escaneo de imágenes.
+
+TruffleHog reportó dos resultados MongoDB no verificados, incluida la variante con codificación HTML. Se localizaron sin red en `.agents/skills/use-railway/scripts/analyze-mongo.py`, líneas 151/153 del commit original: la URI del helper contiene referencias a variables del contenedor, sin credenciales literales. La reproducción local con 3.97.5, `--network none --no-verification --results=verified,unknown,unverified`, rango `368db56..6958282`, devolvió 183 y esos dos candidatos. Los resultados se redactaron a detector/archivo/línea/commit; no se almacenaron valores ni autores.
+
+El parche local separa las referencias de autenticación en una variable antes de interpolarlas. Conserva exactamente el comando SSH generado, el destino local, timeout, consulta EJSON y escape de comillas. Cuatro casos de equivalencia contra la función anterior y una ejecución de shell con `mongosh` simulado aprobaron, sin SSH ni servicios reales. El archivo corregido escaneado con las mismas opciones offline devuelve 0, sin candidatos. También aprobó el rango prospectivo de la corrección y documentación en una copia Git temporal de la versión publicada; no se modificó el historial del repositorio. Sintaxis Python y `git diff --check` aprobados. Es un ajuste local de la skill instalada: revisar su conservación al actualizarla desde upstream; `skills-lock.json` mantiene la procedencia instalada.
+
+La reproducción con verificación y acceso de red fue rechazada por la revisión automática por posible envío de valores a servicios externos; se sustituyó por detección offline de todos los candidatos. **Usar únicamente `verified,unknown` junto con `--no-verification` no demuestra ausencia de candidatos no verificados**: el ensayo anterior con esa combinación no sustituye esta comprobación ni el gate remoto. El workflow conserva su configuración original; no hay exclusiones, excepciones ni reescritura de historial. El próximo push debe contener la corrección y obtener su propio CI aprobado antes de cerrar fase 3.
+
+El usuario confirmó que los proyectos externos todavía no existen y pidió preparar la entrega sin crear recursos. Esa preparación futura no autoriza aprovisionamiento, contratación, despliegues ni migraciones persistentes.
+
+Commit sugerido: `fix(ci): corregí el falso positivo de la skill Railway`.
+
+## PR de corrección y requisito de Dependency Graph
+
+Con autorización explícita del usuario se publicó la rama `codex/fix-railway-secret-scan` y se abrió el [PR borrador #1](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/1), base `main`: corrección `9741b7b`, formato `0ee1696ffaeedea118bb4664f911d38c3a6d2167`. El rango publicado desde `6958282` aprobó TruffleHog 3.97.5 offline con todas las clases de candidatos. Prettier y diff sin errores. Git informó que el hook existente no es ejecutable: se aplicó y verificó manualmente su formatter, sin modificar `.husky/`.
+
+El primer intento del [CI 38152713874](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38152713874), disparado por PR, aprobó `secret-scan` y `verify`. `dependency-review`, que se omitía en los pushes anteriores, falló con `Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled`. Era un requisito remoto sin habilitar; no fue evidencia de nuevas vulnerabilidades ni justificaba desactivar el gate.
+
+La [documentación oficial de GitHub](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/enable-dependency-graph) indica habilitar **Dependency Graph** en Settings → Advanced Security. GitHub lee los manifests/lockfiles y puede tardar varios minutos en poblar el grafo. El repositorio es público y la CLI tiene rol ADMIN; no se encontró una mutación específica en el esquema GraphQL consultado. El navegador disponible no tenía sesión. El usuario confirmó «Ya habilité Dependency Graph»; la API de comparación del rango del PR respondió correctamente con cero cambios de dependencias. Se reejecutó únicamente el job fallido mediante `gh run rerun 38152713874 --failed`. El intento 2 terminó aprobado: `verify`, `secret-scan` y `dependency-review`; el artefacto API confirma 68 suites/474 pruebas aprobadas, cero omisiones. No se modificaron permisos del token del workflow ni gates. No atribuir esa aprobación al SHA todavía vigente de `main` ni a futuros cambios.
+
+La autorización de publicación no incluye merge. Antes de cerrar fase 3, integrar mediante revisión humana y comprobar el CI del SHA de `main`; la preparación de fase 4 sigue pendiente. Los proyectos Vercel/Railway/Supabase no fueron creados.
+
+Commit sugerido de la evidencia del PR: `docs(ci): registrá la validación del PR de la demo`. Esta evidencia describe el SHA `0ee1696`; el commit documental posterior requiere su propio CI.
