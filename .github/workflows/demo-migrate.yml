@@ -97,6 +97,7 @@ jobs:
           plan.cleanup();
           JS
       - name: Verify maintenance identity and execute only the selected migration
+        id: migration
         shell: bash
         run: |
           set -euo pipefail
@@ -116,3 +117,27 @@ jobs:
       - name: Clear registry authentication on the dedicated runner
         if: ${{ always() }}
         run: docker logout ghcr.io
+      - name: Record public migration identity and outcome
+        if: ${{ always() }}
+        env:
+          MIGRATION_OUTCOME: ${{ steps.migration.outcome }}
+        run: |
+          node --input-type=module - <<'JS'
+          import {mkdirSync,writeFileSync} from 'node:fs';
+          import {digestPattern} from './scripts/release/providers.mjs';
+          const env=process.env;
+          mkdirSync('release-evidence',{recursive:true});
+          writeFileSync('release-evidence/migration.json',JSON.stringify({
+            version:1,sha:env.RELEASE_SHA,tag:env.RELEASE_TAG,target:env.TARGET,
+            digest:digestPattern.test(env.MAINTENANCE_DIGEST)?env.MAINTENANCE_DIGEST:undefined,
+            runId:env.GITHUB_RUN_ID,attempt:env.GITHUB_RUN_ATTEMPT,outcome:env.MIGRATION_OUTCOME,
+          },null,2)+'\n');
+          JS
+      - name: Retain migration evidence without database credentials or logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: demo-migration-evidence
+          path: release-evidence/migration.json
+          retention-days: 90
+          if-no-files-found: warn

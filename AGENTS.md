@@ -217,4 +217,4 @@ Catálogo de 25 skills propias de ingeniería con código SKL; no representa el 
 
 ---
 
-_Última actualización: 2026-10-10 — Versión del framework: SKL-PRO-001 v1.1.0_
+_Última actualización: 2026-10-11 — Versión del framework: SKL-PRO-001 v1.1.0_
