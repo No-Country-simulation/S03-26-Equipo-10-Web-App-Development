@@ -14,12 +14,6 @@ COPY . .
 RUN npm run db:generate --workspace @testimonial-cms/api
 RUN npm run build --workspace @testimonial-cms/api
 
-FROM builder AS maintenance
-WORKDIR /app/apps/api
-USER node
-ENTRYPOINT ["node"]
-CMD ["-e", "process.stderr.write('Explicit maintenance command required\\n'); process.exit(1)"]
-
 FROM base AS production-deps
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/
@@ -28,7 +22,7 @@ COPY apps/web/tools/next-lint-glob ./apps/web/tools/next-lint-glob/
 RUN npm ci --omit=dev --workspace @testimonial-cms/api --ignore-scripts
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-FROM node:24.21.0-alpine AS runner
+FROM node:24.21.0-alpine AS runtime
 WORKDIR /app
 RUN apk add --no-cache openssl && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm
 ENV NODE_ENV=production
@@ -39,3 +33,18 @@ COPY --from=builder /app/scripts/demo/config.mjs /app/scripts/demo/runtime.mjs /
 USER node
 EXPOSE 4000
 CMD ["node", "--require", "./apps/api/dist/telemetry.js", "apps/api/dist/main.js"]
+
+FROM builder AS maintenance-tools
+RUN node scripts/release/collect-maintenance-tools.mjs /app /maintenance-tools
+
+FROM runtime AS maintenance
+COPY --from=maintenance-tools /maintenance-tools/node_modules ./node_modules
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/apps/api/warehouse ./apps/api/warehouse
+COPY --from=builder /app/scripts/release ./scripts/release
+WORKDIR /app/apps/api
+ENTRYPOINT ["node"]
+CMD ["-e", "process.stderr.write('Explicit maintenance command required\\n'); process.exit(1)"]
+
+# Keep the default target identical to the production API runtime.
+FROM runtime AS runner

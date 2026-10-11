@@ -1,6 +1,6 @@
 # Preparación de la demo completa
 
-**Inicio:** 2026-10-10. **Estado:** en progreso. Plan autorizado en el chat; una fase por ACK.
+**Inicio:** 2026-10-10. **Estado:** preparación CI/CD completada; cierre entregado mediante PR #4 con checks obligatorios. Recursos, activación y despliegue diferidos por instrucción humana; una fase por ACK.
 
 ## Contexto y Restricciones
 
@@ -59,7 +59,7 @@ Configuración reproducible Railway/Vercel, roles/secretos separados, conexiones
 - [x] Validar localmente los artefactos autorizados y registrar pendientes del entorno real.
 - [x] Obtener ACK específico y aplicar los cuatro cambios de infraestructura; conservar los permisos acotados previos.
 - [x] Entregar evidencia y commit sugerido; detenerse antes de fase 4.
-- [ ] Publicar/revisar el commit final de infraestructura y comprobar su CI completo; recibir ACK para fase 4.
+- [x] Publicar/revisar el commit final de infraestructura y comprobar su CI completo; recibir ACK para fase 4 (cierre registrado debajo).
 
 **Preparación local 2026-10-11:** [runbook de servicios](../operations/26_demo_services_preparation.md). Scripts runtime/preflight READ ONLY, TLS estricto Prisma6.5, cinco identidades restringidas y dos proyectos distintos; mínimo PostgreSQL17 por `transaction_timeout`. Aprobados 14 casos de configuración, proceso/SIGTERM, integración con dos PG17/TLS descartables (registro/analytics/auditoría y solicitud/cancelación/ejecución BI/snapshot), schemas JSON oficiales, builds e inspección de ambas imágenes propuestas, y escaneo redactado sin hallazgos. CI agrega los nuevos gates después del build; CI del nuevo SHA todavía pendiente. Sin migraciones persistentes ni recursos remotos.
 
@@ -83,7 +83,7 @@ El rango prospectivo de la corrección/documentación también aprobó TruffleHo
 
 **Cierre de fase 3:** el usuario integró el [PR #2](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/2) como `06186df8064e438101c79fb22d8ec4f3ce48408c`. Su [CI de main 38156809417](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38156809417) aprobó. El fallo de concurrencia histórico queda resuelto sin cambiar producción. ACK posterior: «Continuar [...] Termina y deja todo preparado», con entrega disparada por tags y creación de recursos/despliegue diferidos. Autoriza preparar fase 4; no recursos ni SQL persistente.
 
-## [Actual] Fase 4 — Preparación de entrega controlada
+## [Completada: preparación] Fase 4 — Preparación de entrega controlada
 
 El alcance autorizado cierra la preparación; la activación y aceptación remotas quedan diferidas expresamente. Runbook: [entrega por tags](../operations/27_demo_tag_delivery.md).
 
@@ -95,13 +95,25 @@ El alcance autorizado cierra la preparación; la activación y aceptación remot
 - [x] Serialización de entrega/migración/recuperación y evidencia pública incluso ante fallos.
 - [x] Protección efectiva de main y tags aplicada; PR obligatorio y tres checks, tags inmutables con creación limitada a administradores.
 - [x] Entrega apagada: sin variable de habilitación, environments, recursos, secretos externos ni tags creados por esta preparación.
-- [ ] CI del SHA final de esta preparación y revisión/integración humana.
-- [ ] Activación futura: presupuesto, recursos, entornos protegidos, secretos, permisos, IPv6/TLS real, backups e ingress/cuotas verificados.
-- [ ] Despliegue y aceptación remotos: diferidos por instrucción humana; no son evidencia de esta fase de preparación.
+- [x] Entrega inicial integrada humanamente por PR #3 como `aeef546b0a7de1cb8beb6074779faf3b58fa808d`; [CI de main 38160840942](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38160840942) aprobado.
+- [x] ACK posterior «Continua con los pendientes hasta terminar el plan de dejar listo el ci/cd» para aplicar la propuesta mínima de mantenimiento; Dockerfile activo idéntico a la propuesta revisada.
+- [x] Agregar build, smoke offline, SBOM y gate HIGH/CRITICAL de maintenance al CI de PR/main; conservar runtime API por defecto y gates anteriores.
+- [x] CI de la implementación final `124c50e873c7b6295123ca451b28d7145dfddde2`: [38172308957](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38172308957) aprobado, incluidos verify, secret-scan y dependency-review. Autorización humana posterior: «Continua con los pendientes hasta terminar el plan de dejar listo el ci/cd». Entrega del cierre mediante [PR #4](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/4), respetando PR/checks y sin bypass; el seguimiento del PR conserva el CI del commit documental y del merge resultante.
 
-**Validación local:** 49 pruebas de fallos/gates sin proveedores, cero omisiones; actionlint, Prettier y escaneo offline de secretos aprobados. Build maintenance y comprobación sin red de usuario no root/CLIs presentes. La imagen maintenance original heredaba herramientas innecesarias: 24 hallazgos HIGH en Trivy 0.74.0. La propuesta mínima en `docs/operations/demo/api-Dockerfile-maintenance-minimal.proposed` pasó con cero HIGH/CRITICAL; su aplicación a `apps/api/Dockerfile` espera ACK específico de infraestructura. No se debilitó el gate ni se ejecutó DDL o publicación remota de imágenes. El CI del PR final se registrará al cerrar la preparación.
+### Trabajo diferido fuera del cierre de preparación
 
-**Commit sugerido:** `ci(release): prepará la entrega de la demo mediante tags`.
+- Activación: presupuesto, recursos, runner de mantenimiento, entornos protegidos, secretos, permisos, IPv6/TLS real, backups e ingress/cuotas verificados.
+- Despliegue y aceptación remotos: requieren su propia autorización y evidencia; no forman parte de esta ejecución.
+
+**Validación inicial:** 49 pruebas de fallos/gates sin proveedores, cero omisiones; actionlint, Prettier y escaneo offline de secretos aprobados. La imagen maintenance original heredaba herramientas innecesarias: 24 hallazgos HIGH en Trivy 0.74.0. La propuesta mínima en `docs/operations/demo/api-Dockerfile-maintenance-minimal.proposed` pasó con cero HIGH/CRITICAL y recibió el ACK posterior. Este hallazgo histórico no es una excepción del gate.
+
+**Corrección final:** propuesta aplicada únicamente a `apps/api/Dockerfile`, conservando `runner` como target por defecto. El smoke nuevo verifica sin red los bytes de los 19 archivos de esquema/migraciones, carga los CLI compilados BI y Prisma, prueba el engine nativo generando SQL sin conexión ni ejecución, valida usuario no root/filesystem de sólo lectura y el rechazo de una invocación sin comando explícito. No se ejecutaron migraciones persistentes ni se publicaron imágenes, tags o despliegues. El CI debe acreditar la imagen mínima y adjuntar sus reportes antes de integrar el PR final.
+
+**Validación de la corrección:** build y smoke offline aprobados; 49 pruebas de entrega aprobadas, cero omisiones; actionlint y formato aprobados. Trivy 0.74.0 con base pública actualizada: cero HIGH/CRITICAL en la imagen maintenance activa, sin exclusiones; SBOM generado de esa misma exportación local. Control negativo del gate real de CI: un reporte maintenance con HIGH sin parche y la ausencia de su reporte bloquean; reportes limpios permiten continuar. Ningún resultado local se atribuye a una imagen publicada o despliegue remoto.
+
+**Evidencia remota de implementación:** CI `38172308957` aprobó 68 suites/476 pruebas API y cero omisiones; tests web, tipos/lint/build, smoke proxy, permisos/configuración/runtime, build/smoke maintenance y API/web, SBOM y gates de escaneo/auditoría. La integración debe conservar todos los checks aprobados; antes de activar, consultar también el CI más reciente de main para el SHA elegido. La entrega continúa apagada. No queda desarrollo pendiente identificado dentro del alcance de preparación; el funcionamiento remoto sólo se acepta con los recursos y las pruebas diferidas.
+
+**Commit sugerido de cierre:** `ci(maintenance): validá la imagen mínima antes de entregar`.
 
 ## Aceptación final
 

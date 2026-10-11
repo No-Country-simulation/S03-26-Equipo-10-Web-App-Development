@@ -149,6 +149,11 @@ jobs:
           node scripts/demo/permissions.integration.mjs
       - name: Build API image
         run: docker build --file apps/api/Dockerfile --tag testimonial-cms-api:ci .
+      - name: Build maintenance image
+        run: docker build --file apps/api/Dockerfile --target maintenance --tag testimonial-cms-maintenance:ci .
+      - name: Smoke test maintenance image without database or network
+        timeout-minutes: 3
+        run: bash scripts/ci-smoke-maintenance.sh
       - name: Build web image
         run: docker build --file apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=http://127.0.0.1:4000/api/v1 --tag testimonial-cms-web:ci .
       - name: Smoke test production images
@@ -170,6 +175,13 @@ jobs:
           version: v0.74.0
           format: cyclonedx
           output: image-reports/web-sbom.cdx.json
+      - name: Generate maintenance SBOM
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: testimonial-cms-maintenance:ci
+          version: v0.74.0
+          format: cyclonedx
+          output: image-reports/maintenance-sbom.cdx.json
       - name: Scan API image
         id: scan_api
         continue-on-error: true
@@ -194,6 +206,18 @@ jobs:
           output: image-reports/web-vulnerabilities.json
           severity: HIGH,CRITICAL
           exit-code: '0'
+      - name: Scan maintenance image
+        id: scan_maintenance
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: testimonial-cms-maintenance:ci
+          version: v0.74.0
+          scanners: vuln
+          format: json
+          output: image-reports/maintenance-vulnerabilities.json
+          severity: HIGH,CRITICAL
+          exit-code: '0'
       - name: Upload image reports
         if: ${{ always() && steps.image_reports.outcome == 'success' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -207,19 +231,22 @@ jobs:
         env:
           API_SCAN: ${{ steps.scan_api.outcome }}
           WEB_SCAN: ${{ steps.scan_web.outcome }}
+          MAINTENANCE_SCAN: ${{ steps.scan_maintenance.outcome }}
         run: |
-          test "$API_SCAN" = success && test "$WEB_SCAN" = success
+          test "$API_SCAN" = success && test "$WEB_SCAN" = success && test "$MAINTENANCE_SCAN" = success
           python3 - <<'PY'
           import json
           from pathlib import Path
 
-          for image in ('api', 'web'):
+          for image in ('api', 'web', 'maintenance'):
               report = json.loads(Path(f'image-reports/{image}-vulnerabilities.json').read_text())
-              fixable = [v for result in report.get('Results', [])
-                         for v in result.get('Vulnerabilities') or []
-                         if v.get('Severity') in ('HIGH', 'CRITICAL') and v.get('FixedVersion')]
-              print(f'{image}: {len(fixable)} vulnerabilidades altas/críticas con corrección disponible')
-              if fixable:
+              blocking = [v for result in report.get('Results', [])
+                          for v in result.get('Vulnerabilities') or []
+                          if v.get('Severity') in ('HIGH', 'CRITICAL')
+                          and (image == 'maintenance' or v.get('FixedVersion'))]
+              policy = 'totales' if image == 'maintenance' else 'con corrección disponible'
+              print(f'{image}: {len(blocking)} vulnerabilidades altas/críticas {policy}')
+              if blocking:
                   raise SystemExit(1)
           PY
       - name: Enforce dependency audit
