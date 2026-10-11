@@ -8,4 +8,6 @@ coverage
 !.env.example
 *.log
 .codex
+.vercel/
+release-evidence/
 infra/nginx/certs/

@@ -107,6 +107,10 @@ jobs:
         run: npm run lint
       - name: Verify Next lint glob compatibility
         run: node --test scripts/test-next-eslint-glob.mjs
+      - name: Verify release gates and failure handling without providers
+        run: node --test --test-isolation=none scripts/release/*.test.mjs
+      - name: Validate GitHub Actions workflows
+        run: bash scripts/release/check-workflows.sh
       - name: Test API with complete integration services
         id: api_tests
         run: npm test --workspace @testimonial-cms/api -- --json --outputFile="$RUNNER_TEMP/api-test-results.json"
