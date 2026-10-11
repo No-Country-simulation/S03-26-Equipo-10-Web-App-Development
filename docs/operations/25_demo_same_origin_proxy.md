@@ -63,7 +63,21 @@ Validación local del 2026-10-10, sobre cambios de trabajo posteriores a `434087
 
 El smoke reveló y permitió corregir la lista de override vacía de Next 15; hay prueba de regresión para ese caso. La revisión también corrigió el fallback de confianza del proxy tanto en validación Zod como en la fábrica de runtime, cubierto por una prueba de producción. Se ajustó el framing Content-Length del cliente HTTP sintético para DELETE/OPTIONS; no se alteran cuerpos en el middleware.
 
-El CI incorpora el build relativo y smoke standalone como gates, pero **el nuevo SHA todavía no tiene un run remoto**. No se repitieron las integraciones PostgreSQL/Redis de fase 1 en esta fase sin permiso de migraciones; el CI completo deberá volver a validarlas. No se desplegaron servicios ni se aprovisionaron cuentas. Los procesos y la fixture local se apagan al terminar.
+El CI incorpora el build relativo y smoke standalone como gates. No se repitieron localmente las integraciones PostgreSQL/Redis de fase 1 en esta fase sin permiso de migraciones; el CI completo vuelve a validarlas. No se desplegaron servicios ni se aprovisionaron cuentas. Los procesos y la fixture local se apagan al terminar.
+
+## Seguimiento del CI de `6762170`
+
+El [run 38099725713](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38099725713) del commit `67621707522465c700d0b98c5a7de61ff867ff6c` detectó un resultado URI no verificado en `apps/web/src/middleware.test.ts`, línea 90. Es la URL sintética usada para comprobar que ambas configuraciones rechazan userinfo; no corresponde a una credencial de servicio. El escáner debe seguir rechazando resultados `verified,unknown`.
+
+Se reprodujo el hallazgo ejecutando la imagen TruffleHog 3.97.5, digest `sha256:1cec88f18ca39e26e04e61fe9d886c9c4e5f2fc0ba4f2ed185cac0722bd8a076`, sobre el rango real `4340878..6762170`, con montaje de sólo lectura. La corrección construye la URL durante la prueba mediante `URL.username` y `URL.password`, conservando ambos casos de rechazo. No cambia código de producción, políticas, exclusiones ni resultados exigidos.
+
+Validación local de la corrección:
+
+- Las 41 pruebas de `middleware.test.ts` y la suite web completa (26 archivos/161 pruebas), tipos web y ESLint del archivo aprobaron. ESLint se ejecutó desde el workspace web; la invocación inicial desde la raíz no encontró su configuración.
+- El mismo escáner aprobó el cambio en un repositorio temporal con dos commits sintéticos: 3 chunks/816 bytes escaneados, 0 resultados verificados y 0 no verificados. No se crearon commits en el proyecto para esta prueba.
+- El escaneo histórico del commit anterior conserva el hallazgo; la prueba local del cambio no equivale al CI remoto del próximo SHA. No se reescribió historia ni se añadió una excepción.
+
+La fase 2 sigue abierta hasta publicar la corrección y obtener su CI completo aprobado. El ACK de continuación habilita seguir cuando se cumpla ese gate; no demuestra aceptación HTTPS remota.
 
 ## Aceptación remota pendiente
 

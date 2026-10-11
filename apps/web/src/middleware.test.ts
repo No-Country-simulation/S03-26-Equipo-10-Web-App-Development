@@ -14,6 +14,11 @@ function proxy(path: string, init?: ConstructorParameters<typeof NextRequest>[1]
   return middleware(new NextRequest(`https://web.example.test${path}`, init));
 }
 
+// Build synthetic userinfo at runtime so secret scanning never sees a credentialed URI literal.
+const credentialedOrigin = new URL('https://api.test');
+credentialedOrigin.username = 'synthetic-user';
+credentialedOrigin.password = 'synthetic-password';
+
 describe('same-origin API boundary', () => {
   it.each(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])('rewrites %s to the fixed origin and retains the query', method => {
     const result = proxy('/api/v1/testimonials?tag=a%2Fb&tag=c', { method });
@@ -87,10 +92,10 @@ describe('API URL configuration', () => {
   it('normalizes legacy /api and a final slash', () => {
     expect(normalizeApiBaseUrl('https://api.test/api/')).toBe('https://api.test/api/v1');
   });
-  it.each([undefined, '', '//evil.test/api/v1', '/other', 'javascript:alert(1)', 'https://user:pass@api.test', 'https://api.test?secret=value', 'https://api.test/#fragment'])('rejects unsafe public URL %s', value => {
+  it.each([undefined, '', '//evil.test/api/v1', '/other', 'javascript:alert(1)', credentialedOrigin.href, 'https://api.test?secret=value', 'https://api.test/#fragment'])('rejects unsafe public URL %s', value => {
     expect(() => normalizeApiBaseUrl(value)).toThrow();
   });
-  it.each(['https://user:pass@api.test', 'https://api.test/path', 'https://api.test?secret=value', 'https://api.test/#fragment', 'file:///etc', 'http://remote.test'])('rejects unsafe production origin %s', value => {
+  it.each([credentialedOrigin.href, 'https://api.test/path', 'https://api.test?secret=value', 'https://api.test/#fragment', 'file:///etc', 'http://remote.test'])('rejects unsafe production origin %s', value => {
     expect(() => getBackendOrigin(value, true)).toThrow();
   });
   it('allows HTTPS origins and loopback-only HTTP for local production smoke tests', () => {

@@ -41,11 +41,13 @@ ACK de inicio recibido: «Continuar». No amplía permisos sobre infraestructura
 
 **Estado:** implementación de fase 2 y validación local completas. [Runbook](../operations/25_demo_same_origin_proxy.md): 161 pruebas web, 37 API afectadas, tipos/lint/builds y smoke HTTP standalone aprobados; 16 verificaciones de sesión en navegador real. Conserva Strict/HttpOnly/Secure, Origin/CSRF y bytes de cuerpos de 14 MiB. Skill CI/CD y seguridad, rollout y contexto actualizados.
 
-**Límites:** nuevo SHA/CI remoto y aceptación HTTPS Vercel/Railway pendientes. Trust proxy predetermina 0; atribución de IP real/cuotas y restricciones del ingress se deben resolver/verificar en fases 3/4 antes de aceptar demo multiusuario. La fixture usa almacenamiento/servicio auth en memoria, no certifica persistencia, contraseñas ni Redis. No hubo migraciones, despliegues ni cambios de infraestructura/manifiesto.
+**Límites:** aceptación HTTPS Vercel/Railway pendiente. El commit `67621707522465c700d0b98c5a7de61ff867ff6c` fue publicado, pero su [CI 38099725713](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38099725713) falló en `secret-scan`: una URI con credenciales sintéticas en `apps/web/src/middleware.test.ts` dispara el detector URI de TruffleHog. Se reprodujo el hallazgo con 3.97.5 y se corrigió localmente construyendo la URI durante la prueba, sin exclusiones ni cambios del gate. Nuevo commit/CI aprobados pendientes. Trust proxy predetermina 0; atribución de IP real/cuotas y restricciones del ingress se deben resolver/verificar en fases 3/4 antes de aceptar demo multiusuario. La fixture usa almacenamiento/servicio auth en memoria, no certifica persistencia, contraseñas ni Redis. No hubo migraciones, despliegues ni cambios de infraestructura/manifiesto.
 
 **Commit sugerido:** `feat(proxy): conectá la web y la API por el mismo origen`.
 
 - [ ] Revisión/commit y CI del nuevo SHA; ACK humano antes de fase 3. No avanzar de fase.
+
+ACK de continuación recibido después de publicar `6762170`. Se conserva la fase 2 como actual hasta obtener CI aprobado; ese ACK no autoriza omitir el gate fallido. La corrección local y sus verificaciones se registran en el runbook de fase 2.
 
 ## [Pendiente] Fase 3 — Preparación de servicios y entrega
 
