@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-10-09
+# Última actualización: 2026-10-10
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -22,8 +22,8 @@ styles: Tailwind CSS 4.3.3/PostCSS + Radix UI; tokens HSL y config TS conservado
 outbox: polling PostgreSQL cada 3 s en la API; BullMQ no implementado
 redis: cuotas atómicas y caché pública compartida con claves versionadas por tenant; no es cola de webhooks
 infra: Docker Compose local; CI con PostgreSQL y Redis descartables; demostración aún sin despliegue verificado
-ci: GitHub Actions (husky pre-commit)
-deployment_targets: Vercel web + Supabase PostgreSQL + Cloudinary imágenes; previstos, sin despliegue verificado; API/pollers persistentes y Redis requieren proveedor; warehouse separado y scheduler ETL por resolver
+ci: GitHub Actions (husky pre-commit); fase 1 remediación de dependencias en main 3b98f64, auditoría local: 0 altas/críticas, 20 moderadas y producción 0; CI 38097512213 aprobado (verify y secret-scan; dependency-review omitido por push); 471 API/119 web aprobadas y ambas imágenes sin altas/críticas; fase 1 validada, revisión/ACK antes de fase 2; docs/operations/24_demo_ci_preparation.md
+deployment_targets: acordados en plan de demo 2026-10-10: web/proxy mismo origen Vercel; API/pollers, worker/scheduler BI independiente y Redis privado Railway; OLTP y warehouse en dos proyectos Supabase independientes; Cloudinary imágenes y YouTube videos; preparación HITL pendiente, sin despliegue verificado
 cicd_skill: .agents/skills/cicd-pipeline-engineering/SKILL.md (SKL-DEVOPS-CICD-001); gates, artefactos, recuperación y smoke tests de demo incluyendo YouTube en testimonios; NEXT_PUBLIC_API_URL/CSP de build pueden exigir builds por entorno; autenticación propia conservada
 
 ## ARCHITECTURE

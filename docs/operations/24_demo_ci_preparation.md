@@ -1,6 +1,6 @@
 # Preparación CI de la demo — fase 1
 
-Revisión local del 2026-10-10. Plan: [preparación de la demo](../plan/2026-10-10_chore-preparacion-demo-completa.md). Esta evidencia corresponde al diff local; no acredita un nuevo run de GitHub Actions ni un despliegue remoto.
+Revisión local del 2026-10-10. Plan: [preparación de la demo](../plan/2026-10-10_chore-preparacion-demo-completa.md). Incluye la evidencia local histórica y la validación remota de la implementación `3b98f64` en CI `38097512213`, detallada al final. No acredita un despliegue remoto.
 
 ## Alcance y autorización
 
@@ -34,7 +34,7 @@ Usar exclusivamente dos servidores PostgreSQL descartables y un Redis descartabl
 
 Los resultados de esta sección corresponden a la primera implementación y quedan sustituidos por la continuación documentada debajo.
 
-Base del diff: `91c619d63585df9f9b59d578df1eeee39f4e7afe`. Lockfile final SHA-256: `3cfbbca7f97c4ad8b9c532e10787f8847eae8d37e2773708b148800dca297729`. Son cambios locales sin commit ni publicación.
+Base del diff: `91c619d63585df9f9b59d578df1eeee39f4e7afe`. Lockfile final SHA-256: `3cfbbca7f97c4ad8b9c532e10787f8847eae8d37e2773708b148800dca297729`. En esa revisión eran cambios locales sin commit ni publicación; después se registraron en `4d0b612`.
 
 | Control | Resultado observado |
 | --- | --- |
@@ -75,7 +75,7 @@ Las fases 2–4 requieren ACK intermedio según AGENTS.md y el plan. Aprovisiona
 
 ## Continuación: eliminación de braces
 
-Diff local sobre `4d0b612`, sin commit, push ni despliegue. Se retiraron Tailwind 3/autoprefixer y la cadena `fast-glob → micromatch → braces` usada por el lint de Next 15. Tailwind 4.3.3 usa su plugin PostCSS y `tailwind-merge` 3.7.0; conserva configuración TS y tokens HSL. Se ajustaron utilidades, alturas de línea responsive, container y fuentes/sombras semánticas del merge. Detalle y condiciones de retiro del adaptador: [seguridad de dependencias](05_dependency_security.md).
+Implementación sobre `4d0b612`, inicialmente local y luego publicada por el usuario como `3b98f64`; sin despliegue. Se retiraron Tailwind 3/autoprefixer y la cadena `fast-glob → micromatch → braces` usada por el lint de Next 15. Tailwind 4.3.3 usa su plugin PostCSS y `tailwind-merge` 3.7.0; conserva configuración TS y tokens HSL. Se ajustaron utilidades, alturas de línea responsive, container y fuentes/sombras semánticas del merge. Detalle y condiciones de retiro del adaptador: [seguridad de dependencias](05_dependency_security.md).
 
 El adaptador CommonJS privado sólo implementa la llamada de directorios que usa el plugin de Next, mediante tinyglobby 0.2.17. Rechaza otras opciones. La prueba de CI verifica patrones, roots múltiples, espacios, rutas absolutas y la regla real de enlaces; no se desactivaron reglas de Next ni gates de seguridad. Las tres instrucciones COPY autorizadas permiten resolver el paquete local antes de cada `npm ci` Docker.
 
@@ -99,8 +99,38 @@ La comparación en Chromium del build final conserva las medidas de login deskto
 
 En la primera suite API completa, 470 pruebas pasaron y falló la aceptación del replay BI inmediatamente después de restaurar LOGIN del warehouse (503). La reproducción aislada pasó sus cinco escenarios. Se agregó el código de error a la aserción sin cambiar el contrato ni introducir reintentos, sleeps o nuevas omisiones. La repetición completa aprobó: **68 suites, 471 pruebas, cero fallos y cero omisiones**. La causa del 503 de la primera corrida no se confirmó; se conserva como incidencia intermitente a observar en el run remoto, sin declarar una corrección de reconexión inexistente.
 
-La revisión remota del commit final sigue pendiente: incluye los gates de GitHub, PGDG, Dependency Review, TruffleHog y protección de main. Esta preparación no habilita fases 2–4 ni acredita la demo remota.
+La revisión remota de la implementación se completó en el run documentado debajo. Dependency Review queda condicionado a PR y la protección de main pertenece a fase 4. Esta preparación no acredita la demo remota; las fases siguientes conservan sus ACK.
 
 Identidad de la imagen API de la continuación: Docker `sha256:b235d945c73a50ff4e69c7d0cf64c8061e6b5d245093d43472c8a4ff05d81165`; configuración escaneada `sha256:85223f1f12d29a73cd6d9474e7c2f4addf98b9cde72d5752a3a2c6f1d9831dde`. Se verificó la coincidencia de sus nueve capas DiffID con el tar y el reporte Trivy. El primer escaneo terminó por SIGTERM después de descargar la base; la repetición usó esa base actualizada con paralelismo 1 y aprobó, sin montar socket Docker.
 
 Identidad web de la continuación: Docker `sha256:b0dd9e3055a8268449cee60d24ea1fcba237afc295fb373146afde5001ddb9ae`; configuración escaneada `sha256:9b05ec3c0c7e7808f5d69a198ef30fab547ccb5c418df20e995ec30740b02b6a`. Las capas y la configuración del tar coinciden con el reporte. Son identidades locales, sin publicación. Los contenedores de smoke se eliminaron al finalizar; los tres servicios descartables y los tar de escaneo también se eliminaron al cerrar la sesión. Se conservan las imágenes y reportes locales para revisión.
+
+
+## Verificación remota de la implementación
+
+El usuario publicó la implementación en `main` como `3b98f64dcf0f81ede916263c74d5d43c9cd7571f`, con árbol local limpio al retomar. [CI 38097512213](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38097512213), disparado por push el 2026-10-10, terminó **success**. `verify` aprobó entre las 21:10:17 y las 21:18:40 ART (8 min 23 s); `secret-scan` aprobó en 13 s. Dependency Review se omitió por diseño al no ser un pull request; no contar esa omisión como una revisión aprobada. La protección de main y los despliegues siguen pendientes de las fases correspondientes.
+
+
+El artefacto remoto `api-test-results` confirma 68 suites y 471 pruebas aprobadas, cero fallos y cero tests/suites pendientes. Los cinco escenarios de `bi-system.integration.spec.ts` aprobaron, incluida recuperación tras pérdida de acceso del warehouse y restauración de backup con permisos. Una corrida remota aprobada no demuestra ausencia de intermitencias.
+
+Seguimiento **BI-RECOVERY-001**: responsables, mantenedores del CMS; plazo, antes de la aceptación de fase 4. Conservar la primera incidencia local 503 tras restaurar LOGIN y observar su repetición en CI. Si reaparece, conservar el código de error incorporado a la aserción e investigar la reconexión; no resolverla mediante omisiones o reintentos automáticos de suites. No se aplicó cuarentena ni se debilitó el contrato de replay.
+
+
+| Control remoto del SHA 3b98f64 | Resultado verificado |
+| --- | --- |
+| Dependencias | Instalación y lockfile sin cambios; auditoría alta/crítica aprobada sin excepciones, con 20 moderadas; 1347 firmas y 287 attestations verificadas. |
+| PostgreSQL/BI | Clientes major 18, DDL sintético y migraciones de la base descartable aprobados. |
+| Calidad | Tipos, lint, compatibilidad del adaptador, **471 pruebas API y 119 web**, cero omisiones API; builds de aplicaciones aprobados. |
+| Contenedores | Builds API/web y smoke de producción aprobados. |
+| Trivy 0.74.0 | Reportes descargados: **0 altas/críticas en ambas imágenes**, incluidos hallazgos sin parche; gate de imágenes aprobado. |
+| SBOM | CycloneDX publicado: **439 componentes API y 112 web**. |
+| Gate final | `Enforce image scan` y `Enforce dependency audit` aprobados; run completo `success`. |
+
+Identidades construidas y escaneadas **en el runner**, distintas de las imágenes locales y sin publicar en registry:
+
+- API: `sha256:4e2aa02edeccab7acdd664943b3288072dcb11def3f28da4683780a4e4295f23`.
+- Web: `sha256:12fa8f651f554027b567b013d14cff8715f1fe1bbee5455f253cd6a7cd8db6a6`.
+
+Los IDs de imagen de los reportes coinciden con los del log de build. Artefactos del run: [api-test-results](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38097512213/artifacts/11686791853) y [image-reports](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38097512213/artifacts/11686456688). El workflow solicita 14 días, pero la API de GitHub informa vencimiento **2026-10-14 00:10:14 UTC / 2026-10-13 21:10:14 ART** para ambos: retención observada cercana a tres días; su causa no se verificó. Las copias de revisión quedan en `/tmp/demo-ci-38097512213`, fuera del repositorio; no se copiaron logs completos al contexto versionado.
+
+La fase 1 está validada localmente y en remoto para esta implementación. Esta actualización documental no modifica el código validado ni requiere repetir pruebas locales. Queda revisión humana y ACK antes de fase 2. Commit sugerido: `docs(ci): registrá la validación remota de la fase 1`.
