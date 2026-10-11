@@ -1,0 +1,41 @@
+-- PROPUESTA: sólo proyectos nuevos dedicados; requiere ACK antes de ejecutar.
+-- Identidades NOLOGIN sin contraseñas. Habilitar LOGIN/SCRAM externamente por operador.
+-- Ejecutar después de migraciones autorizadas y antes de arrancar servicios.
+BEGIN;
+REVOKE ALL ON public.tenants, public.tenant_logo_cleanup_jobs, public.roles, public.permissions, public.role_permissions, public.users, public.user_roles, public.refresh_tokens, public.refresh_sessions, public.testimonial_status, public.categories, public.tags, public.testimonials, public.testimonial_tags, public.analytics_event_types, public.analytics_events, public.webhook_events, public.webhooks, public.webhook_deliveries, public.webhook_delivery_attempts, public.feature_flags, public.tenant_feature_flags, public.api_keys, public.api_key_credentials, public.outbox_events, public.idempotency_keys, public.audit_logs, bi_export.tenants, bi_export.categories, bi_export.testimonials, bi_export.analytics_events, public._prisma_migrations FROM PUBLIC, anon, authenticated, service_role, cms_runtime, bi_source_reader;
+GRANT USAGE ON SCHEMA public TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.tenants TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.tenant_logo_cleanup_jobs TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE ON public.roles TO cms_runtime;
+GRANT SELECT ON public.permissions TO cms_runtime;
+GRANT SELECT ON public.role_permissions TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.users TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_roles TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.refresh_tokens TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.refresh_sessions TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE ON public.testimonial_status TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.categories TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.tags TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.testimonials TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.testimonial_tags TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE ON public.analytics_event_types TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.analytics_events TO cms_runtime;
+GRANT SELECT ON public.webhook_events TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.webhooks TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.webhook_deliveries TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.webhook_delivery_attempts TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE ON public.feature_flags TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.tenant_feature_flags TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.api_keys TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.api_key_credentials TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.outbox_events TO cms_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.idempotency_keys TO cms_runtime;
+GRANT SELECT, INSERT ON public.audit_logs TO cms_runtime;
+GRANT USAGE ON SCHEMA bi_export TO bi_source_reader;
+GRANT SELECT ON bi_export.tenants TO bi_source_reader;
+GRANT SELECT ON bi_export.categories TO bi_source_reader;
+GRANT SELECT ON bi_export.testimonials TO bi_source_reader;
+GRANT SELECT ON bi_export.analytics_events TO bi_source_reader;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, anon, authenticated, service_role, cms_runtime, bi_source_reader;
+GRANT USAGE ON SEQUENCE public.roles_id_seq, public.testimonial_status_id_seq, public.analytics_event_types_id_seq, public.analytics_events_id_seq, public.audit_logs_id_seq TO cms_runtime;
+COMMIT;

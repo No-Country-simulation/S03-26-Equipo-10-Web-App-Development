@@ -137,6 +137,12 @@ jobs:
       - name: Smoke test same-origin web proxy
         timeout-minutes: 3
         run: node scripts/web-proxy-smoke.mjs
+      - name: Verify demo configuration, runtime and restricted database identities
+        timeout-minutes: 5
+        run: |
+          node scripts/demo/config.test.mjs
+          node scripts/demo/runtime.test.mjs
+          node scripts/demo/permissions.integration.mjs
       - name: Build API image
         run: docker build --file apps/api/Dockerfile --tag testimonial-cms-api:ci .
       - name: Build web image

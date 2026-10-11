@@ -6,7 +6,7 @@ El plan de demo del 2026-10-10 acuerda Vercel, Railway, dos proyectos Supabase i
 
 | Componente | Estado / destino | Decisión o evidencia necesaria |
 |---|---|---|
-| Next.js | Local; Vercel acordado. | Proyecto/equipo/root del monorepo, workspaces, build y proxy `/api/v1` de mismo origen pendiente. |
+| Next.js | Local; Vercel acordado. | Proxy local y CI de fase 2 aprobados; proyecto/equipo/root, workspaces/build y aceptación HTTPS remota pendientes. |
 | NestJS y pollers | API, outbox y limpieza Cloudinary locales; Railway acordado. | Servicio persistente, reinicio, red, health checks y continuidad por validar. |
 | OLTP PostgreSQL | Supabase previsto; PostgreSQL 18 local. | Versión/DDL compatibles, red/pool, roles, migración autorizada y restauración. |
 | Redis | Compose/CI, cuotas/caché; Railway privado acordado. | Cliente compatible, autenticación, red privada, límites y caída. |
@@ -26,6 +26,14 @@ Conservar acceso NestJS y autenticación propia. Elegir Supabase PostgreSQL no i
 - Roles/credenciales separados: runtime con permisos necesarios y migrador DDL controlado; warehouse con roles de exportación, lectura y migración independientes. La guía genérica no justifica `createdb`, `bypassrls` o privilegios amplios para runtime.
 - El CMS no usa Data API: deshabilitarla para sus tablas o mantener esquemas fuera de exposición y revisar grants/default privileges. Si se autoriza exposición, configurar RLS/políticas por tenant antes del acceso público; revisar vistas/funciones. `anon`/`authenticated` no deben saltarse la API. [Seguridad Data API](https://supabase.com/docs/guides/api/securing-your-api).
 - No activar RLS sobre la aplicación existente automáticamente: diseñar impacto/permisos con plan aprobado. Ensayar migraciones sólo en recursos autorizados y obtener ACK para deploy/db push; no migrar desde cada instancia de arranque ni confundir rollback de app con reversión de esquema.
+
+## Preparación reproducible de servicios
+
+La fase 3 mantiene sus propuestas en `docs/operations/demo/`: dos configs Railway (API/worker), config Vercel, parche Docker con maintenance separado y cuatro scripts runtime/preflight en runner, bootstrap/grants sin contraseñas para proyectos nuevos dedicados. Aplicar infraestructura requiere ACK específico; ejecutar SQL persistente requiere autorización distinta. No usar bootstrap en proyectos compartidos ni arrancar runtime con identidad migradora.
+
+Consultar [runbook de servicios](../../../../docs/operations/26_demo_services_preparation.md) para variables por servicio, permisos efectivos de tablas/columnas/secuencias, TLS estricto de Prisma 6.5, presupuesto de pools y verificación. `scripts/demo/permissions.integration.mjs` prueba dos PostgreSQL 17 descartables con TLS, registro/analytics/auditoría y solicitud BI/ETL con cinco roles restringidos. CI ejecuta estas pruebas después del build. No equivale a aplicar migraciones reales ni validar Supabase.
+
+BI requiere PostgreSQL >=17 por `transaction_timeout`; conservar PostgreSQL18 local, verificar la versión hospedada. Los endpoints directos requieren IPv6 activado por servicio Railway. Deshabilitar Data API en ambos proyectos según el plan y comprobar por separado ese ajuste del dashboard; revocar grants no lo demuestra. Worker continuo sin HTTP/cron: readiness mediante heartbeat protocolo1 y trabajo completado, drenaje330s sujeto a soporte real del proveedor. Mantener `TRUST_PROXY_HOPS=0` hasta resolver/verificar ingress; agrupación por peer bloquea la aceptación multiusuario. La imagen maintenance requiere SBOM/escaneo/gate propios antes de su publicación en fase4.
 
 ## Vercel y seguridad web
 

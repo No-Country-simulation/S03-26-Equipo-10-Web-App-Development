@@ -29,7 +29,7 @@
 
 **Evidencia:** [runbook de fase 1](../operations/24_demo_ci_preparation.md), con resultados históricos del commit `4d0b612` separados de la continuación local. Instalación, firmas, tipos, lint, 471 pruebas API y 119 web aprobados; cero omisiones. El runbook conserva el primer fallo BI intermitente y su repetición final aprobada; los cinco escenarios BI aprobaron también en remoto; el seguimiento BI-RECOVERY-001 conserva la incidencia local sin atribuir una causa no confirmada. Builds Docker, smoke y escaneos de ambas imágenes aprobados, sin altas/críticas; identidades y SBOM registrados en el runbook. La fase 1 quedó cerrada con ACK; la fase 2 está autorizada. Commit de la implementación: `3b98f64 fix(deps): eliminá la cadena vulnerable de braces`. Commit sugerido de esta evidencia documental: `docs(ci): registrá la validación remota de la fase 1`.
 
-## [Actual] Fase 2 — Integración web/API
+## [Completada] Fase 2 — Integración web/API
 
 ACK de inicio recibido: «Continuar». No amplía permisos sobre infraestructura, manifiesto raíz ni migraciones.
 
@@ -41,17 +41,30 @@ ACK de inicio recibido: «Continuar». No amplía permisos sobre infraestructura
 
 **Estado:** implementación de fase 2 y validación local completas. [Runbook](../operations/25_demo_same_origin_proxy.md): 161 pruebas web, 37 API afectadas, tipos/lint/builds y smoke HTTP standalone aprobados; 16 verificaciones de sesión en navegador real. Conserva Strict/HttpOnly/Secure, Origin/CSRF y bytes de cuerpos de 14 MiB. Skill CI/CD y seguridad, rollout y contexto actualizados.
 
-**Límites:** aceptación HTTPS Vercel/Railway pendiente. El commit `67621707522465c700d0b98c5a7de61ff867ff6c` fue publicado, pero su [CI 38099725713](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38099725713) falló en `secret-scan`: una URI con credenciales sintéticas en `apps/web/src/middleware.test.ts` dispara el detector URI de TruffleHog. Se reprodujo el hallazgo con 3.97.5 y se corrigió localmente construyendo la URI durante la prueba, sin exclusiones ni cambios del gate. Nuevo commit/CI aprobados pendientes. Trust proxy predetermina 0; atribución de IP real/cuotas y restricciones del ingress se deben resolver/verificar en fases 3/4 antes de aceptar demo multiusuario. La fixture usa almacenamiento/servicio auth en memoria, no certifica persistencia, contraseñas ni Redis. No hubo migraciones, despliegues ni cambios de infraestructura/manifiesto.
+**Límites:** aceptación HTTPS Vercel/Railway pendiente. El commit `67621707522465c700d0b98c5a7de61ff867ff6c` fue publicado, pero su [CI 38099725713](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38099725713) falló en `secret-scan`: una URI con credenciales sintéticas en `apps/web/src/middleware.test.ts` dispara el detector URI de TruffleHog. Se reprodujo el hallazgo con 3.97.5 y se corrigió localmente construyendo la URI durante la prueba, sin exclusiones ni cambios del gate. El nuevo commit `ddd3030` y su CI aprobaron posteriormente, según la evidencia de cierre debajo. Trust proxy predetermina 0; atribución de IP real/cuotas y restricciones del ingress se deben resolver/verificar en fases 3/4 antes de aceptar demo multiusuario. La fixture usa almacenamiento/servicio auth en memoria, no certifica persistencia, contraseñas ni Redis. No hubo migraciones, despliegues ni cambios de infraestructura/manifiesto.
 
 **Commit sugerido:** `feat(proxy): conectá la web y la API por el mismo origen`.
 
-- [ ] Revisión/commit y CI del nuevo SHA; ACK humano antes de fase 3. No avanzar de fase.
+- [x] Revisión/commit y CI del nuevo SHA; ACK humano antes de fase 3.
 
-ACK de continuación recibido después de publicar `6762170`. Se conserva la fase 2 como actual hasta obtener CI aprobado; ese ACK no autoriza omitir el gate fallido. La corrección local y sus verificaciones se registran en el runbook de fase 2.
+La corrección quedó publicada como `ddd30302c122bfbac8225ae4d5e1a9e214e0d779`. Su [CI 38100197594](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38100197594) terminó aprobado el 2026-10-10 (ART): verify y secret-scan; dependency-review omitido por push. Reporte API: 68 suites/474 pruebas aprobadas y cero omisiones. Tipos, lint, web, build relativo, smoke proxy, imágenes, smoke de contenedores, auditoría, firmas, SBOM y gates de escaneo aprobados. El fallo histórico de `6762170` se conserva como evidencia, resuelto por este nuevo SHA. ACK de inicio de fase 3: «Continuar» recibido después de publicar la corrección. No acredita aceptación HTTPS remota.
 
-## [Pendiente] Fase 3 — Preparación de servicios y entrega
+## [Actual] Fase 3 — Preparación de servicios y entrega
 
 Configuración reproducible Railway/Vercel, roles/secretos separados, conexiones TLS/IPv6, pools acotados y Data API deshabilitada en Supabase. Sin contratación o aprovisionamiento implícitos.
+
+- [x] Preparar configuración reproducible API/worker y web, sin CD ni migraciones automáticas; aplicación pendiente de ACK específico.
+- [x] Preparar permisos separados y comprobación de versión/TLS/pools/privilegios en fixtures descartables.
+- [x] Documentar secretos externos, deshabilitación Data API y salida IPv6 por servicio; opciones remotas pendientes de aplicar/verificar.
+- [x] Validar localmente los artefactos autorizados y registrar pendientes del entorno real.
+- [ ] Obtener ACK específico para aplicar la propuesta de infraestructura; conservar los permisos acotados previos.
+- [ ] Entregar evidencia y commit sugerido; detenerse antes de fase 4.
+
+**Preparación local 2026-10-11:** [runbook de servicios](../operations/26_demo_services_preparation.md). Scripts runtime/preflight READ ONLY, TLS estricto Prisma6.5, cinco identidades restringidas y dos proyectos distintos; mínimo PostgreSQL17 por `transaction_timeout`. Aprobados 14 casos de configuración, proceso/SIGTERM, integración con dos PG17/TLS descartables (registro/analytics/auditoría y solicitud/cancelación/ejecución BI/snapshot), schemas JSON oficiales, builds e inspección de ambas imágenes propuestas, y escaneo redactado sin hallazgos. CI agrega los nuevos gates después del build; CI del nuevo SHA todavía pendiente. Sin migraciones persistentes ni recursos remotos.
+
+**ACK pendiente:** aplicar únicamente el parche `docs/operations/demo/api-Dockerfile.patch`, crear `infra/railway/api.json`, `infra/railway/worker.json` y `apps/web/vercel.json` desde las propuestas revisables. Solicitado en el chat; no aplicado. No autoriza SQL persistente ni despliegue/provisión. Ingress y cuotas por IP, IPv6/TLS y Data API reales, capacidad, restauración y aceptación HTTPS continúan pendientes. Fase3 sigue actual hasta resolver ese ACK y cerrar su entrega; fase4 no iniciada.
+
+**Commit sugerido para los artefactos autorizados:** `chore(deploy): prepará los servicios y permisos de la demo`.
 
 ## [Pendiente] Fase 4 — Despliegue controlado y aceptación
 

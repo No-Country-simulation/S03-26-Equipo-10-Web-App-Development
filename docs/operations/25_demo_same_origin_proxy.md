@@ -77,8 +77,8 @@ Validación local de la corrección:
 - El mismo escáner aprobó el cambio en un repositorio temporal con dos commits sintéticos: 3 chunks/816 bytes escaneados, 0 resultados verificados y 0 no verificados. No se crearon commits en el proyecto para esta prueba.
 - El escaneo histórico del commit anterior conserva el hallazgo; la prueba local del cambio no equivale al CI remoto del próximo SHA. No se reescribió historia ni se añadió una excepción.
 
-La fase 2 sigue abierta hasta publicar la corrección y obtener su CI completo aprobado. El ACK de continuación habilita seguir cuando se cumpla ese gate; no demuestra aceptación HTTPS remota.
+La corrección quedó publicada en `ddd30302c122bfbac8225ae4d5e1a9e214e0d779`. Su [CI 38100197594](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38100197594) aprobó verify y secret-scan: 68 suites/474 pruebas API, cero omisiones, web/build relativo/smoke proxy, imágenes/SBOM/escaneos y auditoría/firmas aprobados; dependency-review se omitió por push. La fase 2 quedó cerrada con ACK humano para iniciar fase 3. El fallo de `6762170` permanece como evidencia histórica; no demuestra aceptación HTTPS remota.
 
 ## Aceptación remota pendiente
 
-Nuevo SHA y CI completos, proyecto Vercel correcto con variables/build trazables, dominio HTTPS, API Railway y cadena de confianza verificada, restricciones de acceso directo y cuotas por usuario, cookies/Origin/CSRF en navegador, uploads máximos reales, ausencia de caché compartida, métricas inaccesibles por web y recuperación ante timeout. Mantener las condiciones integrales de fases 3/4 del plan, incluidos dos tenants con servicios reales.
+CI del próximo SHA con cambios, proyecto Vercel correcto con variables/build trazables, dominio HTTPS, API Railway y cadena de confianza verificada, restricciones de acceso directo y cuotas por usuario, cookies/Origin/CSRF en navegador, uploads máximos reales, ausencia de caché compartida, métricas inaccesibles por web y recuperación ante timeout. Mantener las condiciones integrales de fases 3/4 del plan, incluidos dos tenants con servicios reales.

@@ -5,7 +5,7 @@ description: "Diseño, implementación y revisión de pipelines CI/CD del Testim
 
 # CI/CD para Testimonial CMS
 
-**Código:** SKL-DEVOPS-CICD-001 · **Versión:** 1.2.0
+**Código:** SKL-DEVOPS-CICD-001 · **Versión:** 1.3.0
 **Dominio:** DevOps / DevSecOps / Software Delivery Engineering  
 **Fuente:** especificación técnica del usuario v1.0.0, adaptada el 2026-10-09.  
 **Referencias de diseño:** ISO/IEC/IEEE 29148, ISO/IEC 27001, NIST SSDF, SLSA, DORA y Agile Definition of Done. Su mención no acredita certificación ni cumplimiento auditado.
@@ -21,6 +21,7 @@ Leer [AGENTS.md](../../../AGENTS.md), [llm.txt](../../../llm.txt) y Contexto y R
 - Outbox por polling PostgreSQL en la API; Redis para cuotas/caché, no entrega durable. Limpieza de logos por polling; ETL horario independiente y warehouse en instancia PostgreSQL separada.
 - Topología acordada en el plan de demo del 2026-10-10: web y proxy de mismo origen en Vercel; API/pollers, worker BI independiente y Redis privado en Railway; OLTP y warehouse en dos proyectos Supabase independientes; Cloudinary para imágenes y YouTube para videos. Su preparación y despliegue requieren completar las fases HITL; un build local no verifica integración remota.
 - Proxy de fase 2: `NEXT_PUBLIC_API_URL=/api/v1`, `API_BACKEND_ORIGIN` sólo servidor, reescritura externa con allowlist de headers, paths internos bloqueados y no-store. Conservar cookies Strict/HttpOnly/Secure y Origin/CSRF. `TRUST_PROXY_HOPS` ahora predetermina 0; verificar ingress y cuotas por IP antes de habilitar confianza. Ejecutar `node scripts/web-proxy-smoke.mjs` después del build relativo; usa fixture sintética sin DB/Redis, no demuestra AuthService persistente ni Vercel remoto. Ver `docs/operations/25_demo_same_origin_proxy.md`.
+- Preparación de fase 3: `scripts/demo/runtime.mjs api|worker` y preflight READ ONLY, TLS estricto Prisma 6.5 (`sslmode=require`, `sslaccept=strict`, CA absoluto `sslcert`), roles separados y pools acotados. BI usa `transaction_timeout`: verificar PostgreSQL >=17; no asumir versión 18 hospedada. Las propuestas Railway/Vercel y parche maintenance/runner en `docs/operations/demo/` requieren ACK específico de infraestructura antes de aplicar. Ver `docs/operations/26_demo_services_preparation.md`; sus fixtures TLS PostgreSQL 17 no certifican migración ni proveedor real. No habilitar confianza de ingress, CD o migraciones implícitas.
 - Cambiar `schema.prisma`, ejecutar `prisma migrate deploy`/`db push`, alterar infraestructura, package.json raíz o hooks exige el ACK específico de AGENTS.md. Las migraciones descartables del CI existente no autorizan ejecutarlas desde una sesión del agente.
 - No persistir secretos, tokens, contraseñas ni PII en contexto, ejemplos, reportes o logs. Usar nombres de variables y evidencia redactada.
 
