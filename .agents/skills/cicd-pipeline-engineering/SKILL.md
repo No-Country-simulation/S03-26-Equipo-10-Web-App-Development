@@ -1,6 +1,6 @@
 ---
 name: cicd-pipeline-engineering
-description: "Diseño, implementación y revisión de pipelines CI/CD del Testimonial CMS (SKL-DEVOPS-CICD-001). Usar para GitHub Actions, validaciones de PR, artefactos, promoción, recuperación y preparación de despliegues con Vercel, Supabase, Cloudinary y YouTube, respetando los procesos persistentes NestJS y las fases HITL."
+description: 'Diseño, implementación y revisión de pipelines CI/CD del Testimonial CMS (SKL-DEVOPS-CICD-001). Usar para GitHub Actions, validaciones de PR, artefactos, promoción, recuperación y preparación de despliegues con Vercel, Supabase, Cloudinary y YouTube, respetando los procesos persistentes NestJS y las fases HITL.'
 ---
 
 # CI/CD para Testimonial CMS
