@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-10-10
+# Última actualización: 2026-10-11
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -22,7 +22,7 @@ styles: Tailwind CSS 4.3.3/PostCSS + Radix UI; tokens HSL y config TS conservado
 outbox: polling PostgreSQL cada 3 s en la API; BullMQ no implementado
 redis: cuotas atómicas y caché pública compartida con claves versionadas por tenant; no es cola de webhooks
 infra: Docker Compose local; CI con PostgreSQL y Redis descartables; demostración aún sin despliegue verificado
-ci: GitHub Actions (husky pre-commit); fase 1 remediación de dependencias en main 3b98f64, auditoría local: 0 altas/críticas, 20 moderadas y producción 0; CI 38097512213 aprobado (verify y secret-scan; dependency-review omitido por push); 471 API/119 web aprobadas y ambas imágenes sin altas/críticas; fase 1 validada con ACK; fase 2 proxy de mismo origen en ddd3030 con CI 38100197594 aprobado (474 API sin omisiones); ACK fase3 recibido, scripts/configuración/ACL preparados y probados localmente; aplicación de infraestructura pendiente ACK específico; docs/operations/24_demo_ci_preparation.md
+ci: GitHub Actions (husky pre-commit); fase 1 remediación de dependencias en main 3b98f64, auditoría local: 0 altas/críticas, 20 moderadas y producción 0; CI 38097512213 aprobado (verify y secret-scan; dependency-review omitido por push); 471 API/119 web aprobadas y ambas imágenes sin altas/críticas; fase 1 validada con ACK; fase 2 proxy de mismo origen en ddd3030 con CI 38100197594 aprobado (474 API sin omisiones); fase3 preparación en 368db56 con CI 38150470333 aprobado, incluido gate demo configuración/runtime/roles; ACK específico recibido y Dockerfile API + infra/railway/{api,worker}.json + apps/web/vercel.json aplicados; CI del nuevo SHA pendiente; docs/operations/24_demo_ci_preparation.md
 deployment_targets: acordados en plan de demo 2026-10-10: web/proxy mismo origen Vercel; API/pollers, worker/scheduler BI independiente y Redis privado Railway; OLTP y warehouse en dos proyectos Supabase independientes; Cloudinary imágenes y YouTube videos; preparación HITL pendiente, sin despliegue verificado
 cicd_skill: .agents/skills/cicd-pipeline-engineering/SKILL.md (SKL-DEVOPS-CICD-001); gates, artefactos, recuperación y smoke tests de demo incluyendo YouTube en testimonios; NEXT_PUBLIC_API_URL/CSP de build pueden exigir builds por entorno; autenticación propia conservada
 
@@ -187,4 +187,4 @@ docs/plan/                          → active HITL plans (read before executing
 web_api: NEXT_PUBLIC_API_URL=/api/v1; API_BACKEND_ORIGIN server-only HTTP(S) origin (HTTPS remoto), middleware external rewrite; legacy absolute API URL retained; no-store API/proxy, internal routes blocked, credential/Origin/CSRF preserved; trust proxy defaults to 0 pending verified Railway/Vercel ingress and real visitor IP quotas; phase2 complete with remote CI ddd3030/38100197594 green (474 API, no omissions); 161 web/37 affected API/16 local browser checks + standalone HTTP; phase3 preparation active, remote provider acceptance pending
 proxy_runbook: docs/operations/25_demo_same_origin_proxy.md; synthetic in-memory transport fixture is not an AuthService/database/Redis acceptance test; no provision, deploy or migrations in phase2
 
-demo_services: docs/operations/26_demo_services_preparation.md; scripts/demo runtime+read-only preflight, TLS strict CA/pools for 5 identities; PG17/18 minimum17 due transaction_timeout; two disposable TLS PG17 tested with registration/analytics/audit/manual BI+ETL; Railway/Vercel/Docker proposals docs/operations/demo await infrastructure ACK; no resources or persistent migrations; Data API off/IPv6 real/ingress quotas still pending
+demo_services: docs/operations/26_demo_services_preparation.md; scripts/demo runtime+read-only preflight, TLS strict CA/pools for 5 identities; PG17/18 minimum17 due transaction_timeout; two disposable TLS PG17 tested with registration/analytics/audit/manual BI+ETL; Railway/Vercel/Docker configs applied with scoped ACK (apps/api/Dockerfile, infra/railway/api.json, infra/railway/worker.json, apps/web/vercel.json); proposal evidence retained docs/operations/demo; preparation 368db56 CI38150470333 green, final infrastructure SHA CI/review pending; no resources or persistent migrations; Data API off/IPv6 real/ingress quotas still pending

@@ -14,6 +14,12 @@ COPY . .
 RUN npm run db:generate --workspace @testimonial-cms/api
 RUN npm run build --workspace @testimonial-cms/api
 
+FROM builder AS maintenance
+WORKDIR /app/apps/api
+USER node
+ENTRYPOINT ["node"]
+CMD ["-e", "process.stderr.write('Explicit maintenance command required\\n'); process.exit(1)"]
+
 FROM base AS production-deps
 COPY package.json package-lock.json .npmrc ./
 COPY apps/api/package.json ./apps/api/
@@ -29,6 +35,7 @@ ENV NODE_ENV=production
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=production-deps /app/apps ./apps
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/scripts/demo/config.mjs /app/scripts/demo/runtime.mjs /app/scripts/demo/preflight.mjs /app/scripts/demo/permissions.mjs ./scripts/demo/
 USER node
 EXPOSE 4000
 CMD ["node", "--require", "./apps/api/dist/telemetry.js", "apps/api/dist/main.js"]

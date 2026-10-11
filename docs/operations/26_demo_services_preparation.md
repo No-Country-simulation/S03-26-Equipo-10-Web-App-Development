@@ -4,14 +4,14 @@ Fase 3 del [plan](../plan/2026-10-10_chore-preparacion-demo-completa.md), sobre 
 
 ## Artefactos y autorización
 
-| Propuesta revisable | Destino después del ACK específico |
+| Propuesta revisable conservada | Archivo aplicado con ACK |
 |---|---|
-| [Parche API](demo/api-Dockerfile.patch) | `apps/api/Dockerfile`: target `maintenance` separado y copia de cuatro scripts de runtime/preflight en runner. |
-| [Railway API](demo/railway-api.json.example) | `infra/railway/api.json` |
-| [Railway worker](demo/railway-worker.json.example) | `infra/railway/worker.json` |
-| [Vercel](demo/vercel.json.example) | `apps/web/vercel.json` |
+| [Parche API](demo/api-Dockerfile.patch) | [Dockerfile API](../../apps/api/Dockerfile): target `maintenance` separado y copia de cuatro scripts de runtime/preflight en runner. |
+| [Railway API](demo/railway-api.json.example) | [infra/railway/api.json](../../infra/railway/api.json) |
+| [Railway worker](demo/railway-worker.json.example) | [infra/railway/worker.json](../../infra/railway/worker.json) |
+| [Vercel](demo/vercel.json.example) | [apps/web/vercel.json](../../apps/web/vercel.json) |
 
-`AGENTS.md` exige ACK para infraestructura. Los archivos anteriores permanecen como propuestas hasta recibirlo. Aplicarlos no autoriza publicar imágenes, contratar servicios, activar despliegues ni ejecutar SQL persistente. Compose, Dockerfile web, manifiesto raíz, lockfile y schema Prisma quedan fuera de esta propuesta.
+`AGENTS.md` exige ACK para infraestructura. Se recibió «Continuar» en respuesta a la solicitud acotada y los cuatro cambios se aplicaron el 2026-10-11. Los ejemplos y el parche se conservan como evidencia de lo aprobado; los SQL de bootstrap/grants siguen siendo propuestas sin ejecución persistente. Aplicar los cuatro archivos no autoriza publicar imágenes, contratar servicios, activar despliegues ni ejecutar SQL persistente. Compose, Dockerfile web, manifiesto raíz, lockfile y schema Prisma quedan fuera de esta autorización.
 
 Los scripts `scripts/demo/` están separados de las entradas existentes de Compose. `runtime.mjs api|worker` prepara TLS/pools, elimina credenciales de migración y ejecuta el proceso compilado; reenvía SIGINT/SIGTERM y conserva certificados hasta terminar el hijo. No conecta al warehouse antes de arrancar el CMS ni ejecuta DDL. Sólo copia al runner `config.mjs`, `runtime.mjs`, `preflight.mjs` y `permissions.mjs`; las fixtures no son una entrada productiva.
 
@@ -118,7 +118,7 @@ Comandos reproducibles desde la raíz, con API ya compilada y Prisma generado:
 node scripts/demo/config.test.mjs
 node scripts/demo/runtime.test.mjs
 node scripts/demo/permissions.integration.mjs
-git apply --check docs/operations/demo/api-Dockerfile.patch
+git apply --reverse --check docs/operations/demo/api-Dockerfile.patch
 ```
 
 La integración crea **dos PostgreSQL 17 descartables** con TLS y publicación sólo loopback/puertos aleatorios; usa DDL sintético generado desde schema actual y SQL warehouse en fixtures vacías. No ejecuta `prisma migrate deploy`/`db push`, ni valida historial de migración productivo; el ledger sintético usa checksum placeholder identificado como fixture. Limpia clientes, contenedores y certificados al terminar. No usar servidores o credenciales persistentes. CI incorpora estas pruebas después del build; no omite la integración si falta Docker.
@@ -129,6 +129,8 @@ Railway API/worker y Vercel validan contra schemas oficiales descargados, sin de
 
 TruffleHog 3.97.5 sobre nuevos archivos y diff preparado, contenedor sin red/montaje de sólo lectura, `verified,unknown`, verificación de credenciales deshabilitada: salida0, cero hallazgos. No sustituye el gate de escaneo de commits del próximo SHA. `git diff --check` y sintaxis de scripts aprobados; no se cambiaron dependencias ni checksums de migraciones.
 
-Quedan pendientes aplicar infraestructura tras ACK, CI del SHA nuevo, aprovisionamiento/presupuesto, migraciones persistentes autorizadas, Data API off, IPv6/TLS real, capacidad/restore, credenciales/proveedores reales y aceptación HTTPS. **Ingress y cuotas por IP siguen siendo bloqueantes de aceptación multiusuario**: el wrapper exige `TRUST_PROXY_HOPS=0`, que agrupa por peer. Verificar limpieza de headers/caminos alternativos y diseñar atribución autenticada o confianza demostrada antes de cambiarlo; no aceptar headers de identidad/IP proporcionados por el visitante. Fase 4 permanece sin iniciar.
+La preparación quedó registrada en `368db56ae0277ca34a96ba59022cd8a3c56c4744`; su [CI 38150470333](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38150470333) aprobó verify y secret-scan (dependency-review omitido por push). Se verificó expresamente el gate `Verify demo configuration, runtime and restricted database identities`, además de build API, smoke de imágenes y escaneo API. Los cuatro archivos de infraestructura aplicados después coinciden exactamente con las propuestas: JSON byte a byte y reverse-check del parche; schemas oficiales aprobados. No se repitieron las integraciones ni builds de una propuesta idéntica. Las identidades locales anteriores documentan el ensayo del contenido aprobado, no un build del futuro commit.
 
-Commit sugerido al cerrar los artefactos autorizados: `chore(deploy): prepará los servicios y permisos de la demo`.
+Quedan pendientes commit/revisión y CI del SHA final, aprovisionamiento/presupuesto, migraciones persistentes autorizadas, Data API off, IPv6/TLS real, capacidad/restore, credenciales/proveedores reales y aceptación HTTPS. **Ingress y cuotas por IP siguen siendo bloqueantes de aceptación multiusuario**: el wrapper exige `TRUST_PROXY_HOPS=0`, que agrupa por peer. Verificar limpieza de headers/caminos alternativos y diseñar atribución autenticada o confianza demostrada antes de cambiarlo; no aceptar headers de identidad/IP proporcionados por el visitante. Fase 4 permanece sin iniciar.
+
+Commit sugerido para la aplicación de infraestructura: `build(deploy): configurá Railway y Vercel para la demo`.

@@ -53,18 +53,21 @@ La corrección quedó publicada como `ddd30302c122bfbac8225ae4d5e1a9e214e0d779`.
 
 Configuración reproducible Railway/Vercel, roles/secretos separados, conexiones TLS/IPv6, pools acotados y Data API deshabilitada en Supabase. Sin contratación o aprovisionamiento implícitos.
 
-- [x] Preparar configuración reproducible API/worker y web, sin CD ni migraciones automáticas; aplicación pendiente de ACK específico.
+- [x] Preparar y aplicar configuración reproducible API/worker y web, sin CD ni migraciones automáticas; ACK específico recibido.
 - [x] Preparar permisos separados y comprobación de versión/TLS/pools/privilegios en fixtures descartables.
 - [x] Documentar secretos externos, deshabilitación Data API y salida IPv6 por servicio; opciones remotas pendientes de aplicar/verificar.
 - [x] Validar localmente los artefactos autorizados y registrar pendientes del entorno real.
-- [ ] Obtener ACK específico para aplicar la propuesta de infraestructura; conservar los permisos acotados previos.
-- [ ] Entregar evidencia y commit sugerido; detenerse antes de fase 4.
+- [x] Obtener ACK específico y aplicar los cuatro cambios de infraestructura; conservar los permisos acotados previos.
+- [x] Entregar evidencia y commit sugerido; detenerse antes de fase 4.
+- [ ] Publicar/revisar el commit final de infraestructura y comprobar su CI completo; recibir ACK para fase 4.
 
 **Preparación local 2026-10-11:** [runbook de servicios](../operations/26_demo_services_preparation.md). Scripts runtime/preflight READ ONLY, TLS estricto Prisma6.5, cinco identidades restringidas y dos proyectos distintos; mínimo PostgreSQL17 por `transaction_timeout`. Aprobados 14 casos de configuración, proceso/SIGTERM, integración con dos PG17/TLS descartables (registro/analytics/auditoría y solicitud/cancelación/ejecución BI/snapshot), schemas JSON oficiales, builds e inspección de ambas imágenes propuestas, y escaneo redactado sin hallazgos. CI agrega los nuevos gates después del build; CI del nuevo SHA todavía pendiente. Sin migraciones persistentes ni recursos remotos.
 
-**ACK pendiente:** aplicar únicamente el parche `docs/operations/demo/api-Dockerfile.patch`, crear `infra/railway/api.json`, `infra/railway/worker.json` y `apps/web/vercel.json` desde las propuestas revisables. Solicitado en el chat; no aplicado. No autoriza SQL persistente ni despliegue/provisión. Ingress y cuotas por IP, IPv6/TLS y Data API reales, capacidad, restauración y aceptación HTTPS continúan pendientes. Fase3 sigue actual hasta resolver ese ACK y cerrar su entrega; fase4 no iniciada.
+**ACK recibido y aplicado 2026-10-11:** «Continuar» en respuesta a la solicitud acotada de infraestructura. Aplicado únicamente el parche `docs/operations/demo/api-Dockerfile.patch` a `apps/api/Dockerfile`; creados `infra/railway/api.json`, `infra/railway/worker.json` y `apps/web/vercel.json` desde las propuestas revisables. Verificación byte a byte de los JSON y reverse-check del parche aprobados; validación contra schemas oficiales aprobada. No autoriza SQL persistente ni despliegue/provisión. Ingress y cuotas por IP, IPv6/TLS y Data API reales, capacidad, restauración y aceptación HTTPS continúan pendientes.
 
-**Commit sugerido para los artefactos autorizados:** `chore(deploy): prepará los servicios y permisos de la demo`.
+**Entrega local terminada:** la preparación anterior quedó en `368db56ae0277ca34a96ba59022cd8a3c56c4744`; su [CI 38150470333](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38150470333) aprobó verify y secret-scan, incluido el nuevo gate de configuración/runtime/identidades restringidas; dependency-review omitido por push. Esa aprobación no cubre los cuatro cambios de infraestructura aplicados después. Fase3 permanece actual hasta revisar el commit final y su CI; fase4 no iniciada.
+
+**Commit sugerido de esta continuación:** `build(deploy): configurá Railway y Vercel para la demo`.
 
 ## [Pendiente] Fase 4 — Despliegue controlado y aceptación
 

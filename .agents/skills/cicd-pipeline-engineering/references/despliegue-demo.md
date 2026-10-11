@@ -29,7 +29,7 @@ Conservar acceso NestJS y autenticación propia. Elegir Supabase PostgreSQL no i
 
 ## Preparación reproducible de servicios
 
-La fase 3 mantiene sus propuestas en `docs/operations/demo/`: dos configs Railway (API/worker), config Vercel, parche Docker con maintenance separado y cuatro scripts runtime/preflight en runner, bootstrap/grants sin contraseñas para proyectos nuevos dedicados. Aplicar infraestructura requiere ACK específico; ejecutar SQL persistente requiere autorización distinta. No usar bootstrap en proyectos compartidos ni arrancar runtime con identidad migradora.
+La fase 3 aplicó con ACK específico `infra/railway/api.json`, `infra/railway/worker.json`, `apps/web/vercel.json` y el parche de `apps/api/Dockerfile` con maintenance separado y cuatro scripts runtime/preflight en runner. Las propuestas aprobadas se conservan en `docs/operations/demo/`; bootstrap/grants sin contraseñas para proyectos nuevos dedicados siguen sin ejecutar en recursos persistentes. Preparación `368db56`/CI `38150470333` aprobados; los archivos de infraestructura posteriores requieren CI de su propio SHA. Ejecutar SQL persistente requiere autorización distinta. No usar bootstrap en proyectos compartidos ni arrancar runtime con identidad migradora.
 
 Consultar [runbook de servicios](../../../../docs/operations/26_demo_services_preparation.md) para variables por servicio, permisos efectivos de tablas/columnas/secuencias, TLS estricto de Prisma 6.5, presupuesto de pools y verificación. `scripts/demo/permissions.integration.mjs` prueba dos PostgreSQL 17 descartables con TLS, registro/analytics/auditoría y solicitud BI/ETL con cinco roles restringidos. CI ejecuta estas pruebas después del build. No equivale a aplicar migraciones reales ni validar Supabase.
 

@@ -79,6 +79,12 @@
       "skillPath": "skills/turborepo/SKILL.md",
       "computedHash": "9681d8dfeb5e6cdff767f1bcaba5d7ac55732a9d6c02ee120f44229f8ec25e7e"
     },
+    "use-railway": {
+      "source": "railwayapp/railway-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/railway/skills/use-railway/SKILL.md",
+      "computedHash": "9e8bf61b5389f3f93ebe30ab75321c045f2f75686a129898ef15dd4e3e04fc46"
+    },
     "vercel-cli": {
       "source": "vercel/vercel",
       "sourceType": "github",
