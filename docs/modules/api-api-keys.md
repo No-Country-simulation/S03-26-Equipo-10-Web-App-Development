@@ -1,6 +1,6 @@
 # Módulo: API keys
 
-**Última actualización:** 2026-10-01
+**Última actualización:** 2026-10-11
 
 El listado administrativo usa `page` y `limit` (1 y 20 por defecto, máximo 100) y responde `{ items, meta: { page, limit, total } }`. La paginación no modifica la verificación de credenciales ni la revocación inmediata.
 
@@ -12,7 +12,7 @@ Las credenciales nuevas tienen formato `ak_<live|test>_<publicId hexadecimal de 
 
 `GET /api/v1/public/testimonials` y `GET /api/v1/public/testimonials/:id` exigen `testimonials:read`. `POST /api/v1/public/analytics/events` exige `analytics:write`. El guard obtiene el tenant de la credencial verificada y las consultas siguientes lo usan para aislar datos; un header de tenant enviado por el cliente no cambia ese contexto. El límite Redis distingue claves nuevas por public ID.
 
-Cada credencial conserva una copia de sus scopes. Al rotar, la anterior queda en estado `ROTATING` por hasta 24 horas y mantiene los permisos que tenía; la nueva recibe los scopes elegidos. Una segunda rotación concurrente falla por versión de la clave lógica. `lastUsedAt` y la auditoría de uso se actualizan como máximo una vez cada cinco minutos por clave lógica. Creación, rotación y revocación generan auditoría con public ID, sin secret.
+Cada credencial conserva una copia de sus scopes. Al rotar, la anterior queda en estado `ROTATING` por hasta 24 horas y mantiene los permisos que tenía; la nueva recibe los scopes elegidos. Si dos transacciones de rotación leen la misma versión de la clave lógica, sólo una confirma y la otra devuelve conflicto, sin crear credencial ni auditoría de rotación. Una rotación que lee después de ese commit puede usar la nueva versión. `lastUsedAt` y la auditoría de uso se actualizan como máximo una vez cada cinco minutos por clave lógica. Creación, rotación y revocación generan auditoría con public ID, sin secret.
 
 Las claves `tms_` siguen usando el hash SHA-256 anterior durante 30 días desde `API_KEY_LEGACY_STARTED_AT`, con sus permisos históricos de lectura y analítica. La fecha de vencimiento se muestra en administración; el uso deja auditoría `API_KEY_LEGACY_USED`. En producción, si falta la fecha, se rechazan las claves legadas. Tras una rotación de una clave legada, el token viejo vence a las 24 horas o al final de la ventana global, lo que ocurra primero.
 
