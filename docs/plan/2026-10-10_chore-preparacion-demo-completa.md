@@ -49,7 +49,7 @@ ACK de inicio recibido: «Continuar». No amplía permisos sobre infraestructura
 
 La corrección quedó publicada como `ddd30302c122bfbac8225ae4d5e1a9e214e0d779`. Su [CI 38100197594](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38100197594) terminó aprobado el 2026-10-10 (ART): verify y secret-scan; dependency-review omitido por push. Reporte API: 68 suites/474 pruebas aprobadas y cero omisiones. Tipos, lint, web, build relativo, smoke proxy, imágenes, smoke de contenedores, auditoría, firmas, SBOM y gates de escaneo aprobados. El fallo histórico de `6762170` se conserva como evidencia, resuelto por este nuevo SHA. ACK de inicio de fase 3: «Continuar» recibido después de publicar la corrección. No acredita aceptación HTTPS remota.
 
-## [Actual] Fase 3 — Preparación de servicios y entrega
+## [Completada] Fase 3 — Preparación de servicios y entrega
 
 Configuración reproducible Railway/Vercel, roles/secretos separados, conexiones TLS/IPv6, pools acotados y Data API deshabilitada en Supabase. Sin contratación o aprovisionamiento implícitos.
 
@@ -81,9 +81,27 @@ El rango prospectivo de la corrección/documentación también aprobó TruffleHo
 
 **Continuación 2026-10-11:** el usuario integró el PR #1 como `4b5b587`. El [CI de main 38154039851](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38154039851) aprobó secret-scan, pero falló en una prueba API (473 aprobadas, una fallida, cero omisiones). La prueba de rotación suponía que iniciar dos llamadas juntas garantizaba leer la misma versión PostgreSQL. Se sincronizó la escritura de dos transacciones reales y se agregó un caso de rotación secuencial válida, sin alterar repositorio ni schema. Seis casos locales aprobaron sin omisiones; ocho ejecuciones dirigidas del caso sincronizado aprobaron; el control negativo sin predicado de versión falló con dos éxitos, y el código restaurado volvió a aprobar. Tipos y lint aprobados. Ver evidencia y límites en el runbook de servicios. El nuevo SHA requiere revisión, integración humana y CI; no avanzar a fase 4 con main rojo. Commit sugerido: `test(api-keys): sincronizá la prueba de rotación concurrente`.
 
-## [Pendiente] Fase 4 — Despliegue controlado y aceptación
+**Cierre de fase 3:** el usuario integró el [PR #2](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/2) como `06186df8064e438101c79fb22d8ec4f3ce48408c`. Su [CI de main 38156809417](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38156809417) aprobó. El fallo de concurrencia histórico queda resuelto sin cambiar producción. ACK posterior: «Continuar [...] Termina y deja todo preparado», con entrega disparada por tags y creación de recursos/despliegue diferidos. Autoriza preparar fase 4; no recursos ni SQL persistente.
 
-Workflow manual de SHA validado de main; identidad de artefacto, serialización, migraciones separadas y autorizadas, protección de rama, smoke tests y recuperación remota. Cada servicio externo requiere entorno y presupuesto confirmados.
+## [Actual] Fase 4 — Preparación de entrega controlada
+
+El alcance autorizado cierra la preparación; la activación y aceptación remotas quedan diferidas expresamente. Runbook: [entrega por tags](../operations/27_demo_tag_delivery.md).
+
+- [x] Disparo por tag anotado de un SHA de main con CI aprobado; operación manual y publicación de imágenes sin entrega para bootstrap.
+- [x] Imágenes API/maintenance por digest, SBOM, gate HIGH/CRITICAL y attestations; permisos mínimos por job y timeouts.
+- [x] API/worker con configuración registrada, comprobación del deployment concreto y heartbeat; candidata Vercel sin promover hasta aprobar smoke e identidad.
+- [x] Migraciones manuales separadas, confirmación de SHA/destino y environment; runner IPv6 dedicado requerido, sin crearlo ni ejecutar migraciones.
+- [x] Recuperación manual de digest/configuración/deployment registrados, sin DDL inverso y con compatibilidad explícita.
+- [x] Serialización de entrega/migración/recuperación y evidencia pública incluso ante fallos.
+- [x] Protección efectiva de main y tags aplicada; PR obligatorio y tres checks, tags inmutables con creación limitada a administradores.
+- [x] Entrega apagada: sin variable de habilitación, environments, recursos, secretos externos ni tags creados por esta preparación.
+- [ ] CI del SHA final de esta preparación y revisión/integración humana.
+- [ ] Activación futura: presupuesto, recursos, entornos protegidos, secretos, permisos, IPv6/TLS real, backups e ingress/cuotas verificados.
+- [ ] Despliegue y aceptación remotos: diferidos por instrucción humana; no son evidencia de esta fase de preparación.
+
+**Validación local:** 49 pruebas de fallos/gates sin proveedores, cero omisiones; actionlint, Prettier y escaneo offline de secretos aprobados. Build maintenance y comprobación sin red de usuario no root/CLIs presentes. La imagen maintenance original heredaba herramientas innecesarias: 24 hallazgos HIGH en Trivy 0.74.0. La propuesta mínima en `docs/operations/demo/api-Dockerfile-maintenance-minimal.proposed` pasó con cero HIGH/CRITICAL; su aplicación a `apps/api/Dockerfile` espera ACK específico de infraestructura. No se debilitó el gate ni se ejecutó DDL o publicación remota de imágenes. El CI del PR final se registrará al cerrar la preparación.
+
+**Commit sugerido:** `ci(release): prepará la entrega de la demo mediante tags`.
 
 ## Aceptación final
 

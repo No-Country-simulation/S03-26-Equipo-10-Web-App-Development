@@ -4,15 +4,15 @@ El plan de demo del 2026-10-10 acuerda Vercel, Railway, dos proyectos Supabase i
 
 ## Topología previa a CD
 
-| Componente | Estado / destino | Decisión o evidencia necesaria |
-|---|---|---|
-| Next.js | Local; Vercel acordado. | Proxy local y CI de fase 2 aprobados; proyecto/equipo/root, workspaces/build y aceptación HTTPS remota pendientes. |
-| NestJS y pollers | API, outbox y limpieza Cloudinary locales; Railway acordado. | Servicio persistente, reinicio, red, health checks y continuidad por validar. |
-| OLTP PostgreSQL | Supabase previsto; PostgreSQL 18 local. | Versión/DDL compatibles, red/pool, roles, migración autorizada y restauración. |
-| Redis | Compose/CI, cuotas/caché; Railway privado acordado. | Cliente compatible, autenticación, red privada, límites y caída. |
-| Warehouse y ETL | Segundo proyecto Supabase y worker/scheduler Railway independiente acordados. | Instancia OLAP separada, roles independientes, scheduler y límites; caída OLAP aislada del CMS. |
-| Cloudinary | Subida y limpieza durable locales. | Cuenta/configuración, permisos/cuota, lectura pública y poller activo. |
-| YouTube | Parser/metadatos/reproductor locales. | Video disponible/embebible, clave backend si requiere metadatos, CSP/red y navegador real. |
+| Componente       | Estado / destino                                                              | Decisión o evidencia necesaria                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Next.js          | Local; Vercel acordado.                                                       | Proxy local y CI de fase 2 aprobados; proyecto/equipo/root, workspaces/build y aceptación HTTPS remota pendientes. |
+| NestJS y pollers | API, outbox y limpieza Cloudinary locales; Railway acordado.                  | Servicio persistente, reinicio, red, health checks y continuidad por validar.                                      |
+| OLTP PostgreSQL  | Supabase previsto; PostgreSQL 18 local.                                       | Versión/DDL compatibles, red/pool, roles, migración autorizada y restauración.                                     |
+| Redis            | Compose/CI, cuotas/caché; Railway privado acordado.                           | Cliente compatible, autenticación, red privada, límites y caída.                                                   |
+| Warehouse y ETL  | Segundo proyecto Supabase y worker/scheduler Railway independiente acordados. | Instancia OLAP separada, roles independientes, scheduler y límites; caída OLAP aislada del CMS.                    |
+| Cloudinary       | Subida y limpieza durable locales.                                            | Cuenta/configuración, permisos/cuota, lectura pública y poller activo.                                             |
+| YouTube          | Parser/metadatos/reproductor locales.                                         | Video disponible/embebible, clave backend si requiere metadatos, CSP/red y navegador real.                         |
 
 Comparar duración, payloads y scheduling de [Vercel Functions](https://vercel.com/docs/functions/limitations) con los pollers actuales. Atender peticiones no demuestra ejecución persistente. Un cron invocando endpoints no sustituye automáticamente estos procesos; requiere diseño y autorización propios.
 
@@ -34,6 +34,14 @@ La fase 3 aplicó con ACK específico `infra/railway/api.json`, `infra/railway/w
 Consultar [runbook de servicios](../../../../docs/operations/26_demo_services_preparation.md) para variables por servicio, permisos efectivos de tablas/columnas/secuencias, TLS estricto de Prisma 6.5, presupuesto de pools y verificación. `scripts/demo/permissions.integration.mjs` prueba dos PostgreSQL 17 descartables con TLS, registro/analytics/auditoría y solicitud BI/ETL con cinco roles restringidos. CI ejecuta estas pruebas después del build. No equivale a aplicar migraciones reales ni validar Supabase.
 
 BI requiere PostgreSQL >=17 por `transaction_timeout`; conservar PostgreSQL18 local, verificar la versión hospedada. Los endpoints directos requieren IPv6 activado por servicio Railway. Deshabilitar Data API en ambos proyectos según el plan y comprobar por separado ese ajuste del dashboard; revocar grants no lo demuestra. Worker continuo sin HTTP/cron: readiness mediante heartbeat protocolo1 y trabajo completado, drenaje330s sujeto a soporte real del proveedor. Mantener `TRUST_PROXY_HOPS=0` hasta resolver/verificar ingress; agrupación por peer bloquea la aceptación multiusuario. La imagen maintenance requiere SBOM/escaneo/gate propios antes de su publicación en fase4.
+
+## Entrega preparada por tags
+
+Fase 3 cerrada con `06186df` y CI main `38156809417` aprobado. El usuario autorizó terminar la preparación de fase 4, difiriendo recursos y despliegue. Ver [runbook de entrega](../../../../docs/operations/27_demo_tag_delivery.md): tag anotado de main/CI aprobado, publicación GHCR con SBOM/escaneo y attestations; aprobación de environment; API/worker por digest y configuración registrada; candidata Vercel con promoción después del smoke. La modalidad manual `prepare_only` publica imágenes para bootstrap sin bloquear migraciones esperando aprobación de entrega.
+
+Migración manual por base y SHA, con digest maintenance atestado, credencial migradora separada y runner confiable IPv6 dedicado aún no creado. Recuperación manual de una entrega exitosa compatible, reutilizando digest y deployment web, sin DDL inverso. Operaciones serializadas; un fallo puede dejar backend actualizado y web anterior, requiere evidencia y recuperación explícita.
+
+Main protegido con PR y tres checks; tags v\* creación sólo admins y actualización/borrado bloqueados sin bypass. La entrega está apagada por ausencia de `DEMO_DELIVERY_ENABLED`; environments/proveedores no creados. Revisar aprobación, presupuesto, restauración, TLS/IPv6, Data API e ingress/cuotas reales antes de activarla. Las pruebas locales simulan proveedores y no acreditan aceptación remota.
 
 ## Vercel y seguridad web
 
@@ -59,17 +67,17 @@ YouTube usa parser, `YoutubeService` y pantalla pública actuales: enlaces valid
 
 Datos sintéticos y activos de prueba identificados en entorno autorizado. Registrar commit, deployment, entorno, hora y resultado redactado; no credenciales ni contenido/autores reales.
 
-| Escenario | Resultado verificable |
-|---|---|
-| Inicio/dependencias | Web/API saludables y OLTP/Redis según contrato; caída OLAP no bloquea readiness del CMS. |
-| Sesión/aislamiento | Login, refresh, logout y mutación CSRF por HTTPS; segundo tenant sin acceso al primero. |
-| Testimonio público | Captura/moderación/publicación con contenido/rating válidos y API remota. |
-| Imágenes/logo | Subida/lectura reales; reemplazo/eliminación y limpieza observables sin IDs privados expuestos. |
-| YouTube disponible | Enlaces watch/corto, metadatos si configurados, miniatura y reproducción en navegador. |
-| YouTube fallido | URL inválida rechazada; sin clave/sin item/error de metadatos y video no embebible tienen respuesta explícita vigente. Revisar casos por separado: error HTTP y `null` no garantizan mismo fallback. |
-| Seguridad navegador | Sin bloqueos inesperados CSP/CORS/cookies; origen no autorizado y CSRF inválido rechazados. |
-| Polling durable | Evento entregado, fallo transitorio con reintento acotado; reinicio no pierde ledger ni intención de limpieza. |
-| BI | Scheduler/ETL/snapshot funcionan; caída warehouse aislada del CMS. |
-| Reversión | Versión/configuración previas compatibles, datos/activos preservados y verificaciones repetidas. |
+| Escenario           | Resultado verificable                                                                                                                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inicio/dependencias | Web/API saludables y OLTP/Redis según contrato; caída OLAP no bloquea readiness del CMS.                                                                                                             |
+| Sesión/aislamiento  | Login, refresh, logout y mutación CSRF por HTTPS; segundo tenant sin acceso al primero.                                                                                                              |
+| Testimonio público  | Captura/moderación/publicación con contenido/rating válidos y API remota.                                                                                                                            |
+| Imágenes/logo       | Subida/lectura reales; reemplazo/eliminación y limpieza observables sin IDs privados expuestos.                                                                                                      |
+| YouTube disponible  | Enlaces watch/corto, metadatos si configurados, miniatura y reproducción en navegador.                                                                                                               |
+| YouTube fallido     | URL inválida rechazada; sin clave/sin item/error de metadatos y video no embebible tienen respuesta explícita vigente. Revisar casos por separado: error HTTP y `null` no garantizan mismo fallback. |
+| Seguridad navegador | Sin bloqueos inesperados CSP/CORS/cookies; origen no autorizado y CSRF inválido rechazados.                                                                                                          |
+| Polling durable     | Evento entregado, fallo transitorio con reintento acotado; reinicio no pierde ledger ni intención de limpieza.                                                                                       |
+| BI                  | Scheduler/ETL/snapshot funcionan; caída warehouse aislada del CMS.                                                                                                                                   |
+| Reversión           | Versión/configuración previas compatibles, datos/activos preservados y verificaciones repetidas.                                                                                                     |
 
 Build/container local no acredita smoke tests remotos. Si faltan procesos persistentes, Redis, warehouse/scheduler o cuenta externa, registrar alcance parcial y dependencias pendientes; no declarar despliegue completo.

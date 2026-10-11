@@ -1,0 +1,210 @@
+name: Demo release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag anotado del HEAD actual de main (para otros tags, reejecutá su run original)'
+        required: true
+        type: string
+      prepare_only:
+        description: 'Sólo publicar imágenes y evidencia; no ejecutar entrega (bootstrap previo a migraciones)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-delivery
+  cancel-in-progress: false
+
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.release.outputs.sha }}
+      tag: ${{ steps.release.outputs.tag }}
+      ci_run_id: ${{ steps.release.outputs.ci_run_id }}
+      ci_run_attempt: ${{ steps.release.outputs.ci_run_attempt }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - id: release
+        name: Require main CI, annotated tag and protected environment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEMO_DELIVERY_ENABLED: ${{ vars.DEMO_DELIVERY_ENABLED }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_BUILD: 'true'
+        run: node scripts/release/qualify.mjs
+
+  images:
+    needs: qualify
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      api_digest: ${{ steps.publish.outputs.api_digest }}
+      maintenance_digest: ${{ steps.publish.outputs.maintenance_digest }}
+    env:
+      RELEASE_SHA: ${{ needs.qualify.outputs.sha }}
+      RELEASE_TAG: ${{ needs.qualify.outputs.tag }}
+      DEMO_DELIVERY_ENABLED: ${{ vars.DEMO_DELIVERY_ENABLED }}
+      CI_RUN_ID: ${{ needs.qualify.outputs.ci_run_id }}
+      CI_RUN_ATTEMPT: ${{ needs.qualify.outputs.ci_run_attempt }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.qualify.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - name: Build both release images with source identity
+        run: |
+          image_root="ghcr.io/${GITHUB_REPOSITORY,,}"
+          mkdir -p release-evidence
+          for target in runner maintenance; do
+            kind=api
+            if [ "$target" = maintenance ]; then kind=maintenance; fi
+            docker build --file apps/api/Dockerfile --target "$target" \
+              --label "org.opencontainers.image.revision=$RELEASE_SHA" \
+              --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+              --tag "$image_root/$kind:sha-$RELEASE_SHA" .
+          done
+      - name: API SBOM
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/no-country-simulation/s03-26-equipo-10-web-app-development/api:sha-${{ env.RELEASE_SHA }}
+          version: v0.74.0
+          format: cyclonedx
+          output: release-evidence/api-sbom.cdx.json
+      - name: Maintenance SBOM
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/no-country-simulation/s03-26-equipo-10-web-app-development/maintenance:sha-${{ env.RELEASE_SHA }}
+          version: v0.74.0
+          format: cyclonedx
+          output: release-evidence/maintenance-sbom.cdx.json
+      - name: Block vulnerable API image
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/no-country-simulation/s03-26-equipo-10-web-app-development/api:sha-${{ env.RELEASE_SHA }}
+          version: v0.74.0
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: json
+          output: release-evidence/api-vulnerabilities.json
+          exit-code: '1'
+      - name: Block vulnerable maintenance image
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: ghcr.io/no-country-simulation/s03-26-equipo-10-web-app-development/maintenance:sha-${{ env.RELEASE_SHA }}
+          version: v0.74.0
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          format: json
+          output: release-evidence/maintenance-vulnerabilities.json
+          exit-code: '1'
+      - name: Authenticate only to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - id: publish
+        name: Publish and resolve immutable digests
+        run: node scripts/release/publish.mjs
+      - name: Attest API provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ${{ steps.publish.outputs.api_image }}
+          subject-digest: ${{ steps.publish.outputs.api_digest }}
+          push-to-registry: true
+      - name: Attest maintenance provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-name: ${{ steps.publish.outputs.maintenance_image }}
+          subject-digest: ${{ steps.publish.outputs.maintenance_digest }}
+          push-to-registry: true
+      - name: Retain image evidence even on failure
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: demo-image-evidence
+          path: release-evidence/
+          retention-days: 90
+          if-no-files-found: error
+
+  deploy:
+    needs: [qualify, images]
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.prepare_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: demo
+    permissions:
+      contents: read
+      packages: read
+      attestations: read
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_SHA: ${{ needs.qualify.outputs.sha }}
+      RELEASE_TAG: ${{ needs.qualify.outputs.tag }}
+      DEMO_DELIVERY_ENABLED: ${{ vars.DEMO_DELIVERY_ENABLED }}
+      DEMO_PROVIDER_PREFLIGHT_COMPLETE: ${{ vars.DEMO_PROVIDER_PREFLIGHT_COMPLETE }}
+      DEMO_SCHEMA_READY_SHA: ${{ vars.DEMO_SCHEMA_READY_SHA }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+      RAILWAY_API_SERVICE_ID: ${{ vars.RAILWAY_API_SERVICE_ID }}
+      RAILWAY_WORKER_SERVICE_ID: ${{ vars.RAILWAY_WORKER_SERVICE_ID }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_SSH_PRIVATE_KEY: ${{ secrets.RAILWAY_SSH_PRIVATE_KEY }}
+      RAILWAY_SSH_KNOWN_HOSTS: ${{ vars.RAILWAY_SSH_KNOWN_HOSTS }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      API_BACKEND_ORIGIN: ${{ vars.API_BACKEND_ORIGIN }}
+      DEMO_WEB_ORIGIN: ${{ vars.DEMO_WEB_ORIGIN }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.qualify.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: demo-image-evidence
+          path: release-evidence
+      - name: Install fixed provider CLIs
+        run: npm install --global npm@11.19.0 @railway/cli@5.64.2 vercel@63.1.2
+      - name: Authenticate attestation verification
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Deploy API, worker, candidate web and promote after smoke tests
+        run: node scripts/release/deploy.mjs
+      - name: Retain only public deployment identity and outcome
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: demo-release-evidence
+          path: |
+            release-evidence/manifest.json
+            release-evidence/deployment.json
+          retention-days: 90
+          if-no-files-found: warn
