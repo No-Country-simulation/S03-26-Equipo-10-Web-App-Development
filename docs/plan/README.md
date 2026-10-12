@@ -42,11 +42,11 @@ Creado → [En Progreso] → [Completado]
                       ↘ [Bloqueado] → archivado en docs/plan/archive/
 ```
 
-| Estado | Significado |
-|--------|-------------|
-| `En Progreso` | Al menos una fase está siendo ejecutada |
-| `Completado` | Todas las fases tienen ACK y commits ejecutados |
-| `Bloqueado` | El plan no puede avanzar; requiere análisis y ajuste sistémico |
+| Estado        | Significado                                                    |
+| ------------- | -------------------------------------------------------------- |
+| `En Progreso` | Al menos una fase está siendo ejecutada                        |
+| `Completado`  | Todas las fases tienen ACK y commits ejecutados                |
+| `Bloqueado`   | El plan no puede avanzar; requiere análisis y ajuste sistémico |
 
 ---
 
@@ -88,29 +88,30 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 
 <!-- Actualizar esta tabla manualmente al crear/completar planes -->
 
-| Archivo | Estado | Descripción |
-|---------|--------|-------------|
-| [`2026-10-11_feat-skill-testing-tdd-engineering.md`](./2026-10-11_feat-skill-testing-tdd-engineering.md) | `Completado` | Skill SKL-TDD-001 incorporada y validada; guías y reglas alineadas, ambas fases aprobadas y cierre documental registrado |
-| [`2026-10-09_feat-interfaces-operacion-bi.md`](./2026-10-09_feat-interfaces-operacion-bi.md) | `En Progreso` | Cinco fases terminadas y validadas localmente; pendiente revisión/commit de cierre. Despliegue y capacidad del entorno objetivo separados |
-| [`2026-09-18_feat-skill-layered-architecture.md`](./2026-09-18_feat-skill-layered-architecture.md) | `Completado` | Incorporación de la skill SKL-ARCH-LAYERED-001 (Senior Layered Architecture) |
-| [`2026-09-18_feat-skill-cognitive-interface.md`](./2026-09-18_feat-skill-cognitive-interface.md) | `Completado` | Incorporación de la skill SKL-UX-PSYCH-001 (Cognitive Interface Engineering) |
-| [`2026-09-18_feat-skill-docker-engineering.md`](./2026-09-18_feat-skill-docker-engineering.md) | `Completado` | Incorporación de la skill SKL-DEVOPS-DKR-001 (Docker Container Engineering) |
-| [`2026-09-20_feat-skill-monorepo-engineering.md`](./2026-09-20_feat-skill-monorepo-engineering.md) | `Completado` | Incorporación de la skill SKL-MONOREPO-ARCH-001 (Senior Monorepo Architecture & Engineering) |
-| [`2026-09-28_chore-cierre-arquitectura-configuracion.md`](./2026-09-28_chore-cierre-arquitectura-configuracion.md) | `Pausado` | Fase 6 de ownership y cierre; pendiente de nuevo ACK |
-| [`2026-09-30_chore-endurecimiento-seguridad.md`](./2026-09-30_chore-endurecimiento-seguridad.md) | `En Progreso` | Seguridad de API, sesión, webhooks, outbox y operación; fase 8 pendiente de evidencia de despliegue |
-| [`2026-10-02_chore-retiro-infraestructura-obsoleta.md`](./2026-10-02_chore-retiro-infraestructura-obsoleta.md) | `Completado` | Retiro de infraestructura obsoleta y preparación documental de la demostración; tres fases cerradas |
-| [`2026-10-05_docs-correccion-skills-web.md`](./2026-10-05_docs-correccion-skills-web.md) | `Completado` | Corrección HITL de nueve skills web; cuatro fases cerradas con ACK |
-| [`2026-10-05_docs-alineacion-skill-seo-accesibilidad.md`](./2026-10-05_docs-alineacion-skill-seo-accesibilidad.md) | `Completado` | Alineación HITL de la décima skill web: SEO y accesibilidad; tres fases revisadas con ACK |
-| [`2026-10-05_fix-remediacion-codigo-web.md`](./2026-10-05_fix-remediacion-codigo-web.md) | `Completado` | Remediación HITL del código Next.js y NestJS frente a las diez skills web; seis fases cerradas con ACK y límites de integración documentados |
-| [`2026-10-08_feat-foto-empresa-bi.md`](./2026-10-08_feat-foto-empresa-bi.md) | `En Progreso` | Logo y ETL implementados; fase 3 terminada pendiente de ACK. Panel/observabilidad en fase 4 |
-| [`2026-10-08_feat-skill-cicd-pipeline-engineering.md`](./2026-10-08_feat-skill-cicd-pipeline-engineering.md) | `Completado` | Skill SKL-DEVOPS-CICD-001 incorporada y validada para Supabase, Vercel, Cloudinary y YouTube; ambas fases aprobadas y cierre documental registrado |
+| Archivo                                                                                                            | Estado        | Descripción                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------ | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`2026-10-11_test-integridad-ci-e2e.md`](./2026-10-11_test-integridad-ci-e2e.md)                                   | `En Progreso` | Testing integrado al ciclo de entrega; fase 1 de metodología, reportes y gates autorizada; E2E y release requieren ACK posteriores                 |
+| [`2026-10-11_feat-skill-testing-tdd-engineering.md`](./2026-10-11_feat-skill-testing-tdd-engineering.md)           | `Completado`  | Skill SKL-TDD-001 incorporada y validada; guías y reglas alineadas, ambas fases aprobadas y cierre documental registrado                           |
+| [`2026-10-09_feat-interfaces-operacion-bi.md`](./2026-10-09_feat-interfaces-operacion-bi.md)                       | `En Progreso` | Cinco fases terminadas y validadas localmente; pendiente revisión/commit de cierre. Despliegue y capacidad del entorno objetivo separados          |
+| [`2026-09-18_feat-skill-layered-architecture.md`](./2026-09-18_feat-skill-layered-architecture.md)                 | `Completado`  | Incorporación de la skill SKL-ARCH-LAYERED-001 (Senior Layered Architecture)                                                                       |
+| [`2026-09-18_feat-skill-cognitive-interface.md`](./2026-09-18_feat-skill-cognitive-interface.md)                   | `Completado`  | Incorporación de la skill SKL-UX-PSYCH-001 (Cognitive Interface Engineering)                                                                       |
+| [`2026-09-18_feat-skill-docker-engineering.md`](./2026-09-18_feat-skill-docker-engineering.md)                     | `Completado`  | Incorporación de la skill SKL-DEVOPS-DKR-001 (Docker Container Engineering)                                                                        |
+| [`2026-09-20_feat-skill-monorepo-engineering.md`](./2026-09-20_feat-skill-monorepo-engineering.md)                 | `Completado`  | Incorporación de la skill SKL-MONOREPO-ARCH-001 (Senior Monorepo Architecture & Engineering)                                                       |
+| [`2026-09-28_chore-cierre-arquitectura-configuracion.md`](./2026-09-28_chore-cierre-arquitectura-configuracion.md) | `Pausado`     | Fase 6 de ownership y cierre; pendiente de nuevo ACK                                                                                               |
+| [`2026-09-30_chore-endurecimiento-seguridad.md`](./2026-09-30_chore-endurecimiento-seguridad.md)                   | `En Progreso` | Seguridad de API, sesión, webhooks, outbox y operación; fase 8 pendiente de evidencia de despliegue                                                |
+| [`2026-10-02_chore-retiro-infraestructura-obsoleta.md`](./2026-10-02_chore-retiro-infraestructura-obsoleta.md)     | `Completado`  | Retiro de infraestructura obsoleta y preparación documental de la demostración; tres fases cerradas                                                |
+| [`2026-10-05_docs-correccion-skills-web.md`](./2026-10-05_docs-correccion-skills-web.md)                           | `Completado`  | Corrección HITL de nueve skills web; cuatro fases cerradas con ACK                                                                                 |
+| [`2026-10-05_docs-alineacion-skill-seo-accesibilidad.md`](./2026-10-05_docs-alineacion-skill-seo-accesibilidad.md) | `Completado`  | Alineación HITL de la décima skill web: SEO y accesibilidad; tres fases revisadas con ACK                                                          |
+| [`2026-10-05_fix-remediacion-codigo-web.md`](./2026-10-05_fix-remediacion-codigo-web.md)                           | `Completado`  | Remediación HITL del código Next.js y NestJS frente a las diez skills web; seis fases cerradas con ACK y límites de integración documentados       |
+| [`2026-10-08_feat-foto-empresa-bi.md`](./2026-10-08_feat-foto-empresa-bi.md)                                       | `En Progreso` | Logo y ETL implementados; fase 3 terminada pendiente de ACK. Panel/observabilidad en fase 4                                                        |
+| [`2026-10-08_feat-skill-cicd-pipeline-engineering.md`](./2026-10-08_feat-skill-cicd-pipeline-engineering.md)       | `Completado`  | Skill SKL-DEVOPS-CICD-001 incorporada y validada para Supabase, Vercel, Cloudinary y YouTube; ambas fases aprobadas y cierre documental registrado |
 
 ---
 
 ## Métricas de Salud del Sistema HITL
 
-| Métrica | Meta | Cómo medir |
-|---------|------|------------|
-| First-Time Right Rate | > 80% | Fases aprobadas en primera revisión / total de fases |
-| Tasa de alucinación | < 10% | Fases con violaciones de architecture.md o business_rules.md / total |
-| Tiempo de onboarding | < 5 min | Tiempo de `AGENTS.md` + `llm.txt` → primer código correcto |
+| Métrica               | Meta    | Cómo medir                                                           |
+| --------------------- | ------- | -------------------------------------------------------------------- |
+| First-Time Right Rate | > 80%   | Fases aprobadas en primera revisión / total de fases                 |
+| Tasa de alucinación   | < 10%   | Fases con violaciones de architecture.md o business_rules.md / total |
+| Tiempo de onboarding  | < 5 min | Tiempo de `AGENTS.md` + `llm.txt` → primer código correcto           |
