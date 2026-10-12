@@ -11,7 +11,13 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const api = path.join(root, 'apps/api');
 const web = path.join(root, 'apps/web');
 const { ESLint } = createRequire(path.join(api, 'package.json'))('eslint');
-const eslint = new ESLint({ cwd: api });
+// Estas reglas inspeccionan sintaxis, no tipos. En CI el parser con project
+// reutiliza inicialmente el SourceFile de disco e ignora el primer lintText.
+// Conservamos las reglas reales y analizamos siempre la fixture en memoria.
+const eslint = new ESLint({
+  cwd: api,
+  overrideConfig: { languageOptions: { parserOptions: { project: false } } },
+});
 
 for (const expression of [
   "it.only('fixture', () => {})",

@@ -77,7 +77,7 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 
 ### Evidencia de fase 1
 
-Implementación local en `codex/testing-cicd-e2e`, posterior al registro `bbb43c8`; verificación del 2026-10-11/12 con Node 24.21.0 y npm 11.19.0. No se creó un commit de implementación ni se publicó/ejecutó CI del nuevo SHA. La fase permanece `[Actual]`, pendiente de esa validación remota y revisión humana; fases 2/3 sin iniciar.
+Implementación en `codex/testing-cicd-e2e`, commit `4ed5816`, posterior al registro `bbb43c8`; verificación del 2026-10-11/12 con Node 24.21.0 y npm 11.19.0. ACK humano «Continuar» recibido el 2026-10-12 para avanzar una vez validada la fase 1. PR borrador [#6](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/6); sincronización sin cambios de archivos con main en `a3cfee9`. La fase permanece `[Actual]` hasta completar CI; fases 2/3 sin iniciar.
 
 Cambios: [matriz de contratos](../technical/testing_contracts.md), guía/contribución/flujo Git/plantilla PR; `auth-flow.spec.ts` conserva cuerpo ejecutable/assertions; gate JSON compartido, restricciones de foco y cobertura de ambas apps en CI. Se añadió únicamente `@vitest/coverage-v8@5.0.3` al workspace web; npm generó el lockfile (ocho entradas nuevas de paquetes y retiro de `@swc/helpers` marcado extraneous). El manifiesto raíz, schema, infraestructura, hooks y workflows de entrega no cambiaron.
 
@@ -98,5 +98,7 @@ Cambios: [matriz de contratos](../technical/testing_contracts.md), guía/contrib
 | Workflow / documentos      | `bash scripts/release/check-workflows.sh`: actionlint aprobado. `git diff --check` y enlaces locales de guías/plantilla/plan aprobados. Formato de documentos y scripts verificado con Prettier.                                                                                                                                                     |
 
 **Pendientes de evidencia:** CI del commit de implementación con PostgreSQL 18, warehouse separado y Redis 7; revisión y ACK humano. Ninguna aprobación remota anterior se atribuye a estos cambios.
+
+**Regresión detectada remotamente:** [run 38199299975](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38199299975), SHA `a3cfee9`: secret-scan/dependency-review aprobados; verify falló en la primera fixture de foco (63/64 controles aprobados). Reproducido localmente con `CI=true`: TypeScript-ESLint infiere single-run y usa inicialmente el SourceFile de disco, ignorando el primer texto en memoria de `lintText`. El control ahora desactiva `parserOptions.project` únicamente en su instancia ESLint: conserva las reglas reales y analiza sintaxis de cada fixture, que no necesita información de tipos. No se modifican configuración ni restricciones de lint de producción. Nueva ejecución remota pendiente.
 
 **Hallazgo operativo fuera de alcance:** `.husky/pre-commit` está versionado con modo `100644`; Git omitió el hook al registrar el plan. `npm ci` ejecutó el instalador Husky existente, sin cambiar archivos versionados de hooks. Reparar el permiso requiere el ACK específico de `AGENTS.md`; no se modificó ni se confía en el hook como sustituto de CI.
