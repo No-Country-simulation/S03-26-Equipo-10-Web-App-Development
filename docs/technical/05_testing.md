@@ -77,7 +77,7 @@ npm run typecheck
 npm run lint
 ```
 
-Los [manifests API](../../apps/api/package.json) y [web](../../apps/web/package.json) no definen `test:unit`, `test:integration`, `test:e2e` ni `test:coverage`. La cobertura se llama `test:cov` en ambas apps; web utiliza `@vitest/coverage-v8` fijado a la misma versión que Vitest. Los argumentos de selección se pasan al runner mediante `--`, según la [CLI de Jest](https://jestjs.io/docs/cli).
+Los [manifests API](../../apps/api/package.json) y [web](../../apps/web/package.json) no definen `test:unit`, `test:integration` ni `test:coverage`. Web incorpora `test:e2e` con Playwright separado de Vitest; preparación, ACK de migración, recorridos, controles y evidencia en [E2E con servicios reales](e2e.md). La cobertura se llama `test:cov` en ambas apps; web utiliza `@vitest/coverage-v8` fijado a la misma versión que Vitest. Los argumentos de selección se pasan al runner mediante `--`, según la [CLI de Jest](https://jestjs.io/docs/cli).
 
 Las integraciones requieren destinos descartables explícitos y fixtures/migraciones compatibles. Verificar el destino antes de correr tests que creen schemas, roles o datos. El [setup API](../../apps/api/test/setup.ts) exige en CI `TEST_DATABASE_URL`, `TEST_LOGO_DATABASE_URL`, `TEST_REDIS_URL`, `TEST_BI_SOURCE_DATABASE_URL`, `TEST_BI_WAREHOUSE_DATABASE_URL`, `TEST_BI_BENCHMARK_SCHEMA_FILE` y `TEST_BI_REDIS_URL`. BI exige servidores distintos para fuente y warehouse, y DDL legible; algunas suites requieren herramientas de backup/restauración. Requisitos y límites: [integración y E2E](../../.agents/skills/testing-tdd-engineering/references/integracion-y-e2e.md).
 
@@ -97,7 +97,7 @@ El setup API falla con servicios/configuración CI incompletos. El smoke del pro
 
 No hay umbrales porcentuales globales de cobertura configurados en Jest/Vitest ni gate de cobertura porcentual en CI. Cualquier umbral nuevo requiere decisión explícita, alcance, medición real y control ejecutable. Cobertura muestra código ejecutado, no calidad de assertions: evitar tests para aumentar porcentajes. Los [requisitos de cobertura de Vitest](https://vitest.dev/guide/coverage.html) dependen también de su proveedor; no asumirlos habilitados.
 
-La aceptación requiere proteger escenarios críticos y conservar los checks obligatorios. E2E persistente, mutación y compatibilidad ampliada permanecen como adopciones futuras con entorno, costo y evidencia propios. Modificar esta guía no modifica CI ni acredita un run remoto para el SHA actual.
+La aceptación requiere proteger escenarios críticos y conservar los checks obligatorios. El runner E2E está implementado en fase 2 y su validación completa se registra en el plan; su integración en CI requiere fase 3. Mutación y compatibilidad ampliada permanecen como adopciones futuras con entorno, costo y evidencia propios. Modificar esta guía no modifica CI ni acredita un run remoto para el SHA actual.
 
 Para reproducir los reportes de CI con servicios descartables ya preparados:
 

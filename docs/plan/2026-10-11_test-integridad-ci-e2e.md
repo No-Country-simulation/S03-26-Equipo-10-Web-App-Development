@@ -49,13 +49,15 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 
 ## [Actual] Fase 2 — E2E crítico con servicios reales
 
-- Añadir Playwright y `test:e2e` web, separado de Jest/Vitest.
-- Preparar builds de producción, proxy de mismo origen y HTTPS local, DB y Redis exclusivos; verificar destinos descartables y limpiar recursos propios.
-- Cubrir login/recarga/refresh/logout, captura → aprobación → publicación → visibilidad pública, denegaciones por rol/tenant/CSRF y navegación móvil por teclado.
-- Prohibir `.only`, acotar timeouts, no reintentar suites y producir evidencia saneada sin estado de sesión ni credenciales.
-- Ejecutar recorridos con efectos persistidos y registrar sus límites; detenerse para ACK.
+- [x] Añadir Playwright y `test:e2e` web, separado de Jest/Vitest.
+- [x] Implementar builds de producción, proxy de mismo origen y HTTPS local, DB y Redis exclusivos; verificar destinos descartables y limpiar recursos propios.
+- [x] Implementar login/recarga/refresh/logout, captura → aprobación → publicación → visibilidad pública, denegaciones por rol/tenant/CSRF y navegación móvil por teclado.
+- [x] Prohibir `.only`, acotar timeouts, no reintentar suites y producir evidencia saneada sin estado de sesión ni credenciales.
+- [x] Ejecutar recorridos con efectos persistidos y registrar sus límites; migración del PostgreSQL propio descartable autorizada explícitamente. Detenerse para ACK de cierre de fase.
 
-**ACK:** «Continuar», 2026-10-12. **Commit sugerido:** `test(e2e): cubrí los recorridos críticos con servicios reales`.
+**Completitud:** implementación y validación local terminadas; 6/6 E2E aprobados, cero reintentos/omisiones. Cambios locales sin commit sobre `1702ead`; no se atribuyen al CI remoto de fase 1. Fase `[Actual]` conservada hasta revisión/ACK de cierre; fase 3 no iniciada.
+
+**ACK de inicio:** «Continuar», 2026-10-12. **ACK de migración:** «Sí, autorizo sólo esa migración descartable para validar E2E», 2026-10-12. **ACK para avanzar:** pendiente. **Commit sugerido:** `test(e2e): cubrí los recorridos críticos con servicios reales`.
 
 ## [Pendiente] Fase 3 — Integración E2E, release y gobernanza
 
@@ -102,3 +104,23 @@ Cambios: [matriz de contratos](../technical/testing_contracts.md), guía/contrib
 **Regresión detectada remotamente:** [run 38199299975](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38199299975), SHA `a3cfee9`: secret-scan/dependency-review aprobados; verify falló en la primera fixture de foco (63/64 controles aprobados). Reproducido localmente con `CI=true`: TypeScript-ESLint infiere single-run y usa inicialmente el SourceFile de disco, ignorando el primer texto en memoria de `lintText`. El control ahora desactiva `parserOptions.project` únicamente en su instancia ESLint: conserva las reglas reales y analiza sintaxis de cada fixture, que no necesita información de tipos. No se modifican configuración ni restricciones de lint de producción. Corrección en `d263850`: 65 controles locales aprobados con `CI=true`; ejecución remota 38199831600 aprobada.
 
 **Hallazgo operativo fuera de alcance:** `.husky/pre-commit` está versionado con modo `100644`; Git omitió el hook al registrar el plan. `npm ci` ejecutó el instalador Husky existente, sin cambiar archivos versionados de hooks. Reparar el permiso requiere el ACK específico de `AGENTS.md`; no se modificó ni se confía en el hook como sustituto de CI.
+
+### Evidencia de fase 2 — implementación y validación local terminadas
+
+ACK «Continuar» del 2026-10-12; fase iniciada después de aprobar CI de fase 1 y registrar el avance en `1702ead`. Playwright 1.64.0 fijado en workspace web y lockfile (tres paquetes nuevos); manifiesto raíz, schema, infraestructura, hooks y workflows conservados. [Guía operativa E2E](../technical/e2e.md).
+
+- Seis recorridos aprobados: cuatro de escritorio y dos móviles. API Docker runner de producción, PG18/Redis7 por digest con tmpfs, Next standalone, proxy y HTTPS local; destinos generados por el harness sin URLs externas. Resultado final del run `5a293178acc3`, sin omisiones ni reintentos.
+- Guardas Red: scaffold sin validación aprobó 1 control y falló 11 funcionalmente (propiedad, exposición, mounts, consentimiento y origen). El primer intento con aislamiento de procesos falló por sandbox y no se cuenta como Red. Green: 12/12.
+- Evidencia/privacidad: 10 controles aprobados; no persisten errores ricos ni estado de sesión. Tres controles adicionales del runner real aprobados: `.only` rechaza antes de ejecutar, selección parcial falla aunque el caso apruebe, fallo real de Chromium mantiene status failed sin sentinelas de formulario/stdout/assertion en archivos o salida. Junto con las 12 guardas, ejecución final con `CI=true`: 25/25, cero fallos/omisiones/todo.
+- Chromium headless compatible descargado a caché temporal; el instalador usa fallback Ubuntu24.04 en este OS. Lanzamiento y lectura de título aislados aprobados; no acredita E2E ni compatibilidad de otros sistemas.
+- Vitest final: 176/176 en 27 archivos, sin descubrir specs Playwright. Typecheck web aprobado; lint web sin errores y 10 advertencias existentes. Las primeras pasadas detectaron tipos/alias de callback de fixtures que se corrigieron sin suprimir reglas. Los 15 casos de paginación también aprobaron después de añadir la assertion de límite de página.
+- Sin `E2E_ALLOW_DISPOSABLE_MIGRATIONS=1`, el comando falla antes de operar Docker o migraciones. La variable no equivale al ACK humano requerido por AGENTS.md §5.
+- Builds de producción aprobados: Dockerfile API target runner y Next standalone con proxy relativo, repetidos por el harness en cada ejecución completa. Imagen temporal de preflight eliminada tras verificar su etiqueta. Formato y diff sin errores. ACK específico recibido el 2026-10-12: «Sí, autorizo sólo esa migración descartable para validar E2E». Se ejecutaron migraciones únicamente en el PostgreSQL 18 propio de cada run, publicado en loopback y eliminado al terminar. Fase 3 permanece pendiente.
+
+Primera ejecución completa del harness: `f748d775bc16`, con migración autorizada, build y readiness aprobados. 1/6 recorridos aprobado (sesión/recarga/refresh/logout), 5 fallidos al preparar tenants por nombre repetido: el contrato requiere nombre único y la fixture inicial lo reutilizaba. Se corrigió el generador de nombre, conservando cuentas/slugs únicos, y se añadió localización saneada de errores para diagnosticar sin valores sensibles. Sin cambiar reglas del producto, cuotas, assertions ni retries. Se verificó ausencia de contenedores/red/imágenes de ese run después de limpiar. Se conserva este fallo como evidencia previa. Auditoría actual: 0 altas/críticas y 20 moderadas existentes en la cadena Jest; no se ejecutó audit fix.
+
+Segunda ejecución `68ebb6a7152f`: 5/6 aprobados; publicación falló al esperar la fila pending. Los efectos API sí estaban persistidos. Se identificó una discrepancia de contrato: ApiResponseInterceptor devuelve `data: []` y `meta` al nivel del envelope; siete adaptadores administrativos esperaban `{items, meta}` dentro de `data`. BI ya adaptaba explícitamente el transporte y no se modificó. Se añadió regresión por HTTP client real con fetch simulado: 9 fallos funcionales/6 aprobados antes de corregir. Green posterior: 15/15 de contrato y 3/3 UI testimonial; fixture UI conserva assertions y ahora simula el envelope real. El helper de paginación transforma explícitamente la respuesta para las pantallas y valida items/meta; no cambia API ni listas públicas. Se corrigieron los siete lectores afectados (testimonios, catálogos, usuarios, API keys, webhooks y entregas).
+
+Tercera ejecución completa `5a293178acc3`, iniciada el 2026-10-12 a las 04:10:12 UTC: **6/6 aprobados**, retries 0, comando terminado con código 0. Duraciones: sesión 3200 ms, publicación 4691 ms, tenant/CSRF 1735 ms, RBAC 1372 ms, menú móvil 2965 ms y captura móvil 1102 ms. `apps/web/.e2e-results/results.json` declara `complete: true`; `environment.json` registra HEAD `1702eadf0a013edc4f47cc9f28acb10e7fc9ccba`, `dirty: true`, Node 24.21.0 y digests. Es evidencia del árbol local modificado; el directorio está ignorado y no acredita CI de estos cambios. Consultas posteriores por etiqueta `testimonial.e2e.run=5a293178acc3` confirmaron cero contenedores, redes e imágenes propios restantes. Los dos fallos anteriores motivaron correcciones identificadas y ejecuciones completas nuevas, sin reintentos automáticos ni relajación de assertions.
+
+Límites: Chromium desktop/viewport móvil local, recorridos de texto y persistencia OLTP/Redis reales. No se ejercitaron Cloudinary, YouTube, destinos webhook, warehouse/ETL, otros motores ni proveedores hospedados. No se modificaron disparadores de CI/deploy en esta fase. Revisión humana y ACK de avance pendientes.
