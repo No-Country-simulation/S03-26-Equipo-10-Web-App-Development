@@ -1,6 +1,6 @@
 # E2E con aplicación y persistencia reales
 
-La fase 2 incorpora Playwright 1.64.0 con Chromium, independiente de Jest/Vitest. Los seis recorridos aprobaron localmente sin omisiones ni reintentos en el run `5a293178acc3`; la evidencia y los fallos previos se registran en el [plan](../plan/2026-10-11_test-integridad-ci-e2e.md). La fase 3 los incorpora al job obligatorio `verify` en PR/main después del build y del smoke sintético del proxy; el CI `38280231648` del head `3e42880` aprobó los seis con servicios reales exclusivos y retries 0. El CI de cada nuevo SHA debe aprobar antes de integrarlo.
+Playwright 1.64.0 con Chromium ejecuta seis recorridos, independiente de Jest/Vitest, dentro del job obligatorio `verify` en PR/main después del build y del smoke sintético del proxy. El [plan](../plan/2026-10-11_test-integridad-ci-e2e.md) registra las tres fases, la evidencia local y los fallos previos. Tras integrar el PR #8, los artefactos del [CI de main 38287649795](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38287649795), SHA `ddd7fca49e870d70f51e37de4ce5d4f7a13bcc5f`, confirman 6/6 E2E con servicios reales exclusivos, checkout limpio y cero omisiones/retries. El CI de cada nuevo SHA debe aprobar antes de integrarlo.
 
 ## Preparación y ejecución
 

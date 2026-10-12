@@ -32,7 +32,7 @@ NEXT_PUBLIC_API_URL=/api/v1 API_BACKEND_ORIGIN=http://127.0.0.1:4100 npm run bui
 
 Estos comandos no preparan bases ni autorizan migraciones. Las integraciones requieren PostgreSQL descartable, warehouse en otro servidor, Redis, DDL sintético y herramientas de backup. Consultá variables y comandos de cobertura/JSON en la [guía de testing](../technical/05_testing.md) y límites reales en la [matriz de contratos](../technical/testing_contracts.md). Sin servicios, Jest puede omitir casos: informá cantidades/motivos y tratá el resultado como parcial.
 
-CI prepara sus servicios descartables, ejecuta cobertura y genera JSON de API/web; rechaza fallos, omisiones/todo, foco y reportes incompletos. Conserva tipos/lint/build/smokes y controles de dependencias, firmas, secretos e imágenes. No reduzcas la selección de CI para aprobar; comprobá el run del SHA evaluado. La cobertura se publica como evidencia, sin porcentaje global obligatorio. El runner E2E permanente sigue pendiente de la fase 2 del [plan](../plan/2026-10-11_test-integridad-ci-e2e.md).
+CI prepara sus servicios descartables, ejecuta cobertura y genera JSON de API/web; rechaza fallos, omisiones/todo, foco y reportes incompletos. Conserva tipos/lint/build/smokes y controles de dependencias, firmas, secretos e imágenes. No reduzcas la selección de CI para aprobar; comprobá el run del SHA evaluado. La cobertura se publica como evidencia, sin porcentaje global obligatorio. `verify` también ejecuta los seis E2E críticos con servicios exclusivos y sin retries; consultá la [guía E2E](../technical/e2e.md) y la evidencia del [plan](../plan/2026-10-11_test-integridad-ci-e2e.md).
 
 ## Commits y pull requests
 
