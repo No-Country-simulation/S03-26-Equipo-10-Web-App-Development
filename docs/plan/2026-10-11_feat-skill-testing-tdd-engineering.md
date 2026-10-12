@@ -6,7 +6,7 @@
 
 **Ticket / Issue Vinculado**: No asignado
 
-**Rama Git**: Se conserva la rama actual; este plan no crea ramas ni commits.
+**Rama Git**: `codex/skill-testing-tdd`, creada por solicitud posterior del usuario desde `882d6a7`; los commits se sugieren y no se crean automáticamente.
 
 ## 1. Contexto y Restricciones
 
@@ -65,9 +65,9 @@ Referencias oficiales para comprobar las instrucciones durante la fase 2:
 
 ## 3. Fases de Ejecución
 
-### `[Actual]` Fase 1: Plan Persistente y Registro
+### `[Completada]` Fase 1: Plan Persistente y Registro
 
-**Estado de ejecución**: Terminada técnicamente; pendiente de revisión humana y commit. Sólo se modifican este plan y su entrada del índice.
+**Estado de ejecución**: Terminada y aprobada. Commit verificado: `c16d798`, `docs(plan): incorporá el plan HITL de la skill de testing`; incorporó únicamente el plan y su entrada del índice.
 
 - [x] Crear este plan con contexto, restricciones, decisiones y fases del plan aprobado.
 - [x] Registrarlo en el índice de planes como `En Progreso`.
@@ -76,7 +76,7 @@ Referencias oficiales para comprobar las instrucciones durante la fase 2:
 
 **Criterio de completitud**: Plan e índice coherentes y revisados, sin cambios fuera de esos dos archivos. La fase 2 permanece pendiente de ACK humano intermedio.
 
-**Review Humano (ACK)**: `Pendiente` — la solicitud de implementar autoriza esta fase; no constituye la revisión posterior de su resultado.
+**Review Humano (ACK)**: `Aprobado` — mensaje «Continuar» del usuario, recibido el 2026-10-11 después de la entrega y del commit de fase 1. Autoriza la fase 2.
 
 **Commit sugerido**:
 
@@ -84,18 +84,18 @@ Referencias oficiales para comprobar las instrucciones durante la fase 2:
 docs(plan): incorporá el plan HITL de la skill de testing
 ```
 
-### `[Pendiente]` Fase 2: Skill, Coherencia y Validación
+### `[Actual]` Fase 2: Skill, Coherencia y Validación
 
-**Estado de ejecución**: No iniciada.
+**Estado de ejecución**: Terminada técnicamente el 2026-10-11; pendiente de revisión humana y commit. ACK intermedio y commit de fase 1 verificados.
 
-- [ ] Tras ACK intermedio, registrar la revisión real, marcar fase 1 completada y fase 2 actual. Verificar el commit de fase 1 antes de iniciar la implementación según el índice de planes; no crear ni afirmar commits automáticamente.
-- [ ] Leer íntegramente el adjunto y crear la skill y sus tres referencias conforme a las decisiones de diseño.
-- [ ] Actualizar guía, regla de cobertura y criterio de testing del template, sin modificar aplicaciones ni automatización.
-- [ ] Actualizar registro y conteos en AGENTS.md y llm.txt tras verificar el inventario.
-- [ ] Ejecutar `quick_validate.py` de `skill-creator`; revisar frontmatter, enlaces, placeholders y trazabilidad RF/RNF/AI.
-- [ ] Revisar los escenarios documentales de la sección 4, los comandos contra los manifests y los gates contra el CI existente.
-- [ ] Revisar whitespace y alcance del diff; registrar resultados reales y actualizar la entrada del índice a fase 2 terminada pendiente de revisión.
-- [ ] Mostrar commit sugerido y detenerse; conservar estado global `En Progreso` hasta la revisión final. Registrar el cierre sólo con aprobaciones y commits efectivamente verificados.
+- [x] Tras ACK intermedio, registrar la revisión real, marcar fase 1 completada y fase 2 actual. Verificar el commit de fase 1 antes de iniciar la implementación según el índice de planes; no crear ni afirmar commits automáticamente.
+- [x] Leer íntegramente el adjunto y crear la skill y sus tres referencias conforme a las decisiones de diseño.
+- [x] Actualizar guía, regla de cobertura y criterio de testing del template, sin modificar aplicaciones ni automatización.
+- [x] Actualizar registro y conteos en AGENTS.md y llm.txt tras verificar el inventario.
+- [x] Ejecutar `quick_validate.py` de `skill-creator`; revisar frontmatter, enlaces, placeholders y trazabilidad RF/RNF/AI.
+- [x] Revisar los escenarios documentales de la sección 4, los comandos contra los manifests y los gates contra el CI existente.
+- [x] Revisar whitespace y alcance del diff; registrar resultados reales y actualizar la entrada del índice a fase 2 terminada pendiente de revisión.
+- [x] Preparar entrega con commit sugerido y detenerse; conservar estado global `En Progreso` hasta la revisión final. Registrar el cierre sólo con aprobaciones y commits efectivamente verificados.
 
 **Criterio de completitud**: Skill válida y autocontenida, referencias accesibles, documentación y reglas coherentes, catálogo propio de 26 entradas y cambios limitados al alcance documental autorizado.
 
@@ -143,4 +143,31 @@ Validación documental realizada el 2026-10-11:
 - Whitespace revisado mediante `git diff --check` y comprobación del archivo nuevo con `git diff --no-index --check`; sin errores tras retirar espacios finales de los metadatos.
 - Conjunto de cambios verificado: únicamente este plan y `docs/plan/README.md`.
 - No se ejecutaron suites de aplicación, servicios externos ni migraciones. `quick_validate.py`, trazabilidad e inventario final corresponden a la fase 2.
-- No se crearon commits ni se registró ACK intermedio. La skill todavía no fue creada y los conteos vigentes permanecen en 25.
+- Al entregar fase 1 no se habían creado commits ni registrado ACK intermedio; la skill todavía no estaba creada y el catálogo permanecía en 25. Posteriormente se verificó el commit `c16d798` y se recibió el ACK documentado en la sección 3.
+
+### Fase 2
+
+Implementación documental y validación realizadas el 2026-10-11 en `codex/skill-testing-tdd`:
+
+- Skill SKL-TDD-001 v1.0.0 creada con entrada y tres referencias, sin scripts, dependencias ni metadatos UI adicionales. `quick_validate.py`: `Skill is valid!`.
+- Trazabilidad contra el adjunto completo: RF 22/22, RNF 10/10 y AI 14/14, sin identificadores faltantes, adicionales o duplicados en la skill; 20/20 antipatrones conservados.
+- Revisión del contenido: seis áreas de aceptación y 14 métricas del adjunto conservadas con límites de interpretación y sin resultados ficticios. Herramientas futuras y controles actuales diferenciados.
+- 56 enlaces locales del plan, índice, skill, guía y reglas resueltos, más el enlace nuevo del template a la guía. Sin placeholders de scaffold ni dependencia de la ruta temporal del adjunto en la skill.
+- Catálogo propio: 26 nombres únicos SKL con archivo `SKILL.md` existente; AGENTS.md y llm.txt reflejan el mismo conteo.
+- Siete comandos de la guía contrastados estáticamente con scripts y paths existentes, sin ejecutarlos. Las siete variables obligatorias de integración y el gate JSON API se contrastaron con setup/workflow; configuraciones Jest/Vitest y CI no tienen gate porcentual global de cobertura.
+- Prettier `--check` aprobado para los cuatro archivos nuevos de la skill y la guía reescrita. Las actualizaciones de reglas, template y registros son puntuales; no se reformatearon íntegramente documentos ajenos al cambio.
+- `git diff --check` y whitespace de archivos nuevos revisados. Diff limitado a los 11 archivos previstos: cuatro documentos de skill, reglas, guía, template, AGENTS.md, llm.txt, plan e índice.
+- Referencias oficiales de Jest, Vitest, Testing Library, Playwright y Stryker consultadas; no se adoptaron herramientas ni configuraciones nuevas.
+
+Revisión documental de escenarios; no constituye ejecución de los comportamientos de aplicación:
+
+| Escenario | Resultado de la revisión |
+| --- | --- |
+| Mínimo y Unicode | La guía deriva expected independientes: nueve/diez caracteres y cinco/diez emoji; distingue puntos de código de UTF-16 y exige Red funcional. |
+| Dos tenants | La referencia exige denegación y ausencia de efectos ajenos, con dependencias reales para afirmar aislamiento de persistencia. |
+| Fallo outbox | La documentación distingue rollback real en PostgreSQL de la reacción ante un repositorio simulado; exige verificar el estado anterior y ausencia de eventos indebidos. |
+| UI simulada | Se declara prueba de interfaz y no E2E completo; runner persistente y backend real siguen pendientes de adopción específica. |
+| Integraciones omitidas | Se reportan como evidencia parcial; la guía distingue el gate API de CI del comportamiento local y de la suite web. |
+| Cambio trivial/documental | Skill, guía y criterio de testing del template admiten validación proporcional sin tests redundantes ni mutación obligatoria. |
+
+No se ejecutaron suites de aplicación, servicios externos, migraciones, mutaciones ni aceptación remota. No se creó commit de fase 2 ni se registró ACK final; el plan permanece `En Progreso` hasta esa revisión.

@@ -32,7 +32,8 @@
 - TypeScript strict mode obligatorio en todos los archivos
 - Usar `npm ci` (nunca `npm install`) en entornos CI/CD
 - Todo endpoint nuevo DEBE tener DTO con validación Zod o class-validator
-- Todo service nuevo DEBE tener tests unitarios (coverage > 80%)
+- Los cambios de lógica de negocio DEBEN tener pruebas de comportamiento proporcionales al riesgo, con límites, negativos y efectos relevantes; elegir Unit/Integration/E2E según el contrato y evitar suites dedicadas para código trivial sin riesgo concreto.
+- Los umbrales numéricos de cobertura requieren una decisión explícita y un control ejecutable; no sustituyen assertions significativas ni permiten omitir pruebas críticas. Ver [metodología de testing](../skills/testing-tdd-engineering/SKILL.md).
 - Linter (`npm run lint`) y formatter (`npm run format`) sin advertencias antes de commit
 - No dejar `console.log` en código de producción; usar el logger de NestJS
 

@@ -107,7 +107,7 @@ git commit -m "<tipo>(<ámbito>): <descripción>"
 
 Marcar al finalizar TODAS las fases:
 
-- [ ] Tests de cada fase pasan (coverage > 80%)
+- [ ] Validación proporcional al riesgo realizada: pruebas de comportamiento cuando correspondan, con límites, negativos y efectos relevantes; resultados, omisiones y limitaciones declarados. Los umbrales numéricos requieren decisión explícita y control ejecutable. Ver [estrategia de testing](../technical/05_testing.md).
 - [ ] Linter (`npm run lint`) sin advertencias
 - [ ] Formatter (`npm run format`) sin cambios pendientes
 - [ ] Cada commit sigue el estándar Conventional Commits
