@@ -29,7 +29,7 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 - Adoptar Playwright sólo en fase 2, Chromium de escritorio y viewport móvil, HTTPS local y API/PostgreSQL 18/Redis 7 reales descartables. Aislar datos y sesiones; cero retries de suites.
 - Conservar inicialmente el job `verify` y los disparadores: PR/main validan; tag anotado del mismo SHA habilita entrega protegida; migración y recuperación permanecen manuales y separadas.
 
-## [Actual] Fase 1 — Metodología, evidencia y controles de integridad
+## [Completada] Fase 1 — Metodología, evidencia y controles de integridad
 
 - [x] Registrar y commitear plan/índice antes de implementar (`bbb43c8`).
 - [x] Relacionar contratos críticos con escenarios, riesgo, nivel, dependencias y etapa de ejecución.
@@ -39,15 +39,15 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 - [x] Añadir proveedor V8 compatible con Vitest, comando de cobertura web y reportes de ambas aplicaciones sin umbral porcentual global.
 - [x] Actualizar guía de testing, contribución, flujo Git y plantilla PR con contratos, TDD, omisiones y evidencia.
 - [x] Validar gates, suites disponibles, tipos, lint, instalación/lockfile y workflows; registrar límites y resultados reales.
-- [ ] Obtener CI remoto del commit de implementación con servicios completos y revisión/ACK de cierre.
+- [x] Obtener CI remoto del commit de implementación con servicios completos y revisión/ACK de cierre.
 
-**Completitud:** implementación revisable y validación local registrada. La validación completa del nuevo SHA en CI remoto es un pendiente explícito hasta que exista el commit publicado y su run. No habilitar fase 2 por una validación parcial.
+**Completitud:** implementación y validación local/remota registradas. CI del SHA `d26385090e65d9665414699db3cdeed7fd62f40a` aprobado; el ACK «Continuar» del 2026-10-12 habilita la fase 2.
 
-**ACK de inicio:** recibido en el chat. **Review de cierre:** pendiente.
+**ACK de inicio:** recibido en el chat. **ACK para avanzar:** «Continuar», 2026-10-12, tras commit humano de implementación; cierre condicionado a CI, ahora aprobado.
 
 **Commit sugerido:** `test(ci): rechazá suites incompletas y documentá sus contratos`.
 
-## [Pendiente] Fase 2 — E2E crítico con servicios reales
+## [Actual] Fase 2 — E2E crítico con servicios reales
 
 - Añadir Playwright y `test:e2e` web, separado de Jest/Vitest.
 - Preparar builds de producción, proxy de mismo origen y HTTPS local, DB y Redis exclusivos; verificar destinos descartables y limpiar recursos propios.
@@ -55,7 +55,7 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 - Prohibir `.only`, acotar timeouts, no reintentar suites y producir evidencia saneada sin estado de sesión ni credenciales.
 - Ejecutar recorridos con efectos persistidos y registrar sus límites; detenerse para ACK.
 
-**ACK:** pendiente. **Commit sugerido:** `test(e2e): cubrí los recorridos críticos con servicios reales`.
+**ACK:** «Continuar», 2026-10-12. **Commit sugerido:** `test(e2e): cubrí los recorridos críticos con servicios reales`.
 
 ## [Pendiente] Fase 3 — Integración E2E, release y gobernanza
 
@@ -77,7 +77,7 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 
 ### Evidencia de fase 1
 
-Implementación en `codex/testing-cicd-e2e`, commit `4ed5816`, posterior al registro `bbb43c8`; verificación del 2026-10-11/12 con Node 24.21.0 y npm 11.19.0. ACK humano «Continuar» recibido el 2026-10-12 para avanzar una vez validada la fase 1. PR borrador [#6](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/6); sincronización sin cambios de archivos con main en `a3cfee9`. La fase permanece `[Actual]` hasta completar CI; fases 2/3 sin iniciar.
+Implementación en `codex/testing-cicd-e2e`, commit `4ed5816`, posterior al registro `bbb43c8`; verificación del 2026-10-11/12 con Node 24.21.0 y npm 11.19.0. ACK humano «Continuar» recibido el 2026-10-12 para avanzar una vez validada la fase 1. PR borrador [#6](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/6); sincronización sin cambios de archivos con main en `a3cfee9`. CI aprobado en `d263850`; fase 2 habilitada por el ACK recibido, fase 3 pendiente.
 
 Cambios: [matriz de contratos](../technical/testing_contracts.md), guía/contribución/flujo Git/plantilla PR; `auth-flow.spec.ts` conserva cuerpo ejecutable/assertions; gate JSON compartido, restricciones de foco y cobertura de ambas apps en CI. Se añadió únicamente `@vitest/coverage-v8@5.0.3` al workspace web; npm generó el lockfile (ocho entradas nuevas de paquetes y retiro de `@swc/helpers` marcado extraneous). El manifiesto raíz, schema, infraestructura, hooks y workflows de entrega no cambiaron.
 
@@ -97,8 +97,8 @@ Cambios: [matriz de contratos](../technical/testing_contracts.md), guía/contrib
 | Release existente          | `node --test --test-isolation=none scripts/release/*.test.mjs`: 49 aprobados, cero omisiones, proveedores simulados. No acredita entrega remota.                                                                                                                                                                                                     |
 | Workflow / documentos      | `bash scripts/release/check-workflows.sh`: actionlint aprobado. `git diff --check` y enlaces locales de guías/plantilla/plan aprobados. Formato de documentos y scripts verificado con Prettier.                                                                                                                                                     |
 
-**Pendientes de evidencia:** CI del commit de implementación con PostgreSQL 18, warehouse separado y Redis 7; revisión y ACK humano. Ninguna aprobación remota anterior se atribuye a estos cambios.
+**Evidencia remota:** [run 38199831600](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38199831600), SHA `d26385090e65d9665414699db3cdeed7fd62f40a`: `verify`, `secret-scan` y `dependency-review` aprobados. Los reportes descargados confirman 476/476 API y 161/161 web, cero fallos/omisiones/todo; cuatro artefactos de resultados/cobertura publicados. PostgreSQL 18, warehouse separado, Redis 7, builds, smoke y gates de imágenes aprobados. No acredita despliegue remoto.
 
-**Regresión detectada remotamente:** [run 38199299975](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38199299975), SHA `a3cfee9`: secret-scan/dependency-review aprobados; verify falló en la primera fixture de foco (63/64 controles aprobados). Reproducido localmente con `CI=true`: TypeScript-ESLint infiere single-run y usa inicialmente el SourceFile de disco, ignorando el primer texto en memoria de `lintText`. El control ahora desactiva `parserOptions.project` únicamente en su instancia ESLint: conserva las reglas reales y analiza sintaxis de cada fixture, que no necesita información de tipos. No se modifican configuración ni restricciones de lint de producción. Nueva ejecución remota pendiente.
+**Regresión detectada remotamente:** [run 38199299975](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38199299975), SHA `a3cfee9`: secret-scan/dependency-review aprobados; verify falló en la primera fixture de foco (63/64 controles aprobados). Reproducido localmente con `CI=true`: TypeScript-ESLint infiere single-run y usa inicialmente el SourceFile de disco, ignorando el primer texto en memoria de `lintText`. El control ahora desactiva `parserOptions.project` únicamente en su instancia ESLint: conserva las reglas reales y analiza sintaxis de cada fixture, que no necesita información de tipos. No se modifican configuración ni restricciones de lint de producción. Corrección en `d263850`: 65 controles locales aprobados con `CI=true`; ejecución remota 38199831600 aprobada.
 
 **Hallazgo operativo fuera de alcance:** `.husky/pre-commit` está versionado con modo `100644`; Git omitió el hook al registrar el plan. `npm ci` ejecutó el instalador Husky existente, sin cambiar archivos versionados de hooks. Reparar el permiso requiere el ACK específico de `AGENTS.md`; no se modificó ni se confía en el hook como sustituto de CI.
