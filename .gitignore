@@ -9,5 +9,6 @@ coverage
 *.log
 .codex
 .vercel/
+.e2e-results/
 release-evidence/
 infra/nginx/certs/

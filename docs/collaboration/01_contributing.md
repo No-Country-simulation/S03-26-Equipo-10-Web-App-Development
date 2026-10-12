@@ -42,8 +42,8 @@ El pull request debe explicar qué cambió, por qué y cómo se verificó. Si ca
 
 Para aceptar un cambio, revisá contrato, efectos/negativos pertinentes, tests proporcionales al riesgo, ausencia de regresiones, documentación y CI completo del SHA final. Declarar tests escritos no acredita ejecución ni un historial TDD. Usá sólo fixtures sintéticas y evidencia sin credenciales ni datos reales.
 
-Main exige PR, checks y conversaciones resueltas. La auditoría inicial encontró cero aprobaciones obligatorias; exigir una revisión ajena al autor es la decisión aprobada para fase 3 y todavía no se aplicó. Hasta verificarla remotamente, solicitá esa revisión de forma manual.
+Main exige PR, checks y conversaciones resueltas. El mantenedor confirmó el 2026-10-12 que trabaja solo y autorizó cero aprobaciones obligatorias; revisá el diff y la evidencia antes de integrar. Una revisión externa es opcional mientras haya un único mantenedor.
 
-La asignación de responsables mediante `CODEOWNERS` y la exigencia de su revisión siguen pendientes de que un administrador cree el equipo `@No-Country-simulation/testimonial-cms-maintainers` con miembros activos y acceso de escritura. Hasta entonces, pedí revisión manual a los responsables del proyecto.
+La asignación de responsables mediante `CODEOWNERS` y la exigencia de su revisión requieren un equipo real con miembros activos y acceso de escritura. Reevaluá esa configuración cuando se incorporen colaboradores; no exijas una aprobación de un equipo inexistente.
 
 El merge de un PR integra código; no autoriza desplegar. La entrega preparada conserva tags anotados y aprobación, está apagada y tiene migración/recuperación manuales separadas. Ver [runbook de entrega](../operations/27_demo_tag_delivery.md).
