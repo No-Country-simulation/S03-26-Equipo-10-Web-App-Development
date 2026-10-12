@@ -47,7 +47,7 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 
 **Commit sugerido:** `test(ci): rechazá suites incompletas y documentá sus contratos`.
 
-## [Actual] Fase 2 — E2E crítico con servicios reales
+## [Completada] Fase 2 — E2E crítico con servicios reales
 
 - [x] Añadir Playwright y `test:e2e` web, separado de Jest/Vitest.
 - [x] Implementar builds de producción, proxy de mismo origen y HTTPS local, DB y Redis exclusivos; verificar destinos descartables y limpiar recursos propios.
@@ -55,11 +55,11 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 - [x] Prohibir `.only`, acotar timeouts, no reintentar suites y producir evidencia saneada sin estado de sesión ni credenciales.
 - [x] Ejecutar recorridos con efectos persistidos y registrar sus límites; migración del PostgreSQL propio descartable autorizada explícitamente. Detenerse para ACK de cierre de fase.
 
-**Completitud:** implementación y validación local terminadas; 6/6 E2E aprobados, cero reintentos/omisiones. Cambios locales sin commit sobre `1702ead`; no se atribuyen al CI remoto de fase 1. Fase `[Actual]` conservada hasta revisión/ACK de cierre; fase 3 no iniciada.
+**Completitud:** implementación y validación local terminadas; 6/6 E2E aprobados, cero reintentos/omisiones. El usuario registró/publicó la implementación como `b0ff93f`; no se atribuye a ese SHA el CI remoto de fase 1. El ACK «Continuar» posterior habilita la fase 3.
 
-**ACK de inicio:** «Continuar», 2026-10-12. **ACK de migración:** «Sí, autorizo sólo esa migración descartable para validar E2E», 2026-10-12. **ACK para avanzar:** pendiente. **Commit sugerido:** `test(e2e): cubrí los recorridos críticos con servicios reales`.
+**ACK de inicio:** «Continuar», 2026-10-12. **ACK de migración:** «Sí, autorizo sólo esa migración descartable para validar E2E», 2026-10-12. **ACK para avanzar:** «Continuar», recibido después del cierre local y commit `b0ff93f`. **Commit:** `test(e2e): cubrí los recorridos críticos con servicios reales`.
 
-## [Pendiente] Fase 3 — Integración E2E, release y gobernanza
+## [Actual] Fase 3 — Integración E2E, release y gobernanza
 
 - Incorporar E2E en `verify` después del build, con datos y namespace Redis exclusivos.
 - Exigir una aprobación ajena al autor, conservar descarte de revisiones obsoletas y verificar configuración remota.
@@ -67,7 +67,7 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 - Mantener tags, aprobación, digest/SBOM/escaneos/attestations, controles API/worker/candidata y recuperación compatible.
 - Verificar negativos de gates y CI del SHA final; no habilitar proveedores ni confundir fixtures con aceptación remota.
 
-**ACK:** pendiente. **Commit sugerido:** `ci(release): verificá los artefactos antes de publicar`.
+**ACK de inicio:** «Continuar», 2026-10-12, tras el cierre de fase 2. Autoriza esta fase y la revisión obligatoria acordada; la migración sigue limitada al PostgreSQL descartable del harness. **Commit sugerido:** `ci(release): verificá los artefactos antes de publicar`.
 
 ## Criterios de aceptación y evidencia
 
@@ -123,4 +123,4 @@ Segunda ejecución `68ebb6a7152f`: 5/6 aprobados; publicación falló al esperar
 
 Tercera ejecución completa `5a293178acc3`, iniciada el 2026-10-12 a las 04:10:12 UTC: **6/6 aprobados**, retries 0, comando terminado con código 0. Duraciones: sesión 3200 ms, publicación 4691 ms, tenant/CSRF 1735 ms, RBAC 1372 ms, menú móvil 2965 ms y captura móvil 1102 ms. `apps/web/.e2e-results/results.json` declara `complete: true`; `environment.json` registra HEAD `1702eadf0a013edc4f47cc9f28acb10e7fc9ccba`, `dirty: true`, Node 24.21.0 y digests. Es evidencia del árbol local modificado; el directorio está ignorado y no acredita CI de estos cambios. Consultas posteriores por etiqueta `testimonial.e2e.run=5a293178acc3` confirmaron cero contenedores, redes e imágenes propios restantes. Los dos fallos anteriores motivaron correcciones identificadas y ejecuciones completas nuevas, sin reintentos automáticos ni relajación de assertions.
 
-Límites: Chromium desktop/viewport móvil local, recorridos de texto y persistencia OLTP/Redis reales. No se ejercitaron Cloudinary, YouTube, destinos webhook, warehouse/ETL, otros motores ni proveedores hospedados. No se modificaron disparadores de CI/deploy en esta fase. Revisión humana y ACK de avance pendientes.
+Límites: Chromium desktop/viewport móvil local, recorridos de texto y persistencia OLTP/Redis reales. No se ejercitaron Cloudinary, YouTube, destinos webhook, warehouse/ETL, otros motores ni proveedores hospedados. No se modificaron disparadores de CI/deploy en esta fase. ACK de avance recibido después del commit humano `b0ff93f`; fase 3 iniciada.
