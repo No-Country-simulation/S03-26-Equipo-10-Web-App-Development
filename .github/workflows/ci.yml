@@ -165,6 +165,29 @@ jobs:
       - name: Smoke test same-origin web proxy
         timeout-minutes: 3
         run: node scripts/web-proxy-smoke.mjs
+      - name: Install pinned Chromium and Linux dependencies
+        timeout-minutes: 5
+        run: npx --no-install playwright install --with-deps chromium --only-shell
+      - name: Verify E2E ownership, privacy and runner failure controls
+        timeout-minutes: 3
+        run: node --test --test-isolation=none scripts/e2e/*.test.mjs
+      - name: Test critical desktop and mobile journeys with exclusive services
+        id: e2e_tests
+        timeout-minutes: 15
+        env:
+          # ACK registrado en el plan: sólo PostgreSQL propio, loopback y tmpfs.
+          E2E_ALLOW_DISPOSABLE_MIGRATIONS: '1'
+        run: npm run test:e2e --workspace @testimonial-cms/web
+      - name: Upload sanitized E2E results
+        if: ${{ always() && (steps.e2e_tests.outcome == 'success' || steps.e2e_tests.outcome == 'failure') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-results
+          path: |
+            apps/web/.e2e-results/results.json
+            apps/web/.e2e-results/environment.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Verify demo configuration, runtime and restricted database identities
         timeout-minutes: 5
         run: |
@@ -181,6 +204,9 @@ jobs:
       - name: Build web image
         run: docker build --file apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=http://127.0.0.1:4000/api/v1 --tag testimonial-cms-web:ci .
       - name: Smoke test production images
+        timeout-minutes: 7
+        env:
+          E2E_ALLOW_DISPOSABLE_MIGRATIONS: '1'
         run: bash scripts/ci-smoke-containers.sh
       - name: Prepare image reports
         id: image_reports

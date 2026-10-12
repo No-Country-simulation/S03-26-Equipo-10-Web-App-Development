@@ -44,7 +44,7 @@
 - **API keys**: HMAC-SHA-256 con pepper versionado para `ak_`; lector `tms_` temporal durante el corte
 - **Webhooks**: ledger y polling PostgreSQL con entrega at least once; firma versionada y secreto cifrado por destino
 - **Cuotas y caché**: Redis para contadores atómicos e invalidación por versión de tenant; no participa en la entrega durable
-- **Entrega preparada**: CI de PR/main y workflows de tags anotados, migración manual y recuperación en `.github/workflows/`; gates y adaptadores en `scripts/release/`. Main y tags protegidos en GitHub. Entrega apagada, sin recursos creados; activación y aceptación remotas según `docs/operations/27_demo_tag_delivery.md`.
+- **Entrega preparada**: CI de PR/main y workflows de tags anotados, migración manual y recuperación en `.github/workflows/`; gates y adaptadores en `scripts/release/`. Main exige una aprobación ajena al autor y checks obligatorios; tags protegidos en GitHub. E2E en `verify` con servicios propios descartables; release verifica ambas imágenes finales antes de publicar. Entrega apagada, sin recursos creados; activación y aceptación remotas según `docs/operations/27_demo_tag_delivery.md`.
 
 ```
 Monorepo Root
@@ -214,8 +214,8 @@ Catálogo de 26 skills propias de ingeniería con código SKL; no representa el 
 | `docker-container-engineering`             | SKL-DEVOPS-DKR-001    | DevOps / Containers                           |
 | `monorepo-architecture-engineering`        | SKL-MONOREPO-ARCH-001 | Architecture / DevOps / Monorepo              |
 | `cicd-pipeline-engineering`                | SKL-DEVOPS-CICD-001   | CI/CD / DevSecOps / Despliegue y recuperación |
-| `testing-tdd-engineering`                  | SKL-TDD-001          | Testing / TDD / Unit, Integration y E2E        |
+| `testing-tdd-engineering`                  | SKL-TDD-001           | Testing / TDD / Unit, Integration y E2E       |
 
 ---
 
-_Última actualización: 2026-10-11 — Versión del framework: SKL-PRO-001 v1.1.0_
+_Última actualización: 2026-10-12 — Versión del framework: SKL-PRO-001 v1.1.0_

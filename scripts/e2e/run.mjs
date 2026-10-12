@@ -17,6 +17,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { verifyApi } from './api-smoke.mjs';
 import {
   assertMigrationConsent,
   assertOwner,
@@ -51,6 +52,12 @@ let interrupted = false;
 const imageName = resourceName(runId, 'image');
 const networkName = resourceName(runId, 'network');
 const startedAt = new Date().toISOString();
+const apiSmokeImage =
+  process.argv[2] === '--api-smoke' &&
+  process.argv.length === 4 &&
+  /^sha256:[a-f0-9]{64}$/.test(process.argv[3])
+    ? process.argv[3]
+    : null;
 
 function start(command, args, extra = {}) {
   const child = spawn(command, args, {
@@ -104,7 +111,8 @@ async function freePort() {
 async function waitFor(label, probe, alive = () => true) {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
-    if (interrupted || !alive()) throw new Error(`${label}: process exited`);
+    if (interrupted || !(await alive()))
+      throw new Error(`${label}: process exited`);
     try {
       if (await probe()) return;
     } catch {
@@ -228,15 +236,17 @@ for (const signal of ['SIGINT', 'SIGTERM'])
   });
 
 try {
-  if (process.argv.length !== 2)
+  if (process.argv.length !== 2 && !apiSmokeImage)
     throw new Error('test:e2e does not accept runner overrides');
   assertMigrationConsent(process.env.E2E_ALLOW_DISPOSABLE_MIGRATIONS);
   await rejectEnvFiles();
   temporary = await mkdtemp(join(tmpdir(), 'testimonial-e2e-'));
   const apiWorkDir = join(temporary, 'workspace/apps/api');
   await mkdir(apiWorkDir, { recursive: true });
-  await rm(join(webDir, '.e2e-results'), { recursive: true, force: true });
-  await mkdir(join(webDir, '.e2e-results'), { recursive: true });
+  if (!apiSmokeImage) {
+    await rm(join(webDir, '.e2e-results'), { recursive: true, force: true });
+    await mkdir(join(webDir, '.e2e-results'), { recursive: true });
+  }
   console.log(`E2E ${runId}: prepare exclusive PostgreSQL 18 / Redis 7`);
   await docker('Create owned network', [
     'network',
@@ -339,19 +349,31 @@ try {
   console.log(
     `E2E ${runId}: build production API image and start real application`,
   );
-  await docker('Build production API', [
-    'build',
-    '--target',
-    'runner',
-    '--label',
-    `${ownerLabel}=${runId}`,
-    '--tag',
-    imageName,
-    '--file',
-    'apps/api/Dockerfile',
-    '.',
-  ]);
-  imageCreated = true;
+  if (!apiSmokeImage) {
+    await docker('Build production API', [
+      'build',
+      '--target',
+      'runner',
+      '--label',
+      `${ownerLabel}=${runId}`,
+      '--tag',
+      imageName,
+      '--file',
+      'apps/api/Dockerfile',
+      '.',
+    ]);
+    imageCreated = true;
+  } else {
+    const selected = JSON.parse(
+      await docker('Inspect final API image', [
+        'image',
+        'inspect',
+        apiSmokeImage,
+      ]),
+    )[0];
+    if (selected?.Id !== apiSmokeImage)
+      throw new Error('E2E image identity mismatch');
+  }
   const apiEnv = {
     ...env,
     PORT: '4000',
@@ -367,6 +389,7 @@ try {
     TRUST_PROXY_HOPS: '0',
     OTEL_SDK_DISABLED: 'true',
     BI_OPERATIONS_ENABLED: 'false',
+    METRICS_TOKEN: randomBytes(32).toString('base64url'),
   };
   const httpsPort = await freePort();
   const baseURL = `https://127.0.0.1:${httpsPort}`;
@@ -394,7 +417,7 @@ try {
       ...Object.keys(apiEnv)
         .filter((key) => !Object.hasOwn(env, key) || key === 'NODE_ENV')
         .flatMap((key) => ['--env', key]),
-      imageName,
+      apiSmokeImage ?? imageName,
     ],
     { env: apiEnv },
   );
@@ -404,143 +427,176 @@ try {
     kind: 'api',
     port: '4000/tcp',
   });
-  await waitFor('API readiness', () =>
-    healthy(`http://127.0.0.1:${apiPort}/api/v1/health/ready`),
+  await waitFor(
+    'API readiness',
+    () => healthy(`http://127.0.0.1:${apiPort}/api/v1/health/ready`),
+    async () => (await inspect('api')).State.Running,
   );
 
-  console.log(
-    `E2E ${runId}: build Next.js with same-origin proxy and serve HTTPS`,
-  );
-  const webPort = await freePort();
-  const webEnv = {
-    ...env,
-    NEXT_PUBLIC_API_URL: '/api/v1',
-    API_BACKEND_ORIGIN: `http://127.0.0.1:${apiPort}`,
-  };
-  await command(
-    'Build production web',
-    'npm',
-    ['run', 'build', '--workspace', '@testimonial-cms/web'],
-    { env: webEnv },
-  );
-  const standalone = join(webDir, '.next/standalone/apps/web');
-  await cp(join(webDir, '.next/static'), join(standalone, '.next/static'), {
-    recursive: true,
-  });
-  await cp(join(webDir, 'public'), join(standalone, 'public'), {
-    recursive: true,
-  });
-  const web = start(process.execPath, [join(standalone, 'server.js')], {
-    env: { ...webEnv, PORT: String(webPort), HOSTNAME: '127.0.0.1' },
-  });
-  web.stdout.resume();
-  await waitFor(
-    'Next.js',
-    () => healthy(`http://127.0.0.1:${webPort}/admin/login`),
-    () => web.exitCode === null && web.signalCode === null,
-  );
-  const keyPath = join(temporary, 'localhost.key');
-  const certPath = join(temporary, 'localhost.crt');
-  await command(
-    'Generate ephemeral TLS certificate',
-    'openssl',
-    [
-      'req',
-      '-x509',
-      '-newkey',
-      'rsa:2048',
-      '-nodes',
-      '-days',
-      '1',
-      '-subj',
-      '/CN=127.0.0.1',
-      '-addext',
-      'subjectAltName=IP:127.0.0.1',
-      '-keyout',
-      keyPath,
-      '-out',
-      certPath,
-    ],
-    { timeout: 15_000 },
-  );
-  // mkdtemp is mode 0700; certificate/key are deleted in finally, never evidence.
-  front = httpsServer(
-    { key: await readFile(keyPath), cert: await readFile(certPath) },
-    (req, res) => {
-      const upstream = httpRequest(
+  if (apiSmokeImage) {
+    const api = await inspect('api');
+    if (
+      !api.HostConfig.ReadonlyRootfs ||
+      !api.HostConfig.CapDrop.includes('ALL')
+    )
+      throw new Error('E2E API hardening failed');
+    await verifyApi(`http://127.0.0.1:${apiPort}`, runId, apiEnv.METRICS_TOKEN);
+    await docker('Verify API rootfs and tmpfs', [
+      'exec',
+      resourceName(runId, 'api'),
+      'node',
+      '-e',
+      'const fs=require("node:fs");if(process.getuid()===0)process.exit(1);try{fs.writeFileSync("/app/rootfs-probe","x");process.exit(1)}catch(e){if(e.code!=="EROFS")process.exit(1)}fs.writeFileSync("/tmp/smoke-probe","x");fs.unlinkSync("/tmp/smoke-probe")',
+    ]);
+    await docker(
+      'Drain API',
+      ['stop', '--time', '30', resourceName(runId, 'api')],
+      { timeout: 40_000 },
+    );
+    const stopped = await inspect('api');
+    if (stopped.State.ExitCode === 137 || stopped.State.OOMKilled)
+      throw new Error('E2E API shutdown failed');
+    console.log(
+      `E2E ${runId}: final API image authenticated/persisted smoke PASS`,
+    );
+  } else {
+    console.log(
+      `E2E ${runId}: build Next.js with same-origin proxy and serve HTTPS`,
+    );
+    const webPort = await freePort();
+    const webEnv = {
+      ...env,
+      NEXT_PUBLIC_API_URL: '/api/v1',
+      API_BACKEND_ORIGIN: `http://127.0.0.1:${apiPort}`,
+    };
+    await command(
+      'Build production web',
+      'npm',
+      ['run', 'build', '--workspace', '@testimonial-cms/web'],
+      { env: webEnv },
+    );
+    const standalone = join(webDir, '.next/standalone/apps/web');
+    await cp(join(webDir, '.next/static'), join(standalone, '.next/static'), {
+      recursive: true,
+    });
+    await cp(join(webDir, 'public'), join(standalone, 'public'), {
+      recursive: true,
+    });
+    const web = start(process.execPath, [join(standalone, 'server.js')], {
+      env: { ...webEnv, PORT: String(webPort), HOSTNAME: '127.0.0.1' },
+    });
+    web.stdout.resume();
+    await waitFor(
+      'Next.js',
+      () => healthy(`http://127.0.0.1:${webPort}/admin/login`),
+      () => web.exitCode === null && web.signalCode === null,
+    );
+    const keyPath = join(temporary, 'localhost.key');
+    const certPath = join(temporary, 'localhost.crt');
+    await command(
+      'Generate ephemeral TLS certificate',
+      'openssl',
+      [
+        'req',
+        '-x509',
+        '-newkey',
+        'rsa:2048',
+        '-nodes',
+        '-days',
+        '1',
+        '-subj',
+        '/CN=127.0.0.1',
+        '-addext',
+        'subjectAltName=IP:127.0.0.1',
+        '-keyout',
+        keyPath,
+        '-out',
+        certPath,
+      ],
+      { timeout: 15_000 },
+    );
+    // mkdtemp is mode 0700; certificate/key are deleted in finally, never evidence.
+    front = httpsServer(
+      { key: await readFile(keyPath), cert: await readFile(certPath) },
+      (req, res) => {
+        const upstream = httpRequest(
+          {
+            host: '127.0.0.1',
+            port: webPort,
+            path: req.url,
+            method: req.method,
+            headers: req.headers,
+          },
+          (response) => {
+            res.writeHead(response.statusCode, response.headers);
+            response.pipe(res);
+          },
+        );
+        upstream.setTimeout(30_000, () => upstream.destroy());
+        upstream.on('error', () => {
+          if (!res.headersSent) res.writeHead(502);
+          res.end();
+        });
+        req.on('aborted', () => upstream.destroy());
+        req.pipe(upstream);
+      },
+    );
+    await new Promise((res, rej) => {
+      front.once('error', rej);
+      front.listen(httpsPort, '127.0.0.1', res);
+    });
+    await waitFor('HTTPS same-origin API', () =>
+      healthy(`${baseURL}/api/v1/health/ready`, true),
+    );
+    const head = await command('Identify checkout', 'git', [
+      'rev-parse',
+      'HEAD',
+    ]);
+    const dirty =
+      (await command('Identify local changes', 'git', [
+        'status',
+        '--porcelain',
+      ])) !== '';
+    await writeFile(
+      join(webDir, '.e2e-results/environment.json'),
+      JSON.stringify(
         {
-          host: '127.0.0.1',
-          port: webPort,
-          path: req.url,
-          method: req.method,
-          headers: req.headers,
+          runId,
+          startedAt,
+          head,
+          dirty,
+          node: process.version,
+          images,
+          api: 'production Dockerfile runner',
+          web: 'production standalone',
+          transport: 'local HTTPS, same-origin proxy',
+          externalProviders: 'not exercised',
+          retries: 0,
         },
-        (response) => {
-          res.writeHead(response.statusCode, response.headers);
-          response.pipe(res);
-        },
-      );
-      upstream.setTimeout(30_000, () => upstream.destroy());
-      upstream.on('error', () => {
-        if (!res.headersSent) res.writeHead(502);
-        res.end();
-      });
-      req.on('aborted', () => upstream.destroy());
-      req.pipe(upstream);
-    },
-  );
-  await new Promise((res, rej) => {
-    front.once('error', rej);
-    front.listen(httpsPort, '127.0.0.1', res);
-  });
-  await waitFor('HTTPS same-origin API', () =>
-    healthy(`${baseURL}/api/v1/health/ready`, true),
-  );
-  const head = await command('Identify checkout', 'git', ['rev-parse', 'HEAD']);
-  const dirty =
-    (await command('Identify local changes', 'git', [
-      'status',
-      '--porcelain',
-    ])) !== '';
-  await writeFile(
-    join(webDir, '.e2e-results/environment.json'),
-    JSON.stringify(
+        null,
+        2,
+      ),
+    );
+    console.log(`E2E ${runId}: run Chromium desktop/mobile (no suite retries)`);
+    await command(
+      'Playwright critical journeys',
+      process.execPath,
+      [join(root, 'node_modules/@playwright/test/cli.js'), 'test'],
       {
-        runId,
-        startedAt,
-        head,
-        dirty,
-        node: process.version,
-        images,
-        api: 'production Dockerfile runner',
-        web: 'production standalone',
-        transport: 'local HTTPS, same-origin proxy',
-        externalProviders: 'not exercised',
-        retries: 0,
+        cwd: webDir,
+        env: {
+          ...env,
+          NODE_ENV: 'test',
+          E2E_BASE_URL: baseURL,
+          E2E_MANAGED_RUN: runId,
+        },
+        timeout: 360_000,
       },
-      null,
-      2,
-    ),
-  );
-  console.log(`E2E ${runId}: run Chromium desktop/mobile (no suite retries)`);
-  await command(
-    'Playwright critical journeys',
-    process.execPath,
-    [join(root, 'node_modules/@playwright/test/cli.js'), 'test'],
-    {
-      cwd: webDir,
-      env: {
-        ...env,
-        NODE_ENV: 'test',
-        E2E_BASE_URL: baseURL,
-        E2E_MANAGED_RUN: runId,
-      },
-      timeout: 360_000,
-    },
-  );
-  console.log(
-    `E2E ${runId}: PASS; sanitized evidence in apps/web/.e2e-results`,
-  );
+    );
+    console.log(
+      `E2E ${runId}: PASS; sanitized evidence in apps/web/.e2e-results`,
+    );
+  }
 } catch (error) {
   // Only harness-authored messages; never print service output, request bodies or env.
   console.error(

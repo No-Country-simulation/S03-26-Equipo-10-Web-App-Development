@@ -61,11 +61,11 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 
 ## [Actual] Fase 3 — Integración E2E, release y gobernanza
 
-- Incorporar E2E en `verify` después del build, con datos y namespace Redis exclusivos.
-- Exigir una aprobación ajena al autor, conservar descarte de revisiones obsoletas y verificar configuración remota.
-- Parametrizar smoke existentes y probar las imágenes finales maintenance/API antes de publicar esas mismas imágenes; API con almacenamiento descartable y operación autenticada exitosa.
-- Mantener tags, aprobación, digest/SBOM/escaneos/attestations, controles API/worker/candidata y recuperación compatible.
-- Verificar negativos de gates y CI del SHA final; no habilitar proveedores ni confundir fixtures con aceptación remota.
+- [x] Incorporar E2E en `verify` después del build, con datos y namespace Redis exclusivos.
+- [x] Exigir una aprobación ajena al autor, conservar descarte de revisiones obsoletas y verificar configuración remota.
+- [x] Parametrizar smoke existentes y probar las imágenes finales maintenance/API antes de publicar esas mismas imágenes; API con almacenamiento descartable y operación autenticada exitosa.
+- [x] Mantener tags, aprobación, digest/SBOM/escaneos/attestations, controles API/worker/candidata y recuperación compatible.
+- [ ] Verificar negativos de gates y CI del SHA final; no habilitar proveedores ni confundir fixtures con aceptación remota. Negativos locales aprobados; CI final pendiente.
 
 **ACK de inicio:** «Continuar», 2026-10-12, tras el cierre de fase 2. Autoriza esta fase y la revisión obligatoria acordada; la migración sigue limitada al PostgreSQL descartable del harness. **Commit sugerido:** `ci(release): verificá los artefactos antes de publicar`.
 
@@ -124,3 +124,17 @@ Segunda ejecución `68ebb6a7152f`: 5/6 aprobados; publicación falló al esperar
 Tercera ejecución completa `5a293178acc3`, iniciada el 2026-10-12 a las 04:10:12 UTC: **6/6 aprobados**, retries 0, comando terminado con código 0. Duraciones: sesión 3200 ms, publicación 4691 ms, tenant/CSRF 1735 ms, RBAC 1372 ms, menú móvil 2965 ms y captura móvil 1102 ms. `apps/web/.e2e-results/results.json` declara `complete: true`; `environment.json` registra HEAD `1702eadf0a013edc4f47cc9f28acb10e7fc9ccba`, `dirty: true`, Node 24.21.0 y digests. Es evidencia del árbol local modificado; el directorio está ignorado y no acredita CI de estos cambios. Consultas posteriores por etiqueta `testimonial.e2e.run=5a293178acc3` confirmaron cero contenedores, redes e imágenes propios restantes. Los dos fallos anteriores motivaron correcciones identificadas y ejecuciones completas nuevas, sin reintentos automáticos ni relajación de assertions.
 
 Límites: Chromium desktop/viewport móvil local, recorridos de texto y persistencia OLTP/Redis reales. No se ejercitaron Cloudinary, YouTube, destinos webhook, warehouse/ETL, otros motores ni proveedores hospedados. No se modificaron disparadores de CI/deploy en esta fase. ACK de avance recibido después del commit humano `b0ff93f`; fase 3 iniciada.
+
+### Evidencia de fase 3 — implementación local, CI final pendiente
+
+ACK «Continuar» posterior al cierre de fase 2. Se registró el avance en `06bbdfb` y se sincronizó main en `348c96a` sin diferencias de archivos. El PR #6 fue integrado humanamente como `b9c651f`; el siguiente PR incluye fases 2/3. No se reutiliza su CI como aceptación del código nuevo.
+
+- CI conserva `verify`, `secret-scan`, `dependency-review`, eventos PR/main y cancelación de CI obsoleto. Después del build/proxy instala Chromium fijado por lockfile, ejecuta controles negativos y seis E2E. Cada run crea sus propios PG18/Redis7 con tmpfs/puertos loopback; no comparte datos/Redis de integración. Artefacto `e2e-results` saneado, dos JSON, 14 días, también al fallar.
+- La variante `--api-smoke sha256:<ID>` del mismo harness conserva consentimiento, guardas y limpieza. Verifica liveness/readiness, registro/login Bearer, `/me`, creación y relectura propia, login inválido 401, métricas privadas, usuario no root, raíz inmutable, tmpfs y drenaje sin SIGKILL/OOM. No construye Next ni sobrescribe la evidencia E2E; no elimina la imagen del caller.
+- `image-smoke.mjs` resuelve IDs/etiquetas OCI del SHA, ejecuta maintenance offline y la API final sin proveedores; vuelve a resolver tags y sólo entonces registra aceptación. `publish.mjs` exige evidencia completa del SHA y los mismos tags/IDs de ambas imágenes antes del primer push. Las pruebas del publicador demuestran ausencia de push con evidencia ausente/fallida/obsoleta o imagen reemplazada, y conservan recuperación por digest.
+- Red: 17/17 controles funcionales fallaron con el scaffold sin verificaciones. Tras implementar smoke/identidad, 17/17 aprobaron. Al extraer el publicador todavía sin gate, tres controles de publicación fallaron (9 existentes aprobados); después del gate aprueban. Se agregaron controles de reemplazo antes del primer push, publicación válida y CLI que rechaza URL como imagen. Los comandos Docker/GHCR de las pruebas nativas son dobles; no publican imágenes.
+- Preflight real sobre el árbol local modificado `348c96a`: API runner y maintenance construidos, IDs `sha256:9d1fff05c1a528d4fba49d802afa8fd0cc1f8caff23406a1fbc7f286108f42a3` y `sha256:47e38366a9dac0de7512e4b4521cb11227ab547abf292d15ac1cf9de4dcfb650`. API smoke `47bb80660997` aprobado; orquestador completo aprobó y generó `release-evidence/image-smoke.json`. Es preflight local con cambios, no CI ni artefacto publicado de ese SHA. Maintenance usada como imagen API en `7a43dd6aa1c8` fue rechazada con código 1; no se relajaron requisitos de arranque ni se reintentó la suite.
+- Gobernanza aplicada por PATCH exclusivamente al número de aprobaciones y consultada después: `required_approving_review_count=1`, `dismiss_stale_reviews=true`, admins protegidos, strict=true, checks `verify/secret-scan/dependency-review`, conversaciones resueltas, sin force-push/borrado. Política versionada actualizada. No se enviaron solicitudes ni mensajes a revisores.
+- Actionlint, sintaxis Bash, Prettier, diff y enlaces locales aprobados. La primera ejecución nativa restringida aprobó 93 y falló el subproceso existente de aislamiento de credenciales por sandbox; repetida con permisos para subprocesos, 94/94 aprobó. Verificación final ampliada: **97/97** (34 E2E/harness + 63 release), cero fallos/omisiones/todo. Limpieza de los runs positivo/negativo verificada por etiqueta: cero contenedores/redes propios restantes. Consulta remota confirma cero environments y `DEMO_DELIVERY_ENABLED` ausente. No se modificaron manifiesto raíz, schema, infraestructura, hooks ni migradores productivos; no se habilitó entrega, publicó tag/imagen ni operó proveedor.
+
+Pendiente: CI del commit final y revisión humana del PR. El smoke local no acredita registry, Vercel/Railway/Supabase ni activación remota.

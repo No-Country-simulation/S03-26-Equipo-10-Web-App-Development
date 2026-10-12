@@ -67,9 +67,9 @@ NEXT_PUBLIC_API_URL=/api/v1 API_BACKEND_ORIGIN=http://127.0.0.1:4100 npm run bui
 
 Estos comandos no preparan servicios ni autorizan migraciones. Sin PostgreSQL/warehouse/Redis descartables, la API puede omitir integraciones: informá el resultado parcial. Para cobertura y reportes completos, seguí la [guía](../technical/05_testing.md). CI conserva la selección completa, bloquea omisiones/todo y publica JSON/cobertura; un run verde de otro SHA no acredita el cambio actual.
 
-Main exige `verify`, `secret-scan` y `dependency-review`, actualizada contra main, conversaciones resueltas y sin force-push/borrado. La auditoría inicial verificó cero aprobaciones obligatorias; el equipo decidió exigir una revisión ajena al autor en fase 3. Hasta aplicar/verificar esa protección, pedí revisión manual. `CODEOWNERS` espera equipo de maintainers existente con acceso; no atribuirle enforcement activo.
+Main exige `verify`, `secret-scan` y `dependency-review`, actualizada contra main, conversaciones resueltas y sin force-push/borrado. Desde el 2026-10-12 exige una aprobación ajena al autor y descarta aprobaciones obsoletas ante nuevos commits; configuración aplicada y consultada en GitHub en la fase 3. `CODEOWNERS` espera equipo de maintainers existente con acceso; no atribuirle enforcement activo.
 
-Definition of Done: contrato satisfecho, escenarios/efectos pertinentes protegidos, tipos/lint y checks completos aprobados para el SHA final, revisión, documentación actualizada y límites/pendientes explícitos. E2E permanente y ajustes de release de este plan siguen pendientes; no marcarlos aprobados por la cobertura unit/UI.
+Definition of Done: contrato satisfecho, escenarios/efectos pertinentes protegidos, tipos/lint y checks completos aprobados para el SHA final, revisión, documentación actualizada y límites/pendientes explícitos. E2E con servicios propios forma parte de `verify`; release exige smoke de las imágenes finales antes de publicar. La aceptación corresponde al CI del SHA final, no a la cobertura unit/UI.
 
 ## Merge Strategies
 
@@ -83,7 +83,7 @@ Revisá ambos contratos y resolvé preservando las assertions legítimas. No ace
 
 Los tags `v*` de entrega son anotados, creables sólo por administradores e inmutables según los rulesets auditados. Deben apuntar a un SHA de main con CI aprobado. El workflow `demo-release.yml` prepara publicación por digest/SBOM/escaneos/attestations, aprobación protegida y smoke antes de promover.
 
-La entrega está apagada; no se crean tags ni recursos al fusionar PR. Activarla requiere sus ACK, environments, secretos externos, preflight y aceptación de proveedores según el [runbook](../operations/27_demo_tag_delivery.md). Repetir smoke sobre las imágenes finales antes de publicar es una mejora pendiente de fase 3; no confundir CI de imágenes con aceptación remota.
+La entrega está apagada; no se crean tags ni recursos al fusionar PR. Activarla requiere sus ACK, environments, secretos externos, preflight y aceptación de proveedores según el [runbook](../operations/27_demo_tag_delivery.md). Antes de publicar, prueba maintenance offline y la API final con login/escritura/relectura sobre servicios descartables. El publicador contrasta SHA, tags e IDs con la evidencia del smoke; no confundir esa validación con aceptación remota.
 
 Migraciones y recuperación usan workflows manuales separados con destino/SHA explícitos. No hay migración automática en PR/main; el CI sí prepara su propia base descartable. Recuperación exige compatibilidad de datos y versión conocida; no ejecutar DDL inverso automático.
 

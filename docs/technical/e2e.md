@@ -1,6 +1,6 @@
 # E2E con aplicación y persistencia reales
 
-La fase 2 incorpora Playwright 1.64.0 con Chromium, independiente de Jest/Vitest. Los seis recorridos aprobaron localmente sin omisiones ni reintentos en el run `5a293178acc3`; la evidencia y los fallos previos se registran en el [plan activo](../plan/2026-10-11_test-integridad-ci-e2e.md). Su integración como gate de CI corresponde a la fase 3, todavía pendiente de ACK.
+La fase 2 incorpora Playwright 1.64.0 con Chromium, independiente de Jest/Vitest. Los seis recorridos aprobaron localmente sin omisiones ni reintentos en el run `5a293178acc3`; la evidencia y los fallos previos se registran en el [plan activo](../plan/2026-10-11_test-integridad-ci-e2e.md). La fase 3 los incorpora al job obligatorio `verify` en PR/main después del build y del smoke sintético del proxy. El CI de cada SHA debe aprobar antes de integrarlo.
 
 ## Preparación y ejecución
 
@@ -27,7 +27,7 @@ En un equipo con caché alternativa, conservá el mismo `PLAYWRIGHT_BROWSERS_PAT
 
 ## Entorno y aislamiento
 
-[El harness](../../scripts/e2e/run.mjs) genera un identificador aleatorio y crea únicamente sus contenedores, red e imagen. PostgreSQL 18 y Redis 7 están fijados por digest; los datos viven en tmpfs, sin bind mounts ni volúmenes persistentes. Publica puertos aleatorios en `127.0.0.1`; inspecciona nombre, etiqueta, estado, mounts y publicación antes de construir el destino y justo antes de migrarlo. No acepta `DATABASE_URL`, `REDIS_URL`, un origen remoto ni argumentos para sobrescribir el runner.
+[El harness](../../scripts/e2e/run.mjs) genera un identificador aleatorio y crea únicamente sus contenedores, red e imagen. PostgreSQL 18 y Redis 7 están fijados por digest; los datos viven en tmpfs, sin bind mounts ni volúmenes persistentes. Publica puertos aleatorios en `127.0.0.1`; inspecciona nombre, etiqueta, estado, mounts y publicación antes de construir el destino y justo antes de migrarlo. No acepta `DATABASE_URL`, `REDIS_URL` ni un origen remoto. La única variante es `--api-smoke sha256:<ID local>` para probar una imagen API existente; conserva el mismo aislamiento, consentimiento y limpieza de datos, y nunca elimina la imagen suministrada por el caller.
 
 Aplica las migraciones existentes sólo a `e2e_<runId>` en ese PostgreSQL, previa confirmación explícita. [AGENTS.md §5](../../AGENTS.md) exige ACK humano específico para `prisma migrate deploy`, también en pruebas; la variable es un control de operación y no reemplaza ese ACK. No ejecuta `db push` ni modifica el esquema.
 
@@ -59,5 +59,9 @@ El recorrido de publicación detectó que las listas administrativas esperaban `
 `forbidOnly: true`, retries 0, un worker, timeout de 45 s por caso y 5 min global; los builds/preparación tienen límites propios. El sondeo acotado de readiness no reintenta tests. El reporter exige los seis identificadores únicos aprobados, sin omisiones, retries ni errores globales; una selección parcial también falla.
 
 El resultado saneado queda en `apps/web/.e2e-results/results.json`: identificador permitido, proyecto, status, duración y retry. `environment.json` identifica HEAD, checkout con cambios, Node, digests, entorno y hora; un resultado con `dirty: true` pertenece a ese árbol local, no a un SHA remoto validado. El directorio está ignorado por Git y ESLint. El harness no conserva stdout/stderr de servicios/builds ni imprime cuerpos de petición, cookies o variables.
+
+CI instala Chromium de la dependencia fijada con sus dependencias Linux y ejecuta controles negativos antes de los seis recorridos. Conserva sólo `results.json` y `environment.json` en el artefacto `e2e-results` durante 14 días, también al fallar. No adjunta el directorio runtime ni reportes ricos. E2E tiene sus propios PostgreSQL/Redis: no reutiliza los servicios ni datos de integración del job.
+
+El smoke de la API final reutiliza el harness sin compilar Next ni lanzar Playwright: login Bearer válido, `/me`, creación/relectura de un testimonio propio, login inválido 401, métricas privadas, raíz inmutable, tmpfs y drenaje sin SIGKILL/OOM. Es validación de imagen API, no reemplaza los recorridos del navegador. [Release](../../scripts/release/image-smoke.mjs) prueba maintenance offline y API por ID inmutable, verifica etiquetas de origen y registra `release-evidence/image-smoke.json`; el publicador exige ese resultado y los mismos IDs antes del primer push.
 
 Traces, videos, screenshots y HTML están desactivados. Playwright 1.64 también genera snapshots ARIA/error-context en fallos: el flag del runner fijado desactiva la captura ARIA y el hook de privacidad sanea los errores antes de escribirlos, manteniendo cantidad/status fallidos. Un control negativo ejecuta un fallo real con sentinelas en formulario, stdout y assertion, y verifica su ausencia en stdout y archivos. Al actualizar Playwright hay que repetir ese control. Los diagnósticos saneados reducen el detalle disponible: reproducí sólo el caso con datos sintéticos en un entorno descartable cuando haga falta investigar, sin exportar una sesión ni activar reportes con secretos.

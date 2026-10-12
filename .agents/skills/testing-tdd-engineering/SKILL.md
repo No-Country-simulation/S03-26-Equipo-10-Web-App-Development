@@ -5,7 +5,7 @@ description: 'Diseñar, implementar, diagnosticar y revisar pruebas Unit, Integr
 
 # Testing y TDD para Testimonial CMS
 
-**Código:** SKL-TDD-001 · **Versión:** 1.0.0
+**Código:** SKL-TDD-001 · **Versión:** 1.0.1
 
 **Fuente:** especificación del usuario «Unit, Integration & E2E con TDD e Inteligencia Artificial», v1.0.0; adaptación del 2026-10-11. ISO/IEC/IEEE 29119, IEEE 29148, Agile Definition of Done y OWASP ASVS son referencias de diseño; su mención no acredita cumplimiento ni certificación.
 
@@ -16,7 +16,7 @@ Construir evidencia de que el software cumple sus contratos y de que las pruebas
 - Leer [AGENTS.md](../../../AGENTS.md), [llm.txt](../../../llm.txt), el plan activo y los contratos del módulo afectado. Ejecutar sólo la fase HITL autorizada y detenerse con commit sugerido al finalizar. Discover/Red/Green/Refactor son etapas técnicas dentro de esa fase.
 - API NestJS 11/Prisma 6.5: Jest y Supertest, suites principalmente en `apps/api/test/`. Web Next.js 15/React 18: Vitest, jsdom y Testing Library, tests junto a features y otras ubicaciones existentes. Consultar [guía operativa](../../../docs/technical/05_testing.md) para comandos y gates reales; usar las versiones de manifests y lockfile.
 - Aislamiento por `tenant_id`, sin RLS implementada. Conservar JWT, refresh tokens, RBAC, cookies HttpOnly y CSRF propios. Outbox durable mediante polling PostgreSQL; Redis sirve cuotas/caché. BI usa warehouse PostgreSQL separado.
-- No hay runner E2E persistente configurado. Playwright, MSW, Testcontainers, fast-check y Stryker son opciones futuras según necesidad, no prerrequisitos de cada cambio. No instalar ni migrar herramientas por catálogo.
+- Playwright 1.64.0 cubre seis recorridos Chromium escritorio/móvil con API/PG18/Redis7 propios descartables y Next standalone sobre HTTPS. Fase 3 lo incorpora a `verify` en PR/main; evidencia de cada SHA en plan/PR, no trasladar aprobación local a CI. El harness también prueba imágenes API finales sin navegador, con la misma propiedad y consentimiento de migración. Ver `docs/technical/e2e.md`. MSW, Testcontainers, fast-check y Stryker siguen siendo opciones según necesidad, no prerrequisitos. No instalar ni migrar herramientas por catálogo.
 - Cambiar `schema.prisma`, ejecutar `prisma migrate deploy`/`db push`, alterar infraestructura, package.json raíz o hooks requiere el ACK específico de AGENTS.md. El CI descartable existente no autoriza esas operaciones desde una sesión del agente.
 - Usar datos sintéticos y destinos de pruebas descartables verificados. No persistir secretos, tokens, contraseñas ni PII en contexto, ejemplos, reportes o logs. Declarar cuándo una dependencia se simula.
 

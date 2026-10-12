@@ -26,7 +26,7 @@ Los archivos de entrega son:
 
 Se verificaron y aplicaron en GitHub:
 
-- `main`: PR obligatorio, checks `verify`, `secret-scan` y `dependency-review`, rama actualizada antes de integrar, resolución de conversaciones, protección también para administradores, sin force push ni borrado. El mínimo de aprobaciones formales es 0; el merge sigue siendo una decisión humana.
+- `main`: PR obligatorio, checks `verify`, `secret-scan` y `dependency-review`, rama actualizada antes de integrar, resolución de conversaciones, protección también para administradores, sin force push ni borrado. Desde el 2026-10-12 exige una aprobación ajena al autor y descarta revisiones obsoletas ante nuevos commits; aplicación y consulta remota registradas en el plan de testing. El merge sigue siendo una decisión humana.
 - Creación de `v*`: sólo administradores del repositorio, ruleset `demo-version-tag-creation`, ID `24885595`.
 - Actualización/borrado de `v*`: bloqueados sin bypass, ruleset `demo-version-tag-immutability`, ID `24885597`. Para corregir una versión, publicar otro tag; no mover el anterior.
 
@@ -36,7 +36,7 @@ No se crearon GitHub environments. La variable de repositorio `DEMO_DELIVERY_ENA
 
 1. `push` de `v*` dispara el workflow; el gate exige formato `vMAJOR.MINOR.PATCH` con prerelease opcional, tag anotado cuyo destino directo sea un commit, pertenencia a `main` protegida y el CI más reciente de ese SHA en `main` terminado exitosamente. Verifica también los jobs `verify` y `secret-scan`; Dependency Review se exige al integrar el PR y se omite en el push de main.
 2. Debe existir el environment protegido, con al menos un reviewer y políticas explícitas que permitan el ref de la ejecución. Un environment inexistente no se crea automáticamente desde el gate.
-3. Construye `runner` y `maintenance` del SHA exacto, genera SBOM y bloquea vulnerabilidades HIGH/CRITICAL antes de publicarlas en GHCR. Registra los digests recuperables del registro y attestations del workflow hospedado en GitHub.
+3. Construye `runner` y `maintenance` del SHA exacto, genera SBOM y bloquea vulnerabilidades HIGH/CRITICAL. Antes de autenticar/publicar, prueba maintenance offline y la API final con login/escritura/relectura sobre PostgreSQL/Redis propios descartables del harness E2E. Registra SHA, tags e IDs inmutables en `image-smoke.json`; el publicador rechaza evidencia ausente/fallida o imágenes reemplazadas antes del primer push. Publica las mismas imágenes y registra digests recuperables y attestations del workflow hospedado en GitHub.
 4. Espera aprobación del environment `demo` y vuelve a comprobar CI/protección antes de operar proveedores. Comprueba habilitación, esquema compatible para ese SHA, preflight declarado, IDs, dominios y proyecto Vercel existente. No crea ni enlaza proyectos implícitamente.
 5. Verifica la attestation API; aplica la imagen por digest y configuración capturada al servicio API; espera su deployment concreto y readiness. Repite con el worker y verifica por SSH un heartbeat reciente del nuevo proceso en una transacción READ ONLY acotada.
 6. Vercel compila producción con `/api/v1` y el destino esperado; publica con `--skip-domain`. Comprueba proyecto, SHA y estado de la candidata, readiness a través del proxy y bloqueo 404 de métricas internas. Sólo entonces promueve y comprueba el dominio canónico.
