@@ -6,8 +6,8 @@ Testimonial CMS es un proyecto educativo con dos npm workspaces: `apps/api` (Nes
 
 1. Abrí un issue con el comportamiento observado, el esperado y los pasos para reproducirlo, o describí la mejora y su alcance.
 2. Trabajá sobre una rama corta y mantené el cambio enfocado.
-3. Actualizá el código y la documentación afectada. Agregá tests de comportamiento cuando cubran un riesgo real.
-4. Ejecutá las verificaciones pertinentes y abrí un pull request con el motivo, el cambio y la evidencia de pruebas.
+3. Identificá contrato/riesgo y escenarios. Para lógica nueva o una regresión reproducible, ejecutá un Red funcional antes de corregir y registrá Green; para legado, distinguí caracterización de requisito.
+4. Actualizá código y documentación, ejecutá las verificaciones pertinentes y abrí un pull request con la [plantilla del repositorio](../../.github/pull_request_template.md): motivo, pruebas, dependencias simuladas, resultados y pendientes.
 
 Los cambios de esquema Prisma, migraciones en bases existentes, infraestructura, `package.json` raíz y hooks siguen las restricciones de [AGENTS.md](../../AGENTS.md) para agentes de IA. La guía de actualización de datos desde PostgreSQL 16 está en [operaciones](../operations/04_postgresql_18_compose_upgrade.md).
 
@@ -22,13 +22,17 @@ Los cambios de esquema Prisma, migraciones en bases existentes, infraestructura,
 ## Verificación
 
 ```bash
+npm run db:generate --workspace @testimonial-cms/api
 npm run typecheck
 npm run lint
 npm test
-NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1 npm run build
+node --test scripts/testing/*.test.mjs
+NEXT_PUBLIC_API_URL=/api/v1 API_BACKEND_ORIGIN=http://127.0.0.1:4100 npm run build
 ```
 
-Los cinco casos de integración PostgreSQL requieren `TEST_DATABASE_URL` y una base descartable con migraciones aplicadas. El job de CI prepara esa base, además de auditar dependencias, verificar firmas y construir y arrancar las imágenes. Comprobá el resultado del workflow antes de afirmar que esas pruebas pasaron.
+Estos comandos no preparan bases ni autorizan migraciones. Las integraciones requieren PostgreSQL descartable, warehouse en otro servidor, Redis, DDL sintético y herramientas de backup. Consultá variables y comandos de cobertura/JSON en la [guía de testing](../technical/05_testing.md) y límites reales en la [matriz de contratos](../technical/testing_contracts.md). Sin servicios, Jest puede omitir casos: informá cantidades/motivos y tratá el resultado como parcial.
+
+CI prepara sus servicios descartables, ejecuta cobertura y genera JSON de API/web; rechaza fallos, omisiones/todo, foco y reportes incompletos. Conserva tipos/lint/build/smokes y controles de dependencias, firmas, secretos e imágenes. No reduzcas la selección de CI para aprobar; comprobá el run del SHA evaluado. La cobertura se publica como evidencia, sin porcentaje global obligatorio. El runner E2E permanente sigue pendiente de la fase 2 del [plan](../plan/2026-10-11_test-integridad-ci-e2e.md).
 
 ## Commits y pull requests
 
@@ -36,4 +40,10 @@ Usá Conventional Commits con `type` y `scope` en inglés y descripción en espa
 
 El pull request debe explicar qué cambió, por qué y cómo se verificó. Si cambia una dependencia, revisá scripts de instalación y el motivo de cada `override` en [seguridad de dependencias](../operations/05_dependency_security.md).
 
+Para aceptar un cambio, revisá contrato, efectos/negativos pertinentes, tests proporcionales al riesgo, ausencia de regresiones, documentación y CI completo del SHA final. Declarar tests escritos no acredita ejecución ni un historial TDD. Usá sólo fixtures sintéticas y evidencia sin credenciales ni datos reales.
+
+Main exige PR, checks y conversaciones resueltas. La auditoría inicial encontró cero aprobaciones obligatorias; exigir una revisión ajena al autor es la decisión aprobada para fase 3 y todavía no se aplicó. Hasta verificarla remotamente, solicitá esa revisión de forma manual.
+
 La asignación de responsables mediante `CODEOWNERS` y la exigencia de su revisión siguen pendientes de que un administrador cree el equipo `@No-Country-simulation/testimonial-cms-maintainers` con miembros activos y acceso de escritura. Hasta entonces, pedí revisión manual a los responsables del proyecto.
+
+El merge de un PR integra código; no autoriza desplegar. La entrega preparada conserva tags anotados y aprobación, está apagada y tiene migración/recuperación manuales separadas. Ver [runbook de entrega](../operations/27_demo_tag_delivery.md).

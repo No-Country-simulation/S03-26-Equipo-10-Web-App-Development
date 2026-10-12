@@ -8,9 +8,9 @@ import { JwtTokenService } from '../src/modules/auth/services/jwt-token.service'
 import type { UserWithAuth } from '../src/modules/auth/repositories/auth.repository';
 
 /**
- * Integration tests for the Auth flow (SKL-QA-001).
- * Tests the full lifecycle: register -> login -> refresh -> logout.
- * Uses manual mocks for external dependencies (DB, JWT) — KISS principle.
+ * Flujo de AuthService con PasswordService real.
+ * Persistencia, JWT y control de intentos están simulados: no acredita DB,
+ * rotación persistida ni sesión HTTP. Esos contratos tienen suites propias.
  */
 
 function createMockAuthRepo(): jest.Mocked<AuthRepository> {
@@ -51,7 +51,7 @@ function createTestUser(overrides?: Partial<UserWithAuth>): UserWithAuth {
   };
 }
 
-describe('Auth Flow (Integration)', () => {
+describe('AuthService flow (mocked persistence, JWT and login attempts)', () => {
   let authRepo: jest.Mocked<AuthRepository>;
   let tokenService: jest.Mocked<JwtTokenService>;
   let passwordService: PasswordService;

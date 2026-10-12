@@ -122,4 +122,28 @@ export default [
       ],
     },
   },
+  {
+    files: ['src/**/*.spec.ts', 'test/**/*.spec.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          property: 'only',
+          message: 'Quitá el foco .only para ejecutar todos los escenarios.',
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fit',
+          message: 'Usá it sin foco para ejecutar todos los escenarios.',
+        },
+        {
+          name: 'fdescribe',
+          message:
+            'Usá it/describe sin foco para ejecutar todos los escenarios.',
+        },
+      ],
+    },
+  },
 ];
