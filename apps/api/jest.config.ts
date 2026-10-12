@@ -28,6 +28,7 @@ const config: Config = {
   },
   collectCoverageFrom: ['src/**/*.ts'],
   coverageDirectory: 'coverage',
+  coverageReporters: ['text-summary', 'lcov', 'json-summary', 'html'],
   testEnvironment: 'node',
   setupFiles: ['<rootDir>/test/setup.ts'],
   moduleDirectories: ['node_modules', '<rootDir>/node_modules', '<rootDir>/../../node_modules'],

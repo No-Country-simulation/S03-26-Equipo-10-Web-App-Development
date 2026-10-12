@@ -107,32 +107,56 @@ jobs:
         run: npm run lint
       - name: Verify Next lint glob compatibility
         run: node --test scripts/test-next-eslint-glob.mjs
+      - name: Verify test integrity gates and focused-test controls
+        run: node --test scripts/testing/*.test.mjs
       - name: Verify release gates and failure handling without providers
         run: node --test --test-isolation=none scripts/release/*.test.mjs
       - name: Validate GitHub Actions workflows
         run: bash scripts/release/check-workflows.sh
       - name: Test API with complete integration services
         id: api_tests
-        run: npm test --workspace @testimonial-cms/api -- --json --outputFile="$RUNNER_TEMP/api-test-results.json"
+        run: npm run test:cov --workspace @testimonial-cms/api -- --json --outputFile="$RUNNER_TEMP/api-test-results.json"
       - name: Upload API test results
         if: ${{ always() && (steps.api_tests.outcome == 'success' || steps.api_tests.outcome == 'failure') }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: api-test-results
           path: ${{ runner.temp }}/api-test-results.json
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
-      - name: Reject omitted API tests
-        run: |
-          node --input-type=module - <<'JS'
-          import { readFileSync } from 'node:fs';
-          const report = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/api-test-results.json`, 'utf8'));
-          if (!report.success || report.numTotalTests === 0 || report.numPendingTests !== 0 || report.numPendingTestSuites !== 0) {
-            throw new Error('CI requires successful API tests without omitted tests or suites');
-          }
-          JS
-      - name: Test web
-        run: npm test --workspace @testimonial-cms/web
+      - name: Upload API coverage
+        if: ${{ always() && (steps.api_tests.outcome == 'success' || steps.api_tests.outcome == 'failure') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: api-coverage
+          path: apps/api/coverage/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Reject incomplete API results
+        if: ${{ always() && (steps.api_tests.outcome == 'success' || steps.api_tests.outcome == 'failure') }}
+        run: node scripts/testing/check-results.mjs jest "$RUNNER_TEMP/api-test-results.json"
+      - name: Test web with coverage and JSON results
+        id: web_tests
+        run: npm run test:cov --workspace @testimonial-cms/web -- --reporter=default --reporter=json --outputFile="$RUNNER_TEMP/web-test-results.json"
+      - name: Upload web test results
+        if: ${{ always() && (steps.web_tests.outcome == 'success' || steps.web_tests.outcome == 'failure') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: web-test-results
+          path: ${{ runner.temp }}/web-test-results.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload web coverage
+        if: ${{ always() && (steps.web_tests.outcome == 'success' || steps.web_tests.outcome == 'failure') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: web-coverage
+          path: apps/web/coverage/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Reject incomplete web results
+        if: ${{ always() && (steps.web_tests.outcome == 'success' || steps.web_tests.outcome == 'failure') }}
+        run: node scripts/testing/check-results.mjs vitest "$RUNNER_TEMP/web-test-results.json"
       - name: Build
         env:
           NEXT_PUBLIC_API_URL: /api/v1
