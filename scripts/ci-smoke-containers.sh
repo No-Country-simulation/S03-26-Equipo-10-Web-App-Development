@@ -33,8 +33,7 @@ docker run --detach --name "$web_container" \
   --env HOSTNAME=0.0.0.0 "$web_image" >/dev/null
 web_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "3000/tcp") 0).HostPort}}' "$web_container")"
 web_origin="http://127.0.0.1:$web_port"
-curl --fail --silent --show-error --retry 20 --retry-connrefused --retry-delay 1 \
-  "$web_origin/health" >/dev/null
+bash scripts/wait-http.sh "$web_origin/health"
 curl --fail --silent --show-error "$web_origin/" >/dev/null
 
 # La capa raíz debe ser inmutable; /tmp y la caché de Next.js son efímeros.
