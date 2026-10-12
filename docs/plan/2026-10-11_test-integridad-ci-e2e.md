@@ -1,6 +1,6 @@
 # Testing profesional integrado al ciclo de desarrollo y entrega
 
-**Inicio:** 2026-10-11. **Estado:** En Progreso. **Rama actual:** `codex/testing-cicd-final` (iniciada en `codex/testing-cicd-e2e`).
+**Inicio:** 2026-10-11. **Estado:** En Progreso — ejecución técnica completa; ACK de cierre, revisión humana e integración pendientes. **Rama actual:** `codex/testing-cicd-final` (iniciada en `codex/testing-cicd-e2e`).
 
 ## Contexto y Restricciones
 
@@ -59,13 +59,13 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 
 **ACK de inicio:** «Continuar», 2026-10-12. **ACK de migración:** «Sí, autorizo sólo esa migración descartable para validar E2E», 2026-10-12. **ACK para avanzar:** «Continuar», recibido después del cierre local y commit `b0ff93f`. **Commit:** `test(e2e): cubrí los recorridos críticos con servicios reales`.
 
-## [Actual] Fase 3 — Integración E2E, release y gobernanza
+## [Actual] Fase 3 — Integración E2E, release y gobernanza — ejecución técnica completa
 
 - [x] Incorporar E2E en `verify` después del build, con datos y namespace Redis exclusivos.
 - [x] Exigir una aprobación ajena al autor, conservar descarte de revisiones obsoletas y verificar configuración remota.
 - [x] Parametrizar smoke existentes y probar las imágenes finales maintenance/API antes de publicar esas mismas imágenes; API con almacenamiento descartable y operación autenticada exitosa.
 - [x] Mantener tags, aprobación, digest/SBOM/escaneos/attestations, controles API/worker/candidata y recuperación compatible.
-- [ ] Verificar negativos de gates y CI del SHA final; no habilitar proveedores ni confundir fixtures con aceptación remota. Negativos locales aprobados; CI final pendiente.
+- [x] Verificar negativos de gates y CI de implementación; no habilitar proveedores ni confundir fixtures con aceptación remota. Controles locales y CI `38280231648` del SHA `3e42880` aprobados. El cierre documental conserva sus propios checks en el PR.
 
 **ACK de inicio:** «Continuar», 2026-10-12, tras el cierre de fase 2. Autoriza esta fase y la revisión obligatoria acordada; la migración sigue limitada al PostgreSQL descartable del harness. **Commit sugerido:** `ci(release): verificá los artefactos antes de publicar`.
 
@@ -125,7 +125,7 @@ Tercera ejecución completa `5a293178acc3`, iniciada el 2026-10-12 a las 04:10:1
 
 Límites: Chromium desktop/viewport móvil local, recorridos de texto y persistencia OLTP/Redis reales. No se ejercitaron Cloudinary, YouTube, destinos webhook, warehouse/ETL, otros motores ni proveedores hospedados. No se modificaron disparadores de CI/deploy en esta fase. ACK de avance recibido después del commit humano `b0ff93f`; fase 3 iniciada.
 
-### Evidencia de fase 3 — implementación local, CI final pendiente
+### Evidencia de fase 3 — implementación y validaciones previas
 
 ACK «Continuar» posterior al cierre de fase 2. Se registró el avance en `06bbdfb` y se sincronizó main en `348c96a` sin diferencias de archivos. El PR #6 fue integrado humanamente como `b9c651f`; el siguiente PR incluye fases 2/3. No se reutiliza su CI como aceptación del código nuevo.
 
@@ -137,7 +137,7 @@ ACK «Continuar» posterior al cierre de fase 2. Se registró el avance en `06bb
 - Gobernanza aplicada por PATCH exclusivamente al número de aprobaciones y consultada después: `required_approving_review_count=1`, `dismiss_stale_reviews=true`, admins protegidos, strict=true, checks `verify/secret-scan/dependency-review`, conversaciones resueltas, sin force-push/borrado. Política versionada actualizada. No se enviaron solicitudes ni mensajes a revisores.
 - Actionlint, sintaxis Bash, Prettier, diff y enlaces locales aprobados. La primera ejecución nativa restringida aprobó 93 y falló el subproceso existente de aislamiento de credenciales por sandbox; repetida con permisos para subprocesos, 94/94 aprobó. Verificación final ampliada: **97/97** (34 E2E/harness + 63 release), cero fallos/omisiones/todo. Limpieza de los runs positivo/negativo verificada por etiqueta: cero contenedores/redes propios restantes. Consulta remota confirma cero environments y `DEMO_DELIVERY_ENABLED` ausente. No se modificaron manifiesto raíz, schema, infraestructura, hooks ni migradores productivos; no se habilitó entrega, publicó tag/imagen ni operó proveedor.
 
-Pendiente: CI del commit final y revisión humana del PR. El smoke local no acredita registry, Vercel/Railway/Supabase ni activación remota.
+La implementación y su CI están aceptados según el cierre de abajo; revisión humana e integración pendientes. El smoke local no acredita registry, Vercel/Railway/Supabase ni activación remota.
 
 **Scanner de la primera publicación:** PR #7, commit `1de5ff7`, run `38276988428`. Dependency Review aprobó; secret-scan rechazó una URI de credenciales sintéticas en `scripts/e2e/managed.test.mjs:110` (`URI`, resultado unverified/unknown). No era una credencial real: la fixture verifica que `validateOrigin` rechaza userinfo. Se construye ahora mediante propiedades de `URL`, conservando la assertion. Como TruffleHog inspecciona también commits anteriores de la rama, se prepara el mismo diff corregido en una rama nueva desde main; se conserva la rama/PR/run originales como historia, sin force-push ni exclusiones de scanner. La nueva rama no contiene el commit que agregó la URI literal. El resultado de `verify` se consulta separadamente; este run no se declara aprobado.
 
@@ -146,3 +146,15 @@ Pendiente: CI del commit final y revisión humana del PR. El smoke local no acre
 PR [#8](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/8), rama `codex/testing-cicd-final`, commit `58206ef`: escaneo offline del diff sin candidatos y secret-scan/dependency-review remotos aprobados en run `38278337318`. El PR #7 se cerró al reemplazarlo; su rama e historia permanecen. `verify` rechazó correctamente 475/476 API: liveness devolvió 503 durante la prueba de caída del warehouse. Su controlador sólo evalúa heap; el proceso compartido con Jest/cobertura podía acumular memoria de otras suites. Se reprodujo esa contaminación con dos fixtures que retienen 192 MiB: el comando anterior compartió PID y falló. Cobertura ahora mantiene un worker secuencial, reciclable entre archivos por encima de 128 MiB; la regresión aprueba con dos PIDs. No se modifican producción, límite de 300 MiB, servicios reales ni assertions BI. Tres caracterizaciones adicionales con Terminus real comprueban frontera exacta, exceso de heap y caída OLTP, con sólo memoria/consulta simuladas; 5/5 casos de salud relacionados aprobados. Este fallo ocurre antes del replay y no se declara resolución del seguimiento histórico BI-RECOVERY-001. CI del nuevo SHA pendiente.
 
 Validación local de estas correcciones: **165/165 controles nativos**, cero fallos/omisiones/todo (integridad/foco, aislamiento de heap, readiness, harness y release); tipos API, sintaxis Bash, Prettier y diff aprobados. Lint API sin errores y tres advertencias existentes. Las tres caracterizaciones elevan el descubrimiento esperado a 69 suites/479 casos API; el próximo CI debe ejecutarlos completos. Sin cambios en manifiesto raíz, schema, hooks ni infraestructura.
+
+### Entrega técnica de fase 3 — 2026-10-12
+
+[CI `38280231648`](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38280231648) aprobado: evento PR, head `3e42880d7a60c72cc182b088000f418edf2b7e5f`, checks `verify`, `secret-scan` y `dependency-review` exitosos. Artefactos consultados en memoria: API **69 suites/479 casos**, web **176 casos**, todos aprobados, cero fallos/pendientes/todo; E2E `complete: true`, **6 esperados/ejecutados/aprobados**, retry 0 en cada caso. El checkout del E2E fue el merge de PR `aec25886655465ff6794554da6e3dbc42c878933`, `dirty: false`; no se confunde con un CI de push a main.
+
+Builds, proxy, configuración/identidades, maintenance offline, smoke de imágenes de producción, SBOM y gates de vulnerabilidades aprobados. El smoke API realizó una operación autenticada con persistencia en su PostgreSQL propio; el web confirmó readiness, raíz inmutable y drenaje. No se publicaron imágenes. Se eliminaron cuatro etiquetas locales creadas por esta validación tras verificar revisión/origen; cero contenedores/redes propios restantes.
+
+Consulta final de GitHub: una aprobación requerida, descarte de revisiones obsoletas, strict/enforce admins y los tres checks conservados; sin force-push/borrado. `DEMO_DELIVERY_ENABLED` ausente y cero environments. El [PR #8](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/8) queda en borrador para revisión ajena al autor e integración humana. El commit documental de cierre debe aprobar sus propios checks; la descripción del PR conserva el run del head final. Tras integrar, release seguirá exigiendo CI de push a main del mismo SHA y las aprobaciones de entrega. Preparación completada; proveedores, activación y aceptación remota continúan fuera de alcance.
+
+**Commit de correcciones:** `3e42880` — `fix(ci): aislá el heap y tolerá resets de arranque`. **Commit sugerido de cierre:** `docs(testing): registrá la aceptación de CI y cerrá el plan`.
+
+Según AGENTS.md §9 y el ciclo del índice de planes, el ACK humano de cierre permanece pendiente. No hay otra fase de implementación en este plan; el agente se detiene tras registrar la evidencia y comprobar los checks del cierre documental.
