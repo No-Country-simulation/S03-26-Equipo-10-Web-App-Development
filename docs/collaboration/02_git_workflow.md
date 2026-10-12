@@ -4,7 +4,7 @@ El proyecto trabaja con `main` protegida, ramas cortas y pull requests. El [CI](
 
 ## Convenciones de Nomenclatura
 
-Usá nombres descriptivos como `feat/moderacion`, `fix/refresh-reuse` o `test/tenant-isolation`. Codex usa el prefijo `codex/`; esta mejora comenzó en `codex/testing-cicd-e2e` y su diff final continúa en `codex/testing-cicd-final`, sin reescribir la rama compartida. Creá una rama desde main actualizada cuando iniciás un cambio; para continuar uno existente, conservá su rama y archivos locales. Inspeccioná `git status` antes de cambiar de rama.
+Usá nombres descriptivos como `feat/moderacion`, `fix/refresh-reuse` o `test/tenant-isolation`. Codex usa el prefijo `codex/`; la mejora de testing se integró mediante el PR #8 desde `codex/testing-cicd-final`, sin reescribir la rama compartida. Su cierre documental usa `codex/testing-cicd-closeout`, creada desde main después de integrar. Creá una rama desde main actualizada cuando iniciás un cambio; para continuar uno existente, conservá su rama y archivos locales. Inspeccioná `git status` antes de cambiar de rama.
 
 Los commits siguen Conventional Commits:
 

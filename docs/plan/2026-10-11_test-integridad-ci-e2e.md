@@ -1,6 +1,6 @@
 # Testing profesional integrado al ciclo de desarrollo y entrega
 
-**Inicio:** 2026-10-11. **Estado:** En Progreso — ejecución técnica completa; ACK de cierre, revisión humana e integración pendientes. **Rama actual:** `codex/testing-cicd-final` (iniciada en `codex/testing-cicd-e2e`).
+**Inicio:** 2026-10-11. **Cierre:** 2026-10-12. **Estado:** Completado — tres fases implementadas, ACK de cierre recibido, PR #8 integrado y CI de main aprobado. **Rama de cierre documental:** `codex/testing-cicd-closeout`; implementación integrada desde `codex/testing-cicd-final` (iniciada en `codex/testing-cicd-e2e`).
 
 ## Contexto y Restricciones
 
@@ -59,7 +59,7 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 
 **ACK de inicio:** «Continuar», 2026-10-12. **ACK de migración:** «Sí, autorizo sólo esa migración descartable para validar E2E», 2026-10-12. **ACK para avanzar:** «Continuar», recibido después del cierre local y commit `b0ff93f`. **Commit:** `test(e2e): cubrí los recorridos críticos con servicios reales`.
 
-## [Actual] Fase 3 — Integración E2E, release y gobernanza — ejecución técnica completa
+## [Completada] Fase 3 — Integración E2E, release y gobernanza
 
 - [x] Incorporar E2E en `verify` después del build, con datos y namespace Redis exclusivos.
 - [x] Ajustar revisión al contexto confirmado: cero aprobaciones obligatorias por ACK del único mantenedor; conservar PR, checks y descarte de revisiones obsoletas, y verificar configuración remota.
@@ -67,9 +67,13 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 - [x] Mantener tags, aprobación, digest/SBOM/escaneos/attestations, controles API/worker/candidata y recuperación compatible.
 - [x] Verificar negativos de gates y CI de implementación; no habilitar proveedores ni confundir fixtures con aceptación remota. Controles locales y CI `38280231648` del SHA `3e42880` aprobados. El cierre documental conserva sus propios checks en el PR.
 
-**ACK de inicio:** «Continuar», 2026-10-12, tras el cierre de fase 2. Autoriza esta fase y la revisión obligatoria acordada; la migración sigue limitada al PostgreSQL descartable del harness. **Commit sugerido:** `ci(release): verificá los artefactos antes de publicar`.
+**ACK de inicio:** «Continuar», 2026-10-12, tras el cierre de fase 2. Autoriza esta fase; la migración sigue limitada al PostgreSQL descartable del harness. La decisión posterior del único mantenedor reemplaza la exigencia inicial de revisión ajena. **Commit sugerido:** `ci(release): verificá los artefactos antes de publicar`.
+
+**Completitud:** implementación integrada mediante PR #8, CI de PR y main aprobados; ACK de cierre «Continua entonces con el cierre del plan» recibido el 2026-10-12. Evidencia final al pie del documento.
 
 ## Criterios de aceptación y evidencia
+
+La evidencia siguiente conserva los resultados y decisiones de cada etapa, incluidos fallos y pendientes históricos. El estado vigente se registra en el cierre formal al final del documento.
 
 - Un test fallido/omitido/enfocado, suite vacía o reporte ausente/inconsistente impide aprobar CI.
 - E2E conserva efectos tras recargar y rechaza accesos indebidos sin modificar datos ajenos.
@@ -137,7 +141,7 @@ ACK «Continuar» posterior al cierre de fase 2. Se registró el avance en `06bb
 - Gobernanza aplicada por PATCH exclusivamente al número de aprobaciones y consultada después: `required_approving_review_count=1`, `dismiss_stale_reviews=true`, admins protegidos, strict=true, checks `verify/secret-scan/dependency-review`, conversaciones resueltas, sin force-push/borrado. Política versionada actualizada. No se enviaron solicitudes ni mensajes a revisores.
 - Actionlint, sintaxis Bash, Prettier, diff y enlaces locales aprobados. La primera ejecución nativa restringida aprobó 93 y falló el subproceso existente de aislamiento de credenciales por sandbox; repetida con permisos para subprocesos, 94/94 aprobó. Verificación final ampliada: **97/97** (34 E2E/harness + 63 release), cero fallos/omisiones/todo. Limpieza de los runs positivo/negativo verificada por etiqueta: cero contenedores/redes propios restantes. Consulta remota confirma cero environments y `DEMO_DELIVERY_ENABLED` ausente. No se modificaron manifiesto raíz, schema, infraestructura, hooks ni migradores productivos; no se habilitó entrega, publicó tag/imagen ni operó proveedor.
 
-La implementación y su CI están aceptados según el cierre de abajo; revisión humana e integración pendientes. El smoke local no acredita registry, Vercel/Railway/Supabase ni activación remota.
+En esta entrega previa, la revisión humana e integración permanecían pendientes; el cierre formal registra su resolución posterior. El smoke local no acredita registry, Vercel/Railway/Supabase ni activación remota.
 
 **Scanner de la primera publicación:** PR #7, commit `1de5ff7`, run `38276988428`. Dependency Review aprobó; secret-scan rechazó una URI de credenciales sintéticas en `scripts/e2e/managed.test.mjs:110` (`URI`, resultado unverified/unknown). No era una credencial real: la fixture verifica que `validateOrigin` rechaza userinfo. Se construye ahora mediante propiedades de `URL`, conservando la assertion. Como TruffleHog inspecciona también commits anteriores de la rama, se prepara el mismo diff corregido en una rama nueva desde main; se conserva la rama/PR/run originales como historia, sin force-push ni exclusiones de scanner. La nueva rama no contiene el commit que agregó la URI literal. El resultado de `verify` se consulta separadamente; este run no se declara aprobado.
 
@@ -153,16 +157,32 @@ Validación local de estas correcciones: **165/165 controles nativos**, cero fal
 
 Builds, proxy, configuración/identidades, maintenance offline, smoke de imágenes de producción, SBOM y gates de vulnerabilidades aprobados. El smoke API realizó una operación autenticada con persistencia en su PostgreSQL propio; el web confirmó readiness, raíz inmutable y drenaje. No se publicaron imágenes. Se eliminaron cuatro etiquetas locales creadas por esta validación tras verificar revisión/origen; cero contenedores/redes propios restantes.
 
-Consulta final de GitHub: una aprobación requerida, descarte de revisiones obsoletas, strict/enforce admins y los tres checks conservados; sin force-push/borrado. `DEMO_DELIVERY_ENABLED` ausente y cero environments. El [PR #8](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/8) queda en borrador para revisión ajena al autor e integración humana. El commit documental de cierre debe aprobar sus propios checks; la descripción del PR conserva el run del head final. Tras integrar, release seguirá exigiendo CI de push a main del mismo SHA y las aprobaciones de entrega. Preparación completada; proveedores, activación y aceptación remota continúan fuera de alcance.
+Consulta histórica durante la entrega técnica: una aprobación requerida, descarte de revisiones obsoletas, strict/enforce admins y los tres checks conservados; sin force-push/borrado. `DEMO_DELIVERY_ENABLED` ausente y cero environments. El [PR #8](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/8) permanecía en borrador para revisión ajena al autor e integración humana. La decisión posterior del único mantenedor y la integración se registran abajo. Release conserva la exigencia de CI de push a main del mismo SHA y las aprobaciones de entrega. Proveedores, activación y aceptación remota continúan fuera de alcance.
 
 **Commit de correcciones:** `3e42880` — `fix(ci): aislá el heap y tolerá resets de arranque`. **Commit sugerido de cierre:** `docs(testing): registrá la aceptación de CI y cerrá el plan`.
 
-Según AGENTS.md §9 y el ciclo del índice de planes, el ACK humano de cierre permanece pendiente. No hay otra fase de implementación en este plan; el agente se detiene tras registrar la evidencia y comprobar los checks del cierre documental.
+Según AGENTS.md §9 y el ciclo del índice de planes, en esta etapa faltaba el ACK humano de cierre; se recibió posteriormente y se registra al final. No hay otra fase de implementación en este plan.
 
 ### Ajuste autorizado de gobernanza — único mantenedor, 2026-10-12
 
 El usuario confirmó que trabaja solo y pidió quitar el bloqueo de aprobación para poder integrar el PR #8. Este ACK explícito sustituye la decisión inicial de exigir una revisión ajena al autor. Se establece `required_approving_review_count=0`, conservando PR obligatorio, checks `verify/secret-scan/dependency-review`, strict, protección de admins, conversaciones resueltas, descarte de revisiones obsoletas y bloqueo de force-push/borrado. No cambia aprobaciones de entrega ni activa despliegues.
 
-El usuario ya convirtió el PR #8 en listo para revisión. El head `81c9711` aprobó los tres checks en [CI 38281646752](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38281646752), con 479 API, 176 web y 6 E2E completos, sin omisiones/retries. El nuevo commit de política/documentación debe aprobar sus propios checks; al finalizar se consulta el estado de merge del PR. La integración queda a cargo del usuario.
+El usuario convirtió el PR #8 en listo para revisión. El head `81c9711` aprobó los tres checks en [CI 38281646752](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38281646752), con 479 API, 176 web y 6 E2E completos, sin omisiones/retries. En ese momento, el commit posterior de política/documentación aún necesitaba sus propios checks y la integración quedaba a cargo del usuario; ambos resultados se registran en el cierre formal.
 
 **Commit sugerido:** `fix(github): permití integrar PRs con un único mantenedor`.
+
+### Cierre formal autorizado — 2026-10-12
+
+**ACK de cierre:** «Continua entonces con el cierre del plan», recibido después de implementar las tres fases e integrar el PR #8. Este ACK satisface AGENTS.md §9; no autoriza activación, recursos ni despliegues.
+
+- El head final `f5872b6f69fc998f853998fed2cd51192e0571b8` del [PR #8](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/8) aprobó `verify`, `secret-scan` y `dependency-review` en [CI 38286554849](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38286554849).
+- El usuario integró el PR #8 el 2026-10-12 a las 17:57:13 UTC como `ddd7fca49e870d70f51e37de4ce5d4f7a13bcc5f`. La rama documental `codex/testing-cicd-closeout` parte de ese commit.
+- [CI de push a main 38287649795](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38287649795), SHA `ddd7fca49e870d70f51e37de4ce5d4f7a13bcc5f`: **aprobado**, con `verify` y `secret-scan` exitosos, builds/proxy, smoke de producción/maintenance, SBOM y gates de vulnerabilidades aprobados. `dependency-review` se omite por diseño en eventos push y aprobó en el PR; no representa una omisión de tests.
+- Artefactos consultados en memoria: API **69 suites/479 casos**, web **176 casos**, todos aprobados, cero fallos/pendientes/todo. E2E **6 esperados/ejecutados/aprobados**, `complete: true`, retry 0 en cada caso, checkout `ddd7fca49e870d70f51e37de4ce5d4f7a13bcc5f`, `dirty: false`. No se traslada la evidencia de un SHA anterior.
+- Protección remota consultada de nuevo: cero aprobaciones obligatorias, PR y checks `verify/secret-scan/dependency-review`, strict, admins protegidos, conversaciones resueltas, descarte de revisiones obsoletas y bloqueo de force-push/borrado. `DEMO_DELIVERY_ENABLED` ausente, cero environments y entrega desactivada.
+
+No queda otra fase de implementación de testing/CI/CD en este plan. La activación y aceptación de proveedores permanecen en el plan/runbook de entrega; no se publicaron tags/imágenes ni se operaron proveedores. El seguimiento histórico BI-RECOVERY-001 y el permiso del hook mencionado arriba conservan sus límites y no se declaran resueltos por este cierre.
+
+El commit documental de cierre debe aprobar sus propios checks antes de integrarse; esos resultados se registran en su PR y no sustituyen el CI de la implementación o el de main.
+
+**Commit sugerido:** `docs(testing): cerrá el plan con CI de main aprobado`.
