@@ -90,7 +90,7 @@ git commit -m "docs(plan): archive failed plan and add post-mortem"
 
 | Archivo | Estado | Descripción |
 |---------|--------|-------------|
-| [`2026-10-11_feat-skill-testing-tdd-engineering.md`](./2026-10-11_feat-skill-testing-tdd-engineering.md) | `En Progreso` | Fase 2 terminada: skill SKL-TDD-001, guías y reglas alineadas, validación documental aprobada; pendiente revisión humana y commit de incorporación |
+| [`2026-10-11_feat-skill-testing-tdd-engineering.md`](./2026-10-11_feat-skill-testing-tdd-engineering.md) | `Completado` | Skill SKL-TDD-001 incorporada y validada; guías y reglas alineadas, ambas fases aprobadas y cierre documental registrado |
 | [`2026-10-09_feat-interfaces-operacion-bi.md`](./2026-10-09_feat-interfaces-operacion-bi.md) | `En Progreso` | Cinco fases terminadas y validadas localmente; pendiente revisión/commit de cierre. Despliegue y capacidad del entorno objetivo separados |
 | [`2026-09-18_feat-skill-layered-architecture.md`](./2026-09-18_feat-skill-layered-architecture.md) | `Completado` | Incorporación de la skill SKL-ARCH-LAYERED-001 (Senior Layered Architecture) |
 | [`2026-09-18_feat-skill-cognitive-interface.md`](./2026-09-18_feat-skill-cognitive-interface.md) | `Completado` | Incorporación de la skill SKL-UX-PSYCH-001 (Cognitive Interface Engineering) |

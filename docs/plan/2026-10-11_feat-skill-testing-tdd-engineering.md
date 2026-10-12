@@ -2,7 +2,7 @@
 
 **Fecha de Inicio**: 2026-10-11
 
-**Estado Global**: `En Progreso`
+**Estado Global**: `Completado`
 
 **Ticket / Issue Vinculado**: No asignado
 
@@ -74,7 +74,7 @@ Referencias oficiales para comprobar las instrucciones durante la fase 2:
 - [x] Validar enlaces locales del plan y el índice, whitespace y límites del diff.
 - [x] Registrar evidencia real y preparar la entrega con commit sugerido; detenerse antes de la incorporación.
 
-**Criterio de completitud**: Plan e índice coherentes y revisados, sin cambios fuera de esos dos archivos. La fase 2 permanece pendiente de ACK humano intermedio.
+**Criterio de completitud**: Plan e índice coherentes y revisados, sin cambios fuera de esos dos archivos. La fase 2 se habilitó mediante el ACK humano intermedio registrado abajo.
 
 **Review Humano (ACK)**: `Aprobado` — mensaje «Continuar» del usuario, recibido el 2026-10-11 después de la entrega y del commit de fase 1. Autoriza la fase 2.
 
@@ -84,9 +84,9 @@ Referencias oficiales para comprobar las instrucciones durante la fase 2:
 docs(plan): incorporá el plan HITL de la skill de testing
 ```
 
-### `[Actual]` Fase 2: Skill, Coherencia y Validación
+### `[Completada]` Fase 2: Skill, Coherencia y Validación
 
-**Estado de ejecución**: Terminada técnicamente el 2026-10-11; pendiente de revisión humana y commit. ACK intermedio y commit de fase 1 verificados.
+**Estado de ejecución**: Terminada y aprobada. Commit verificado: `f4632b0`, `feat(skills): agregá la metodología de testing y TDD`; incorporó los 11 archivos documentales previstos.
 
 - [x] Tras ACK intermedio, registrar la revisión real, marcar fase 1 completada y fase 2 actual. Verificar el commit de fase 1 antes de iniciar la implementación según el índice de planes; no crear ni afirmar commits automáticamente.
 - [x] Leer íntegramente el adjunto y crear la skill y sus tres referencias conforme a las decisiones de diseño.
@@ -99,7 +99,7 @@ docs(plan): incorporá el plan HITL de la skill de testing
 
 **Criterio de completitud**: Skill válida y autocontenida, referencias accesibles, documentación y reglas coherentes, catálogo propio de 26 entradas y cambios limitados al alcance documental autorizado.
 
-**Review Humano (ACK)**: `Pendiente`.
+**Review Humano (ACK)**: `Aprobado` — mensaje «continuar» del usuario, recibido el 2026-10-11 después de la entrega y del commit de fase 2. Autoriza el cierre del plan y su índice.
 
 **Commit sugerido**:
 
@@ -170,4 +170,16 @@ Revisión documental de escenarios; no constituye ejecución de los comportamien
 | Integraciones omitidas | Se reportan como evidencia parcial; la guía distingue el gate API de CI del comportamiento local y de la suite web. |
 | Cambio trivial/documental | Skill, guía y criterio de testing del template admiten validación proporcional sin tests redundantes ni mutación obligatoria. |
 
-No se ejecutaron suites de aplicación, servicios externos, migraciones, mutaciones ni aceptación remota. No se creó commit de fase 2 ni se registró ACK final; el plan permanece `En Progreso` hasta esa revisión.
+No se ejecutaron suites de aplicación, servicios externos, migraciones, mutaciones ni aceptación remota. Al entregar la fase 2 aún no se habían verificado su commit ni el ACK final. Posteriormente se verificó el commit `f4632b0` y se recibió el ACK documentado en la sección 3.
+
+## 6. Cierre Documental
+
+Cierre registrado el 2026-10-11 tras verificar los commits `c16d798` y `f4632b0` y las aprobaciones humanas de ambas fases. El plan y su entrada del índice pasan a `Completado`.
+
+Este cierre modifica únicamente el plan y su índice. Se validaron sus 23 enlaces locales, el alcance del diff y `git diff --check`, sin errores. Se conserva la evidencia documental de la fase 2; no se ejecutaron nuevas suites de aplicación ni servicios externos.
+
+**Commit sugerido para el cierre** (pendiente de creación):
+
+```text
+docs(plan): cerrá la incorporación de la skill de testing
+```
