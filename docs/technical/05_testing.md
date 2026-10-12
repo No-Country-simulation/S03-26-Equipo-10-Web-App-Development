@@ -1,865 +1,94 @@
-# Estrategia de Testing
+# Estrategia de testing del Testimonial CMS
 
-## 🎯 Propósito del Documento
+La estrategia prioriza comportamientos y riesgos del cambio. Una prueba aporta confianza cuando comprueba un contrato con expectativas independientes y detecta los defectos que debe proteger. Cobertura de código y cantidad de tests complementan esa evidencia; no la sustituyen.
 
-Este documento define la **estrategia de testing completa** del sistema: tipos de pruebas, herramientas, estructura, cobertura requerida y procesos de integración continua. Es la **guía definitiva para QA y desarrolladores** sobre cómo escribir, ejecutar y mantener pruebas efectivas.
+La metodología para agentes está en [testing-tdd-engineering, SKL-TDD-001](../../.agents/skills/testing-tdd-engineering/SKILL.md). Las reglas de negocio, contratos del módulo y decisiones aprobadas determinan el resultado esperado. La implementación existente por sí sola no demuestra que ese resultado sea correcto.
 
-> 💡 **Diferencia clave**:  
-> - **`testing.md`** (este documento): Define la *estrategia global*, herramientas, estructura y requisitos de testing  
-> - **Tests unitarios**: Código que prueba unidades individuales  
-> - **Tests de integración**: Código que prueba interacciones entre componentes  
-> - **Tests E2E**: Código que prueba flujos completos de usuario  
->   
-> ✅ **Regla moderna**: Este documento debe ser **ejecutable**. Si defines un requisito de cobertura del 80%, debe haber un script automático que lo verifique.
+## 1. Herramientas y ubicaciones vigentes
 
----
+| Área      | Herramientas y configuración                                                                                                            | Ubicación actual                                                                                                                                                    |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API       | Jest, SWC, Nest Testing y Supertest; [configuración](../../apps/api/jest.config.ts)                                                     | Principalmente `apps/api/test/*.spec.ts`, incluidas `*.integration.spec.ts`; fixtures en `apps/api/test/fixtures/`. Jest también descubre `*.spec.ts` bajo su root. |
+| Web       | Vitest, jsdom, Testing Library y user-event; [configuración](../../apps/web/vitest.config.ts) y [setup](../../apps/web/vitest.setup.ts) | `*.test.ts`/`*.test.tsx` junto a features, componentes, librerías y middleware; también hay pruebas en `apps/web/src/tests/integration/`.                           |
+| Scripts   | Runner nativo de Node y comprobaciones shell existentes                                                                                 | `scripts/demo/`, `scripts/release/`, smoke tests y compatibilidad del lint de Next.js, según el workflow.                                                           |
+| Navegador | Recorridos locales documentados; sin runner E2E persistente configurado                                                                 | [Recorridos y límites](../../apps/web/src/tests/e2e/README.md). No hay script `test:e2e` instalado.                                                                 |
 
-## 1. Visión General y Filosofía
+Conservar Jest en API y Vitest en web; usar versiones de manifests y lockfile. Playwright, MSW, Testcontainers, fast-check y Stryker son opciones futuras según necesidad, no herramientas que haya que instalar para cada cambio. Los tests de UI con HTTP simulado no demuestran autenticación persistente ni un recorrido E2E completo.
 
-### 1.1. Principios Fundamentales
+## 2. Elegir nivel y alcance
 
-| Principio | Descripción | Impacto en el Proyecto |
-|-----------|-------------|------------------------|
-| **Test-Driven Development (TDD)** | Escribir tests antes del código de producción | Mayor calidad, diseño más limpio, menos bugs (aplicado en casos críticos como scoring y webhooks) |
-| **Shift-Left Testing** | Integrar testing temprano en el ciclo de desarrollo | Detección temprana de bugs, menor costo de corrección |
-| **Automatización Máxima** | Automatizar todo lo que sea repetible y determinista | Mayor velocidad, consistencia, liberación de recursos humanos |
-| **Pyramid Testing** | Más tests unitarios, menos E2E | Mantenimiento eficiente, feedback rápido |
-| **Quality Gates** | Requisitos de calidad obligatorios antes de merge | Prevenir regresiones, mantener estándares |
+| Riesgo                        | Ejemplos que evaluar según el cambio                        | Evidencia suficiente                                                                                                                       |
+| ----------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| P0: autorización e integridad | Tenants, sesión/RBAC/CSRF, API keys, outbox, publicación BI | Casos exitosos, fallos significativos, fronteras y ausencia de efectos indebidos; todos los escenarios críticos identificados y aprobados. |
+| P1: operación principal       | Captura, moderación, CRUD, multimedia                       | Comportamiento y errores previsibles en el nivel adecuado.                                                                                 |
+| P2: secundario                | Filtros, formato o interacción acotada                      | Pruebas selectivas según complejidad e historial.                                                                                          |
+| P3: trivial                   | Decoración, forwarding, texto/documentación                 | Revisión o comprobación ligera salvo riesgo concreto.                                                                                      |
 
-### 1.2. Pirámide de Testing
+Unit prueba lógica propia aislada; Integration prueba colaboración real dentro de un límite declarado; E2E confirma un recorrido crítico desde navegador hasta efectos finales con backend y almacenamiento reales. La misma regla puede aparecer en varias capas si cada una detecta defectos diferentes. No imponer proporciones de pruebas ni duplicar todas las combinaciones unitarias en navegador.
 
-```mermaid
-flowchart TD
-    subgraph E2E["Tests E2E (5-10%)"]
-        E1[Flujos completos de usuario]
-        E2[Integración frontend-backend]
-        E3[Embed en sitio externo]
-    end
-    
-    subgraph Integration["Tests de Integración (15-20%)"]
-        I1[APIs REST]
-        I2[Servicios con DB real]
-        I3[Repositorios]
-        I4[Integración con Cloudinary/YouTube]
-    end
-    
-    subgraph Unit["Tests Unitarios (70-80%)"]
-        U1[Lógica de negocio (scoring, validaciones)]
-        U2[Utilidades]
-        U3[DTOs / mappers]
-        U4[Estrategias (strategy pattern)]
-    end
-    
-    Unit --> Integration
-    Integration --> E2E
+Priorizar assertions sobre resultados y efectos del contrato, nombres por comportamiento y Arrange/Act/Assert o Given/When/Then. Restaurar mocks, spies, timers y estado global. Detalle y trazabilidad RF/RNF: [estrategia y TDD](../../.agents/skills/testing-tdd-engineering/references/estrategia-y-tdd.md).
+
+## 3. TDD y ejemplos del dominio
+
+Para lógica nueva y regresiones reproducibles, definir precondiciones, entrada, resultado y efectos esperados antes de cambiar producción:
+
+1. **Red:** escribir y ejecutar la prueba; confirmar que falla por el comportamiento ausente/incorrecto. Sintaxis rota, imports erróneos o DB indisponible no acreditan Red.
+2. **Green:** implementar el mínimo y ejecutar pruebas nuevas y relacionadas. No cambiar expectativas legítimas ni eliminar assertions o el escenario que expone el defecto.
+3. **Refactor:** mejorar estructura conservando contratos y volver a ejecutar lo pertinente.
+
+Para legado, usar caracterización distinguiendo comportamiento actual, contrato deseado y defectos conocidos. Exploración visual, documentación y configuración trivial pueden validarse sin TDD estricto. En planes HITL, estas etapas técnicas ocurren dentro de la fase autorizada; no modifican las fronteras ni los ACK de [AGENTS.md](../../AGENTS.md).
+
+Ejemplos de escenarios, no resultados de una ejecución actual:
+
+| Contrato y fuente local                                                                                                                                                | Escenario                                                                                                                      | Assertion o efecto que lo distingue                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Contenido mínimo/rating; [DTO](../../apps/api/src/modules/testimonials/dto/testimonial.dto.ts) y [Unicode](../../apps/api/test/testimonial-content-validation.spec.ts) | Nueve caracteres se rechazan, diez se aceptan; cinco emoji se rechazan y diez se aceptan. Rating 1/5 válido; 0/6/1.5 inválido. | Comparar aceptación/rechazo con valores independientes, usando puntos de código para el mínimo como `char_length` de PostgreSQL.      |
+| Atomicidad; [persistencia de testimonios](../../apps/api/test/testimonial-persistence.integration.spec.ts)                                                             | Falla la inserción outbox al crear o publicar.                                                                                 | No queda el testimonio nuevo; una publicación fallida conserva el estado anterior y no deja el evento, verificado en PostgreSQL real. |
+| Aislamiento; [integridad entre tenants](../../apps/api/test/tenant-integrity.integration.spec.ts)                                                                      | Un recurso o relación pertenece a otro tenant.                                                                                 | Denegación/restricción y ausencia de cambios ajenos; un mock del repositorio no demuestra integridad de DB.                           |
+
+Un resultado 200, `toBeDefined()` o una llamada aislada pueden ser insuficientes: comprobar aquello que afirma el nombre de la prueba. Para casos críticos, revisar qué implementación deliberadamente defectuosa podría seguir pasando y aplicar controles negativos proporcionados. Mutation testing selectivo es una opción futura; no es requisito universal.
+
+## 4. Ejecución local
+
+Los siguientes comandos se ejecutan desde la raíz con las dependencias ya instaladas. En ejemplos selectivos, los paths pasados al runner son relativos al workspace.
+
+```bash
+# Caso API sin dependencias de integración externas
+npm test --workspace @testimonial-cms/api -- --runTestsByPath test/testimonial-content-validation.spec.ts
+
+# Caso UI: comportamiento del formulario, sin acreditar backend real
+npm test --workspace @testimonial-cms/web -- src/features/auth/components/login-form.test.tsx
+
+# Suites API/web: revisar requisitos y posibles omisiones antes de interpretar el resultado
+npm test --workspace @testimonial-cms/api
+npm test --workspace @testimonial-cms/web
+
+# Cobertura API disponible; no aplica un umbral porcentual global configurado
+npm run test:cov --workspace @testimonial-cms/api
+
+# Checks de código cuando el cambio los requiera
+npm run typecheck
+npm run lint
 ```
 
-**Distribución recomendada**:
-- **Tests Unitarios**: 70-80% del total
-- **Tests de Integración**: 15-20% del total
-- **Tests E2E**: 5-10% del total
+Los [manifests API](../../apps/api/package.json) y [web](../../apps/web/package.json) no definen `test:unit`, `test:integration`, `test:e2e` ni `test:coverage`. El script existente de cobertura API se llama `test:cov`. Web no tiene configurado un proveedor de cobertura; no dar por disponible `--coverage` sin comprobar dependencias. Los argumentos de selección se pasan al runner mediante `--`, según la [CLI de Jest](https://jestjs.io/docs/cli).
 
-**Razón**: Los tests unitarios son más rápidos, fáciles de mantener y dan feedback inmediato. Los tests E2E validan flujos completos pero son más lentos y frágiles.
+Las integraciones requieren destinos descartables explícitos y fixtures/migraciones compatibles. Verificar el destino antes de correr tests que creen schemas, roles o datos. El [setup API](../../apps/api/test/setup.ts) exige en CI `TEST_DATABASE_URL`, `TEST_LOGO_DATABASE_URL`, `TEST_REDIS_URL`, `TEST_BI_SOURCE_DATABASE_URL`, `TEST_BI_WAREHOUSE_DATABASE_URL`, `TEST_BI_BENCHMARK_SCHEMA_FILE` y `TEST_BI_REDIS_URL`. BI exige servidores distintos para fuente y warehouse, y DDL legible; algunas suites requieren herramientas de backup/restauración. Requisitos y límites: [integración y E2E](../../.agents/skills/testing-tdd-engineering/references/integracion-y-e2e.md).
 
----
+En local pueden omitirse suites sin servicios. Reportar cantidades y motivos: una ejecución satisfactoria con integraciones omitidas aporta evidencia parcial. No completar URLs con una base persistente, ni eliminar `CI` o desactivar tests para conseguir un resultado verde. Ejecutar `prisma migrate deploy`/`db push` desde una sesión del agente requiere ACK específico, incluso para pruebas; el workflow descartable existente no lo concede.
 
-## 2. Tipos de Tests y Herramientas
+## 5. CI y cobertura
 
-### 2.1. Tests Unitarios
+El [workflow actual](../../.github/workflows/ci.yml) se ejecuta en PR y push a main. Prepara PostgreSQL 18, warehouse en otro servidor, Redis 7, esquema/migraciones y clientes de backup; ejecuta tipos, lint, pruebas de scripts, API/web, build y smoke tests, además de controles de dependencias, secretos e imágenes.
 
-**Propósito**: Probar unidades individuales de código (funciones, clases, servicios) en aislamiento.
+La API genera un reporte JSON que se adjunta como artefacto. El gate exige éxito, tests presentes y cero tests/suites pendientes; el setup también falla con servicios/configuración incompletos. La suite web se ejecuta con Vitest; no se debe atribuirle el gate adicional de omisiones API. El smoke del proxy utiliza una fixture sintética y no demuestra un E2E con sesión persistente ni aceptación remota.
 
-**Herramientas**:
-- **Framework**: **Vitest** (recomendado por su velocidad y compatibilidad con Vite/Next.js) o **Jest**.
-- **Assertions**: `expect` de Vitest.
-- **Mocking**: `vi` (built-in en Vitest) para funciones, módulos y timers.
+No hay umbrales porcentuales globales de cobertura configurados en Jest/Vitest ni gate de cobertura porcentual en CI. Cualquier umbral nuevo requiere decisión explícita, alcance, medición real y control ejecutable. Cobertura muestra código ejecutado, no calidad de assertions: evitar tests para aumentar porcentajes. Los [requisitos de cobertura de Vitest](https://vitest.dev/guide/coverage.html) dependen también de su proveedor; no asumirlos habilitados.
 
-**Características**:
-- ✅ Rápidos (< 10ms por test)
-- ✅ Aislados (no dependen de red, DB, filesystem)
-- ✅ Deterministas
-- ✅ Fáciles de mantener
+La aceptación requiere proteger escenarios críticos y conservar los checks obligatorios. E2E persistente, mutación y compatibilidad ampliada permanecen como adopciones futuras con entorno, costo y evidencia propios. Modificar esta guía no modifica CI ni acredita un run remoto para el SHA actual.
 
-**Estructura de archivo** (siguiendo patrón AAA: Arrange-Act-Assert):
+## 6. Entrega y diagnóstico
 
-```typescript
-// src/domain/testimonials/services/scoring.service.spec.ts
+Antes de reparar un fallo, separar defecto de producción, expectativa incorrecta, test defectuoso, datos contaminados, proveedor, entorno y temporización/concurrencia. No debilitar pruebas para ocultar defectos ni usar retries como reparación de flakiness.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ScoringService } from './scoring.service';
-import { WeightedScoringStrategy } from '../strategies/weighted-scoring.strategy';
-import type { Testimonial, AnalyticsEvent } from '../entities';
-
-// Mock de dependencias (opcional, pero aquí usamos la estrategia real y mockeamos eventos)
-describe('ScoringService', () => {
-  let scoringService: ScoringService;
-  let mockStrategy: WeightedScoringStrategy;
-
-  beforeEach(() => {
-    // Podemos inyectar una estrategia real o mockeada
-    mockStrategy = new WeightedScoringStrategy();
-    scoringService = new ScoringService(mockStrategy);
-  });
-
-  describe('calculateScore', () => {
-    it('should calculate score based on views, clicks, rating and recency', async () => {
-      // Arrange
-      const testimonial: Testimonial = {
-        id: '123',
-        tenantId: 'tenant-1',
-        authorName: 'Juan',
-        content: 'Excelente',
-        rating: 5,
-        status: 'published',
-        publishedAt: new Date('YYYY-MM-DD'),
-        createdAt: new Date('YYYY-MM-DD'),
-      };
-      const events: AnalyticsEvent[] = [
-        { id: 'e1', testimonialId: '123', type: 'view', createdAt: new Date() },
-        { id: 'e2', testimonialId: '123', type: 'view', createdAt: new Date() },
-        { id: 'e3', testimonialId: '123', type: 'click', createdAt: new Date() },
-      ];
-
-      // Act
-      const score = await scoringService.calculateScore(testimonial, events);
-
-      // Assert
-      expect(score).toBeGreaterThan(0);
-      // Podríamos comprobar un valor esperado si conocemos la fórmula exacta
-      // pero al menos verificamos que es un número y que se llamó a la estrategia
-    });
-
-    it('should return 0 if no events', async () => {
-      // Arrange
-      const testimonial: Testimonial = {
-        id: '123',
-        tenantId: 'tenant-1',
-        authorName: 'Juan',
-        content: 'Excelente',
-        rating: 5,
-        status: 'published',
-        publishedAt: new Date(),
-        createdAt: new Date(),
-      };
-      const events: AnalyticsEvent[] = [];
-
-      // Act
-      const score = await scoringService.calculateScore(testimonial, events);
-
-      // Assert
-      expect(score).toBe(0);
-    });
-
-    it('should use recency factor: older testimonial gets lower score', async () => {
-      // Arrange
-      const recentTestimonial: Testimonial = { /* ... publishedAt: now */ } as any;
-      const oldTestimonial: Testimonial = { /* ... publishedAt: one month ago */ } as any;
-      const events: AnalyticsEvent[] = [ /* mismos eventos para ambos */ ];
-
-      // Act
-      const recentScore = await scoringService.calculateScore(recentTestimonial, events);
-      const oldScore = await scoringService.calculateScore(oldTestimonial, events);
-
-      // Assert
-      expect(recentScore).toBeGreaterThan(oldScore);
-    });
-  });
-});
-```
-
-**Ejemplo de test unitario para un validador**:
-
-```typescript
-// src/domain/testimonials/validators/testimonial.validator.spec.ts
-
-import { TestimonialValidator } from './testimonial.validator';
-
-describe('TestimonialValidator', () => {
-  describe('validateContent', () => {
-    it('should return true for content with at least 10 characters', () => {
-      expect(TestimonialValidator.validateContent('Válido mínimo')).toBe(true);
-    });
-
-    it('should return false for content shorter than 10 characters', () => {
-      expect(TestimonialValidator.validateContent('Corto')).toBe(false);
-    });
-
-    it('should return false for empty content', () => {
-      expect(TestimonialValidator.validateContent('')).toBe(false);
-    });
-  });
-
-  describe('validateRating', () => {
-    it('should return true for rating between 1 and 5', () => {
-      expect(TestimonialValidator.validateRating(3)).toBe(true);
-      expect(TestimonialValidator.validateRating(1)).toBe(true);
-      expect(TestimonialValidator.validateRating(5)).toBe(true);
-    });
-
-    it('should return false for rating out of range', () => {
-      expect(TestimonialValidator.validateRating(0)).toBe(false);
-      expect(TestimonialValidator.validateRating(6)).toBe(false);
-    });
-  });
-});
-```
-
-**Comandos** (definidos en `package.json`):
-```json
-{
-  "scripts": {
-    "test": "vitest",
-    "test:unit": "vitest run --dir src/domain",
-    "test:unit:watch": "vitest --dir src/domain",
-    "test:coverage": "vitest run --coverage"
-  }
-}
-```
-
----
-
-### 2.2. Tests de Integración
-
-**Propósito**: Probar la interacción entre múltiples capas: controladores, servicios, repositorios con base de datos real, APIs externas mockeadas (Cloudinary, YouTube).
-
-**Herramientas**:
-- **Framework**: Vitest (o Jest) con **Supertest** para pruebas de API.
-- **Base de Datos**: **PostgreSQL** en un contenedor Docker (o base de datos de prueba dedicada).
-- **ORM**: Prisma con `prisma.test-client` o migraciones específicas para test.
-- **Mocks de servicios externos**: **MSW** (Mock Service Worker) para simular HTTP calls a Cloudinary/YouTube.
-
-**Características**:
-- ✅ Más lentos que unitarios (10ms - 1s)
-- ✅ Requieren setup de dependencias (DB, cache, etc.)
-- ✅ Prueban integración real entre componentes
-- ✅ Necesitan limpieza después de ejecución
-
-**Estructura de archivo**:
-
-```typescript
-// tests/integration/testimonials.controller.int.spec.ts
-
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import request from 'supertest';
-import { Test, TestingModule } from '@nestjs/testing';
-import { AppModule } from '../../src/app.module';
-import { PrismaService } from '../../src/infrastructure/prisma/prisma.service';
-import { generateTestToken } from '../helpers/auth.helper';
-import { createTestTenant, createTestUser } from '../helpers/fixtures';
-
-describe('Testimonials Controller (Integration)', () => {
-  let app: INestApplication;
-  let prisma: PrismaService;
-  let tenantId: string;
-  let adminToken: string;
-
-  beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
-
-    prisma = app.get(PrismaService);
-
-    // Crear tenant y usuario de prueba
-    tenantId = await createTestTenant(prisma, 'Test Tenant');
-    const userId = await createTestUser(prisma, tenantId, 'admin@test.com', 'admin');
-    adminToken = generateTestToken(userId, tenantId, 'admin');
-  });
-
-  afterAll(async () => {
-    await prisma.$disconnect();
-    await app.close();
-  });
-
-  beforeEach(async () => {
-    // Limpiar testimonios antes de cada test
-    await prisma.testimonial.deleteMany({ where: { tenantId } });
-  });
-
-  describe('POST /api/v1/testimonials', () => {
-    it('should create a new testimonial', async () => {
-      // Arrange
-      const newTestimonial = {
-        authorName: 'Juan Pérez',
-        content: 'Excelente curso, lo recomiendo ampliamente.',
-        rating: 5,
-        mediaUrl: 'https://example.com/image.jpg',
-        mediaType: 'image',
-      };
-
-      // Act
-      const response = await request(app.getHttpServer())
-        .post('/api/v1/testimonials')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(newTestimonial);
-
-      // Assert
-      expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.authorName).toBe(newTestimonial.authorName);
-      expect(response.body.status).toBe('draft'); // estado inicial
-    });
-
-    it('should return 400 when validation fails', async () => {
-      // Arrange
-      const invalidTestimonial = {
-        authorName: '',
-        content: 'short',
-        rating: 10,
-      };
-
-      // Act
-      const response = await request(app.getHttpServer())
-        .post('/api/v1/testimonials')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(invalidTestimonial);
-
-      // Assert
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should return 401 when no token provided', async () => {
-      // Act
-      const response = await request(app.getHttpServer())
-        .post('/api/v1/testimonials')
-        .send({ authorName: 'Test' });
-
-      // Assert
-      expect(response.status).toBe(401);
-    });
-  });
-
-  describe('GET /api/v1/testimonials', () => {
-    beforeEach(async () => {
-      // Crear algunos testimonios
-      await prisma.testimonial.createMany({
-        data: [
-          { tenantId, authorName: 'A', content: '...', rating: 5, status: 'published' },
-          { tenantId, authorName: 'B', content: '...', rating: 4, status: 'published' },
-          { tenantId, authorName: 'C', content: '...', rating: 5, status: 'pending' },
-        ],
-      });
-    });
-
-    it('should return paginated list of testimonials', async () => {
-      // Act
-      const response = await request(app.getHttpServer())
-        .get('/api/v1/testimonials')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .query({ page: 1, limit: 10 });
-
-      // Assert
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('data');
-      expect(response.body.data).toHaveLength(3);
-      expect(response.body).toHaveProperty('meta');
-    });
-
-    it('should filter by status', async () => {
-      // Act
-      const response = await request(app.getHttpServer())
-        .get('/api/v1/testimonials?status=published')
-        .set('Authorization', `Bearer ${adminToken}`);
-
-      // Assert
-      expect(response.status).toBe(200);
-      expect(response.body.data).toHaveLength(2);
-      expect(response.body.data.every(t => t.status === 'published')).toBe(true);
-    });
-  });
-
-  describe('PATCH /api/v1/testimonials/:id/moderate', () => {
-    let testimonialId: string;
-
-    beforeEach(async () => {
-      const testimonial = await prisma.testimonial.create({
-        data: {
-          tenantId,
-          authorName: 'Test',
-          content: 'Test content',
-          rating: 5,
-          status: 'pending',
-        },
-      });
-      testimonialId = testimonial.id;
-    });
-
-    it('should approve a pending testimonial', async () => {
-      // Act
-      const response = await request(app.getHttpServer())
-        .patch(`/api/v1/testimonials/${testimonialId}/moderate`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({ action: 'approve' });
-
-      // Assert
-      expect(response.status).toBe(200);
-      expect(response.body.status).toBe('approved');
-
-      // Verificar en DB
-      const updated = await prisma.testimonial.findUnique({ where: { id: testimonialId } });
-      expect(updated.status).toBe('approved');
-    });
-
-    it('should reject a pending testimonial', async () => {
-      // Act
-      const response = await request(app.getHttpServer())
-        .patch(`/api/v1/testimonials/${testimonialId}/moderate`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({ action: 'reject' });
-
-      // Assert
-      expect(response.status).toBe(200);
-      expect(response.body.status).toBe('rejected');
-    });
-
-    it('should return 404 if testimonial not found', async () => {
-      // Act
-      const response = await request(app.getHttpServer())
-        .patch('/api/v1/testimonials/non-existent/moderate')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({ action: 'approve' });
-
-      // Assert
-      expect(response.status).toBe(404);
-    });
-  });
-});
-```
-
-**Helpers para tests de integración** (ejemplo):
-
-```typescript
-// tests/helpers/fixtures.ts
-
-import { PrismaService } from '../../src/infrastructure/prisma/prisma.service';
-
-export async function createTestTenant(prisma: PrismaService, name: string): Promise<string> {
-  const tenant = await prisma.tenant.create({
-    data: { name, isActive: true },
-  });
-  return tenant.id;
-}
-
-export async function createTestUser(prisma: PrismaService, tenantId: string, email: string, roleCode: string): Promise<string> {
-  const role = await prisma.role.findUnique({ where: { code: roleCode } });
-  const user = await prisma.user.create({
-    data: {
-      tenantId,
-      email,
-      passwordHash: 'fake-hash',
-      userRoles: { create: { roleId: role.id } },
-    },
-  });
-  return user.id;
-}
-
-export function generateTestToken(userId: string, tenantId: string, role: string): string {
-  // Usar la misma lógica que en producción (jwt.sign)
-  return jwt.sign({ sub: userId, tenantId, role }, process.env.JWT_SECRET, { expiresIn: '1h' });
-}
-```
-
----
-
-### 2.3. Tests E2E (End-to-End)
-
-**Propósito**: Probar flujos completos de usuario a través de la interfaz de usuario (Next.js) y validar la integración con el backend real.
-
-**Herramientas**:
-- **Framework**: **Playwright** (recomendado) o Cypress.
-- **Browsers**: Chromium, Firefox, WebKit.
-- **Visual Testing**: Opcional con Percy o Applitools.
-
-**Características**:
-- ✅ Lentos (1s - 30s por test)
-- ✅ Prueban la aplicación completa (frontend + backend)
-- ✅ Simulan interacción real del usuario
-- ✅ Requieren más mantenimiento
-
-**Estructura de archivo**:
-
-```typescript
-// tests/e2e/dashboard.spec.ts
-
-import { test, expect } from '@playwright/test';
-
-test.describe('Dashboard Admin', () => {
-  test.beforeEach(async ({ page }) => {
-    // Login antes de cada test
-    await page.goto('/login');
-    await page.fill('input[name="email"]', 'admin@test.com');
-    await page.fill('input[name="password"]', 'Test123!');
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL('/dashboard', { timeout: 5000 });
-  });
-
-  test('should create a new testimonial', async ({ page }) => {
-    // Navegar a la página de creación
-    await page.click('a[href="/testimonials/new"]');
-    await expect(page).toHaveURL('/testimonials/new');
-
-    // Rellenar formulario
-    await page.fill('input[name="authorName"]', 'Juan E2E');
-    await page.fill('textarea[name="content"]', 'Testimonio de prueba generado por Playwright.');
-    await page.selectOption('select[name="rating"]', '5');
-    // Subir imagen (si es necesario)
-    await page.setInputFiles('input[type="file"]', 'tests/fixtures/test-image.jpg');
-
-    // Enviar
-    await page.click('button:has-text("Guardar")');
-
-    // Verificar redirección a lista y aparición del nuevo testimonio
-    await expect(page).toHaveURL('/testimonials');
-    await expect(page.locator('text=Juan E2E')).toBeVisible();
-    await expect(page.locator('text=Pendiente')).toBeVisible(); // estado inicial
-  });
-
-  test('should moderate a testimonial', async ({ page }) => {
-    // Asumimos que existe un testimonio pendiente
-    await page.goto('/testimonials');
-    await page.locator('text=Juan E2E').click(); // hacer clic en el testimonio
-
-    // Hacer clic en "Aprobar"
-    await page.click('button:has-text("Aprobar")');
-    await expect(page.locator('text=Estado: Aprobado')).toBeVisible();
-
-    // Opcional: verificar que aparece en la página pública (requiere otro contexto)
-  });
-
-  test('should filter testimonials', async ({ page }) => {
-    await page.goto('/testimonials');
-    await page.fill('input[placeholder*="Buscar"]', 'Juan');
-    await page.waitForTimeout(500); // debounce
-    const cards = page.locator('.testimonial-card');
-    await expect(cards).toHaveCount(1); // solo el de Juan
-  });
-
-  test('should logout', async ({ page }) => {
-    await page.click('button:has-text("Cerrar sesión")');
-    await expect(page).toHaveURL('/login');
-  });
-});
-```
-
-**Configuración de Playwright** (`playwright.config.ts`):
-
-```typescript
-import { defineConfig, devices } from '@playwright/test';
-
-export default defineConfig({
-  testDir: './tests/e2e',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
-  use: {
-    baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-  },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-  ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-  },
-});
-```
-
----
-
-## 3. Estrategia de Mocking
-
-### 3.1. Mocking con MSW (Mock Service Worker)
-
-**Propósito**: Mockear APIs HTTP para tests de frontend (React) y para tests de integración cuando no queremos llamar a servicios reales (Cloudinary, YouTube).
-
-**Setup en frontend**:
-
-```typescript
-// src/mocks/browser.ts (para desarrollo)
-import { setupWorker } from 'msw/browser';
-import { handlers } from './handlers';
-
-export const worker = setupWorker(...handlers);
-```
-
-**Handlers específicos para tests**:
-
-```typescript
-// src/mocks/handlers.ts
-import { http, HttpResponse } from 'msw';
-
-export const handlers = [
-  http.get('/api/v1/testimonials', ({ request }) => {
-    const url = new URL(request.url);
-    const status = url.searchParams.get('status');
-    // Devolver datos mockeados según filtros
-    return HttpResponse.json({
-      data: [
-        { id: '1', authorName: 'Mock', content: 'Test', rating: 5, status: 'published' },
-      ],
-      meta: { total: 1, page: 1, limit: 10 },
-    });
-  }),
-
-  http.post('/api/v1/testimonials', async ({ request }) => {
-    const body = await request.json();
-    return HttpResponse.json({ id: 'new-id', ...body, status: 'draft' }, { status: 201 });
-  }),
-
-  // Mock para Cloudinary (subida de imagen)
-  http.post('https://api.cloudinary.com/v1_1/:cloudName/auto/upload', () => {
-    return HttpResponse.json({ secure_url: 'https://res.cloudinary.com/.../test.jpg' });
-  }),
-];
-```
-
-**Uso en tests de frontend** (con Vitest + React Testing Library):
-
-```typescript
-// src/components/TestimonialForm.test.tsx
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { server } from '../mocks/server'; // servidor de MSW para Node
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
-
-test('should submit form and show success message', async () => {
-  render(<TestimonialForm />);
-  await userEvent.type(screen.getByLabelText(/autor/i), 'Juan');
-  await userEvent.type(screen.getByLabelText(/contenido/i), 'Contenido de prueba');
-  await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-  await waitFor(() => {
-    expect(screen.getByText(/testimonio creado/i)).toBeInTheDocument();
-  });
-});
-```
-
-### 3.2. Mocking con Vitest (para backend)
-
-Ya vimos ejemplos con `vi.spyOn` y `vi.mock`. Aquí un ejemplo de mock de repositorio:
-
-```typescript
-// src/domain/testimonials/services/testimonial.service.spec.ts
-vi.mock('../../infrastructure/repositories/testimonial.repository', () => ({
-  TestimonialRepository: vi.fn().mockImplementation(() => ({
-    findById: vi.fn(),
-    save: vi.fn(),
-  })),
-}));
-
-const mockRepository = new TestimonialRepository() as jest.Mocked<TestimonialRepository>;
-mockRepository.findById.mockResolvedValue(testimonialMock);
-```
-
----
-
-## 4. Requisitos de Cobertura de Código
-
-### 4.1. Umbrales Mínimos
-
-| Tipo de Cobertura | Mínimo | Objetivo | Herramienta |
-|-------------------|--------|----------|-------------|
-| **Statements** | 80% | 90% | Vitest --coverage (v8/istanbul) |
-| **Branches** | 70% | 85% | Vitest --coverage |
-| **Functions** | 80% | 90% | Vitest --coverage |
-| **Lines** | 80% | 90% | Vitest --coverage |
-
-**Configuración en `vitest.config.ts`**:
-
-```typescript
-import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  test: {
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
-      exclude: [
-        '**/node_modules/**',
-        '**/dist/**',
-        '**/migrations/**',
-        '**/*.spec.ts',
-        '**/*.test.ts',
-        '**/index.ts',
-      ],
-      thresholds: {
-        statements: 80,
-        branches: 70,
-        functions: 80,
-        lines: 80,
-      },
-    },
-  },
-});
-```
-
-### 4.2. Badge de Cobertura
-
-Podemos generar un badge con herramientas como `badges` o usar Codecov.
-
-```markdown
-![Coverage](./badges/coverage.svg)
-
-| Métrica | Cobertura | Estado |
-|---------|-----------|--------|
-| Statements | 86% | ✅ |
-| Branches   | 75% | ✅ |
-| Functions  | 84% | ✅ |
-| Lines      | 86% | ✅ |
-```
-
----
-
-## 5. Integración con CI/CD
-
-### 5.1. GitHub Actions Workflow
-
-```yaml
-# .github/workflows/test.yml
-name: Test Suite
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: test_cms
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Setup test environment
-        run: |
-          cp .env.example .env.test
-          echo "DATABASE_URL=postgresql://test_user:test_pass@localhost:5432/test_cms" >> .env.test
-          echo "REDIS_URL=redis://localhost:6379" >> .env.test
-
-      - name: Run migrations
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_cms
-
-      - name: Run unit tests
-        run: npm run test:unit -- --coverage
-
-      - name: Run integration tests
-        run: npm run test:integration
-
-      - name: Run E2E tests
-        run: npm run test:e2e
-        env:
-          # Para que el frontend se conecte al backend de test
-          NEXT_PUBLIC_API_URL: http://localhost:3000
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage/lcov.info
-```
-
----
-
-## 6. Checklist de Calidad para Tests
-
-- [ ] **Organización**: Tests separados por tipo (unit, integration, e2e) y por módulo.
-- [ ] **Nombres descriptivos**: `shouldReturnErrorWhenTestimonialNotFound`.
-- [ ] **AAA Pattern**: Arrange-Act-Assert claro.
-- [ ] **Independencia**: Cada test puede ejecutarse solo y en cualquier orden.
-- [ ] **Determinismo**: Mismo resultado siempre.
-- [ ] **Limpieza**: Después de cada test, los datos de prueba se eliminan.
-- [ ] **Cobertura mínima** alcanzada.
-- [ ] **Mocks apropiados**: Solo se mockea lo necesario.
-- [ ] **Pruebas de edge cases**: Límites, valores nulos, errores.
-- [ ] **Ejecución en CI**: Todos los tests pasan antes de mergear.
-
----
-
-## 7. Recomendaciones Adicionales
-
-- **Pruebas de base de datos**: Usar `prisma.$transaction` para rollback automático después de cada test (o usar `testcontainers` para mayor aislamiento).
-- **Pruebas de outbox**: Verificar que los eventos se insertan en la tabla `outbox_events` y que el worker los procesa.
-- **Pruebas de feature flags**: Simular distintas configuraciones de flags y verificar el comportamiento.
-- **Pruebas de rendimiento** (opcional): Para endpoints críticos, usar herramientas como `k6` o `artillery`.
-
----
-
-## 📄 Plantilla Resumida para Nuevo Test
-
-```typescript
-// tests/[unit|integration|e2e]/[modulo]/[nombre].spec.ts
-
-import { describe, it, expect, beforeEach } from 'vitest'; // o de Playwright
-
-describe('[Módulo/Componente]', () => {
-  beforeEach(() => {
-    // Setup común
-  });
-
-  describe('[Método/Acción]', () => {
-    it('should [comportamiento esperado] when [condición]', async () => {
-      // Arrange
-      // Act
-      // Assert
-    });
-
-    it('should handle error when [condición de error]', async () => {
-      // ...
-    });
-  });
-});
-```
-
----
-
-> **Nota final**: La estrategia de testing es un **documento vivo**. Revisa y actualiza este documento trimestralmente basado en métricas de calidad, feedback del equipo y cambios en los requisitos del proyecto. Los tests malos son peores que no tener tests.
+El reporte debe identificar requisito/riesgo, pruebas y nivel, comandos y entorno, resultados reales, omisiones, simulaciones y pendientes. Distinguir **diseñado**, **implementado**, **ejecutado**, **validado** y **auditado**. Conservar evidencia saneada según criticidad, sin secretos, tokens, contraseñas ni PII en contexto o documentación. Detalle de los controles AI, antipatrones, métricas y aceptación: [integridad y evaluación](../../.agents/skills/testing-tdd-engineering/references/integridad-y-evaluacion.md).

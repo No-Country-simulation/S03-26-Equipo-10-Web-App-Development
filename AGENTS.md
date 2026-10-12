@@ -51,7 +51,7 @@ Monorepo Root
 ├── apps/api/        → @testimonial-cms/api  (NestJS 11 + Prisma)
 ├── apps/web/        → @testimonial-cms/web  (Next.js 15 App Router)
 ├── docs/            → Documentación técnica, dominio, producto, operaciones
-├── .agents/         → 25 skills propias de ingeniería (SKL-*) + otras habilidades instaladas, reglas y prompts
+├── .agents/         → 26 skills propias de ingeniería (SKL-*) + otras habilidades instaladas, reglas y prompts
 ├── infra/           → Docker + Nginx configs
 └── scripts/         → Utilidades locales (PowerShell, Bash)
 ```
@@ -185,7 +185,7 @@ Al trabajar con un plan en `docs/plan/`:
 
 ## 10. Skills Disponibles (`.agents/skills/`)
 
-Catálogo de 25 skills propias de ingeniería con código SKL; no representa el total de habilidades instaladas en el directorio.
+Catálogo de 26 skills propias de ingeniería con código SKL; no representa el total de habilidades instaladas en el directorio.
 
 | Skill                                      | Código                | Dominio                                       |
 | ------------------------------------------ | --------------------- | --------------------------------------------- |
@@ -214,6 +214,7 @@ Catálogo de 25 skills propias de ingeniería con código SKL; no representa el 
 | `docker-container-engineering`             | SKL-DEVOPS-DKR-001    | DevOps / Containers                           |
 | `monorepo-architecture-engineering`        | SKL-MONOREPO-ARCH-001 | Architecture / DevOps / Monorepo              |
 | `cicd-pipeline-engineering`                | SKL-DEVOPS-CICD-001   | CI/CD / DevSecOps / Despliegue y recuperación |
+| `testing-tdd-engineering`                  | SKL-TDD-001          | Testing / TDD / Unit, Integration y E2E        |
 
 ---
 
