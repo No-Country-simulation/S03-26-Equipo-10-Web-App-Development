@@ -122,6 +122,15 @@ jobs:
           format: json
           output: release-evidence/maintenance-vulnerabilities.json
           exit-code: '1'
+      - name: Install dependencies for disposable final-image verification
+        run: |
+          npm install --global npm@11.19.0
+          npm ci
+      - name: Smoke both final images before registry authentication or publication
+        timeout-minutes: 8
+        env:
+          E2E_ALLOW_DISPOSABLE_MIGRATIONS: '1'
+        run: node scripts/release/image-smoke.mjs
       - name: Authenticate only to GHCR
         env:
           GH_TOKEN: ${{ github.token }}

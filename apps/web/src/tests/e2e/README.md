@@ -1,6 +1,6 @@
 # Recorridos de navegador
 
-La suite web ejecutable vive en los archivos `*.test.tsx` de cada feature. Esos tests cubren nombres accesibles, foco del menú móvil, captura, errores y moderación con Testing Library. Este directorio registra el recorrido de navegador de la fase 6; todavía no hay un runner E2E persistente ni una integración de axe en CI.
+La suite web ejecutable vive en los archivos `*.test.tsx` de cada feature. Esos tests cubren nombres accesibles, foco del menú móvil, captura, errores y moderación con Testing Library. Este directorio conserva el recorrido exploratorio histórico de la fase 6. El runner Playwright de fase 2 vive en `apps/web/e2e/`, con configuración `apps/web/playwright.config.ts`; consultá [preparación, contratos y evidencia](../../../../../docs/technical/e2e.md). Su ejecución completa se registra en el plan activo; integración como gate CI en fase 3 pendiente. No hay una integración de axe en CI.
 
 ## Recorrido local de la fase 6
 
@@ -12,4 +12,4 @@ Con el build de Next.js 15 servido en `127.0.0.1:3100` y una API simulada de dat
 4. Cambiar el tema desde el menú y revisar visualmente ambos temas. Inspeccionar la calificación, mensajes de error y contraste de texto legible.
 5. Confirmar que el muro muestra solo testimonios públicos simulados y que la estructura conserva un `h1`, artículos y botones con nombre.
 
-Estas comprobaciones no certifican WCAG 2.2 AA: faltan lector de pantalla, auditoría completa de contraste, flujos con API real y ejecución en dispositivos y navegadores adicionales. Para automatizar el recorrido en CI se debe adoptar y declarar un runner de navegador y su entorno de prueba, con fixtures aislados; no se debe usar una cuenta ni una base productiva.
+Estas comprobaciones no certifican WCAG 2.2 AA: faltan lector de pantalla, auditoría completa de contraste, flujos con API real y ejecución en dispositivos y navegadores adicionales. El nuevo runner usa servicios reales descartables y no una cuenta ni una base productiva; esta exploración histórica con API simulada conserva su límite y no se presenta como evidencia del nuevo E2E.
