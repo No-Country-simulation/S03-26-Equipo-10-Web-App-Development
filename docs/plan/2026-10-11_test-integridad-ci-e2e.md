@@ -10,7 +10,7 @@
 - Ejecutar sólo la fase `[Actual]`, presentar evidencia y commit sugerido, y detenerse. No trasladar aprobaciones de otros SHA.
 - No modificar manifiesto raíz, hooks, infraestructura ni esquema Prisma. No ejecutar `prisma migrate deploy`/`db push` desde esta sesión sin ACK específico, tampoco contra fixtures locales. Se conserva la preparación descartable ya definida por CI.
 - No crear recursos, habilitar entrega, publicar tags ni desplegar. No persistir secretos, tokens, contraseñas o PII en documentación/contexto/evidencia.
-- Las decisiones humanas conservan entrega por tag anotado y aprobación; existe otra persona disponible para exigir una revisión de PR en fase 3.
+- Las decisiones humanas conservan entrega por tag anotado y aprobación de entrega. El 2026-10-12 el usuario aclaró que trabaja solo y autorizó cero aprobaciones obligatorias de PR; esta decisión reemplaza la exigencia inicial de una revisión ajena al autor.
 - Registrar y commitear este plan antes de comenzar la implementación, según el índice de planes. Ese registro es preparación de la fase 1, no una fase HITL adicional.
 
 ## Diagnóstico de partida
@@ -62,7 +62,7 @@ Brechas: E2E permanente ausente, gate de omisiones sólo API, cobertura web sin 
 ## [Actual] Fase 3 — Integración E2E, release y gobernanza — ejecución técnica completa
 
 - [x] Incorporar E2E en `verify` después del build, con datos y namespace Redis exclusivos.
-- [x] Exigir una aprobación ajena al autor, conservar descarte de revisiones obsoletas y verificar configuración remota.
+- [x] Ajustar revisión al contexto confirmado: cero aprobaciones obligatorias por ACK del único mantenedor; conservar PR, checks y descarte de revisiones obsoletas, y verificar configuración remota.
 - [x] Parametrizar smoke existentes y probar las imágenes finales maintenance/API antes de publicar esas mismas imágenes; API con almacenamiento descartable y operación autenticada exitosa.
 - [x] Mantener tags, aprobación, digest/SBOM/escaneos/attestations, controles API/worker/candidata y recuperación compatible.
 - [x] Verificar negativos de gates y CI de implementación; no habilitar proveedores ni confundir fixtures con aceptación remota. Controles locales y CI `38280231648` del SHA `3e42880` aprobados. El cierre documental conserva sus propios checks en el PR.
@@ -158,3 +158,11 @@ Consulta final de GitHub: una aprobación requerida, descarte de revisiones obso
 **Commit de correcciones:** `3e42880` — `fix(ci): aislá el heap y tolerá resets de arranque`. **Commit sugerido de cierre:** `docs(testing): registrá la aceptación de CI y cerrá el plan`.
 
 Según AGENTS.md §9 y el ciclo del índice de planes, el ACK humano de cierre permanece pendiente. No hay otra fase de implementación en este plan; el agente se detiene tras registrar la evidencia y comprobar los checks del cierre documental.
+
+### Ajuste autorizado de gobernanza — único mantenedor, 2026-10-12
+
+El usuario confirmó que trabaja solo y pidió quitar el bloqueo de aprobación para poder integrar el PR #8. Este ACK explícito sustituye la decisión inicial de exigir una revisión ajena al autor. Se establece `required_approving_review_count=0`, conservando PR obligatorio, checks `verify/secret-scan/dependency-review`, strict, protección de admins, conversaciones resueltas, descarte de revisiones obsoletas y bloqueo de force-push/borrado. No cambia aprobaciones de entrega ni activa despliegues.
+
+El usuario ya convirtió el PR #8 en listo para revisión. El head `81c9711` aprobó los tres checks en [CI 38281646752](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/38281646752), con 479 API, 176 web y 6 E2E completos, sin omisiones/retries. El nuevo commit de política/documentación debe aprobar sus propios checks; al finalizar se consulta el estado de merge del PR. La integración queda a cargo del usuario.
+
+**Commit sugerido:** `fix(github): permití integrar PRs con un único mantenedor`.

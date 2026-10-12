@@ -44,7 +44,7 @@
 - **API keys**: HMAC-SHA-256 con pepper versionado para `ak_`; lector `tms_` temporal durante el corte
 - **Webhooks**: ledger y polling PostgreSQL con entrega at least once; firma versionada y secreto cifrado por destino
 - **Cuotas y caché**: Redis para contadores atómicos e invalidación por versión de tenant; no participa en la entrega durable
-- **Entrega preparada**: CI de PR/main y workflows de tags anotados, migración manual y recuperación en `.github/workflows/`; gates y adaptadores en `scripts/release/`. Main exige una aprobación ajena al autor y checks obligatorios; tags protegidos en GitHub. E2E en `verify` con servicios propios descartables; release verifica ambas imágenes finales antes de publicar. Entrega apagada, sin recursos creados; activación y aceptación remotas según `docs/operations/27_demo_tag_delivery.md`.
+- **Entrega preparada**: CI de PR/main y workflows de tags anotados, migración manual y recuperación en `.github/workflows/`; gates y adaptadores en `scripts/release/`. Main exige PR y checks obligatorios, sin aprobaciones de terceros mientras haya un único mantenedor; tags protegidos en GitHub. E2E en `verify` con servicios propios descartables; release verifica ambas imágenes finales antes de publicar. Entrega apagada, sin recursos creados; activación y aceptación remotas según `docs/operations/27_demo_tag_delivery.md`.
 
 ```
 Monorepo Root
