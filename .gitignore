@@ -12,3 +12,4 @@ coverage
 .e2e-results/
 release-evidence/
 infra/nginx/certs/
+.vercel
