@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 2 implementada y validada localmente; pendiente de commit y ACK.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 3 implementada y validada localmente; pendiente de commit y ACK, con integración/E2E reales pendientes por Docker no disponible.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 1, autoriza únicamente la fase 2.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autoriza únicamente la fase 3. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
 
 ## 1. Contexto y restricciones
 
@@ -96,11 +96,11 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Commit:** `fix(testimonials): corregí la moderación y preservá los borradores`  
 **ACK humano:** recibido. **Commit registrado:** `c8fed72`. **Detenerse y esperar ACK.**
 
-### [Actual] Fase 2 — Base visual, accesibilidad y feedback compartido
+### [Completada] Fase 2 — Base visual, accesibilidad y feedback compartido
 
 **Cubre:** F13 y parte transversal de F22.
 
-**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. La fase 3 no está autorizada.
+**Estado de ejecución:** completada; commit `9ec32c4` verificado y ACK «Continuar» recibido el 2026-10-15.
 
 - [x] Corregir parejas de color claro/oscuro y unificar estados semánticos.
 - [x] Usar sans en controles/datos y conservar serif en citas/títulos.
@@ -112,19 +112,21 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Cierre/pruebas:** teclado/foco de controles modificados, contraste de combinaciones efectivas en ambos temas, carga anunciada sin ruido, storage denegado sin caída. Verificar móvil y movimiento reducido. No certificar WCAG sólo con controles automáticos.
 
 **Commit:** `fix(web): unificá accesibilidad, estados y contraste`  
-**ACK humano:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido. **Commit registrado:** `9ec32c4`. **Detenerse y esperar ACK.**
 
-### [Pendiente] Fase 3 — Búsqueda global, revisión e inicio operativo
+### [Actual] Fase 3 — Búsqueda global, revisión e inicio operativo
 
 **Cubre:** F03 y mejoras de testimonios/inicio.
 
-- [ ] Implementar contratos de búsqueda, catálogos y resumen de la sección 2.
-- [ ] Llevar búsqueda, filtros, orden y página a URL; cancelar/descartar respuestas obsoletas.
-- [ ] Añadir estado, limpiar consulta y selectores globales paginados.
-- [ ] Corregir páginas que pierden su último resultado.
-- [ ] Añadir detalle enlazable y siguiente/anterior dentro de la consulta.
-- [ ] Priorizar pendientes, separar borradores y mostrar totales/recientes con alcance explícito.
-- [ ] Incorporar eliminación confirmada por endpoint vigente y permisos reales.
+**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y seis E2E reales pendientes por daemon Docker no disponible. No está autorizada la fase 4.
+
+- [x] Implementar contratos de búsqueda, catálogos y resumen de la sección 2.
+- [x] Llevar búsqueda, filtros, orden y página a URL; cancelar/descartar respuestas obsoletas.
+- [x] Añadir estado, limpiar consulta y selectores globales paginados.
+- [x] Corregir páginas que pierden su último resultado.
+- [x] Añadir detalle enlazable y siguiente/anterior dentro de la consulta.
+- [x] Priorizar pendientes, separar borradores y mostrar totales/recientes con alcance explícito.
+- [x] Incorporar eliminación confirmada por endpoint vigente y permisos reales.
 
 **Cierre/pruebas:** coincidencia originalmente fuera de página accesible desde página 1; AND de etiquetas; URL/total/resultados coherentes; desempates estables; conteos globales; tenant ajeno excluido; detalle fuera de página y 403/404; borrado autorizado y confirmación. Probar compatibilidad de consultas anteriores.
 
@@ -288,7 +290,7 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | --- | -------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | F01 | Editor sin moderación                              | 1                                | Positivo editor; negativos de rol/propiedad; transiciones API respetadas   | Corregido localmente en fase 1                                        |
 | F02 | Paginación submit dentro del alta                  | 1                                | Varias páginas y formulario válido; sin POST ni validación accidental      | Corregido localmente en fase 1                                        |
-| F03 | Búsqueda/filtros de página                         | 3                                | Coincidencia fuera de página, AND, total y URL coherentes, tenant negativo | Pendiente                                                             |
+| F03 | Búsqueda/filtros de página                         | 3                                | Coincidencia fuera de página, AND, total y URL coherentes, tenant negativo | Corregido localmente en fase 3; integración PostgreSQL pendiente      |
 | F04 | Detalle anterior tras mutación                     | 1                                | Estado/contenido/medios actualizados sin reabrir                           | Corregido localmente en fase 1                                        |
 | F05 | Recuperación descarta borrador                     | 1                                | Reintento y cierre con decisión; texto preservado                          | Corregido localmente en fase 1                                        |
 | F06 | Borrado de categoría sin advertir desclasificación | 4                                | Cancelar sin DELETE; confirmar conserva testimonios sin categoría          | Pendiente                                                             |
@@ -315,34 +317,34 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 
 Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar capacidades. Las filas parciales conservan explícitamente las fases pendientes. Las capacidades expresamente excluidas no se considerarán una omisión al cerrar este plan.
 
-| ID  | Superficie/oportunidad                                        | Fase         | Evidencia de aceptación                                                             | Estado                                                       |
-| --- | ------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Pendiente                                                    |
-| O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Pendiente                                                    |
-| O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Pendiente                                                    |
-| O04 | Inicio: pendientes, alcance y primera acción                  | 3, 7         | Totales globales, borradores separados y onboarding derivado                        | Pendiente                                                    |
-| O05 | Listado: estado, consulta global y detalle contextual         | 3            | URL, filtros, limpiar y siguiente/anterior coherentes                               | Pendiente                                                    |
-| O06 | Alta: contenido principal y clasificación progresiva          | 1, 2         | Borrador recuperable, móvil y preview sin dominar escritura                         | Corregido localmente en fases 1/2; cierre integral pendiente |
-| O07 | Detalle: estado español y acción siguiente                    | 1, 3         | Mutación confirmada, permisos, visibilidad pública y eliminación informada          | Parcial: fase 1 validada; resto pendiente                    |
-| O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Pendiente                                                    |
-| O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Pendiente                                                    |
-| O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Pendiente                                                    |
-| O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Pendiente                                                    |
-| O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Pendiente                                                    |
-| O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Pendiente                                                    |
-| O14 | Ajustes: marca/captura/capacidades independientes             | 7            | Guardados independientes; scoring real; capacidades operables                       | Pendiente                                                    |
-| O15 | Captura: marca, rating deliberado y límites previos           | 9            | Validación, parcial/completo y foco sin duplicados                                  | Pendiente                                                    |
-| O16 | Galería: identidad, lectura y cantidad                        | 9            | Marca, cargar más, semántica y ausencia de rótulos de telemetría                    | Pendiente                                                    |
-| O17 | BI resumen: vigencia, unidades y cortes                       | 10           | Jerarquía, ejes/unidades, tabla accesible y huecos no interpolados                  | Pendiente                                                    |
-| O18 | BI ejecuciones: intención vs intento                          | 10           | Agrupación, filtros preservados, dos paginaciones y scroll contenido                | Pendiente                                                    |
-| O19 | BI detalle ejecución: resultado y recuperación                | 10           | Acción actual comprensible; UUID/código secundarios                                 | Pendiente                                                    |
-| O20 | BI detalle solicitud: seguimiento durable                     | 10           | Estados fieles sin porcentajes inventados; cancelar sólo pendiente                  | Pendiente                                                    |
-| O21 | BI operación: acción posible antes de cifras                  | 10           | Motivo junto a bloqueo; aceptada no se presenta como terminada                      | Pendiente                                                    |
-| O22 | BI configuración: efecto, draft y conflicto                   | 10           | Salida deliberada, UTC, merge explícito y pausa/manual diferenciados                | Pendiente                                                    |
-| O23 | BI auditoría: cambios legibles                                | 10           | Diff antes/después y actor técnico preservado; editor restringido                   | Pendiente                                                    |
-| O24 | Sistema visual: densidad, estado, contexto, foco y movimiento | 2, 7, 11, 12 | Identidad conservada, controles legibles, organización persistente y reduced motion | Parcial: base de fase 2 validada; faltan 7/11/12             |
-| O25 | Rendimiento: lazy, cleanup, polling y overlays                | 12           | Medición de producción y cambios motivados; no memoización especulativa             | Pendiente                                                    |
-| O26 | Preparación ruteada: aliases y ayuda real                     | 11           | Doce decisiones resueltas sin construir doce flujos alternativos                    | Pendiente                                                    |
+| ID  | Superficie/oportunidad                                        | Fase         | Evidencia de aceptación                                                             | Estado                                                                                |
+| --- | ------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Pendiente                                                                             |
+| O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Pendiente                                                                             |
+| O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Pendiente                                                                             |
+| O04 | Inicio: pendientes, alcance y primera acción                  | 3, 7         | Totales globales, borradores separados y onboarding derivado                        | Parcial: resumen/revisión global de fase 3 validados localmente; onboarding en fase 7 |
+| O05 | Listado: estado, consulta global y detalle contextual         | 3            | URL, filtros, limpiar y siguiente/anterior coherentes                               | Corregido localmente en fase 3; E2E reales pendientes                                 |
+| O06 | Alta: contenido principal y clasificación progresiva          | 1, 2         | Borrador recuperable, móvil y preview sin dominar escritura                         | Corregido localmente en fases 1/2; cierre integral pendiente                          |
+| O07 | Detalle: estado español y acción siguiente                    | 1, 3         | Mutación confirmada, permisos, visibilidad pública y eliminación informada          | Corregido localmente en fases 1/3; integración real pendiente                         |
+| O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Pendiente                                                                             |
+| O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Pendiente                                                                             |
+| O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Pendiente                                                                             |
+| O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Pendiente                                                                             |
+| O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Pendiente                                                                             |
+| O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Pendiente                                                                             |
+| O14 | Ajustes: marca/captura/capacidades independientes             | 7            | Guardados independientes; scoring real; capacidades operables                       | Pendiente                                                                             |
+| O15 | Captura: marca, rating deliberado y límites previos           | 9            | Validación, parcial/completo y foco sin duplicados                                  | Pendiente                                                                             |
+| O16 | Galería: identidad, lectura y cantidad                        | 9            | Marca, cargar más, semántica y ausencia de rótulos de telemetría                    | Pendiente                                                                             |
+| O17 | BI resumen: vigencia, unidades y cortes                       | 10           | Jerarquía, ejes/unidades, tabla accesible y huecos no interpolados                  | Pendiente                                                                             |
+| O18 | BI ejecuciones: intención vs intento                          | 10           | Agrupación, filtros preservados, dos paginaciones y scroll contenido                | Pendiente                                                                             |
+| O19 | BI detalle ejecución: resultado y recuperación                | 10           | Acción actual comprensible; UUID/código secundarios                                 | Pendiente                                                                             |
+| O20 | BI detalle solicitud: seguimiento durable                     | 10           | Estados fieles sin porcentajes inventados; cancelar sólo pendiente                  | Pendiente                                                                             |
+| O21 | BI operación: acción posible antes de cifras                  | 10           | Motivo junto a bloqueo; aceptada no se presenta como terminada                      | Pendiente                                                                             |
+| O22 | BI configuración: efecto, draft y conflicto                   | 10           | Salida deliberada, UTC, merge explícito y pausa/manual diferenciados                | Pendiente                                                                             |
+| O23 | BI auditoría: cambios legibles                                | 10           | Diff antes/después y actor técnico preservado; editor restringido                   | Pendiente                                                                             |
+| O24 | Sistema visual: densidad, estado, contexto, foco y movimiento | 2, 7, 11, 12 | Identidad conservada, controles legibles, organización persistente y reduced motion | Parcial: base de fase 2 validada; faltan 7/11/12                                      |
+| O25 | Rendimiento: lazy, cleanup, polling y overlays                | 12           | Medición de producción y cambios motivados; no memoización especulativa             | Pendiente                                                                             |
+| O26 | Preparación ruteada: aliases y ayuda real                     | 11           | Doce decisiones resueltas sin construir doce flujos alternativos                    | Pendiente                                                                             |
 
 No añadir nombre personal del actor a BI sin un contrato autorizado que lo aporte. Mantener actor técnico como dato secundario. No implementar fusión de etiquetas, cambio de rol, borrado de medios sin endpoint ni un sistema de membresías multiempresa como ampliaciones implícitas.
 
@@ -350,23 +352,23 @@ No añadir nombre personal del actor a BI sin un contrato autorizado que lo apor
 
 **Cobertura de ruta:** código, estados y pruebas asignados. No marcar una fila validada sólo por abrir la ruta. En cada pantalla aplican carga, éxito, vacío cuando corresponda, error recuperable, autorización, teclado y tamaño/contenido límite. Usar datos sintéticos. El estado parcial de una ruta no acredita su aceptación integral.
 
-| Ruta activa                    | Fases propietarias | Verificación específica                                               | Estado                                                     |
-| ------------------------------ | ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `/`                            | 2, 11              | Header/CTA, anchors, borradores, autoplay, mobile/zoom                | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/login`                 | 2, 8               | Vacío, errores, sesión/refresh/logout y semántica móvil               | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/register`              | 2, 8               | Campos vacíos, contraseña, alta y errores preservados                 | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin`                       | 1, 2, 3, 7         | Resumen real, recientes, pendientes y onboarding según rol            | Parcial: fases 1/2 validadas; resto pendiente              |
-| `/admin/testimonials`          | 1, 2, 3            | Consulta/detalle/alta/edición/moderación/medios/eliminación y roles   | Parcial: fases 1/2 validadas; resto pendiente              |
-| `/admin/categories`            | 2, 4               | Buscar/crear/renombrar/eliminar, asociaciones y página                | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/tags`                  | 2, 4               | Buscar/crear/renombrar/eliminar y tablet táctil                       | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/users`                 | 2, 4               | Alta, contraseña, estado de acceso, confirmación y rol                | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/api-keys`              | 2, 5               | Scopes/fechas/estado/revelación/copia/revocación/rotación             | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/webhooks`              | 2, 6               | Alta/edición/pausa/prueba/rotación/historial/replay y legado          | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/settings`              | 2, 7               | Marca/logo/slug/recepción/capacidades y fallas independientes         | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/analytics`             | 2, 10              | Período/eventos/referencias/alcance/vacío/error                       | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/admin/business-intelligence` | 2, 10              | Siete superficies de la tabla siguiente, URL/CSV/polling/roles        | Parcial: base compartida de fase 2; flujo propio pendiente |
-| `/p/[slug]`                    | 9                  | Marca, cerrado/no disponible, rating/medios, recepción parcial y foco | Pendiente                                                  |
-| `/t/[slug]`                    | 2, 9               | Marca, 21 publicados, detalle/media, tracking/storage y vacío/error   | Parcial: base compartida de fase 2; flujo propio pendiente |
+| Ruta activa                    | Fases propietarias | Verificación específica                                               | Estado                                                                                 |
+| ------------------------------ | ------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `/`                            | 2, 11              | Header/CTA, anchors, borradores, autoplay, mobile/zoom                | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/login`                 | 2, 8               | Vacío, errores, sesión/refresh/logout y semántica móvil               | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/register`              | 2, 8               | Campos vacíos, contraseña, alta y errores preservados                 | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin`                       | 1, 2, 3, 7         | Resumen real, recientes, pendientes y onboarding según rol            | Parcial: fases 1/2/3 validadas localmente; onboarding de fase 7 pendiente              |
+| `/admin/testimonials`          | 1, 2, 3            | Consulta/detalle/alta/edición/moderación/medios/eliminación y roles   | Fases 1/2/3 corregidas localmente; integración/E2E reales y cierre integral pendientes |
+| `/admin/categories`            | 2, 4               | Buscar/crear/renombrar/eliminar, asociaciones y página                | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/tags`                  | 2, 4               | Buscar/crear/renombrar/eliminar y tablet táctil                       | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/users`                 | 2, 4               | Alta, contraseña, estado de acceso, confirmación y rol                | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/api-keys`              | 2, 5               | Scopes/fechas/estado/revelación/copia/revocación/rotación             | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/webhooks`              | 2, 6               | Alta/edición/pausa/prueba/rotación/historial/replay y legado          | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/settings`              | 2, 7               | Marca/logo/slug/recepción/capacidades y fallas independientes         | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/analytics`             | 2, 10              | Período/eventos/referencias/alcance/vacío/error                       | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/business-intelligence` | 2, 10              | Siete superficies de la tabla siguiente, URL/CSV/polling/roles        | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/p/[slug]`                    | 9                  | Marca, cerrado/no disponible, rating/medios, recepción parcial y foco | Pendiente                                                                              |
+| `/t/[slug]`                    | 2, 9               | Marca, 21 publicados, detalle/media, tracking/storage y vacío/error   | Parcial: base compartida de fase 2; flujo propio pendiente                             |
 
 ### Siete superficies BI
 
@@ -518,3 +520,66 @@ El servidor local de inspección se detuvo al terminar. Las capturas temporales 
 ## 9. Cambios y desviaciones de alcance
 
 Registrar aquí cualquier exclusión o modificación aprobada, con fecha, razón y ACK. Estado inicial: ninguna desviación. Corrección editorial del plan aprobado: el commit de fase 8 queda escrito correctamente como `fix(auth): aclará el acceso y eliminá valores preseleccionados`.
+
+### Fase 3 — búsqueda global, revisión e inicio (2026-10-15)
+
+**Autorización:** commit previo `9ec32c4` verificado, rama `codex/mejoras-integrales-frontend` limpia al iniciar y ACK «Continuar». Única fase actual: 3. No se crean commits automáticamente.
+
+**Decisiones adicionales confirmadas:**
+
+- ACK específico para ejecutar las migraciones existentes sólo en servicios locales descartables del harness; no habilita una DB de desarrollo/remota, cambios de esquema o infraestructura. El intento no llegó a migrar: Docker carece de daemon en `/var/run/docker.sock` y falla al crear la red propia.
+- Conservar actividad e impedir borrar un testimonio con eventos registrados; explicar que puede ocultarse si está publicado. `TESTIMONIAL_HAS_ACTIVITY` responde 409. Los datos de actividad y el testimonio permanecen; no se introduce soft delete ni se purga historial.
+- Se conserva el permiso implementado de eliminación (admin cualquiera/editor propios). La tabla RBAC histórica de reglas de negocio propone restricciones por estado distintas; se registra esa divergencia. No se amplía autorización para mostrar botones ni se acredita una política de soft delete inexistente.
+
+**Implementación:**
+
+- `GET /testimonials`: búsqueda parcial autor/contenido, estado, categoría, todas las etiquetas elegidas y orden reciente/puntaje. Validación de query, filtrado antes de paginar, total con el mismo tenant/filtros y desempate estable por ID. Sin parámetros nuevos conserva comportamiento previo.
+- `GET /categories` y `/tags`: búsqueda por nombre y `testimonialCount` de asociaciones en todo el tenant. Los selectores del listado usan esos catálogos con búsqueda y páginas independientes, conservando selecciones.
+- `GET /testimonials/summary`: cantidades por cada estado y total global; Inicio consume resumen, seis recientes y seis pendientes por separado, presenta revisión primero y distingue borradores.
+- Listado con consulta en URL, envío de búsqueda explícito, limpieza, estados de carga/error/vacío, descarte de respuestas obsoletas y corrección de página después de borrar/filtrar. El adaptador rechaza respuestas de otra página/límite y resúmenes inconsistentes.
+- `testimonial=<uuid>` abre un detalle autorizado fuera de la página y conserva contexto. Anterior/siguiente cruzan páginas de la consulta; no inventan posición para recursos fuera del filtro. La navegación se bloquea con cambios pendientes. Una respuesta confirmada sigue visible aunque falle la colección.
+- Eliminación con autor, consecuencias, cancelación sin DELETE y bloqueo de solicitudes repetidas. Limpieza de etiquetas y eliminación del registro en una transacción, tenant en cada consulta; actividad registrada impide el borrado. Las referencias concurrentes que impiden borrar producen conflicto y rollback. Borrar un publicado sin actividad invalida la caché pública.
+- Los filtros móviles disponen de ancho suficiente para leer estado/orden. El detalle contiene el scroll, mantiene accesibles moderación y cierre y separa el pie destructivo del contenido. Se preserva la identidad y la base compartida.
+
+**Pruebas y límites:** el resumen de comandos y resultados finales se registra debajo. Las integraciones PostgreSQL añadidas verifican coincidencias fuera de página, AND, filtros, desempate por puntaje/ID, conteos, tenant ajeno, borrado con etiquetas y conservación de actividad. Están preparadas para CI, **no ejecutadas localmente**. El intento del harness falló antes de servicios/migraciones/E2E por Docker no disponible; no se sustituyó por una base persistente ni se desactivaron gates.
+
+Se mantienen los seis recorridos E2E. PUBLISH añade búsqueda por URL, apertura contextual y recarga del detalle; sus assertions de estados usan las etiquetas españolas activas. El descubrimiento de pruebas no equivale a su ejecución. El CI de servicios reales y el SHA final continúan pendientes.
+
+La revisión con Chrome/Playwright usa Next dev y HTTP sintético. Una ronda agrupada en 1440×1000 y 375×812, claro/oscuro y storage bloqueado; corrección en bloque y una confirmación. Se comprueban búsqueda originalmente fuera de página, catálogo independiente, URL, borrador conservado, navegación de resultado 20 a 21, cancelación sin DELETE, eliminación única y página válida, resumen global y ausencia de desborde en Inicio a 320 px. Se corrigió un nombre de botón en el script de inspección antes de completar la ronda; ese fallo no se atribuye a la app. No acredita integración, lector de pantalla, dispositivo físico o auditoría WCAG completa.
+
+Borradores en memoria: se conservan frente a las acciones del modal y navegación contextual, sin garantía de persistencia ante recarga/navegación externa/browser back. No hay snapshot reservado entre consultas/páginas de datos vivos. El logo predeterminado faltante sigue en la fase de marca; no se presenta como regresión resuelta aquí. No se ejecuta despliegue ni se adelantan otras fases.
+
+### Resultados finales de fase 3
+
+| Validación                                                                                          | Resultado                                                                      | Alcance real                                                                                                                                                                                                |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test --workspace @testimonial-cms/web -- --maxWorkers=2`                                       | **233/233**, 39 archivos, exit 0, 32,55 s                                      | UI/adaptadores con HTTP simulado, sin tests omitidos; no E2E real.                                                                                                                                          |
+| API: parser, consultas, eliminación y tres suites de reglas de testimonios                          | **39/39**, seis archivos, exit 0                                               | Jest con Prisma/repositorios simulados según suite; no acredita persistencia.                                                                                                                               |
+| `npm test --workspace @testimonial-cms/api -- --runTestsByPath test/testimonial-admin-http.spec.ts` | **3/3**, exit 0                                                                | Pipeline HTTP, JWT, RBAC, feature guard, validación y envelope reales; servicio/persistencia simulados.                                                                                                     |
+| Typecheck web y API                                                                                 | Exit 0 en ambos                                                                | `npm run typecheck --workspace @testimonial-cms/web` y equivalente de API.                                                                                                                                  |
+| Lint web completo / API afectada                                                                    | Exit 0; web conserva diez advertencias previas, API afectada cero advertencias | `npm run lint --workspace @testimonial-cms/web`; ESLint desde `apps/api` con su config sobre fuentes/tests modificados y nuevos.                                                                            |
+| Impeccable detect sobre listado, detalle, selector y Inicio finales                                 | `[]`, exit 0                                                                   | Detector determinista sobre cuatro archivos UI; no certifica accesibilidad integral.                                                                                                                        |
+| Chrome/Playwright, fixtures sintéticas                                                              | Cuatro combinaciones desktop/mobile × light/dark aprobadas                     | Storage bloqueado, controles reales, viewport, URL, borradores, scroll sin oclusión de moderación, confirmaciones y página corregida; dos rondas acotadas de inspección/confirmación.                       |
+| `npm run test:e2e:list --workspace @testimonial-cms/web`                                            | Seis tests en dos archivos, exit 0                                             | Sólo descubrimiento; se conservan los seis recorridos obligatorios y sus gates.                                                                                                                             |
+| `E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 npm run test:e2e --workspace @testimonial-cms/web`               | **No aprobado: exit 1**, falla al crear red propia                             | ACK específico recibido; Docker no dispone de daemon. Cero servicios, migraciones o recorridos ejecutados. PostgreSQL/Redis y ocho escenarios de persistencia quedan pendientes para entorno disponible/CI. |
+| Formato de archivos afectados y `git diff --check`                                                  | Aprobados                                                                      | No se modifica esquema, migraciones, manifiestos, dependencias, infraestructura ni hooks. Sin staging ni commits automáticos.                                                                               |
+
+Comando API de seis suites ejecutadas:
+
+```sh
+npm test --workspace @testimonial-cms/api -- --runTestsByPath \
+  src/modules/testimonials/dto/admin-query.spec.ts \
+  src/modules/testimonials/repositories/admin-search.spec.ts \
+  src/modules/testimonials/repositories/testimonial-removal.spec.ts \
+  test/testimonials.service.spec.ts \
+  test/testimonial-content-validation.spec.ts \
+  test/testimonial-event-payload.spec.ts
+```
+
+**Red/Green:** fallos funcionales previos para filtros/validación, consultas de repositorio, transporte de búsqueda, invalidación de caché al borrar y limpieza/retención de relaciones; después, las suites seleccionadas pasan. Los fallos iniciales por módulo todavía ausente y por localizar un diálogo que Radix oculta mientras la confirmación está abierta no se cuentan como Red funcional. La prueba de retención ahora verifica el mensaje, cancela la confirmación y comprueba que el detalle reaparece intacto. No se redujeron assertions legítimas ni se desactivaron suites/gates para conseguir verde.
+
+**Omisiones:** integración PostgreSQL/Redis, seis E2E reales, build de producción, CI del SHA final y proveedores. No se acredita atomicidad real de una transacción con un mock. Evidencia local en `/tmp/frontend-phase3-*` y capturas sintéticas `/tmp/phase3-*`; no se versionan credenciales, cuerpos reales ni salidas sensibles.
+
+**Commit sugerido:** `feat(testimonials): agregá búsqueda global y revisión contextual`.
+
+**Estado:** fase 3 preparada para revisión y commit, pendiente de ACK; detenerse antes de fase 4.

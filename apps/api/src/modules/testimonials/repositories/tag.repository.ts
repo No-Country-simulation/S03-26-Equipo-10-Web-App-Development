@@ -2,24 +2,49 @@ import { NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TagView } from '../entities/tag.model';
-import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
+import { pageOffset } from '../../../common/pagination/admin-page';
+
+import type { CatalogQuery } from '../dto/admin-query';
+import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class TagRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: TagView[]; total: number }> {
-    const [rows, total] = await Promise.all([this.prisma.tag.findMany({
-      where: { tenantId },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-      skip: pageOffset(page), take: page.limit,
-    }), this.prisma.tag.count({ where: { tenantId } })]);
+  async findByTenant(
+    tenantId: string,
+    page: CatalogQuery = { page: 1, limit: 20 },
+  ): Promise<{ items: TagView[]; total: number }> {
+    const where: Prisma.TagWhereInput = {
+      tenantId,
+      ...(page.q && { name: { contains: page.q, mode: 'insensitive' } }),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.tag.findMany({
+        where,
+        include: {
+          _count: {
+            select: {
+              testimonials: { where: { tenantId, testimonial: { tenantId } } },
+            },
+          },
+        },
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        skip: pageOffset(page),
+        take: page.limit,
+      }),
+      this.prisma.tag.count({ where }),
+    ]);
 
-    return { items: rows.map(row => ({
-      id: row.id,
-      tenantId: row.tenantId,
-      name: row.name,
-    })), total };
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        tenantId: row.tenantId,
+        name: row.name,
+        testimonialCount: row._count.testimonials,
+      })),
+      total,
+    };
   }
 
   async findById(tenantId: string, id: string): Promise<TagView | null> {
@@ -65,11 +90,22 @@ export class TagRepository {
     await this.prisma.tag.delete({ where: { id, tenantId } });
   }
 
-  async attachToTestimonial(tenantId: string, testimonialId: string, tagId: string): Promise<void> {
-    await this.prisma.$transaction(async tx => {
-      const testimonial = await tx.testimonial.findFirst({ where: { id: testimonialId, tenantId }, select: { id: true } });
-      const tag = await tx.tag.findFirst({ where: { id: tagId, tenantId }, select: { id: true } });
-      if (!testimonial || !tag) throw new NotFoundError('Testimonial or tag not found');
+  async attachToTestimonial(
+    tenantId: string,
+    testimonialId: string,
+    tagId: string,
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const testimonial = await tx.testimonial.findFirst({
+        where: { id: testimonialId, tenantId },
+        select: { id: true },
+      });
+      const tag = await tx.tag.findFirst({
+        where: { id: tagId, tenantId },
+        select: { id: true },
+      });
+      if (!testimonial || !tag)
+        throw new NotFoundError('Testimonial or tag not found');
       await tx.testimonialTag.upsert({
         where: { testimonialId_tagId: { testimonialId, tagId } },
         update: {},
@@ -78,9 +114,18 @@ export class TagRepository {
     });
   }
 
-  async detachFromTestimonial(tenantId: string, testimonialId: string, tagId: string): Promise<void> {
+  async detachFromTestimonial(
+    tenantId: string,
+    testimonialId: string,
+    tagId: string,
+  ): Promise<void> {
     await this.prisma.testimonialTag.deleteMany({
-      where: { testimonialId, tagId, testimonial: { tenantId }, tag: { tenantId } },
+      where: {
+        testimonialId,
+        tagId,
+        testimonial: { tenantId },
+        tag: { tenantId },
+      },
     });
   }
 }

@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { TagRepository } from '../repositories/tag.repository';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CreateTagDto, UpdateTagDto } from '../dto/tag.dto';
-import type { AdminPage } from '../../../common/pagination/admin-page';
+import type { CatalogQuery } from '../dto/admin-query';
 
 @Injectable()
 export class TagsService {
@@ -12,7 +12,7 @@ export class TagsService {
     private readonly testimonialRepo: TestimonialRepository,
   ) {}
 
-  async list(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+  async list(tenantId: string, page: CatalogQuery = { page: 1, limit: 20 }) {
     const tags = await this.tagRepo.findByTenant(tenantId, page);
     return {
       items: tags.items,
@@ -44,7 +44,10 @@ export class TagsService {
   }
 
   async attach(tenantId: string, testimonialId: string, tagId: string) {
-    const testimonial = await this.testimonialRepo.findById(tenantId, testimonialId);
+    const testimonial = await this.testimonialRepo.findById(
+      tenantId,
+      testimonialId,
+    );
     if (!testimonial) throw new NotFoundError('Testimonial not found');
 
     const tag = await this.tagRepo.findById(tenantId, tagId);
@@ -54,7 +57,10 @@ export class TagsService {
   }
 
   async detach(tenantId: string, testimonialId: string, tagId: string) {
-    const testimonial = await this.testimonialRepo.findById(tenantId, testimonialId);
+    const testimonial = await this.testimonialRepo.findById(
+      tenantId,
+      testimonialId,
+    );
     if (!testimonial) throw new NotFoundError('Testimonial not found');
 
     const tag = await this.tagRepo.findById(tenantId, tagId);

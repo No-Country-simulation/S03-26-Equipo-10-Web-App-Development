@@ -460,3 +460,108 @@ it('protege las notas de rechazo y no las descarta al aprobar accidentalmente', 
     false,
   );
 });
+
+it('reserva eliminación al administrador o editor propietario y no borra al cancelar', async () => {
+  const onDeleted = vi.fn();
+  const view = render(
+    <TestimonialModal
+      testimonial={record}
+      open
+      onOpenChange={vi.fn()}
+      onUpdated={vi.fn()}
+      onDeleted={onDeleted}
+    />,
+  );
+  expect(
+    screen.queryByRole('button', { name: 'Eliminar testimonio' }),
+  ).not.toBeInTheDocument();
+  view.rerender(
+    <TestimonialModal
+      testimonial={{ ...record, createdById: identity.id }}
+      open
+      onOpenChange={vi.fn()}
+      onUpdated={vi.fn()}
+      onDeleted={onDeleted}
+    />,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Eliminar testimonio' }));
+  const dialog = screen.getByRole('alertdialog');
+  expect(dialog).toHaveTextContent('Cliente sintético');
+  expect(dialog).toHaveTextContent('no se puede deshacer');
+  await user.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+  expect(
+    fetchApi.mock.calls.some(([, init]) => init?.method === 'DELETE'),
+  ).toBe(false);
+  expect(onDeleted).not.toHaveBeenCalled();
+});
+it('bloquea navegación contextual con cambios pendientes y conserva el texto', async () => {
+  identity.roles = ['admin'];
+  const next = vi.fn();
+  render(
+    <TestimonialModal
+      testimonial={record}
+      open
+      onOpenChange={vi.fn()}
+      onUpdated={vi.fn()}
+      navigation={{
+        next,
+        previous: vi.fn(),
+        canNext: true,
+        canPrevious: true,
+        busy: false,
+        description: 'Resultado 1 de 2',
+        error: null,
+      }}
+    />,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: /Editar/ }));
+  const text = screen.getByLabelText('Contenido', { exact: true });
+  await user.type(text, ' con un cambio');
+  expect(
+    screen.getByRole('button', { name: 'Testimonio siguiente' }),
+  ).toBeDisabled();
+  expect(
+    screen.getByText(
+      'Guardá o descartá tus cambios antes de revisar otro testimonio.',
+    ),
+  ).toBeInTheDocument();
+  expect(text).toHaveValue(`${record.content} con un cambio`);
+  expect(next).not.toHaveBeenCalled();
+});
+
+it('explica la retención de actividad y conserva el detalle cuando se impide el borrado', async () => {
+  identity.roles = ['admin'];
+  fetchApi.mockRejectedValueOnce(
+    new ApiError('retained', 'TESTIMONIAL_HAS_ACTIVITY', 409),
+  );
+  const onDeleted = vi.fn();
+  render(
+    <TestimonialModal
+      testimonial={{ ...record, status: 'published' }}
+      open
+      onOpenChange={vi.fn()}
+      onUpdated={vi.fn()}
+      onDeleted={onDeleted}
+    />,
+  );
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'Eliminar testimonio' }));
+  await user.click(
+    screen.getByRole('button', { name: 'Eliminar definitivamente' }),
+  );
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    'tiene actividad registrada y no se puede eliminar',
+  );
+  expect(screen.getByRole('alert')).toHaveTextContent('podés ocultarlo');
+  await user.click(
+    within(screen.getByRole('alertdialog')).getByRole('button', {
+      name: 'Cancelar',
+    }),
+  );
+  expect(
+    screen.getByRole('dialog', { name: `Testimonio de ${record.authorName}` }),
+  ).toBeInTheDocument();
+  expect(onDeleted).not.toHaveBeenCalled();
+});

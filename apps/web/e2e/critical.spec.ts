@@ -145,11 +145,25 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   ).toBe(404);
   await login(page, tenant.account);
   await page.goto('/admin/testimonials');
+  await page
+    .getByLabel('Buscar por autor o contenido', { exact: true })
+    .fill(authorName);
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  await expect(page).toHaveURL(/q=Autor\+de\+recorrido/);
   const row = page.getByRole('row').filter({ hasText: authorName });
-  await expect(row).toContainText('pending');
+  await expect(row).toContainText('Pendiente de revisión');
   await row
     .getByRole('button', { name: 'Abrir Testimonio', exact: true })
     .click();
+  await expect(page).toHaveURL(new RegExp(`testimonial=${submitted.data.id}`));
+  await expect(
+    page.getByRole('dialog', { name: `Testimonio de ${authorName}` }),
+  ).toBeVisible();
+  // The detail must remain reachable through the URL after a full reload.
+  await page.reload();
+  await expect(
+    page.getByRole('dialog', { name: `Testimonio de ${authorName}` }),
+  ).toBeVisible();
   const approved = page.waitForResponse(
     (response) =>
       response.url().endsWith(`${submitted.data.id}/approve`) &&
@@ -158,7 +172,7 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   await page.getByRole('button', { name: 'Aprobar', exact: true }).click();
   expect((await approved).status()).toBe(201);
   await page.keyboard.press('Escape');
-  await expect(row).toContainText('approved');
+  await expect(row).toContainText('Aprobado');
   expect((await tenant.get(path, recordSchema)).status).toBe('approved');
   expect(
     await responseData(
@@ -181,7 +195,7 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
     .click();
   expect((await published).status()).toBe(201);
   await page.keyboard.press('Escape');
-  await expect(row).toContainText('published');
+  await expect(row).toContainText('Publicado');
   expect((await tenant.get(path, recordSchema)).status).toBe('published');
   // A new anonymous context proves public access independently of admin cookies.
   const anonymous = await page

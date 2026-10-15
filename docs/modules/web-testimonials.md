@@ -4,7 +4,7 @@
 
 ## Responsabilidad y superficies
 
-Admins y editores visualizan, crean y moderan testimonios de su espacio. La ruta activa `/admin/testimonials` compone `TestimonialsScreen`, una pantalla cliente con lista paginada y búsqueda/filtros locales sobre la página cargada. La búsqueda global, URL y detalle enlazable están pendientes de la fase 3 del [plan integral](../plan/2026-10-14_feat-mejoras-integrales-frontend.md).
+Admins y editores visualizan, crean y moderan testimonios de su espacio. La ruta activa `/admin/testimonials` compone `TestimonialsScreen`, una pantalla cliente con búsqueda y filtros globales en API, paginación y detalle enlazable. La fase 3 del [plan integral](../plan/2026-10-14_feat-mejoras-integrales-frontend.md) incorpora URL compartible, catálogos independientes, resumen global y eliminación confirmada.
 
 `CreateTestimonialModal` registra un borrador. `TestimonialModal` presenta detalle, edición, moderación y adjuntos, y también se usa desde Inicio (`features/overview`). Las rutas preparatorias de detalle y edición no son implementaciones alternativas activas. El widget embebible sigue pendiente y no pertenece a esta fase.
 
@@ -19,14 +19,14 @@ Admins y editores visualizan, crean y moderan testimonios de su espacio. La ruta
 
 ## Permisos de presentación
 
-| Operación                      | Admin   | Editor                                                   | Restricciones de estado                 |
-| ------------------------------ | ------- | -------------------------------------------------------- | --------------------------------------- |
-| Crear y moderar                | Sí      | Sí, incluso contenido ajeno                              | Sólo transiciones permitidas por la API |
-| Editar contenido/clasificación | Sí      | Sólo si `createdById` coincide con su ID                 | Nunca si está publicado                 |
-| Adjuntar imagen/video          | Sí      | Sí, sin restricción de propiedad en este endpoint actual | Nunca si está publicado                 |
-| Sin rol admin/editor           | Lectura | Lectura                                                  | No se muestran controles de mutación    |
+| Operación                      | Admin                 | Editor                                                   | Restricciones de estado                            |
+| ------------------------------ | --------------------- | -------------------------------------------------------- | -------------------------------------------------- |
+| Crear y moderar                | Sí                    | Sí, incluso contenido ajeno                              | Sólo transiciones permitidas por la API            |
+| Editar contenido/clasificación | Sí                    | Sólo si `createdById` coincide con su ID                 | Nunca si está publicado                            |
+| Adjuntar imagen/video          | Sí                    | Sí, sin restricción de propiedad en este endpoint actual | Nunca si está publicado                            |
+| Sin rol admin/editor           | Sin acceso autorizado | Sin acceso autorizado                                    | La API rechaza con 403; la UI no ofrece mutaciones |
 
-La eliminación y su presentación diferenciada se incorporan en fase 3; esta fase no añade controles de borrado.
+La fase 3 incorpora eliminación confirmada e identificada por autor: admin puede eliminar cualquiera; editor sólo propios, también publicados según el contrato vigente. Los envíos públicos (`createdById: null`) requieren admin para borrar. Se advierte sobre pérdida definitiva, asociaciones y retirada pública. Cancelar no invoca DELETE; mientras se procesa se bloquean operaciones/cierre. La respuesta debe confirmar el mismo ID y `deleted: true`. Por decisión humana del 2026-10-15 se conserva la actividad: un testimonio con eventos registrados no se borra; el conflicto explica que puede ocultarse si está publicado. No se borran eventos de analítica.
 
 ## Estados y consecuencias
 
@@ -63,3 +63,15 @@ Se conserva la identidad crema/terracota, esquinas rectas y serif editorial para
 - `pagination.test.ts`: envelope realista y `createdById` nullable.
 
 Son pruebas UI con transporte simulado. Los tests unitarios NestJS seleccionados verifican reglas existentes con repositorios simulados. La pasada de navegador usa respuestas sintéticas, sin aceptación de autenticación, PostgreSQL, Redis ni proveedores reales. Comandos/resultados y revisión visual se registran en el plan.
+
+## Consulta global y revisión contextual — fase 3
+
+La búsqueda se confirma con Buscar/Enter y consulta autor o contenido en **todo el espacio**. Estado, categoría, etiquetas AND, orden reciente/puntaje y página viajan en la URL. Cambiar filtros vuelve a página 1; Limpiar consulta quita todos los filtros. Los catálogos se consultan al desplegarlos, con búsqueda/páginas propias; sus conteos corresponden a asociaciones en todo el espacio. Cambiar de página del catálogo conserva las selecciones. La clasificación de un formulario sigue usando los endpoints globales paginados existentes.
+
+`/admin/testimonials?page=1&status=pending&testimonial=<uuid>` abre el detalle mediante GET autorizado aunque el recurso no esté en la página. Se rechazan identificadores, filtros o páginas inválidos antes de pedir recursos; hay recuperación explícita para 403/404 y fallas de lectura. El adaptador comprueba el ID de detalle y que la página/límite de respuesta coincidan con la solicitud. El resumen comprueba cantidades enteras no negativas y suma consistente.
+
+Anterior/siguiente recorren los resultados de la consulta, incluso sus páginas vecinas. Si el recurso quedó fuera de los filtros se indica y no se navega con una posición inventada. Durante cambios pendientes/operación se bloquea la navegación contextual. El detalle confirmado por una mutación prevalece aunque falle la recarga de la colección. Las respuestas de consultas obsoletas se descartan; no se cancela una escritura ya enviada. Tras borrar o filtrar el último resultado de una página se reemplaza la URL por una página válida conservando los filtros.
+
+Inicio consume `/testimonials/summary` y consulta por separado hasta seis recientes y hasta seis pendientes. Presenta primero la revisión, diferencia borradores y muestra los totales de todos los estados; no presenta la muestra reciente como total global. Los enlaces de revisión incorporan el contexto de consulta. El onboarding pertenece a fase 7.
+
+La protección de borradores cubre las acciones del modal y la navegación contextual; siguen siendo datos en memoria. No se garantiza persistencia ante recarga o navegación externa/browser back. La aceptación real con PostgreSQL/Redis y los seis E2E sigue pendiente: el harness autorizado el 2026-10-15 no pudo crear la red porque Docker no tenía daemon disponible. No se ejecutaron migraciones. Ver comandos/evidencia en el plan activo.

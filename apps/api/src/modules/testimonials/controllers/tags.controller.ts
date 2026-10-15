@@ -1,11 +1,21 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CreateTagDto, UpdateTagDto } from '../dto/tag.dto';
 import { TagsService } from '../services/tags.service';
-import { parseAdminPage } from '../../../common/pagination/admin-page';
+import { parseCatalogQuery } from '../dto/admin-query';
 
 @Controller('tags')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -14,23 +24,20 @@ export class TagsController {
   constructor(private readonly tagsService: TagsService) {}
 
   @Get()
-  list(@CurrentTenantId() tenantId: string, @Query() query: Record<string, unknown>) {
-    return this.tagsService.list(tenantId, parseAdminPage(query));
+  list(
+    @CurrentTenantId() tenantId: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.tagsService.list(tenantId, parseCatalogQuery(query));
   }
 
   @Get(':tag_id')
-  getOne(
-    @CurrentTenantId() tenantId: string,
-    @Param('tag_id') tagId: string,
-  ) {
+  getOne(@CurrentTenantId() tenantId: string, @Param('tag_id') tagId: string) {
     return this.tagsService.getTag(tenantId, tagId);
   }
 
   @Post()
-  create(
-    @CurrentTenantId() tenantId: string,
-    @Body() dto: CreateTagDto,
-  ) {
+  create(@CurrentTenantId() tenantId: string, @Body() dto: CreateTagDto) {
     return this.tagsService.create(tenantId, dto);
   }
 
@@ -44,10 +51,7 @@ export class TagsController {
   }
 
   @Delete(':tag_id')
-  remove(
-    @CurrentTenantId() tenantId: string,
-    @Param('tag_id') tagId: string,
-  ) {
+  remove(@CurrentTenantId() tenantId: string, @Param('tag_id') tagId: string) {
     return this.tagsService.remove(tenantId, tagId);
   }
 }

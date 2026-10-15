@@ -36,15 +36,38 @@ it('reconcilia inicio y detalle al moderar como editor, sin consultas administra
       status = 'approved';
       return { success: true, data: record() };
     }
+    if (path === '/testimonials/summary')
+      return {
+        success: true,
+        data: {
+          total: 41,
+          byStatus: {
+            draft: 10,
+            pending: status === 'pending' ? 30 : 29,
+            approved: status === 'approved' ? 1 : 0,
+            published: 1,
+            rejected: 0,
+          },
+        },
+      };
     if (path.startsWith('/testimonials?page='))
       return {
         success: true,
         data: [record()],
-        meta: { page: 1, limit: 20, total: 1 },
+        meta: { page: 1, limit: 6, total: 1 },
       };
     throw new Error('Unexpected administrative request');
   });
   render(<AdminOverviewPage />);
+  expect(
+    await screen.findByRole('heading', { name: '30 pendientes de revisión' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText('Total de testimonios').nextElementSibling,
+  ).toHaveTextContent('41');
+  expect(
+    screen.getByRole('link', { name: 'Preparar borradores (10)' }),
+  ).toHaveAttribute('href', '/admin/testimonials?status=draft');
   const user = userEvent.setup();
   await user.click(
     await screen.findByRole('button', { name: /Autor sintético/ }),

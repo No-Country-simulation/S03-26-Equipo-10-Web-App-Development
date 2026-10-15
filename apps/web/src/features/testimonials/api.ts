@@ -1,9 +1,13 @@
 import { z } from 'zod';
+import { ApiError } from '@/lib/api';
 import {
   sessionRequest,
+  deletedSchema,
   type SessionFetch,
 } from '@/lib/api/validated-response';
-import { pagePath, sessionPageRequest } from '@/features/shared/pagination';
+import { sessionPageRequest } from '@/features/shared/pagination';
+
+import { appendTestimonialFilters, type TestimonialFilters } from './query';
 
 export const testimonialSchema = z
   .object({
@@ -29,12 +33,60 @@ export const testimonialSchema = z
   })
   .passthrough();
 
-export const listTestimonials = (fetchApi: SessionFetch, page = 1) =>
-  sessionPageRequest(
+export const listTestimonials = async (
+  fetchApi: SessionFetch,
+  page = 1,
+  filters: TestimonialFilters = {},
+  limit = 20,
+) => {
+  const response = await sessionPageRequest(
     fetchApi,
-    pagePath('/testimonials', page),
+    `/testimonials?${appendTestimonialFilters(new URLSearchParams({ page: String(page), limit: String(limit) }), filters)}`,
     testimonialSchema,
   );
+  if (response.data.meta.page !== page || response.data.meta.limit !== limit) {
+    throw new ApiError(
+      'El servidor devolvió una página diferente a la solicitada.',
+      'INVALID_RESPONSE',
+    );
+  }
+  return response;
+};
+export const getTestimonial = (fetchApi: SessionFetch, id: string) => {
+  const validId = z.string().uuid().parse(id).toLowerCase();
+  return sessionRequest(
+    fetchApi,
+    `/testimonials/${validId}`,
+    testimonialSchema.refine((record) => record.id === validId),
+  );
+};
+export const deleteTestimonial = (fetchApi: SessionFetch, id: string) =>
+  sessionRequest(
+    fetchApi,
+    `/testimonials/${encodeURIComponent(id)}`,
+    deletedSchema.extend({ id: z.literal(id), deleted: z.literal(true) }),
+    { method: 'DELETE' },
+  );
+const count = z.number().int().nonnegative();
+export const testimonialSummarySchema = z
+  .object({
+    total: count,
+    byStatus: z.object({
+      draft: count,
+      pending: count,
+      approved: count,
+      published: count,
+      rejected: count,
+    }),
+  })
+  .refine(
+    (value) =>
+      Object.values(value.byStatus).reduce((sum, n) => sum + n, 0) ===
+      value.total,
+    'Inconsistent testimonial totals',
+  );
+export const getTestimonialSummary = (fetchApi: SessionFetch) =>
+  sessionRequest(fetchApi, '/testimonials/summary', testimonialSummarySchema);
 export type CreateTestimonialInput = {
   authorName: string;
   content: string;

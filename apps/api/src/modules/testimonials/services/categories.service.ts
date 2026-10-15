@@ -2,15 +2,13 @@ import { NotFoundError } from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
 import { CategoryRepository } from '../repositories/category.repository';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/category.dto';
-import type { AdminPage } from '../../../common/pagination/admin-page';
+import type { CatalogQuery } from '../dto/admin-query';
 
 @Injectable()
 export class CategoriesService {
-  constructor(
-    private readonly categoryRepo: CategoryRepository,
-  ) {}
+  constructor(private readonly categoryRepo: CategoryRepository) {}
 
-  async list(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+  async list(tenantId: string, page: CatalogQuery = { page: 1, limit: 20 }) {
     const categories = await this.categoryRepo.findByTenant(tenantId, page);
     return {
       items: categories.items,

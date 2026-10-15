@@ -7,18 +7,37 @@ import {
 import { pagePath, sessionPageRequest } from '@/features/shared/pagination';
 
 export const categorySchema = z
-  .object({ id: z.string(), name: z.string(), tenantId: z.string() })
+  .object({
+    id: z.string(),
+    name: z.string(),
+    tenantId: z.string(),
+    testimonialCount: z.number().int().nonnegative().optional(),
+  })
   .passthrough();
 export const tagSchema = categorySchema;
 
-export const listCategories = (fetchApi: SessionFetch, page = 1, limit = 20) =>
+export const listCategories = (
+  fetchApi: SessionFetch,
+  page = 1,
+  limit = 20,
+  q = '',
+) =>
   sessionPageRequest(
     fetchApi,
-    pagePath('/categories', page, limit),
+    `${pagePath('/categories', page, limit)}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}`,
     categorySchema,
   );
-export const listTags = (fetchApi: SessionFetch, page = 1, limit = 20) =>
-  sessionPageRequest(fetchApi, pagePath('/tags', page, limit), tagSchema);
+export const listTags = (
+  fetchApi: SessionFetch,
+  page = 1,
+  limit = 20,
+  q = '',
+) =>
+  sessionPageRequest(
+    fetchApi,
+    `${pagePath('/tags', page, limit)}${q.trim() ? `&q=${encodeURIComponent(q.trim())}` : ''}`,
+    tagSchema,
+  );
 export const createCategory = (fetchApi: SessionFetch, name: string) =>
   sessionRequest(fetchApi, '/categories', categorySchema, {
     method: 'POST',

@@ -1,10 +1,20 @@
-import { ConflictError, InternalError, NotFoundError } from '../../../common/errors/application.error';
+import {
+  ApplicationError,
+  ConflictError,
+  InternalError,
+  NotFoundError,
+} from '../../../common/errors/application.error';
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { enqueueWebhookEvent } from '../../webhooks';
-import { TestimonialStatus, TestimonialView } from '../entities/testimonial.model';
-import { pageOffset, type AdminPage } from '../../../common/pagination/admin-page';
+import {
+  TestimonialStatus,
+  TestimonialView,
+} from '../entities/testimonial.model';
+import { pageOffset } from '../../../common/pagination/admin-page';
+
+import type { TestimonialQuery } from '../dto/admin-query';
 
 export interface PublishedFilters {
   q?: string;
@@ -45,13 +55,17 @@ const testimonialInclude = {
 export class TestimonialRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findById(tenantId: string, id: string, client: Prisma.TransactionClient | PrismaService = this.prisma): Promise<TestimonialView | null> {
+  async findById(
+    tenantId: string,
+    id: string,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<TestimonialView | null> {
     const row = await client.testimonial.findFirst({
       where: { id, tenantId },
-      include: { 
+      include: {
         status: true,
         category: true,
-        tags: { include: { tag: true } }
+        tags: { include: { tag: true } },
       },
     });
 
@@ -59,11 +73,18 @@ export class TestimonialRepository {
   }
 
   async createWithEvent(
-    data: CreateData, status: 'draft' | 'pending', event: EventFactory,
+    data: CreateData,
+    status: 'draft' | 'pending',
+    event: EventFactory,
     client?: Prisma.TransactionClient,
   ): Promise<TestimonialView> {
     const write = async (tx: Prisma.TransactionClient) => {
-      await this.assertReferencesBelongToTenant(tx, data.tenantId, data.categoryId, data.tagIds);
+      await this.assertReferencesBelongToTenant(
+        tx,
+        data.tenantId,
+        data.categoryId,
+        data.tagIds,
+      );
       const statusId = await this.resolveStatusId(status, tx);
       const created = await tx.testimonial.create({
         data: {
@@ -76,7 +97,12 @@ export class TestimonialRepository {
           score: 0,
           categoryId: data.categoryId ?? null,
           ...(data.tagIds !== undefined && {
-            tags: { create: data.tagIds.map(tagId => ({ tenantId: data.tenantId, tagId })) },
+            tags: {
+              create: data.tagIds.map((tagId) => ({
+                tenantId: data.tenantId,
+                tagId,
+              })),
+            },
           }),
         },
         include: testimonialInclude,
@@ -85,7 +111,10 @@ export class TestimonialRepository {
       await enqueueWebhookEvent(tx, {
         tenantId: data.tenantId,
         eventType: event.eventType,
-        payload: this.toJsonPayload(event.payload(view)) as Record<string, unknown>,
+        payload: this.toJsonPayload(event.payload(view)) as Record<
+          string,
+          unknown
+        >,
       });
       return view;
     };
@@ -104,29 +133,38 @@ export class TestimonialRepository {
     },
     expectedStatus: TestimonialStatus,
   ): Promise<TestimonialView> {
-    await this.assertReferencesBelongToTenant(this.prisma, tenantId, data.categoryId, data.tagIds);
+    await this.assertReferencesBelongToTenant(
+      this.prisma,
+      tenantId,
+      data.categoryId,
+      data.tagIds,
+    );
     const expectedStatusId = await this.resolveStatusId(expectedStatus);
-    const updated = await this.prisma.testimonial.update({
-      where: { id, tenantId, statusId: expectedStatusId },
-      data: {
-        ...(data.authorName !== undefined && { authorName: data.authorName }),
-        ...(data.content !== undefined && { content: data.content }),
-        ...(data.rating !== undefined && { rating: data.rating }),
-        ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
-        ...(data.tagIds !== undefined && {
-          tags: {
-            deleteMany: {},
-            create: data.tagIds.map(tagId => ({ tenantId, tagId }))
-          }
-        }),
-        updatedAt: new Date(),
-      },
-      include: { 
-        status: true,
-        category: true,
-        tags: { include: { tag: true } }
-      },
-    }).catch(error => this.rethrowConditionalWriteConflict(error, tenantId, id));
+    const updated = await this.prisma.testimonial
+      .update({
+        where: { id, tenantId, statusId: expectedStatusId },
+        data: {
+          ...(data.authorName !== undefined && { authorName: data.authorName }),
+          ...(data.content !== undefined && { content: data.content }),
+          ...(data.rating !== undefined && { rating: data.rating }),
+          ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
+          ...(data.tagIds !== undefined && {
+            tags: {
+              deleteMany: {},
+              create: data.tagIds.map((tagId) => ({ tenantId, tagId })),
+            },
+          }),
+          updatedAt: new Date(),
+        },
+        include: {
+          status: true,
+          category: true,
+          tags: { include: { tag: true } },
+        },
+      })
+      .catch((error) =>
+        this.rethrowConditionalWriteConflict(error, tenantId, id),
+      );
 
     return this.toView(updated);
   }
@@ -148,14 +186,23 @@ export class TestimonialRepository {
         data: {
           statusId,
           updatedAt: new Date(),
-          ...(extra?.moderationNotes !== undefined && { moderationNotes: extra.moderationNotes }),
-          ...(extra?.publishedAt !== undefined && { publishedAt: extra.publishedAt }),
+          ...(extra?.moderationNotes !== undefined && {
+            moderationNotes: extra.moderationNotes,
+          }),
+          ...(extra?.publishedAt !== undefined && {
+            publishedAt: extra.publishedAt,
+          }),
         },
       });
       if (updated.count !== 1) {
-        const existing = await tx.testimonial.findFirst({ where: { id, tenantId }, select: { id: true } });
+        const existing = await tx.testimonial.findFirst({
+          where: { id, tenantId },
+          select: { id: true },
+        });
         if (!existing) throw new NotFoundError('Testimonial not found');
-        throw new ConflictError('Testimonial status changed before this transition');
+        throw new ConflictError(
+          'Testimonial status changed before this transition',
+        );
       }
       const row = await tx.testimonial.findFirstOrThrow({
         where: { id, tenantId, statusId },
@@ -166,7 +213,10 @@ export class TestimonialRepository {
         await enqueueWebhookEvent(tx, {
           tenantId,
           eventType: event.eventType,
-          payload: this.toJsonPayload(event.payload(view)) as Record<string, unknown>,
+          payload: this.toJsonPayload(event.payload(view)) as Record<
+            string,
+            unknown
+          >,
         });
       }
       return view;
@@ -186,39 +236,121 @@ export class TestimonialRepository {
     },
   ): Promise<TestimonialView> {
     const expectedStatusId = await this.resolveStatusId(expectedStatus);
-    const updated = await this.prisma.testimonial.update({
-      where: { id, tenantId, statusId: expectedStatusId },
-      data: {
-        ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
-        ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),
-        ...(data.videoTitle !== undefined && { videoTitle: data.videoTitle }),
-        ...(data.videoThumbnailUrl !== undefined && { videoThumbnailUrl: data.videoThumbnailUrl }),
-        updatedAt: new Date(),
-      },
-      include: { status: true },
-    }).catch(error => this.rethrowConditionalWriteConflict(error, tenantId, id));
+    const updated = await this.prisma.testimonial
+      .update({
+        where: { id, tenantId, statusId: expectedStatusId },
+        data: {
+          ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
+          ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),
+          ...(data.videoTitle !== undefined && { videoTitle: data.videoTitle }),
+          ...(data.videoThumbnailUrl !== undefined && {
+            videoThumbnailUrl: data.videoThumbnailUrl,
+          }),
+          updatedAt: new Date(),
+        },
+        include: { status: true },
+      })
+      .catch((error) =>
+        this.rethrowConditionalWriteConflict(error, tenantId, id),
+      );
 
     return this.toView(updated);
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
-    const deleted = await this.prisma.testimonial.deleteMany({ where: { id, tenantId } });
-    if (deleted.count !== 1) throw new NotFoundError('Testimonial not found');
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const activity = await tx.analyticsEvent.count({
+          where: { tenantId, testimonialId: id },
+        });
+        if (activity > 0)
+          throw new ApplicationError(
+            'Testimonial activity must be retained',
+            'conflict',
+            'TESTIMONIAL_HAS_ACTIVITY',
+          );
+        await tx.testimonialTag.deleteMany({
+          where: { tenantId, testimonialId: id },
+        });
+        const deleted = await tx.testimonial.deleteMany({
+          where: { id, tenantId },
+        });
+        if (deleted.count !== 1)
+          throw new NotFoundError('Testimonial not found');
+      });
+    } catch (error) {
+      // FK constraints remain authoritative if a new association wins a race.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictError(
+          'Testimonial associations changed; refresh before deleting',
+        );
+      }
+      throw error;
+    }
   }
 
-  async findByTenant(tenantId: string, page: AdminPage = { page: 1, limit: 20 }): Promise<{ items: TestimonialView[]; total: number }> {
-    const [rows, total] = await Promise.all([this.prisma.testimonial.findMany({
-      where: { tenantId },
-      include: { 
-        status: true,
-        category: true,
-        tags: { include: { tag: true } }
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      skip: pageOffset(page), take: page.limit,
-    }), this.prisma.testimonial.count({ where: { tenantId } })]);
+  async findByTenant(
+    tenantId: string,
+    page: TestimonialQuery = { page: 1, limit: 20 },
+  ): Promise<{ items: TestimonialView[]; total: number }> {
+    const where: Prisma.TestimonialWhereInput = {
+      tenantId,
+      ...(page.q && {
+        OR: [
+          { authorName: { contains: page.q, mode: 'insensitive' } },
+          { content: { contains: page.q, mode: 'insensitive' } },
+        ],
+      }),
+      ...(page.status && { status: { code: page.status } }),
+      ...(page.categoryId && { categoryId: page.categoryId }),
+      ...(page.tagIds?.length && {
+        AND: page.tagIds.map((tagId) => ({
+          tags: { some: { tenantId, tagId } },
+        })),
+      }),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.testimonial.findMany({
+        where,
+        include: testimonialInclude,
+        orderBy:
+          page.sort === 'score:desc'
+            ? [{ score: 'desc' }, { id: 'desc' }]
+            : [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: pageOffset(page),
+        take: page.limit,
+      }),
+      this.prisma.testimonial.count({ where }),
+    ]);
+    return { items: rows.map((row) => this.toView(row)), total };
+  }
 
-    return { items: rows.map(row => this.toView(row)), total };
+  async summarize(tenantId: string) {
+    // Status is a global dictionary; only the associated tenant resources count.
+    const rows = await this.prisma.testimonialStatus.findMany({
+      select: {
+        code: true,
+        _count: { select: { testimonials: { where: { tenantId } } } },
+      },
+    });
+    const byStatus = {
+      draft: 0,
+      pending: 0,
+      approved: 0,
+      published: 0,
+      rejected: 0,
+    };
+    for (const row of rows) {
+      if (Object.hasOwn(byStatus, row.code))
+        byStatus[row.code as TestimonialStatus] = row._count.testimonials;
+    }
+    return {
+      total: Object.values(byStatus).reduce((sum, count) => sum + count, 0),
+      byStatus,
+    };
   }
 
   async findPublished(
@@ -246,10 +378,10 @@ export class TestimonialRepository {
     const [rows, total] = await Promise.all([
       this.prisma.testimonial.findMany({
         where,
-        include: { 
+        include: {
           status: true,
           category: true,
-          tags: { include: { tag: true } }
+          tags: { include: { tag: true } },
         },
         orderBy:
           filters.sort === 'publishedAt:desc'
@@ -262,7 +394,7 @@ export class TestimonialRepository {
     ]);
 
     return {
-      items: rows.map(row => this.toView(row)),
+      items: rows.map((row) => this.toView(row)),
       total,
     };
   }
@@ -274,10 +406,10 @@ export class TestimonialRepository {
     const publishedStatusId = await this.resolveStatusId('published');
     const row = await this.prisma.testimonial.findFirst({
       where: { id, tenantId, statusId: publishedStatusId },
-      include: { 
+      include: {
         status: true,
         category: true,
-        tags: { include: { tag: true } }
+        tags: { include: { tag: true } },
       },
     });
 
@@ -286,13 +418,21 @@ export class TestimonialRepository {
 
   /** System worker discovery; resource operations below always receive the tenant. */
   async findScoringTenantIds(): Promise<string[]> {
-    const tenants = await this.prisma.tenant.findMany({ where: {
-      tenantFeatureFlags: { some: { featureFlag: { name: 'enable_scoring' }, enabled: true } },
-    }, select: { id: true }, orderBy: { id: 'asc' } });
-    return tenants.map(tenant => tenant.id);
+    const tenants = await this.prisma.tenant.findMany({
+      where: {
+        tenantFeatureFlags: {
+          some: { featureFlag: { name: 'enable_scoring' }, enabled: true },
+        },
+      },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    return tenants.map((tenant) => tenant.id);
   }
 
-  async findPublishedForScoring(tenantId: string): Promise<Array<{ id: string; rating: number; publishedAt: Date | null }>> {
+  async findPublishedForScoring(
+    tenantId: string,
+  ): Promise<Array<{ id: string; rating: number; publishedAt: Date | null }>> {
     const publishedStatusId = await this.resolveStatusId('published');
     return this.prisma.testimonial.findMany({
       where: {
@@ -311,28 +451,47 @@ export class TestimonialRepository {
     });
   }
 
-  async updateScores(tenantId: string, updates: { id: string; score: number }[]): Promise<void> {
+  async updateScores(
+    tenantId: string,
+    updates: { id: string; score: number }[],
+  ): Promise<void> {
     if (updates.length === 0) return;
 
     // Use withRetry to handle transient deadlocks during batch score updates (R-1)
     await this.prisma.withRetry(async (tx) => {
       for (const { id, score } of updates) {
         await tx.testimonial.updateMany({
-          where: { id, tenantId, status: { code: 'published' },
-            tenant: { tenantFeatureFlags: { some: { featureFlag: { name: 'enable_scoring' }, enabled: true } } } },
+          where: {
+            id,
+            tenantId,
+            status: { code: 'published' },
+            tenant: {
+              tenantFeatureFlags: {
+                some: {
+                  featureFlag: { name: 'enable_scoring' },
+                  enabled: true,
+                },
+              },
+            },
+          },
           data: { score },
         });
       }
     });
   }
 
-  private toJsonPayload(payload: Record<string, unknown>): Prisma.InputJsonValue {
+  private toJsonPayload(
+    payload: Record<string, unknown>,
+  ): Prisma.InputJsonValue {
     // Un payload no JSON (por ejemplo BigInt) debe abortar la misma transacción
     // que escribe el testimonio: nunca confirmar el dato sin evento durable.
     return JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue;
   }
 
-  private async resolveStatusId(code: TestimonialStatus, client: Prisma.TransactionClient | PrismaService = this.prisma): Promise<number> {
+  private async resolveStatusId(
+    code: TestimonialStatus,
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
+  ): Promise<number> {
     const status = await client.testimonialStatus.findUnique({
       where: { code },
     });
@@ -349,19 +508,34 @@ export class TestimonialRepository {
     tagIds?: string[],
   ): Promise<void> {
     if (categoryId) {
-      const category = await client.category.findFirst({ where: { id: categoryId, tenantId }, select: { id: true } });
+      const category = await client.category.findFirst({
+        where: { id: categoryId, tenantId },
+        select: { id: true },
+      });
       if (!category) throw new NotFoundError('Category not found');
     }
     if (tagIds) {
       const uniqueIds = [...new Set(tagIds)];
-      const count = await client.tag.count({ where: { id: { in: uniqueIds }, tenantId } });
+      const count = await client.tag.count({
+        where: { id: { in: uniqueIds }, tenantId },
+      });
       if (count !== uniqueIds.length) throw new NotFoundError('Tag not found');
     }
   }
 
-  private async rethrowConditionalWriteConflict(error: unknown, tenantId: string, id: string): Promise<never> {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      const existing = await this.prisma.testimonial.findFirst({ where: { id, tenantId }, select: { id: true } });
+  private async rethrowConditionalWriteConflict(
+    error: unknown,
+    tenantId: string,
+    id: string,
+  ): Promise<never> {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
+      const existing = await this.prisma.testimonial.findFirst({
+        where: { id, tenantId },
+        select: { id: true },
+      });
       if (!existing) throw new NotFoundError('Testimonial not found');
       throw new ConflictError('Testimonial changed before this update');
     }
@@ -399,8 +573,12 @@ export class TestimonialRepository {
       status: row.status.code as TestimonialStatus,
       score: Number(row.score),
       categoryId: row.categoryId,
-      category: row.category ? { id: row.category.id, name: row.category.name } : null,
-      tags: row.tags ? row.tags.map(t => ({ id: t.tag.id, name: t.tag.name })) : [],
+      category: row.category
+        ? { id: row.category.id, name: row.category.name }
+        : null,
+      tags: row.tags
+        ? row.tags.map((t) => ({ id: t.tag.id, name: t.tag.name }))
+        : [],
       moderationNotes: row.moderationNotes,
       imageUrl: row.imageUrl,
       videoUrl: row.videoUrl,

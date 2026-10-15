@@ -39,6 +39,8 @@ export function loadFailureCopy(
 
 export function actionFailureCopy(error: unknown, action: string) {
   if (error instanceof ApiError) {
+    if (error.code === 'TESTIMONIAL_HAS_ACTIVITY')
+      return 'Este testimonio tiene actividad registrada y no se puede eliminar. Si está publicado, podés ocultarlo para retirarlo de la galería.';
     if (error.status === 403)
       return 'No tenés permiso para realizar esta acción.';
     if (error.status === 404)

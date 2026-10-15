@@ -1,11 +1,21 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentTenantId } from '../../../common/decorators/current-tenant.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/category.dto';
 import { CategoriesService } from '../services/categories.service';
-import { parseAdminPage } from '../../../common/pagination/admin-page';
+import { parseCatalogQuery } from '../dto/admin-query';
 
 @Controller('categories')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -14,8 +24,11 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Get()
-  list(@CurrentTenantId() tenantId: string, @Query() query: Record<string, unknown>) {
-    return this.categoriesService.list(tenantId, parseAdminPage(query));
+  list(
+    @CurrentTenantId() tenantId: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.categoriesService.list(tenantId, parseCatalogQuery(query));
   }
 
   @Get(':category_id')
@@ -27,10 +40,7 @@ export class CategoriesController {
   }
 
   @Post()
-  create(
-    @CurrentTenantId() tenantId: string,
-    @Body() dto: CreateCategoryDto,
-  ) {
+  create(@CurrentTenantId() tenantId: string, @Body() dto: CreateCategoryDto) {
     return this.categoriesService.create(tenantId, dto);
   }
 

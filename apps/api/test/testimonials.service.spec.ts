@@ -1,7 +1,14 @@
-import { ConflictError, ForbiddenError, NotFoundError } from '../src/common/errors/application.error';
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '../src/common/errors/application.error';
 
 import { TestimonialsService } from '../src/modules/testimonials/services/testimonials.service';
-import { VALID_TRANSITIONS, TestimonialView } from '../src/modules/testimonials/entities/testimonial.model';
+import {
+  VALID_TRANSITIONS,
+  TestimonialView,
+} from '../src/modules/testimonials/entities/testimonial.model';
 import { TransitionTestimonialUseCase } from '../src/modules/testimonials/use-cases/transition-testimonial.use-case';
 import { CreateTestimonialUseCase } from '../src/modules/testimonials/use-cases/create-testimonial.use-case';
 
@@ -16,7 +23,9 @@ describe('VALID_TRANSITIONS', () => {
 });
 
 describe('TestimonialsService', () => {
-  const makeView = (overrides: Partial<TestimonialView> = {}): TestimonialView => ({
+  const makeView = (
+    overrides: Partial<TestimonialView> = {},
+  ): TestimonialView => ({
     id: 'test-1',
     tenantId: 'tenant-1',
     createdById: 'user-1',
@@ -72,11 +81,28 @@ describe('TestimonialsService', () => {
   const mockCacheService = {
     get: jest.fn().mockReturnValue(null),
     set: jest.fn(),
-    getOrSetPublic: jest.fn().mockImplementation((_tenant: string, _key: string, factory: () => Promise<unknown>) => factory()),
+    getOrSetPublic: jest
+      .fn()
+      .mockImplementation(
+        (_tenant: string, _key: string, factory: () => Promise<unknown>) =>
+          factory(),
+      ),
     invalidate: jest.fn(),
     invalidateTenantPublic: jest.fn().mockResolvedValue(undefined),
     clear: jest.fn(),
   };
+
+  it('invalidates the public tenant cache after deleting published content', async () => {
+    mockRepo.findById.mockResolvedValue(makeView({ status: 'published' }));
+    await service.removeTestimonial('tenant-1', 'test-1', {
+      userId: 'admin',
+      roles: ['admin'],
+    });
+    expect(mockRepo.remove).toHaveBeenCalledWith('tenant-1', 'test-1');
+    expect(mockCacheService.invalidateTenantPublic).toHaveBeenCalledWith(
+      'tenant-1',
+    );
+  });
 
   let service: TestimonialsService;
 
@@ -90,18 +116,37 @@ describe('TestimonialsService', () => {
       mockCloudinaryService as any,
       mockYoutubeService as any,
       mockCacheService as any,
-      new TransitionTestimonialUseCase(mockRepo as any, mockCacheService as any),
+      new TransitionTestimonialUseCase(
+        mockRepo as any,
+        mockCacheService as any,
+      ),
       new CreateTestimonialUseCase(mockRepo as any, mockCategoryRepo as any),
     );
   });
 
   it('exposes only company name, form state and nullable logo in the public form', async () => {
-    mockTenantsService.getTenantByPublicSlug.mockResolvedValueOnce({ name: 'Synthetic', isPublicFormEnabled: true,
-      logoUrl: 'https://res.cloudinary.com/demo/image/upload/logo.png', logoPublicId: 'private', logoRevision: 1n });
-    await expect(service.getPublicFormInfo('synthetic')).resolves.toEqual({ name: 'Synthetic', isPublicFormEnabled: true,
-      logoUrl: 'https://res.cloudinary.com/demo/image/upload/logo.png' });
-    mockTenantsService.getTenantByPublicSlug.mockResolvedValueOnce({ name: 'Synthetic', isPublicFormEnabled: false, logoUrl: null });
-    await expect(service.getPublicFormInfo('synthetic')).resolves.toEqual({ name: 'Synthetic', isPublicFormEnabled: false, logoUrl: null });
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValueOnce({
+      name: 'Synthetic',
+      isPublicFormEnabled: true,
+      logoUrl: 'https://res.cloudinary.com/demo/image/upload/logo.png',
+      logoPublicId: 'private',
+      logoRevision: 1n,
+    });
+    await expect(service.getPublicFormInfo('synthetic')).resolves.toEqual({
+      name: 'Synthetic',
+      isPublicFormEnabled: true,
+      logoUrl: 'https://res.cloudinary.com/demo/image/upload/logo.png',
+    });
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValueOnce({
+      name: 'Synthetic',
+      isPublicFormEnabled: false,
+      logoUrl: null,
+    });
+    await expect(service.getPublicFormInfo('synthetic')).resolves.toEqual({
+      name: 'Synthetic',
+      isPublicFormEnabled: false,
+      logoUrl: null,
+    });
   });
 
   it('creates a draft testimonial', async () => {
@@ -116,24 +161,38 @@ describe('TestimonialsService', () => {
 
     expect(result.status).toBe('draft');
     expect(result.score).toBe(0);
-    expect(mockRepo.createWithEvent).toHaveBeenCalledWith(expect.objectContaining({
-      tenantId: 'tenant-1',
-      createdById: 'user-1',
-      rating: 5,
-    }), 'draft', expect.objectContaining({ eventType: 'testimonial.created' }), undefined);
+    expect(mockRepo.createWithEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        createdById: 'user-1',
+        rating: 5,
+      }),
+      'draft',
+      expect.objectContaining({ eventType: 'testimonial.created' }),
+      undefined,
+    );
   });
 
   it('creates public submissions directly as pending', async () => {
     const pending = makeView({ status: 'pending', createdById: null });
-    mockTenantsService.getTenantByPublicSlug.mockResolvedValue({ id: 'tenant-1', isPublicFormEnabled: true });
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValue({
+      id: 'tenant-1',
+      isPublicFormEnabled: true,
+    });
     mockRepo.createWithEvent.mockResolvedValue(pending);
     mockRepo.findById.mockResolvedValue(pending);
 
     const result = await service.submitPublicTestimonial('acme', {
-      authorName: 'John', content: 'Great product, highly recommend it!', rating: 5,
+      authorName: 'John',
+      content: 'Great product, highly recommend it!',
+      rating: 5,
     });
 
-    expect(result).toEqual({ id: pending.id, status: 'success', failedMedia: [] });
+    expect(result).toEqual({
+      id: pending.id,
+      status: 'success',
+      failedMedia: [],
+    });
     expect(mockRepo.createWithEvent).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1', createdById: null }),
       'pending',
@@ -146,106 +205,187 @@ describe('TestimonialsService', () => {
     { failed: ['image'] as const, expected: ['image'] },
     { failed: ['video'] as const, expected: ['video'] },
     { failed: ['image', 'video'] as const, expected: ['image', 'video'] },
-  ])('confirms persisted text when $failed media fails', async ({ failed, expected }) => {
-    const pending = makeView({ status: 'pending', createdById: null });
-    mockTenantsService.getTenantByPublicSlug.mockResolvedValue({ id: 'tenant-1', isPublicFormEnabled: true });
-    mockRepo.createWithEvent.mockResolvedValue(pending);
-    const failures = new Set<string>(failed);
-    const image = jest.spyOn(service, 'uploadImage').mockImplementation(async () => {
-      if (failures.has('image')) throw new Error('upstream image failure');
-      return pending;
-    });
-    const video = jest.spyOn(service, 'attachVideo').mockImplementation(async () => {
-      if (failures.has('video')) throw new Error('upstream video failure');
-      return pending;
-    });
+  ])(
+    'confirms persisted text when $failed media fails',
+    async ({ failed, expected }) => {
+      const pending = makeView({ status: 'pending', createdById: null });
+      mockTenantsService.getTenantByPublicSlug.mockResolvedValue({
+        id: 'tenant-1',
+        isPublicFormEnabled: true,
+      });
+      mockRepo.createWithEvent.mockResolvedValue(pending);
+      const failures = new Set<string>(failed);
+      const image = jest
+        .spyOn(service, 'uploadImage')
+        .mockImplementation(async () => {
+          if (failures.has('image')) throw new Error('upstream image failure');
+          return pending;
+        });
+      const video = jest
+        .spyOn(service, 'attachVideo')
+        .mockImplementation(async () => {
+          if (failures.has('video')) throw new Error('upstream video failure');
+          return pending;
+        });
 
-    const result = await service.submitPublicTestimonial('acme', {
-      authorName: 'John', content: 'Great product, highly recommend it!', rating: 5,
-      imageBase64: Buffer.from('image').toString('base64'),
-      videoUrl: 'https://youtu.be/dQw4w9WgXcQ',
-    });
+      const result = await service.submitPublicTestimonial('acme', {
+        authorName: 'John',
+        content: 'Great product, highly recommend it!',
+        rating: 5,
+        imageBase64: Buffer.from('image').toString('base64'),
+        videoUrl: 'https://youtu.be/dQw4w9WgXcQ',
+      });
 
-    expect(result).toEqual({ id: pending.id, status: 'partial', failedMedia: expected });
-    expect(mockRepo.createWithEvent).toHaveBeenCalledTimes(1);
-    expect(image).toHaveBeenCalledTimes(1);
-    expect(video).toHaveBeenCalledTimes(1);
-    image.mockRestore();
-    video.mockRestore();
-  });
+      expect(result).toEqual({
+        id: pending.id,
+        status: 'partial',
+        failedMedia: expected,
+      });
+      expect(mockRepo.createWithEvent).toHaveBeenCalledTimes(1);
+      expect(image).toHaveBeenCalledTimes(1);
+      expect(video).toHaveBeenCalledTimes(1);
+      image.mockRestore();
+      video.mockRestore();
+    },
+  );
 
   it.each([
     { videoUrl: 'https://example.com/video' },
     { videoUrl: 'https://example.com/youtube.com/watch?v=dQw4w9WgXcQ' },
     { imageBase64: 'not base64!' },
-  ])('rejects invalid media before persisting the public submission', async media => {
-    await expect(service.submitPublicTestimonial('acme', {
-      authorName: 'John', content: 'Great product, highly recommend it!', rating: 5,
-      ...media,
-    })).rejects.toMatchObject({ kind: 'invalid_input' });
-    expect(mockRepo.createWithEvent).not.toHaveBeenCalled();
-  });
+  ])(
+    'rejects invalid media before persisting the public submission',
+    async (media) => {
+      await expect(
+        service.submitPublicTestimonial('acme', {
+          authorName: 'John',
+          content: 'Great product, highly recommend it!',
+          rating: 5,
+          ...media,
+        }),
+      ).rejects.toMatchObject({ kind: 'invalid_input' });
+      expect(mockRepo.createWithEvent).not.toHaveBeenCalled();
+    },
+  );
 
   it('stores a canonical YouTube URL for an existing testimonial', async () => {
     const pending = makeView({ status: 'pending' });
     mockRepo.findById.mockResolvedValue(pending);
     mockRepo.updateMedia.mockResolvedValue(pending);
     mockYoutubeService.getVideoMetadata.mockResolvedValue({
-      title: 'Video title', thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg', duration: 'PT1M',
+      title: 'Video title',
+      thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+      duration: 'PT1M',
     });
 
-    await service.attachVideo('tenant-1', pending.id, 'https://youtu.be/dQw4w9WgXcQ?t=4');
+    await service.attachVideo(
+      'tenant-1',
+      pending.id,
+      'https://youtu.be/dQw4w9WgXcQ?t=4',
+    );
 
     const canonicalUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-    expect(mockYoutubeService.getVideoMetadata).toHaveBeenCalledWith(canonicalUrl);
-    expect(mockRepo.updateMedia).toHaveBeenCalledWith('tenant-1', pending.id, 'pending',
-      expect.objectContaining({ videoUrl: canonicalUrl }));
+    expect(mockYoutubeService.getVideoMetadata).toHaveBeenCalledWith(
+      canonicalUrl,
+    );
+    expect(mockRepo.updateMedia).toHaveBeenCalledWith(
+      'tenant-1',
+      pending.id,
+      'pending',
+      expect.objectContaining({ videoUrl: canonicalUrl }),
+    );
   });
 
   it('follows the correct state machine: draft → pending → approved → published', async () => {
     const draft = makeView({ status: 'draft' });
     const pending = makeView({ status: 'pending' });
     const approved = makeView({ status: 'approved' });
-    const published = makeView({ status: 'published', publishedAt: new Date() });
+    const published = makeView({
+      status: 'published',
+      publishedAt: new Date(),
+    });
 
     mockRepo.findById.mockResolvedValueOnce(draft);
     mockRepo.updateStatus.mockResolvedValueOnce(pending);
     const submitResult = await service.submitTestimonial('tenant-1', 'test-1');
     expect(submitResult.status).toBe('pending');
-    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'draft', 'pending');
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith(
+      'tenant-1',
+      'test-1',
+      'draft',
+      'pending',
+    );
 
     mockRepo.findById.mockResolvedValueOnce(pending);
     mockRepo.updateStatus.mockResolvedValueOnce(approved);
-    const approveResult = await service.approveTestimonial('tenant-1', 'test-1');
+    const approveResult = await service.approveTestimonial(
+      'tenant-1',
+      'test-1',
+    );
     expect(approveResult.status).toBe('approved');
-    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'pending', 'approved');
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith(
+      'tenant-1',
+      'test-1',
+      'pending',
+      'approved',
+    );
 
     mockRepo.findById.mockResolvedValueOnce(approved);
     mockRepo.updateStatus.mockResolvedValueOnce(published);
-    const publishResult = await service.publishTestimonial('tenant-1', 'test-1');
+    const publishResult = await service.publishTestimonial(
+      'tenant-1',
+      'test-1',
+    );
     expect(publishResult.status).toBe('published');
-    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'approved', 'published', expect.any(Object), expect.objectContaining({ eventType: 'testimonial.published' }), undefined);
-    expect(mockCacheService.invalidateTenantPublic).toHaveBeenCalledWith('tenant-1');
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith(
+      'tenant-1',
+      'test-1',
+      'approved',
+      'published',
+      expect.any(Object),
+      expect.objectContaining({ eventType: 'testimonial.published' }),
+      undefined,
+    );
+    expect(mockCacheService.invalidateTenantPublic).toHaveBeenCalledWith(
+      'tenant-1',
+    );
   });
 
   it('rejects invalid state transitions', async () => {
     const draft = makeView({ status: 'draft' });
 
     mockRepo.findById.mockResolvedValue(draft);
-    await expect(service.approveTestimonial('tenant-1', 'test-1')).rejects.toThrow(ConflictError);
-    await expect(service.publishTestimonial('tenant-1', 'test-1')).rejects.toThrow(ConflictError);
+    await expect(
+      service.approveTestimonial('tenant-1', 'test-1'),
+    ).rejects.toThrow(ConflictError);
+    await expect(
+      service.publishTestimonial('tenant-1', 'test-1'),
+    ).rejects.toThrow(ConflictError);
   });
 
   it('allows rejection from pending', async () => {
     const pending = makeView({ status: 'pending' });
-    const rejected = makeView({ status: 'rejected', moderationNotes: 'Not appropriate' });
+    const rejected = makeView({
+      status: 'rejected',
+      moderationNotes: 'Not appropriate',
+    });
 
     mockRepo.findById.mockResolvedValue(pending);
     mockRepo.updateStatus.mockResolvedValue(rejected);
 
-    const result = await service.rejectTestimonial('tenant-1', 'test-1', 'Not appropriate');
+    const result = await service.rejectTestimonial(
+      'tenant-1',
+      'test-1',
+      'Not appropriate',
+    );
     expect(result.status).toBe('rejected');
-    expect(mockRepo.updateStatus).toHaveBeenCalledWith('tenant-1', 'test-1', 'pending', 'rejected', { moderationNotes: 'Not appropriate' });
+    expect(mockRepo.updateStatus).toHaveBeenCalledWith(
+      'tenant-1',
+      'test-1',
+      'pending',
+      'rejected',
+      { moderationNotes: 'Not appropriate' },
+    );
   });
 
   it('prevents editing published testimonials', async () => {
@@ -253,7 +393,12 @@ describe('TestimonialsService', () => {
     mockRepo.findById.mockResolvedValue(published);
 
     await expect(
-      service.updateTestimonial('tenant-1', 'test-1', { userId: 'user-1', roles: ['admin'] }, { authorName: 'Changed' }),
+      service.updateTestimonial(
+        'tenant-1',
+        'test-1',
+        { userId: 'user-1', roles: ['admin'] },
+        { authorName: 'Changed' },
+      ),
     ).rejects.toThrow(ConflictError);
   });
 
@@ -277,11 +422,15 @@ describe('TestimonialsService', () => {
 
   it('throws NotFoundError when testimonial not found', async () => {
     mockRepo.findById.mockResolvedValue(null);
-    await expect(service.getTestimonial('tenant-1', 'nonexistent')).rejects.toThrow(NotFoundError);
+    await expect(
+      service.getTestimonial('tenant-1', 'nonexistent'),
+    ).rejects.toThrow(NotFoundError);
   });
 
   it('lists public testimonials by slug', async () => {
-    mockTenantsService.getTenantByPublicSlug.mockResolvedValue({ id: 'tenant-1' });
+    mockTenantsService.getTenantByPublicSlug.mockResolvedValue({
+      id: 'tenant-1',
+    });
     mockRepo.findPublished.mockResolvedValue({
       items: [makeView({ status: 'published' })],
       total: 1,
@@ -289,7 +438,9 @@ describe('TestimonialsService', () => {
 
     const result = await service.listPublicTestimonialsBySlug('acme', {});
 
-    expect(mockTenantsService.getTenantByPublicSlug).toHaveBeenCalledWith('acme');
+    expect(mockTenantsService.getTenantByPublicSlug).toHaveBeenCalledWith(
+      'acme',
+    );
     expect(mockRepo.findPublished).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({ page: 1, limit: 20 }),
@@ -298,7 +449,10 @@ describe('TestimonialsService', () => {
   });
 
   it('enforces ownership for editors on edit and delete', async () => {
-    const testimonial = makeView({ createdById: 'other-user', status: 'pending' });
+    const testimonial = makeView({
+      createdById: 'other-user',
+      status: 'pending',
+    });
     mockRepo.findById.mockResolvedValue(testimonial);
 
     const admin = { userId: 'admin-user', roles: ['admin'] };
@@ -306,17 +460,33 @@ describe('TestimonialsService', () => {
     const otherEditor = { userId: 'unauthorized-user', roles: ['editor'] };
 
     // Other editor should fail
-    await expect(service.updateTestimonial('tenant-1', 'test-1', otherEditor, { content: 'x' })).rejects.toThrow(ForbiddenError);
-    await expect(service.removeTestimonial('tenant-1', 'test-1', otherEditor)).rejects.toThrow(ForbiddenError);
+    await expect(
+      service.updateTestimonial('tenant-1', 'test-1', otherEditor, {
+        content: 'x',
+      }),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(
+      service.removeTestimonial('tenant-1', 'test-1', otherEditor),
+    ).rejects.toThrow(ForbiddenError);
 
     // Admin should succeed
     mockRepo.updateFields.mockResolvedValue({ ...testimonial, content: 'x' });
     mockRepo.remove.mockResolvedValue(undefined);
-    await expect(service.updateTestimonial('tenant-1', 'test-1', admin, { content: 'x' })).resolves.toBeDefined();
-    await expect(service.removeTestimonial('tenant-1', 'test-1', admin)).resolves.toEqual({ id: 'test-1', deleted: true });
+    await expect(
+      service.updateTestimonial('tenant-1', 'test-1', admin, { content: 'x' }),
+    ).resolves.toBeDefined();
+    await expect(
+      service.removeTestimonial('tenant-1', 'test-1', admin),
+    ).resolves.toEqual({ id: 'test-1', deleted: true });
 
     // Owner editor should succeed
-    await expect(service.updateTestimonial('tenant-1', 'test-1', ownerEditor, { content: 'x' })).resolves.toBeDefined();
-    await expect(service.removeTestimonial('tenant-1', 'test-1', ownerEditor)).resolves.toEqual({ id: 'test-1', deleted: true });
+    await expect(
+      service.updateTestimonial('tenant-1', 'test-1', ownerEditor, {
+        content: 'x',
+      }),
+    ).resolves.toBeDefined();
+    await expect(
+      service.removeTestimonial('tenant-1', 'test-1', ownerEditor),
+    ).resolves.toEqual({ id: 'test-1', deleted: true });
   });
 });

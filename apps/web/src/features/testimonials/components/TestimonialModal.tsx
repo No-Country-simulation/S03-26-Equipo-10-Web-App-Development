@@ -36,6 +36,8 @@ import {
   testimonialStatusLabels,
   testimonialStatusHelp,
 } from '../presentation';
+import { useActionConfirmation } from '@/features/shared/use-action-confirmation';
+import { deleteTestimonial } from '../api';
 import { actionFailureCopy } from '@/features/shared/load-failure';
 
 interface TestimonialModalProps {
@@ -43,6 +45,16 @@ interface TestimonialModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdated: (testimonial: TestimonialRecord) => void;
+  onDeleted?: () => void;
+  navigation?: {
+    previous: () => void;
+    next: () => void;
+    canPrevious: boolean;
+    canNext: boolean;
+    busy: boolean;
+    description: string;
+    error: string | null;
+  };
 }
 
 export function TestimonialModal({
@@ -50,9 +62,12 @@ export function TestimonialModal({
   open,
   onOpenChange,
   onUpdated,
+  onDeleted,
+  navigation,
 }: TestimonialModalProps) {
   const { fetchApi, session } = useSession();
   const focus = useDialogFocus();
+  const confirmation = useActionConfirmation();
   const roles = session?.user.roles ?? [];
   const canModerate = roles.includes('admin') || roles.includes('editor');
   const isPublished = testimonial?.status === 'published';
@@ -66,7 +81,7 @@ export function TestimonialModal({
   const canAttach = canModerate && !isPublished;
   const mutationLock = useRef(false);
   const [pending, setPending] = useState<
-    'status' | 'edit' | 'image' | 'video' | null
+    'status' | 'edit' | 'image' | 'video' | 'delete' | null
   >(null);
   const busy = pending !== null;
   const loadingVideo = pending === 'video';
@@ -367,7 +382,7 @@ export function TestimonialModal({
     <Dialog open={open} onOpenChange={requestClose}>
       <DialogContent
         {...focus}
-        className="max-w-2xl p-0 overflow-hidden border-0 bg-background rounded-none shadow-2xl"
+        className="flex max-h-[95dvh] max-w-2xl flex-col gap-0 p-0 overflow-hidden border-0 bg-background rounded-none shadow-2xl"
       >
         <DialogTitle className="sr-only">
           Testimonio de {testimonial.authorName}
@@ -375,10 +390,52 @@ export function TestimonialModal({
         <DialogDescription className="sr-only">
           Detalle, moderación y multimedia del testimonio
         </DialogDescription>
+        {navigation && (
+          <nav
+            aria-label="Revisión contextual"
+            className="shrink-0 space-y-3 border-b px-6 pb-4 pt-6 pr-14 font-body text-sm"
+          >
+            <p>{navigation.description}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  !navigation.canPrevious || busy || dirty || navigation.busy
+                }
+                onClick={navigation.previous}
+              >
+                Testimonio anterior
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  !navigation.canNext || busy || dirty || navigation.busy
+                }
+                onClick={navigation.next}
+              >
+                Testimonio siguiente
+              </Button>
+            </div>
+            {dirty && (
+              <p className="text-muted-foreground">
+                Guardá o descartá tus cambios antes de revisar otro testimonio.
+              </p>
+            )}
+            {navigation.busy && (
+              <p role="status">Buscando el siguiente resultado…</p>
+            )}
+            {navigation.error && <p role="alert">{navigation.error}</p>}
+          </nav>
+        )}
         <fieldset
           disabled={busy}
           aria-busy={busy}
-          className="flex max-h-[90dvh] min-w-0 flex-col overflow-y-auto md:flex-row md:overflow-hidden"
+          className={cn(
+            'flex min-h-0 min-w-0 flex-col overflow-y-auto md:flex-row md:overflow-hidden',
+            navigation ? 'max-h-[70dvh]' : 'max-h-[90dvh]',
+          )}
         >
           {/* Left Column: Visual & Content (Neo-Editorial) */}
           <div className="relative shrink-0 bg-card p-8 border-b md:min-w-0 md:flex-1 md:overflow-y-auto md:border-b-0 md:border-r md:p-12">
@@ -858,6 +915,46 @@ export function TestimonialModal({
             </div>
           </div>
         </fieldset>
+        {onDeleted &&
+          (roles.includes('admin') ||
+            (roles.includes('editor') &&
+              testimonial.createdById === session?.user.id)) && (
+            <div className="shrink-0 border-t bg-background px-6 py-4">
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={busy || dirty || navigation?.busy}
+                onClick={() =>
+                  confirmation.confirm({
+                    title: `Eliminar el testimonio de ${testimonial.authorName}`,
+                    description: `Se borrarán definitivamente el testimonio y sus asociaciones. ${isPublished ? 'Dejará de estar disponible públicamente. ' : ''}Esta acción no se puede deshacer.`,
+                    confirmLabel: 'Eliminar definitivamente',
+                    task: 'la eliminación del testimonio',
+                    action: async () => {
+                      if (mutationLock.current) return;
+                      mutationLock.current = true;
+                      setPending('delete');
+                      try {
+                        await deleteTestimonial(fetchApi, testimonial.id);
+                        onDeleted();
+                      } finally {
+                        mutationLock.current = false;
+                        setPending(null);
+                      }
+                    },
+                  })
+                }
+              >
+                Eliminar testimonio
+              </Button>
+              {dirty && (
+                <p className="mt-2 font-body text-sm text-muted-foreground">
+                  Guardá o descartá tus cambios antes de eliminar.
+                </p>
+              )}
+            </div>
+          )}
+        {confirmation.dialog}
         {busy && (
           <p role="status" className="px-6 pb-4 font-body text-sm">
             Guardando el testimonio. Esperá el resultado antes de cerrar.

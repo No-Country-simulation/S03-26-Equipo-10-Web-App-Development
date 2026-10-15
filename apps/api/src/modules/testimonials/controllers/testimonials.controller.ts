@@ -33,7 +33,7 @@ import { TagsService } from '../services/tags.service';
 
 import { FeatureFlagGuard } from '../../../common/guards/feature-flag.guard';
 import { RequireFeature } from '../../../common/decorators/feature-flag.decorator';
-import { parseAdminPage } from '../../../common/pagination/admin-page';
+import { parseTestimonialQuery } from '../dto/admin-query';
 
 /**
  * Controlador principal de Testimonios para la gestión interna.
@@ -56,8 +56,19 @@ export class TestimonialsController {
    * @param tenantId ID del tenant extraído del token del usuario.
    */
   @Get()
-  list(@CurrentTenantId() tenantId: string, @Query() query: Record<string, unknown>) {
-    return this.testimonialsService.listTestimonials(tenantId, parseAdminPage(query));
+  list(
+    @CurrentTenantId() tenantId: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.testimonialsService.listTestimonials(
+      tenantId,
+      parseTestimonialQuery(query),
+    );
+  }
+
+  @Get('summary')
+  summary(@CurrentTenantId() tenantId: string) {
+    return this.testimonialsService.getSummary(tenantId);
   }
 
   @Get(':testimonial_id')
@@ -84,10 +95,25 @@ export class TestimonialsController {
     @Headers('idempotency-key') key: string | undefined,
     @Req() req: ApiRequest,
   ) {
-    const result = await this.idempotency.execute({
-      key, tenantId, principalKind: 'user', principalId: user.userId,
-      method: 'POST', path: req.path, payload: { body: dto }, statusCode: 201,
-    }, tx => this.testimonialsService.createTestimonial(tenantId, user.userId, dto, tx));
+    const result = await this.idempotency.execute(
+      {
+        key,
+        tenantId,
+        principalKind: 'user',
+        principalId: user.userId,
+        method: 'POST',
+        path: req.path,
+        payload: { body: dto },
+        statusCode: 201,
+      },
+      (tx) =>
+        this.testimonialsService.createTestimonial(
+          tenantId,
+          user.userId,
+          dto,
+          tx,
+        ),
+    );
     return result.value;
   }
 
@@ -106,7 +132,12 @@ export class TestimonialsController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: UpdateTestimonialDto,
   ) {
-    return this.testimonialsService.updateTestimonial(tenantId, testimonialId, user, dto);
+    return this.testimonialsService.updateTestimonial(
+      tenantId,
+      testimonialId,
+      user,
+      dto,
+    );
   }
 
   @Delete(':testimonial_id')
@@ -115,7 +146,11 @@ export class TestimonialsController {
     @Param('testimonial_id') testimonialId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.testimonialsService.removeTestimonial(tenantId, testimonialId, user);
+    return this.testimonialsService.removeTestimonial(
+      tenantId,
+      testimonialId,
+      user,
+    );
   }
 
   /**
@@ -146,7 +181,11 @@ export class TestimonialsController {
     @Param('testimonial_id') testimonialId: string,
     @Body() dto: ModerateTestimonialDto,
   ) {
-    return this.testimonialsService.rejectTestimonial(tenantId, testimonialId, dto.reason ?? '');
+    return this.testimonialsService.rejectTestimonial(
+      tenantId,
+      testimonialId,
+      dto.reason ?? '',
+    );
   }
 
   /**
@@ -162,10 +201,24 @@ export class TestimonialsController {
     @Headers('idempotency-key') key: string | undefined,
     @Req() req: ApiRequest,
   ) {
-    const result = await this.idempotency.execute({
-      key, tenantId, principalKind: 'user', principalId: user.userId,
-      method: 'POST', path: req.path, payload: { testimonialId }, statusCode: 201,
-    }, tx => this.testimonialsService.publishTestimonial(tenantId, testimonialId, tx));
+    const result = await this.idempotency.execute(
+      {
+        key,
+        tenantId,
+        principalKind: 'user',
+        principalId: user.userId,
+        method: 'POST',
+        path: req.path,
+        payload: { testimonialId },
+        statusCode: 201,
+      },
+      (tx) =>
+        this.testimonialsService.publishTestimonial(
+          tenantId,
+          testimonialId,
+          tx,
+        ),
+    );
     if (key !== undefined && !result.replayed) {
       await this.testimonialsService.invalidatePublicTestimonials(tenantId);
     }
@@ -178,7 +231,11 @@ export class TestimonialsController {
     @Param('testimonial_id') testimonialId: string,
     @Body() dto: UploadImageDto,
   ) {
-    return this.testimonialsService.uploadImage(tenantId, testimonialId, dto.imageBase64);
+    return this.testimonialsService.uploadImage(
+      tenantId,
+      testimonialId,
+      dto.imageBase64,
+    );
   }
 
   @Post(':testimonial_id/video')
@@ -187,7 +244,11 @@ export class TestimonialsController {
     @Param('testimonial_id') testimonialId: string,
     @Body() dto: AttachVideoDto,
   ) {
-    return this.testimonialsService.attachVideo(tenantId, testimonialId, dto.videoUrl);
+    return this.testimonialsService.attachVideo(
+      tenantId,
+      testimonialId,
+      dto.videoUrl,
+    );
   }
 
   @Post(':testimonial_id/tags/:tag_id')
