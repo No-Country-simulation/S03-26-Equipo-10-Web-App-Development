@@ -1,5 +1,7 @@
 'use client';
 
+import { useDialogFocus } from '@/features/shared/use-dialog-focus';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,9 +24,10 @@ export function DiscardChangesDialog({
   onDiscard: () => void;
   creation?: boolean;
 }) {
+  const focus = useDialogFocus();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="rounded-none font-body">
+      <AlertDialogContent {...focus} className="rounded-none font-body">
         <AlertDialogHeader>
           <AlertDialogTitle>
             {creation ? 'Descartar borrador' : 'Descartar cambios'}

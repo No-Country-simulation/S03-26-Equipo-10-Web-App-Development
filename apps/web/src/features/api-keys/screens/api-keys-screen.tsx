@@ -7,10 +7,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Plus, RefreshCw, KeyRound, Copy, Check, ShieldAlert } from 'lucide-react';
+import {
+  Plus,
+  RefreshCw,
+  KeyRound,
+  Copy,
+  Check,
+  ShieldAlert,
+} from 'lucide-react';
 import { createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '../api';
 import { PageControls } from '@/features/shared/pagination';
 import { LoadFailure } from '@/features/shared/load-failure';
+import { LoadingState, ActionFeedback } from '@/features/shared/feedback';
+import { useActionConfirmation } from '@/features/shared/use-action-confirmation';
 import { useRemoteResource } from '@/features/shared/use-remote-resource';
 import { actionFailureCopy } from '@/features/shared/load-failure';
 
@@ -33,18 +42,26 @@ export type ApiKeyView = {
 export default function ApiKeysPage() {
   const { session, fetchApi } = useSession();
   const [page, setPage] = useState(1);
+  const confirmation = useActionConfirmation();
   const [showForm, setShowForm] = useState(false);
   const [rotationTarget, setRotationTarget] = useState<ApiKeyView | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
-  
+
   // State to hold the newly generated raw token
   const [newRawToken, setNewRawToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [actionMessage, setActionMessage] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
+  const [actionMessage, setActionMessage] = useState<{
+    kind: 'error' | 'success';
+    text: string;
+  } | null>(null);
 
-  const load = useCallback(async () => (await listApiKeys(fetchApi, page)).data, [fetchApi, page]);
+  const load = useCallback(
+    async () => (await listApiKeys(fetchApi, page)).data,
+    [fetchApi, page],
+  );
   const { state, reload } = useRemoteResource(load, Boolean(session));
-  const apiKeys: ApiKeyView[] = state.status === 'success' ? state.data.items : [];
+  const apiKeys: ApiKeyView[] =
+    state.status === 'success' ? state.data.items : [];
   const total = state.status === 'success' ? state.data.meta.total : 0;
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
@@ -58,11 +75,19 @@ export default function ApiKeysPage() {
       const expiry = fd.get('expiresAt');
       const input = {
         name: String(fd.get('name') ?? ''),
-        scopes: fd.getAll('scopes').map(String).filter((value): value is 'testimonials:read' | 'analytics:write' =>
-          value === 'testimonials:read' || value === 'analytics:write'),
-        ...(expiry ? { expiresAt: new Date(String(expiry)).toISOString() } : {}),
+        scopes: fd
+          .getAll('scopes')
+          .map(String)
+          .filter(
+            (value): value is 'testimonials:read' | 'analytics:write' =>
+              value === 'testimonials:read' || value === 'analytics:write',
+          ),
+        ...(expiry
+          ? { expiresAt: new Date(String(expiry)).toISOString() }
+          : {}),
       };
-      if (input.scopes.length === 0) throw new Error('Elegí al menos un permiso');
+      if (input.scopes.length === 0)
+        throw new Error('Elegí al menos un permiso');
       const res = rotationTarget
         ? await rotateApiKey(fetchApi, rotationTarget.id, input)
         : await createApiKey(fetchApi, input);
@@ -71,22 +96,31 @@ export default function ApiKeysPage() {
       setRotationTarget(null);
       reload();
     } catch (err) {
-      setActionMessage({ kind: 'error', text: err instanceof Error && err.message === 'Elegí al menos un permiso'
-        ? err.message : actionFailureCopy(err, 'la generación de la API key') });
+      setActionMessage({
+        kind: 'error',
+        text:
+          err instanceof Error && err.message === 'Elegí al menos un permiso'
+            ? err.message
+            : actionFailureCopy(err, 'la generación de la API key'),
+      });
     } finally {
       setCreateLoading(false);
     }
   }
 
-  async function handleRevoke(id: string) {
-    if (!confirm('¿Estás SEGURO de revocar esta API Key? Dejará de funcionar en cualquier aplicación que la esté utilizando.')) return;
-    try {
-      await revokeApiKey(fetchApi, id);
-      setActionMessage({ kind: 'success', text: 'API key revocada.' });
-      reload();
-    } catch (err) {
-      setActionMessage({ kind: 'error', text: actionFailureCopy(err, 'la revocación de la API key') });
-    }
+  function handleRevoke(id: string) {
+    const key = apiKeys.find((item) => item.id === id);
+    confirmation.confirm({
+      title: 'Revocar API key',
+      confirmLabel: 'Revocar API key',
+      task: 'la revocación de la API key',
+      description: `La API key «${key?.name ?? 'seleccionada'}» dejará de funcionar en las integraciones que la utilizan. Esta acción no se puede deshacer.`,
+      action: async () => {
+        await revokeApiKey(fetchApi, id);
+        setActionMessage({ kind: 'success', text: 'API key revocada.' });
+        reload();
+      },
+    });
   }
 
   function startRotation(key: ApiKeyView) {
@@ -101,7 +135,10 @@ export default function ApiKeysPage() {
         await navigator.clipboard.writeText(newRawToken);
         setCopied(true);
       } catch {
-        setActionMessage({ kind: 'error', text: 'No se pudo copiar la API key. Seleccionala y copiala manualmente.' });
+        setActionMessage({
+          kind: 'error',
+          text: 'No se pudo copiar la API key. Seleccionala y copiala manualmente.',
+        });
       }
     }
   };
@@ -111,16 +148,24 @@ export default function ApiKeysPage() {
       <div className="flex flex-col items-center justify-center p-20 text-center">
         <ShieldAlert className="h-10 w-10 text-destructive mb-4" />
         <h2 className="font-body text-lg font-bold">Acceso Denegado</h2>
-        <p className="text-muted-foreground">Solo administradores pueden ver esta sección.</p>
+        <p className="text-muted-foreground">
+          Solo administradores pueden ver esta sección.
+        </p>
       </div>
     );
   }
 
   return (
     <>
-      <DashboardHeader title="API Keys" description="Gestiona los tokens de acceso para conectar aplicaciones externas.">
+      <DashboardHeader
+        title="API Keys"
+        description="Gestiona los tokens de acceso para conectar aplicaciones externas."
+      >
         <Button
-          onClick={() => { setRotationTarget(null); setShowForm(!showForm); }}
+          onClick={() => {
+            setRotationTarget(null);
+            setShowForm(!showForm);
+          }}
           className="h-10 bg-primary px-6 font-body text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="mr-2 h-4 w-4" /> Generar Token
@@ -134,99 +179,256 @@ export default function ApiKeysPage() {
         </Button>
       </DashboardHeader>
 
-      {actionMessage && <p role={actionMessage.kind === 'error' ? 'alert' : 'status'} className="mb-4 border border-border bg-card p-3 font-body text-sm">{actionMessage.text}</p>}
+      {actionMessage && (
+        <ActionFeedback kind={actionMessage.kind}>
+          {actionMessage.text}
+        </ActionFeedback>
+      )}
 
       {newRawToken && (
-        <div role="status" className="mb-8 border-l-4 border-primary bg-primary/10 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div
+          role="status"
+          className="mb-8 border border-primary bg-primary/10 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        >
           <div>
-            <h3 className="font-body text-sm font-bold text-foreground">Tu API Key ha sido generada exitosamente</h3>
+            <h3 className="font-body text-sm font-bold text-foreground">
+              Tu API Key ha sido generada exitosamente
+            </h3>
             <p className="text-xs text-muted-foreground mt-1">
-              Copia este token ahora. <strong className="text-foreground">Por razones de seguridad, no volverá a mostrarse nunca más.</strong>
+              Copia este token ahora.{' '}
+              <strong className="text-foreground">
+                Por razones de seguridad, no volverá a mostrarse nunca más.
+              </strong>
             </p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <code className="text-sm border border-primary/20 bg-background px-4 py-2 font-mono flex-1 sm:w-80 truncate">
               {newRawToken}
             </code>
-            <Button type="button" onClick={() => void copyToClipboard()} aria-label={copied ? 'API key copiada' : 'Copiar API key'} variant="outline" className="h-10 w-10 p-0 shrink-0">
-              {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4 text-muted-foreground" />}
+            <Button
+              type="button"
+              onClick={() => void copyToClipboard()}
+              aria-label={copied ? 'API key copiada' : 'Copiar API key'}
+              variant="outline"
+              className="h-10 w-10 p-0 shrink-0"
+            >
+              {copied ? (
+                <Check className="h-4 w-4 text-success" />
+              ) : (
+                <Copy className="h-4 w-4 text-muted-foreground" />
+              )}
             </Button>
           </div>
         </div>
       )}
 
       {showForm && (
-        <form key={rotationTarget?.id ?? 'create'} onSubmit={handleCreate} className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-3 items-end">
+        <form
+          key={rotationTarget?.id ?? 'create'}
+          onSubmit={handleCreate}
+          className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-3 items-end"
+        >
           <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor="api-key-name" className="font-body text-[10px] font-bold uppercase tracking-widest">Nombre Descriptivo</Label>
-            <Input id="api-key-name" name="name" required defaultValue={rotationTarget?.name ?? ''} className="h-10 bg-transparent" placeholder="Ej. Integración App Móvil, Servidor Nodejs..." minLength={2} />
+            <Label
+              htmlFor="api-key-name"
+              className="font-body text-[10px] font-bold uppercase tracking-widest"
+            >
+              Nombre Descriptivo
+            </Label>
+            <Input
+              id="api-key-name"
+              name="name"
+              required
+              defaultValue={rotationTarget?.name ?? ''}
+              className="h-10 bg-transparent"
+              placeholder="Ej. Integración App Móvil, Servidor Nodejs..."
+              minLength={2}
+            />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="api-key-expiry" className="font-body text-[10px] font-bold uppercase tracking-widest">Expira (opcional)</Label>
-            <Input id="api-key-expiry" name="expiresAt" type="datetime-local" defaultValue={rotationTarget?.expiresAt?.slice(0, 16) ?? ''} className="h-10 bg-transparent" />
+            <Label
+              htmlFor="api-key-expiry"
+              className="font-body text-[10px] font-bold uppercase tracking-widest"
+            >
+              Expira (opcional)
+            </Label>
+            <Input
+              id="api-key-expiry"
+              name="expiresAt"
+              type="datetime-local"
+              defaultValue={rotationTarget?.expiresAt?.slice(0, 16) ?? ''}
+              className="h-10 bg-transparent"
+            />
           </div>
           <fieldset className="sm:col-span-3 flex flex-wrap gap-4 text-sm">
-            <legend className="font-body text-[10px] font-bold uppercase tracking-widest mb-2">Permisos</legend>
-            <label className="flex items-center gap-2"><input type="checkbox" name="scopes" value="testimonials:read" defaultChecked={!rotationTarget || rotationTarget.legacy || rotationTarget.scopes.includes('testimonials:read')} /> Leer testimonios</label>
-            <label className="flex items-center gap-2"><input type="checkbox" name="scopes" value="analytics:write" defaultChecked={rotationTarget?.legacy || rotationTarget?.scopes.includes('analytics:write') || false} /> Escribir analítica</label>
+            <legend className="font-body text-[10px] font-bold uppercase tracking-widest mb-2">
+              Permisos
+            </legend>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="scopes"
+                value="testimonials:read"
+                defaultChecked={
+                  !rotationTarget ||
+                  rotationTarget.legacy ||
+                  rotationTarget.scopes.includes('testimonials:read')
+                }
+              />{' '}
+              Leer testimonios
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="scopes"
+                value="analytics:write"
+                defaultChecked={
+                  rotationTarget?.legacy ||
+                  rotationTarget?.scopes.includes('analytics:write') ||
+                  false
+                }
+              />{' '}
+              Escribir analítica
+            </label>
           </fieldset>
-          <Button type="submit" disabled={createLoading} className="h-10 bg-primary font-body text-xs uppercase tracking-wider text-primary-foreground">
-            {createLoading ? 'Generando...' : rotationTarget ? 'Rotar API Key' : 'Crear API Key'}
+          <Button
+            type="submit"
+            disabled={createLoading}
+            className="h-10 bg-primary font-body text-xs uppercase tracking-wider text-primary-foreground"
+          >
+            {createLoading
+              ? 'Generando...'
+              : rotationTarget
+                ? 'Rotar API Key'
+                : 'Crear API Key'}
           </Button>
         </form>
       )}
 
       {state.status === 'loading' ? (
-        <div className="flex items-center gap-3 py-20">
-          <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
-          <span className="font-body text-sm text-muted-foreground">Cargando...</span>
-        </div>
+        <LoadingState>Cargando API keys…</LoadingState>
       ) : state.status === 'error' ? (
-        <LoadFailure error={state.error} resource="las API keys" onRetry={reload} />
+        <LoadFailure
+          error={state.error}
+          resource="las API keys"
+          onRetry={reload}
+        />
       ) : apiKeys.length === 0 ? (
         <div className="border border-dashed p-12 text-center">
-          <p className="font-body text-sm text-muted-foreground">No tienes ninguna API Key activa.</p>
+          <p className="font-body text-sm text-muted-foreground">
+            No tienes ninguna API Key activa.
+          </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div
+          role="region"
+          aria-label="Tabla de API keys"
+          tabIndex={0}
+          className="min-w-0 overflow-x-auto"
+        >
           <table className="w-full">
+            <caption className="sr-only">Api keys de este espacio</caption>
             <thead>
               <tr className="border-b">
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nombre</th>
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Último Uso</th>
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estado</th>
-                <th className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Permisos y vencimiento</th>
-                <th className="pb-3 text-right font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Acciones</th>
+                <th
+                  scope="col"
+                  className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
+                  Nombre
+                </th>
+                <th
+                  scope="col"
+                  className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
+                  Último Uso
+                </th>
+                <th
+                  scope="col"
+                  className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
+                  Estado
+                </th>
+                <th
+                  scope="col"
+                  className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
+                  Permisos y vencimiento
+                </th>
+                <th
+                  scope="col"
+                  className="pb-3 text-right font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
               {apiKeys.map((key) => (
-                <tr key={key.id} className="border-b border-foreground/5 transition-colors hover:bg-card">
+                <tr
+                  key={key.id}
+                  className="border-b border-foreground/5 transition-colors hover:bg-card"
+                >
                   <td className="py-4 pr-4 font-body text-sm font-medium text-foreground flex items-center gap-2">
-                    <KeyRound className="h-4 w-4 text-muted-foreground"/> {key.name}
-                    <span className="text-xs text-muted-foreground">{key.publicId ?? 'tms_ legado'}</span>
+                    <KeyRound className="h-4 w-4 text-muted-foreground" />{' '}
+                    {key.name}
+                    <span className="text-xs text-muted-foreground">
+                      {key.publicId ?? 'tms_ legado'}
+                    </span>
                   </td>
                   <td className="py-4 pr-4 text-sm text-muted-foreground">
-                    {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : 'Nunca'}
+                    {key.lastUsedAt
+                      ? new Date(key.lastUsedAt).toLocaleString()
+                      : 'Nunca'}
                   </td>
                   <td className="py-4 pr-4">
-                    <span className={cn(
-                      'inline-block px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
-                      key.isActive ? 'bg-green-500/20 text-green-600' : 'bg-destructive/20 text-destructive'
-                    )}>
+                    <span
+                      className={cn(
+                        'inline-block px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
+                        key.isActive
+                          ? 'bg-success/10 text-success'
+                          : 'bg-destructive/10 text-destructive',
+                      )}
+                    >
                       {key.isActive ? 'Activo' : 'Revocado'}
                     </span>
-                    {key.legacy && <p className="mt-1 text-xs text-amber-700">Clave legada: migrá antes de {key.legacyDeadline ? new Date(key.legacyDeadline).toLocaleString() : 'activar la ventana de 30 días'}.</p>}
+                    {key.legacy && (
+                      <p className="mt-1 text-xs text-warning">
+                        Clave legada: migrá antes de{' '}
+                        {key.legacyDeadline
+                          ? new Date(key.legacyDeadline).toLocaleString()
+                          : 'activar la ventana de 30 días'}
+                        .
+                      </p>
+                    )}
                   </td>
                   <td className="py-4 pr-4 text-xs text-muted-foreground">
-                    {key.scopes.length ? key.scopes.join(', ') : 'Permisos legados'}
-                    <br />{key.expiresAt ? `Expira ${new Date(key.expiresAt).toLocaleString()}` : 'Sin vencimiento'}
+                    {key.scopes.length
+                      ? key.scopes.join(', ')
+                      : 'Permisos legados'}
+                    <br />
+                    {key.expiresAt
+                      ? `Expira ${new Date(key.expiresAt).toLocaleString()}`
+                      : 'Sin vencimiento'}
                   </td>
                   <td className="py-4 text-right">
                     {key.isActive && (
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => startRotation(key)} className="font-body text-xs tracking-wider uppercase">Rotar</Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleRevoke(key.id)} className="text-destructive font-body text-xs tracking-wider uppercase hover:bg-destructive/10 hover:text-destructive">Revocar</Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startRotation(key)}
+                          className="font-body text-xs tracking-wider uppercase"
+                        >
+                          Rotar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRevoke(key.id)}
+                          className="text-destructive font-body text-xs tracking-wider uppercase hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          Revocar
+                        </Button>
                       </div>
                     )}
                   </td>
@@ -236,7 +438,10 @@ export default function ApiKeysPage() {
           </table>
         </div>
       )}
-      {state.status === 'success' && <PageControls page={page} total={total} limit={20} onChange={setPage} />}
+      {state.status === 'success' && (
+        <PageControls page={page} total={total} limit={20} onChange={setPage} />
+      )}
+      {confirmation.dialog}
     </>
   );
 }

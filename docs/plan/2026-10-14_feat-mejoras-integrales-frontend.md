@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 1 implementada y validada localmente; pendiente de commit y ACK.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 2 implementada y validada localmente; pendiente de commit y ACK.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» posterior al commit de fase 0 autoriza únicamente la fase 1.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 1, autoriza únicamente la fase 2.
 
 ## 1. Contexto y restricciones
 
@@ -78,11 +78,11 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 
 **Detenerse y esperar ACK.**
 
-### [Actual] Fase 1 — Moderación y formularios críticos
+### [Completada] Fase 1 — Moderación y formularios críticos
 
 **Cubre:** F01, F02, F04, F05.
 
-**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. La fase 2 no está autorizada. Ver registro de validación de fase 1 en la sección 7.
+**Estado de ejecución:** completada; commit `c8fed72` verificado y ACK «Continuar» recibido el 2026-10-15. Ver registro de validación de fase 1 en la sección 7.
 
 - [x] Declarar type button en paginación y auxiliares dentro de formularios.
 - [x] Habilitar moderación para editor según contrato; conservar edición por propiedad y restricciones de publicados.
@@ -94,18 +94,20 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Cierre/pruebas:** paginar con campos válidos y varias páginas no crea; editor modera sin ganar permisos administrativos; detalle cambia sin reabrir; fallos/reintentos conservan borrador. Tests de comportamiento y contratos afectados; no atribuir a fixtures aceptación de backend real.
 
 **Commit:** `fix(testimonials): corregí la moderación y preservá los borradores`  
-**ACK humano:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido. **Commit registrado:** `c8fed72`. **Detenerse y esperar ACK.**
 
-### [Pendiente] Fase 2 — Base visual, accesibilidad y feedback compartido
+### [Actual] Fase 2 — Base visual, accesibilidad y feedback compartido
 
 **Cubre:** F13 y parte transversal de F22.
 
-- [ ] Corregir parejas de color claro/oscuro y unificar estados semánticos.
-- [ ] Usar sans en controles/datos y conservar serif en citas/títulos.
-- [ ] Añadir anuncios de carga/resultado, rating textual, expansión semántica, skip link y foco consistente.
-- [ ] Localizar cierres y ampliar áreas táctiles; revisar tablas, diálogos y menú móvil.
-- [ ] Proteger storage y mantener funcionamiento en memoria si falla.
-- [ ] Unificar confirmaciones destructivas y estados ocupado/error/éxito mediante componentes activos.
+**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. La fase 3 no está autorizada.
+
+- [x] Corregir parejas de color claro/oscuro y unificar estados semánticos.
+- [x] Usar sans en controles/datos y conservar serif en citas/títulos.
+- [x] Añadir anuncios de carga/resultado, rating textual, expansión semántica, skip link y foco consistente.
+- [x] Localizar cierres y ampliar áreas táctiles; revisar tablas, diálogos y menú móvil.
+- [x] Proteger storage y mantener funcionamiento en memoria si falla.
+- [x] Unificar confirmaciones destructivas y estados ocupado/error/éxito mediante componentes activos.
 
 **Cierre/pruebas:** teclado/foco de controles modificados, contraste de combinaciones efectivas en ambos temas, carga anunciada sin ruido, storage denegado sin caída. Verificar móvil y movimiento reducido. No certificar WCAG sólo con controles automáticos.
 
@@ -282,65 +284,65 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 
 El estado actual se registra por hallazgo. «Corregido localmente» requiere las pruebas de la fase; no sustituye CI, integración real ni el cierre integral. La auditoría y la preparación no cuentan como corrección. Las fases indicadas son propietarias; el cierre integral comprueba regresiones sin implementar anticipadamente otras fases.
 
-| ID  | Hallazgo                                           | Fase propietaria                 | Prueba/aceptación mínima                                                   | Estado                         |
-| --- | -------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------- | ------------------------------ |
-| F01 | Editor sin moderación                              | 1                                | Positivo editor; negativos de rol/propiedad; transiciones API respetadas   | Corregido localmente en fase 1 |
-| F02 | Paginación submit dentro del alta                  | 1                                | Varias páginas y formulario válido; sin POST ni validación accidental      | Corregido localmente en fase 1 |
-| F03 | Búsqueda/filtros de página                         | 3                                | Coincidencia fuera de página, AND, total y URL coherentes, tenant negativo | Pendiente                      |
-| F04 | Detalle anterior tras mutación                     | 1                                | Estado/contenido/medios actualizados sin reabrir                           | Corregido localmente en fase 1 |
-| F05 | Recuperación descarta borrador                     | 1                                | Reintento y cierre con decisión; texto preservado                          | Corregido localmente en fase 1 |
-| F06 | Borrado de categoría sin advertir desclasificación | 4                                | Cancelar sin DELETE; confirmar conserva testimonios sin categoría          | Pendiente                      |
-| F07 | Rotación webhook sin busy guard/contexto           | 6                                | Un intento UI por destino; conflictos y respuestas tardías tratados        | Pendiente                      |
-| F08 | Vencimiento cambia por UTC/local                   | 5                                | UTC/Argentina; guardar intacto preserva instante                           | Pendiente                      |
-| F09 | Publicados posteriores a veinte inaccesibles       | 9                                | Publicado 21 y final/paginación real                                       | Pendiente                      |
-| F10 | Registro precompletado                             | 8                                | Campos vacíos; validación evita alta accidental                            | Pendiente                      |
-| F11 | CTA y enlaces sin destino                          | 11                               | Navegación/acción real; marketing borrador no renderizado                  | Pendiente                      |
-| F12 | Desborde de portada                                | 11                               | 320/375/768 px, zoom y acciones alcanzables                                | Pendiente                      |
-| F13 | Contraste dark                                     | 2                                | Parejas reales y estados de ambos temas                                    | Pendiente                      |
-| F14 | Vencida aparece revocada                           | 5                                | Estados diferenciados y acciones pertinentes                               | Pendiente                      |
-| F15 | Revelación anterior perdida                        | 5                                | Error siguiente preserva secreto en memoria; salida deliberada             | Pendiente                      |
-| F16 | Invitar y contraseña mal explicados                | 4                                | Crear usuario describe resultado; requisitos y errores asociados           | Pendiente                      |
-| F17 | Última página inválida                             | 3 en testimonios; 4 en catálogos | Último elemento eliminado y página corregida                               | Pendiente                      |
-| F18 | Borrado y acciones de etiquetas                    | 4                                | Decisión explícita, efecto real y controles táctiles descubribles          | Pendiente                      |
-| F19 | Configuración acoplada/draft y mensaje perdidos    | 7                                | Fallas independientes, slug y confirmación/foco conservados                | Pendiente                      |
-| F20 | Historial/secreto webhook sin contexto             | 6                                | Recurso identificado y actualización conserva página                       | Pendiente                      |
-| F21 | Analítica sin período/referencia útil              | 10                               | Alcance real y datos autorizados sin N+1                                   | Pendiente                      |
-| F22 | Semántica, storage, cargas y cierres               | 2 común; 8 auth; 9 público       | Roles/foco/rating/expansión, storage denegado y main/título móvil          | Pendiente                      |
-| F23 | Doce rutas preparatorias expuestas                 | 11                               | Aliases/contenido útil; autorización y ausencia de placeholders            | Pendiente                      |
-| F24 | Draft BI descartado al navegar                     | 10                               | Conservar/descartar explícito; conflicto mantiene intención                | Pendiente                      |
+| ID  | Hallazgo                                           | Fase propietaria                 | Prueba/aceptación mínima                                                   | Estado                                                                |
+| --- | -------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| F01 | Editor sin moderación                              | 1                                | Positivo editor; negativos de rol/propiedad; transiciones API respetadas   | Corregido localmente en fase 1                                        |
+| F02 | Paginación submit dentro del alta                  | 1                                | Varias páginas y formulario válido; sin POST ni validación accidental      | Corregido localmente en fase 1                                        |
+| F03 | Búsqueda/filtros de página                         | 3                                | Coincidencia fuera de página, AND, total y URL coherentes, tenant negativo | Pendiente                                                             |
+| F04 | Detalle anterior tras mutación                     | 1                                | Estado/contenido/medios actualizados sin reabrir                           | Corregido localmente en fase 1                                        |
+| F05 | Recuperación descarta borrador                     | 1                                | Reintento y cierre con decisión; texto preservado                          | Corregido localmente en fase 1                                        |
+| F06 | Borrado de categoría sin advertir desclasificación | 4                                | Cancelar sin DELETE; confirmar conserva testimonios sin categoría          | Pendiente                                                             |
+| F07 | Rotación webhook sin busy guard/contexto           | 6                                | Un intento UI por destino; conflictos y respuestas tardías tratados        | Pendiente                                                             |
+| F08 | Vencimiento cambia por UTC/local                   | 5                                | UTC/Argentina; guardar intacto preserva instante                           | Pendiente                                                             |
+| F09 | Publicados posteriores a veinte inaccesibles       | 9                                | Publicado 21 y final/paginación real                                       | Pendiente                                                             |
+| F10 | Registro precompletado                             | 8                                | Campos vacíos; validación evita alta accidental                            | Pendiente                                                             |
+| F11 | CTA y enlaces sin destino                          | 11                               | Navegación/acción real; marketing borrador no renderizado                  | Pendiente                                                             |
+| F12 | Desborde de portada                                | 11                               | 320/375/768 px, zoom y acciones alcanzables                                | Pendiente                                                             |
+| F13 | Contraste dark                                     | 2                                | Parejas reales y estados de ambos temas                                    | Corregido localmente en fase 2                                        |
+| F14 | Vencida aparece revocada                           | 5                                | Estados diferenciados y acciones pertinentes                               | Pendiente                                                             |
+| F15 | Revelación anterior perdida                        | 5                                | Error siguiente preserva secreto en memoria; salida deliberada             | Pendiente                                                             |
+| F16 | Invitar y contraseña mal explicados                | 4                                | Crear usuario describe resultado; requisitos y errores asociados           | Pendiente                                                             |
+| F17 | Última página inválida                             | 3 en testimonios; 4 en catálogos | Último elemento eliminado y página corregida                               | Pendiente                                                             |
+| F18 | Borrado y acciones de etiquetas                    | 4                                | Decisión explícita, efecto real y controles táctiles descubribles          | Pendiente                                                             |
+| F19 | Configuración acoplada/draft y mensaje perdidos    | 7                                | Fallas independientes, slug y confirmación/foco conservados                | Pendiente                                                             |
+| F20 | Historial/secreto webhook sin contexto             | 6                                | Recurso identificado y actualización conserva página                       | Pendiente                                                             |
+| F21 | Analítica sin período/referencia útil              | 10                               | Alcance real y datos autorizados sin N+1                                   | Pendiente                                                             |
+| F22 | Semántica, storage, cargas y cierres               | 2 común; 8 auth; 9 público       | Roles/foco/rating/expansión, storage denegado y main/título móvil          | Parcial: base de fase 2 validada; auth/público específicos pendientes |
+| F23 | Doce rutas preparatorias expuestas                 | 11                               | Aliases/contenido útil; autorización y ausencia de placeholders            | Pendiente                                                             |
+| F24 | Draft BI descartado al navegar                     | 10                               | Conservar/descartar explícito; conflicto mantiene intención                | Pendiente                                                             |
 
 ## 5. Matriz de oportunidades de diseño
 
 Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar capacidades. Las filas parciales conservan explícitamente las fases pendientes. Las capacidades expresamente excluidas no se considerarán una omisión al cerrar este plan.
 
-| ID  | Superficie/oportunidad                                        | Fase         | Evidencia de aceptación                                                             | Estado                                    |
-| --- | ------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- | ----------------------------------------- |
-| O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Pendiente                                 |
-| O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Pendiente                                 |
-| O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Pendiente                                 |
-| O04 | Inicio: pendientes, alcance y primera acción                  | 3, 7         | Totales globales, borradores separados y onboarding derivado                        | Pendiente                                 |
-| O05 | Listado: estado, consulta global y detalle contextual         | 3            | URL, filtros, limpiar y siguiente/anterior coherentes                               | Pendiente                                 |
-| O06 | Alta: contenido principal y clasificación progresiva          | 1, 2         | Borrador recuperable, móvil y preview sin dominar escritura                         | Parcial: fase 1 validada; resto pendiente |
-| O07 | Detalle: estado español y acción siguiente                    | 1, 3         | Mutación confirmada, permisos, visibilidad pública y eliminación informada          | Parcial: fase 1 validada; resto pendiente |
-| O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Pendiente                                 |
-| O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Pendiente                                 |
-| O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Pendiente                                 |
-| O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Pendiente                                 |
-| O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Pendiente                                 |
-| O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Pendiente                                 |
-| O14 | Ajustes: marca/captura/capacidades independientes             | 7            | Guardados independientes; scoring real; capacidades operables                       | Pendiente                                 |
-| O15 | Captura: marca, rating deliberado y límites previos           | 9            | Validación, parcial/completo y foco sin duplicados                                  | Pendiente                                 |
-| O16 | Galería: identidad, lectura y cantidad                        | 9            | Marca, cargar más, semántica y ausencia de rótulos de telemetría                    | Pendiente                                 |
-| O17 | BI resumen: vigencia, unidades y cortes                       | 10           | Jerarquía, ejes/unidades, tabla accesible y huecos no interpolados                  | Pendiente                                 |
-| O18 | BI ejecuciones: intención vs intento                          | 10           | Agrupación, filtros preservados, dos paginaciones y scroll contenido                | Pendiente                                 |
-| O19 | BI detalle ejecución: resultado y recuperación                | 10           | Acción actual comprensible; UUID/código secundarios                                 | Pendiente                                 |
-| O20 | BI detalle solicitud: seguimiento durable                     | 10           | Estados fieles sin porcentajes inventados; cancelar sólo pendiente                  | Pendiente                                 |
-| O21 | BI operación: acción posible antes de cifras                  | 10           | Motivo junto a bloqueo; aceptada no se presenta como terminada                      | Pendiente                                 |
-| O22 | BI configuración: efecto, draft y conflicto                   | 10           | Salida deliberada, UTC, merge explícito y pausa/manual diferenciados                | Pendiente                                 |
-| O23 | BI auditoría: cambios legibles                                | 10           | Diff antes/después y actor técnico preservado; editor restringido                   | Pendiente                                 |
-| O24 | Sistema visual: densidad, estado, contexto, foco y movimiento | 2, 7, 11, 12 | Identidad conservada, controles legibles, organización persistente y reduced motion | Pendiente                                 |
-| O25 | Rendimiento: lazy, cleanup, polling y overlays                | 12           | Medición de producción y cambios motivados; no memoización especulativa             | Pendiente                                 |
-| O26 | Preparación ruteada: aliases y ayuda real                     | 11           | Doce decisiones resueltas sin construir doce flujos alternativos                    | Pendiente                                 |
+| ID  | Superficie/oportunidad                                        | Fase         | Evidencia de aceptación                                                             | Estado                                                       |
+| --- | ------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Pendiente                                                    |
+| O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Pendiente                                                    |
+| O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Pendiente                                                    |
+| O04 | Inicio: pendientes, alcance y primera acción                  | 3, 7         | Totales globales, borradores separados y onboarding derivado                        | Pendiente                                                    |
+| O05 | Listado: estado, consulta global y detalle contextual         | 3            | URL, filtros, limpiar y siguiente/anterior coherentes                               | Pendiente                                                    |
+| O06 | Alta: contenido principal y clasificación progresiva          | 1, 2         | Borrador recuperable, móvil y preview sin dominar escritura                         | Corregido localmente en fases 1/2; cierre integral pendiente |
+| O07 | Detalle: estado español y acción siguiente                    | 1, 3         | Mutación confirmada, permisos, visibilidad pública y eliminación informada          | Parcial: fase 1 validada; resto pendiente                    |
+| O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Pendiente                                                    |
+| O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Pendiente                                                    |
+| O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Pendiente                                                    |
+| O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Pendiente                                                    |
+| O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Pendiente                                                    |
+| O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Pendiente                                                    |
+| O14 | Ajustes: marca/captura/capacidades independientes             | 7            | Guardados independientes; scoring real; capacidades operables                       | Pendiente                                                    |
+| O15 | Captura: marca, rating deliberado y límites previos           | 9            | Validación, parcial/completo y foco sin duplicados                                  | Pendiente                                                    |
+| O16 | Galería: identidad, lectura y cantidad                        | 9            | Marca, cargar más, semántica y ausencia de rótulos de telemetría                    | Pendiente                                                    |
+| O17 | BI resumen: vigencia, unidades y cortes                       | 10           | Jerarquía, ejes/unidades, tabla accesible y huecos no interpolados                  | Pendiente                                                    |
+| O18 | BI ejecuciones: intención vs intento                          | 10           | Agrupación, filtros preservados, dos paginaciones y scroll contenido                | Pendiente                                                    |
+| O19 | BI detalle ejecución: resultado y recuperación                | 10           | Acción actual comprensible; UUID/código secundarios                                 | Pendiente                                                    |
+| O20 | BI detalle solicitud: seguimiento durable                     | 10           | Estados fieles sin porcentajes inventados; cancelar sólo pendiente                  | Pendiente                                                    |
+| O21 | BI operación: acción posible antes de cifras                  | 10           | Motivo junto a bloqueo; aceptada no se presenta como terminada                      | Pendiente                                                    |
+| O22 | BI configuración: efecto, draft y conflicto                   | 10           | Salida deliberada, UTC, merge explícito y pausa/manual diferenciados                | Pendiente                                                    |
+| O23 | BI auditoría: cambios legibles                                | 10           | Diff antes/después y actor técnico preservado; editor restringido                   | Pendiente                                                    |
+| O24 | Sistema visual: densidad, estado, contexto, foco y movimiento | 2, 7, 11, 12 | Identidad conservada, controles legibles, organización persistente y reduced motion | Parcial: base de fase 2 validada; faltan 7/11/12             |
+| O25 | Rendimiento: lazy, cleanup, polling y overlays                | 12           | Medición de producción y cambios motivados; no memoización especulativa             | Pendiente                                                    |
+| O26 | Preparación ruteada: aliases y ayuda real                     | 11           | Doce decisiones resueltas sin construir doce flujos alternativos                    | Pendiente                                                    |
 
 No añadir nombre personal del actor a BI sin un contrato autorizado que lo aporte. Mantener actor técnico como dato secundario. No implementar fusión de etiquetas, cambio de rol, borrado de medios sin endpoint ni un sistema de membresías multiempresa como ampliaciones implícitas.
 
@@ -348,23 +350,23 @@ No añadir nombre personal del actor a BI sin un contrato autorizado que lo apor
 
 **Cobertura de ruta:** código, estados y pruebas asignados. No marcar una fila validada sólo por abrir la ruta. En cada pantalla aplican carga, éxito, vacío cuando corresponda, error recuperable, autorización, teclado y tamaño/contenido límite. Usar datos sintéticos. El estado parcial de una ruta no acredita su aceptación integral.
 
-| Ruta activa                    | Fases propietarias | Verificación específica                                               | Estado                                     |
-| ------------------------------ | ------------------ | --------------------------------------------------------------------- | ------------------------------------------ |
-| `/`                            | 11                 | Header/CTA, anchors, borradores, autoplay, mobile/zoom                | Pendiente                                  |
-| `/admin/login`                 | 8                  | Vacío, errores, sesión/refresh/logout y semántica móvil               | Pendiente                                  |
-| `/admin/register`              | 8                  | Campos vacíos, contraseña, alta y errores preservados                 | Pendiente                                  |
-| `/admin`                       | 1, 3, 7            | Resumen real, recientes, pendientes y onboarding según rol            | Parcial: reconciliación de fase 1 validada |
-| `/admin/testimonials`          | 1, 2, 3            | Consulta/detalle/alta/edición/moderación/medios/eliminación y roles   | Parcial: fase 1 validada; faltan 2/3       |
-| `/admin/categories`            | 4                  | Buscar/crear/renombrar/eliminar, asociaciones y página                | Pendiente                                  |
-| `/admin/tags`                  | 4                  | Buscar/crear/renombrar/eliminar y tablet táctil                       | Pendiente                                  |
-| `/admin/users`                 | 4                  | Alta, contraseña, estado de acceso, confirmación y rol                | Pendiente                                  |
-| `/admin/api-keys`              | 5                  | Scopes/fechas/estado/revelación/copia/revocación/rotación             | Pendiente                                  |
-| `/admin/webhooks`              | 6                  | Alta/edición/pausa/prueba/rotación/historial/replay y legado          | Pendiente                                  |
-| `/admin/settings`              | 7                  | Marca/logo/slug/recepción/capacidades y fallas independientes         | Pendiente                                  |
-| `/admin/analytics`             | 10                 | Período/eventos/referencias/alcance/vacío/error                       | Pendiente                                  |
-| `/admin/business-intelligence` | 10                 | Siete superficies de la tabla siguiente, URL/CSV/polling/roles        | Pendiente                                  |
-| `/p/[slug]`                    | 9                  | Marca, cerrado/no disponible, rating/medios, recepción parcial y foco | Pendiente                                  |
-| `/t/[slug]`                    | 9                  | Marca, 21 publicados, detalle/media, tracking/storage y vacío/error   | Pendiente                                  |
+| Ruta activa                    | Fases propietarias | Verificación específica                                               | Estado                                                     |
+| ------------------------------ | ------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `/`                            | 2, 11              | Header/CTA, anchors, borradores, autoplay, mobile/zoom                | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/login`                 | 2, 8               | Vacío, errores, sesión/refresh/logout y semántica móvil               | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/register`              | 2, 8               | Campos vacíos, contraseña, alta y errores preservados                 | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin`                       | 1, 2, 3, 7         | Resumen real, recientes, pendientes y onboarding según rol            | Parcial: fases 1/2 validadas; resto pendiente              |
+| `/admin/testimonials`          | 1, 2, 3            | Consulta/detalle/alta/edición/moderación/medios/eliminación y roles   | Parcial: fases 1/2 validadas; resto pendiente              |
+| `/admin/categories`            | 2, 4               | Buscar/crear/renombrar/eliminar, asociaciones y página                | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/tags`                  | 2, 4               | Buscar/crear/renombrar/eliminar y tablet táctil                       | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/users`                 | 2, 4               | Alta, contraseña, estado de acceso, confirmación y rol                | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/api-keys`              | 2, 5               | Scopes/fechas/estado/revelación/copia/revocación/rotación             | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/webhooks`              | 2, 6               | Alta/edición/pausa/prueba/rotación/historial/replay y legado          | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/settings`              | 2, 7               | Marca/logo/slug/recepción/capacidades y fallas independientes         | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/analytics`             | 2, 10              | Período/eventos/referencias/alcance/vacío/error                       | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/admin/business-intelligence` | 2, 10              | Siete superficies de la tabla siguiente, URL/CSV/polling/roles        | Parcial: base compartida de fase 2; flujo propio pendiente |
+| `/p/[slug]`                    | 9                  | Marca, cerrado/no disponible, rating/medios, recepción parcial y foco | Pendiente                                                  |
+| `/t/[slug]`                    | 2, 9               | Marca, 21 publicados, detalle/media, tracking/storage y vacío/error   | Parcial: base compartida de fase 2; flujo propio pendiente |
 
 ### Siete superficies BI
 
@@ -399,19 +401,19 @@ Las redirecciones no deben eliminar autorización ni crear loops; validar identi
 
 ### Formularios y estados compartidos
 
-| Superficie                        | Fase           | Pruebas adicionales                                                 | Estado                   |
-| --------------------------------- | -------------- | ------------------------------------------------------------------- | ------------------------ |
-| Crear testimonio                  | 1, 2, 3        | Paginación sin submit, metadatos fallidos, dirty/Escape y móvil     | Parcial: fase 1 validada |
-| Editar/detalle/moderar            | 1, 2, 3        | Propiedad/estado, respuesta actualizada, notas y siguiente/anterior | Parcial: fase 1 validada |
-| Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados    | Parcial: fase 1 validada |
-| Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                           | Pendiente                |
-| Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                  | Pendiente                |
-| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada            | Pendiente                |
-| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                 | Pendiente                |
-| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                     | Pendiente                |
-| Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes     | Pendiente                |
-| Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                             | Pendiente                |
-| Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado       | Parcial: fase 1 validada |
+| Superficie                        | Fase           | Pruebas adicionales                                                 | Estado                                                 |
+| --------------------------------- | -------------- | ------------------------------------------------------------------- | ------------------------------------------------------ |
+| Crear testimonio                  | 1, 2, 3        | Paginación sin submit, metadatos fallidos, dirty/Escape y móvil     | Parcial: fases 1/2 validadas; resto pendiente          |
+| Editar/detalle/moderar            | 1, 2, 3        | Propiedad/estado, respuesta actualizada, notas y siguiente/anterior | Parcial: fases 1/2 validadas; resto pendiente          |
+| Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados    | Parcial: fases 1/2 validadas; resto pendiente          |
+| Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                           | Pendiente                                              |
+| Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                  | Pendiente                                              |
+| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada            | Pendiente                                              |
+| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                 | Pendiente                                              |
+| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                     | Pendiente                                              |
+| Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes     | Pendiente                                              |
+| Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                             | Parcial: fase 2 validada; contexto de fase 7 pendiente |
+| Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado       | Parcial: fases 1/2 validadas; resto pendiente          |
 
 ## 7. Registro de fase 0 y baseline
 
@@ -461,7 +463,44 @@ Los resultados se registran al terminar la preparación. No reutilizar como base
 
 El servidor de inspección fue detenido al terminar; las capturas temporales contienen únicamente datos sintéticos.
 
-**Resultado:** F01/F02/F04/F05 corregidos localmente; matrices parciales explícitas. **ACK y commit de fase 1 pendientes. Detenerse; no iniciar fase 2.**
+**Resultado:** F01/F02/F04/F05 corregidos localmente; matrices parciales explícitas. **Cierre posterior:** commit `c8fed72` verificado y ACK «Continuar» recibido el 2026-10-15; fase 1 completada.
+
+### Fase 2 — base compartida y evidencia local (2026-10-15)
+
+**Autorización:** ACK «Continuar» del 2026-10-15 tras `c8fed72`, rama limpia verificada. Única fase actual: 2. Código y criterios durables en [base compartida](../technical/2026-10-15_frontend_base_compartida.md).
+
+**Implementación:** tokens HSL semánticos y pares de navegación propios; paleta de acción sobre superficies editoriales invertidas; sans en controles/datos con variables `next/font`; carga/resultado y confirmaciones comunes usadas por pantallas activas; rating textual y expansión con ARIA; salto al contenido, tablas con foco/caption/scope, cierres localizados de 44 px, menú móvil, retorno de foco y movimiento reducido. Storage denegado conserva tema y tracking en memoria; no se usa memoria como almacén de credenciales. Las confirmaciones nativas existentes de usuarios/API keys/webhooks pasan a Radix con bloqueo/error en contexto. No se implementaron nuevos contratos API ni los flujos de fases posteriores.
+
+**TDD:** cuatro Red funcionales previos a la corrección: tema y sesión lanzaban `SecurityError` al bloquear storage; un legado que no podía borrarse lanzaba excepción; el cierre no tenía nombre en español. La nueva confirmación detectó después un fallo de retorno de foco y se corrigió con un hook utilizado también por los modales activos. Los casos ampliados de hosts/galería/marcadores se agregaron después y no se atribuyen a Red previo. Una fixture de hooks devolvía el mock desde `beforeEach`; se corrigió el harness, no producción, antes de acreditar sus resultados.
+
+| Control                                                                                           | Resultado                                                                                                                                  | Alcance y límite                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run test --workspace @testimonial-cms/web -- --maxWorkers=2`                                 | **204/204 tests, 36/36 archivos**, exit 0; 68,60 s                                                                                         | Suite completa: 12 casos nuevos sobre baseline 192; jsdom/transporte simulado. Aviso Vite preexistente conservado                                                  |
+| Vitest final dirigido a auth, shared, tema, diálogo, storage, testimonios, Inicio, galería y menú | **54/54 tests, 17/17 archivos**, exit 0; 70,60 s                                                                                           | Repetido después de los últimos ajustes visuales; comando completo debajo                                                                                          |
+| `npm run typecheck --workspace @testimonial-cms/web`                                              | Aprobado, exit 0                                                                                                                           | Estado final                                                                                                                                                       |
+| `npm run lint --workspace @testimonial-cms/web`                                                   | Exit 0: **cero errores, diez advertencias previas**                                                                                        | No se añadieron supresiones ni se ocultaron warnings                                                                                                               |
+| Detector Impeccable sobre los 39 archivos de UI modificados/nuevos, excluyendo tests, salida JSON | Exit 0, `[]`                                                                                                                               | No sustituye contraste, foco ni inspección visual                                                                                                                  |
+| 40 pares HSL/sRGB, incluyendo alpha al 10 %, botones, muted y sidebar                             | Mínimo **5,13:1**                                                                                                                          | Cálculo previo/posterior; no acredita todos los colores/medios/estados de la aplicación                                                                            |
+| Chrome/Playwright con Next dev, 1440×1000 y 375×812, claro/oscuro y storage denegado              | Cuatro combinaciones aprobadas, cero errores JS, cero DELETE al cancelar                                                                   | Testimonios, alta/error, usuarios, API keys, webhooks, categorías, etiquetas, ajustes, analítica y galería; respuestas sintéticas, sin cuentas ni servicios reales |
+| Teclado y feedback en navegador                                                                   | Salto a main, foco de tablas, abrir/cerrar diálogo y menú, retorno de foco, cancelar confirmaciones, expansión y tema en memoria aprobados | Menú y cierre también comprobados a 320 px. Diálogos/paneles con `animation-name: none` bajo movimiento reducido                                                   |
+| Contraste de estilos calculados de paneles de login/registro/landing                              | Texto de acción evaluado **7,42:1 claro y 6,71:1 oscuro**                                                                                  | Sólo paneles invertidos; sin enviar formularios ni capturar credenciales. Contenido y flujos quedan en fases 8/11                                                  |
+| `npm run test:e2e:list --workspace @testimonial-cms/web`                                          | Seis recorridos en dos archivos detectados, exit 0                                                                                         | Sólo descubrimiento. No equivale a ejecutar E2E                                                                                                                    |
+| Formato, enlaces y diff                                                                           | Aprobados: Prettier sobre 50 archivos afectados, enlaces/matrices y `git diff --check`                                                     | Sólo archivos afectados                                                                                                                                            |
+| Backend, integración PostgreSQL/Redis, build producción, E2E real y CI                            | No ejecutados en esta fase de base UI                                                                                                      | No hubo esquema, migraciones, infraestructura, hooks, dependencias, commit, push, PR ni despliegue                                                                 |
+
+Comando de la repetición final:
+
+```bash
+npm run test --workspace @testimonial-cms/web -- src/features/auth/screens/login-screen.test.tsx src/features/auth/components src/features/shared src/components/ThemeProvider.test.tsx src/components/ui/dialog.test.tsx src/lib/session-store.test.ts src/lib/preference-storage.test.ts src/features/testimonials src/features/overview src/features/public-testimonials/screens/public-testimonials-screen.test.tsx src/components/dashboard/DashboardSidebar.test.tsx --maxWorkers=2
+```
+
+**Inspección acotada:** ronda agrupada, corrección en bloque del cierre superpuesto al badge en escritorio y movimiento reducido, y confirmación final. El script corrigió una referencia al botón cuyo texto cambia tras expandir; no se contó como defecto del producto. La verificación de paneles invertidos sólo midió estilos de la misma paleta, sin modificar copy, precios, testimonios comerciales o destinos. El CLI agent-browser seguía no disponible; se usó Chrome instalado con Playwright. No se certifican dispositivo físico, zoom integral, lector de pantalla ni WCAG completa.
+
+**Pendientes explícitos:** F22 conserva las semánticas de auth (fase 8) y captura/galería completas (fase 9); las confirmaciones específicas de catálogo/logo permanecen en 4/7. Rotación/revelación, bloqueo por destino e historial conservan 5/6. Hover de acciones de catálogos y sus páginas se completan en 4. El logo predeterminado faltante y el contexto de organización quedan en 7; BI conserva sus siete superficies en 10. No se consideran estos flujos completos por recibir tokens o componentes compartidos. Validación integral y proveedores continúan en 12/CI cuando corresponda.
+
+El servidor local de inspección se detuvo al terminar. Las capturas temporales contienen sólo fixtures sintéticas; no se capturaron los formularios con credenciales de ejemplo.
+
+**Resultado:** F13 corregido localmente y parte transversal de F22 implementada; matrices parciales explícitas. **Commit y ACK de fase 2 pendientes. Detenerse; no iniciar fase 3.**
 
 ## 8. Validación por fase y aceptación final
 

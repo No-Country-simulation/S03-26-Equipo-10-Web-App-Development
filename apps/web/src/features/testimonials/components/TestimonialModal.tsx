@@ -19,6 +19,7 @@ import {
   Edit3,
   ShieldCheck,
 } from 'lucide-react';
+import { RatingDisplay } from '@/features/shared/rating-display';
 import { cn } from '@/lib/utils';
 import { listCategories, listTags } from '@/features/catalog/api';
 import { PageControls } from '@/features/shared/pagination';
@@ -29,6 +30,7 @@ import {
   updateTestimonial,
   type TestimonialTransition,
 } from '../api';
+import { useDialogFocus } from '@/features/shared/use-dialog-focus';
 import { DiscardChangesDialog } from './discard-changes-dialog';
 import {
   testimonialStatusLabels,
@@ -50,6 +52,7 @@ export function TestimonialModal({
   onUpdated,
 }: TestimonialModalProps) {
   const { fetchApi, session } = useSession();
+  const focus = useDialogFocus();
   const roles = session?.user.roles ?? [];
   const canModerate = roles.includes('admin') || roles.includes('editor');
   const isPublished = testimonial?.status === 'published';
@@ -362,7 +365,10 @@ export function TestimonialModal({
 
   return (
     <Dialog open={open} onOpenChange={requestClose}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden border-0 bg-background rounded-none shadow-2xl">
+      <DialogContent
+        {...focus}
+        className="max-w-2xl p-0 overflow-hidden border-0 bg-background rounded-none shadow-2xl"
+      >
         <DialogTitle className="sr-only">
           Testimonio de {testimonial.authorName}
         </DialogTitle>
@@ -459,7 +465,7 @@ export function TestimonialModal({
                     maxLength={120}
                     value={editAuthor}
                     onChange={(e) => setEditAuthor(e.target.value)}
-                    className="mt-2 font-caption text-xl bg-background rounded-none border-t-0 border-x-0 border-b-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary px-0"
+                    className="mt-2 font-body text-base bg-background rounded-none border-t-0 border-x-0 border-b-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary px-0"
                   />
                 </div>
                 <div>
@@ -475,7 +481,7 @@ export function TestimonialModal({
                     maxLength={1000}
                     value={editContent}
                     onChange={(e) => setEditContent(e.target.value)}
-                    className="w-full mt-2 bg-background font-caption text-2xl italic leading-relaxed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring resize-y min-h-[150px] border-b-2 border-border focus:border-primary"
+                    className="w-full mt-2 bg-background font-body text-base leading-relaxed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring resize-y min-h-[150px] border-b-2 border-border focus:border-primary"
                   />
                 </div>
 
@@ -575,23 +581,7 @@ export function TestimonialModal({
                 </blockquote>
 
                 <div className="flex items-center gap-4">
-                  <div className="flex gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <svg
-                        key={i}
-                        className={cn(
-                          'h-5 w-5',
-                          i < testimonial.rating
-                            ? 'text-primary'
-                            : 'text-muted-foreground/20',
-                        )}
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ))}
-                  </div>
+                  <RatingDisplay rating={testimonial.rating} />
                   <div className="h-px flex-1 bg-border" />
                   <p className="font-body text-sm font-bold uppercase tracking-wider text-foreground">
                     — {testimonial.authorName}
@@ -602,7 +592,7 @@ export function TestimonialModal({
           </div>
 
           {/* Right Column: Moderation & Media */}
-          <div className="flex w-full shrink-0 flex-col gap-8 bg-background p-6 md:w-[320px] md:overflow-y-auto">
+          <div className="flex w-full shrink-0 flex-col gap-8 bg-background p-6 md:w-[320px] md:overflow-y-auto md:pt-16">
             {/* Status & Moderation */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -613,15 +603,15 @@ export function TestimonialModal({
                   className={cn(
                     'px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
                     testimonial.status === 'published' &&
-                      'bg-primary/20 text-primary',
+                      'bg-primary/10 text-primary',
                     testimonial.status === 'pending' &&
-                      'bg-accent/20 text-accent',
+                      'bg-warning/10 text-warning',
                     testimonial.status === 'draft' &&
                       'bg-muted text-muted-foreground',
                     testimonial.status === 'approved' &&
-                      'bg-primary/10 text-primary',
+                      'bg-success/10 text-success',
                     testimonial.status === 'rejected' &&
-                      'bg-destructive/20 text-destructive',
+                      'bg-destructive/10 text-destructive',
                   )}
                 >
                   {testimonialStatusLabels[testimonial.status] ??
@@ -804,7 +794,7 @@ export function TestimonialModal({
                         disabled={
                           busy || isEditing || rejectMode || Boolean(videoUrl)
                         }
-                        className="font-body text-[10px] rounded-none border-dashed bg-transparent file:bg-primary file:text-primary-foreground file:border-0 file:mr-4 file:px-2 file:py-1 cursor-pointer"
+                        className="font-body text-base md:text-sm rounded-none border-dashed bg-transparent file:bg-primary file:text-primary-foreground file:border-0 file:mr-4 file:px-2 file:py-1 cursor-pointer"
                       />
                       {loadingImage && (
                         <Loader2 className="absolute right-2 top-2 w-4 h-4 animate-spin text-primary" />
@@ -843,7 +833,7 @@ export function TestimonialModal({
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}
                         disabled={busy || isEditing || rejectMode}
-                        className="font-body text-[10px] rounded-none bg-transparent"
+                        className="font-body text-base md:text-sm rounded-none bg-transparent"
                       />
                       <Button
                         type="button"

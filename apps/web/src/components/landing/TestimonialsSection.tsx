@@ -1,42 +1,45 @@
-import { Star } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Star } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const testimonials = [
   {
-    name: "Santiago Valdés",
-    role: "CTO",
-    company: "Fintech Horizon",
-    initials: "SV",
-    quote: "La integración vía API nos tomó exactamente 18 minutos. El scoring algorítmico automáticamente colocó las reseñas más detalladas al frente. Redujimos el abandono del onboarding en un 22%.",
+    name: 'Santiago Valdés',
+    role: 'CTO',
+    company: 'Fintech Horizon',
+    initials: 'SV',
+    quote:
+      'La integración vía API nos tomó exactamente 18 minutos. El scoring algorítmico automáticamente colocó las reseñas más detalladas al frente. Redujimos el abandono del onboarding en un 22%.',
     rating: 5,
-    category: "Ingeniería",
-    tags: ["API REST", "Scoring"],
-    style: "bg-primary text-primary-foreground",
-    layout: "md:col-span-2 md:row-span-2",
+    category: 'Ingeniería',
+    tags: ['API REST', 'Scoring'],
+    style: 'bg-primary text-primary-foreground',
+    layout: 'md:col-span-2 md:row-span-2',
   },
   {
-    name: "Elena Rostova",
-    role: "Directora de Growth",
-    company: "SaaS Analytics",
-    initials: "ER",
-    quote: "Los Webhooks en tiempo real transformaron nuestro flujo. Aprobamos un testimonio y automáticamente aparece en nuestro sitio web y se notifica al equipo de ventas en Slack. Impecable.",
+    name: 'Elena Rostova',
+    role: 'Directora de Growth',
+    company: 'SaaS Analytics',
+    initials: 'ER',
+    quote:
+      'Los Webhooks en tiempo real transformaron nuestro flujo. Aprobamos un testimonio y automáticamente aparece en nuestro sitio web y se notifica al equipo de ventas en Slack. Impecable.',
     rating: 5,
-    category: "Marketing",
-    tags: ["Webhooks", "Automatización"],
-    style: "bg-card text-card-foreground",
-    layout: "md:col-span-1 md:row-span-1",
+    category: 'Marketing',
+    tags: ['Webhooks', 'Automatización'],
+    style: 'bg-card text-card-foreground',
+    layout: 'md:col-span-1 md:row-span-1',
   },
   {
-    name: "Marcos Villanueva",
-    role: "Product Manager",
-    company: "Agencia Neo",
-    initials: "MV",
-    quote: "Manejar a 15 clientes B2B desde un solo panel multi-tenant parecía imposible hasta que descubrimos Testimonial CMS. La segmentación por categorías es exactamente lo que necesitábamos.",
+    name: 'Marcos Villanueva',
+    role: 'Product Manager',
+    company: 'Agencia Neo',
+    initials: 'MV',
+    quote:
+      'Manejar a 15 clientes B2B desde un solo panel multi-tenant parecía imposible hasta que descubrimos Testimonial CMS. La segmentación por categorías es exactamente lo que necesitábamos.',
     rating: 4,
-    category: "Agencias",
-    tags: ["Multi-Tenant", "B2B"],
-    style: "bg-foreground text-background",
-    layout: "md:col-span-1 md:row-span-1",
+    category: 'Agencias',
+    tags: ['Multi-Tenant', 'B2B'],
+    style: 'surface-inverse bg-foreground text-background',
+    layout: 'md:col-span-1 md:row-span-1',
   },
 ];
 
@@ -47,7 +50,11 @@ export const TestimonialsSection = () => {
         <div className="mb-20 flex flex-col items-start gap-6 md:flex-row md:items-end md:justify-between border-b border-foreground/10 pb-16">
           <div className="max-w-2xl">
             <h2 className="font-caption text-5xl font-light italic leading-tight text-foreground md:text-7xl md:leading-none">
-              Autoridad en <br />cada <strong className="font-body font-bold not-italic">palabra.</strong>
+              Autoridad en <br />
+              cada{' '}
+              <strong className="font-body font-bold not-italic">
+                palabra.
+              </strong>
             </h2>
           </div>
           <p className="max-w-xs font-body text-sm font-medium uppercase tracking-widest text-muted-foreground">
@@ -60,9 +67,9 @@ export const TestimonialsSection = () => {
             <div
               key={t.name}
               className={cn(
-                "group relative flex flex-col justify-between p-10 transition-transform duration-500 hover:-translate-y-2",
+                'group relative flex flex-col justify-between p-10 transition-transform duration-500 hover:-translate-y-2',
                 t.style,
-                t.layout
+                t.layout,
               )}
             >
               <div className="flex items-center justify-between mb-8">
@@ -70,21 +77,33 @@ export const TestimonialsSection = () => {
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
-                      className={cn("h-5 w-5", i < t.rating ? "fill-current text-current" : "opacity-30")}
+                      className={cn(
+                        'h-5 w-5',
+                        i < t.rating
+                          ? 'fill-current text-current'
+                          : 'opacity-30',
+                      )}
                     />
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <span className={cn(
-                    "font-body text-[10px] uppercase font-bold px-2 py-1",
-                    t.style.includes("bg-primary") ? "bg-background/20 text-primary-foreground" :
-                      t.style.includes("bg-foreground") ? "bg-background/20 text-background" :
-                        "bg-primary/10 text-primary"
-                  )}>
+                  <span
+                    className={cn(
+                      'font-body text-[10px] uppercase font-bold px-2 py-1',
+                      t.style.includes('bg-primary')
+                        ? 'bg-background/20 text-primary-foreground'
+                        : t.style.includes('bg-foreground')
+                          ? 'bg-background/20 text-background'
+                          : 'bg-primary/10 text-primary',
+                    )}
+                  >
                     {t.category}
                   </span>
-                  {t.tags.map(tag => (
-                    <span key={tag} className="font-body text-[10px] uppercase border px-2 py-1 opacity-70">
+                  {t.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="font-body text-[10px] uppercase border px-2 py-1 opacity-70"
+                    >
                       #{tag}
                     </span>
                   ))}
@@ -97,12 +116,19 @@ export const TestimonialsSection = () => {
 
               <div className="mt-12 flex items-center justify-between border-t border-current/20 pt-6">
                 <div className="flex items-center gap-4">
-                  <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center border border-current bg-background/10 font-body text-xs font-bold tracking-widest">
+                  <span
+                    aria-hidden="true"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center border border-current bg-background/10 font-body text-xs font-bold tracking-widest"
+                  >
                     {t.initials}
                   </span>
                   <div>
-                    <p className="font-body text-lg font-bold uppercase tracking-wider">{t.name}</p>
-                    <p className="font-body text-xs uppercase tracking-widest opacity-70">{t.role}, {t.company}</p>
+                    <p className="font-body text-lg font-bold uppercase tracking-wider">
+                      {t.name}
+                    </p>
+                    <p className="font-body text-xs uppercase tracking-widest opacity-70">
+                      {t.role}, {t.company}
+                    </p>
                   </div>
                 </div>
                 <div className="text-6xl font-caption font-bold italic opacity-10">

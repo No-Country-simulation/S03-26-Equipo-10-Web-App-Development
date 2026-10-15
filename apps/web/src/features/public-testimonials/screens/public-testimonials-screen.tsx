@@ -1,13 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useParams } from 'next/navigation';
-import { Eye, MousePointerClick, Play, Quote, Star } from 'lucide-react';
+import { Eye, MousePointerClick, Play, Quote } from 'lucide-react';
 import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
 import { Button } from '@/components/ui/button';
+import { RatingDisplay } from '@/features/shared/rating-display';
 import { cn } from '@/lib/utils';
-import { listPublicTestimonials, trackPublicEvent as sendPublicEvent, type PublicTestimonial } from '../api';
+import {
+  listPublicTestimonials,
+  trackPublicEvent as sendPublicEvent,
+  type PublicTestimonial,
+} from '../api';
 import { LoadFailure } from '@/features/shared/load-failure';
+import { LoadingState } from '@/features/shared/feedback';
+import { trackingStorage } from '@/lib/preference-storage';
 import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 type AnalyticsEventType = 'view' | 'click' | 'play';
@@ -82,29 +96,46 @@ function loadYouTubeApi(): Promise<void> {
   return youtubeApiPromise;
 }
 
-function getSessionKey(slug: string, testimonialId: string, eventType: AnalyticsEventType) {
+function getSessionKey(
+  slug: string,
+  testimonialId: string,
+  eventType: AnalyticsEventType,
+) {
   return `analytics:${slug}:${testimonialId}:${eventType}`;
 }
 
-function wasTracked(slug: string, testimonialId: string, eventType: AnalyticsEventType) {
+function wasTracked(
+  slug: string,
+  testimonialId: string,
+  eventType: AnalyticsEventType,
+) {
   if (typeof window === 'undefined') return false;
-  return sessionStorage.getItem(getSessionKey(slug, testimonialId, eventType)) === '1';
+  return (
+    trackingStorage.get(getSessionKey(slug, testimonialId, eventType)) === '1'
+  );
 }
 
-function markTracked(slug: string, testimonialId: string, eventType: AnalyticsEventType) {
+function markTracked(
+  slug: string,
+  testimonialId: string,
+  eventType: AnalyticsEventType,
+) {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(getSessionKey(slug, testimonialId, eventType), '1');
+  trackingStorage.set(getSessionKey(slug, testimonialId, eventType), '1');
 }
 
 function extractYouTubeVideoId(url: string) {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:') return null;
-    const id = parsed.hostname === 'youtu.be'
-      ? parsed.pathname.slice(1)
-      : ['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(parsed.hostname)
-        ? parsed.searchParams.get('v')
-        : null;
+    const id =
+      parsed.hostname === 'youtu.be'
+        ? parsed.pathname.slice(1)
+        : ['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(
+              parsed.hostname,
+            )
+          ? parsed.searchParams.get('v')
+          : null;
     return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
   } catch {
     return null;
@@ -128,7 +159,7 @@ async function trackPublicEvent(
   try {
     await sendPublicEvent(slug, testimonialId, eventType, source);
   } catch {
-    sessionStorage.removeItem(getSessionKey(slug, testimonialId, eventType));
+    trackingStorage.remove(getSessionKey(slug, testimonialId, eventType));
   }
 }
 
@@ -143,7 +174,8 @@ function TrackedYouTubePlayer({
   const [playerUnavailable, setPlayerUnavailable] = useState(false);
   const playerId = useId().replace(/:/g, '-');
   const videoId = useMemo(
-    () => (testimonial.videoUrl ? extractYouTubeVideoId(testimonial.videoUrl) : null),
+    () =>
+      testimonial.videoUrl ? extractYouTubeVideoId(testimonial.videoUrl) : null,
     [testimonial.videoUrl],
   );
 
@@ -155,27 +187,31 @@ function TrackedYouTubePlayer({
     let mounted = true;
     let player: { destroy: () => void } | null = null;
 
-    void loadYouTubeApi().then(() => {
-      if (!mounted || !window.YT?.Player) {
-        if (mounted) setPlayerUnavailable(true);
-        return;
-      }
+    void loadYouTubeApi()
+      .then(() => {
+        if (!mounted || !window.YT?.Player) {
+          if (mounted) setPlayerUnavailable(true);
+          return;
+        }
 
-      player = new window.YT.Player(playerId, {
-        videoId,
-        playerVars: {
-          autoplay: 1,
-          rel: 0,
-        },
-        events: {
-          onStateChange: (event) => {
-            if (event.data === window.YT?.PlayerState.PLAYING) {
-              void trackPublicEvent(slug, testimonial.id, 'play');
-            }
+        player = new window.YT.Player(playerId, {
+          videoId,
+          playerVars: {
+            autoplay: 1,
+            rel: 0,
           },
-        },
+          events: {
+            onStateChange: (event) => {
+              if (event.data === window.YT?.PlayerState.PLAYING) {
+                void trackPublicEvent(slug, testimonial.id, 'play');
+              }
+            },
+          },
+        });
+      })
+      .catch(() => {
+        if (mounted) setPlayerUnavailable(true);
       });
-    }).catch(() => { if (mounted) setPlayerUnavailable(true); });
 
     return () => {
       mounted = false;
@@ -192,7 +228,12 @@ function TrackedYouTubePlayer({
       return (
         <div className="flex aspect-video flex-col items-center justify-center gap-3 border bg-muted/20 p-4 text-center font-body text-sm">
           <p>No se pudo cargar el reproductor.</p>
-          <a href={`https://www.youtube.com/watch?v=${videoId}`} target="_blank" rel="noopener noreferrer" className="text-primary underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+          <a
+            href={`https://www.youtube.com/watch?v=${videoId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
             Abrir video en YouTube
           </a>
         </div>
@@ -201,7 +242,9 @@ function TrackedYouTubePlayer({
     return <div id={playerId} className="aspect-video w-full" />;
   }
 
-  const thumbnail = testimonial.videoThumbnailUrl ?? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  const thumbnail =
+    testimonial.videoThumbnailUrl ??
+    `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
 
   return (
     <button
@@ -235,6 +278,7 @@ function TestimonialCard({
 }) {
   const cardRef = useRef<HTMLElement | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
 
   useEffect(() => {
     const node = cardRef.current;
@@ -298,19 +342,15 @@ function TestimonialCard({
         <Quote className="h-8 w-8 text-primary/30" />
       </div>
 
-      <div className="mt-4 flex items-center gap-1">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <Star
-            key={index}
-            className={cn(
-              'h-4 w-4',
-              index < testimonial.rating ? 'fill-primary text-primary' : 'text-muted-foreground/20',
-            )}
-          />
-        ))}
-      </div>
+      <RatingDisplay rating={testimonial.rating} className="mt-4" />
 
-      <p className={cn('mt-5 font-body text-sm leading-7 text-muted-foreground', !expanded && 'line-clamp-4')}>
+      <p
+        id={contentId}
+        className={cn(
+          'mt-5 font-body text-sm leading-7 text-muted-foreground',
+          !expanded && 'line-clamp-4',
+        )}
+      >
         {testimonial.content}
       </p>
 
@@ -353,6 +393,8 @@ function TestimonialCard({
           type="button"
           variant="ghost"
           onClick={handleExpand}
+          aria-expanded={expanded}
+          aria-controls={contentId}
           className="h-10 font-body text-[11px] uppercase tracking-[0.18em]"
         >
           {expanded ? 'Ocultar detalle' : 'Ver detalle'}
@@ -381,17 +423,22 @@ export default function PublicTestimonialsPage() {
             Testimonios publicados
           </h1>
           <p className="mt-6 font-body text-sm leading-7 text-muted-foreground">
-            Conocé las experiencias que esta marca eligió compartir con su comunidad.
+            Conocé las experiencias que esta marca eligió compartir con su
+            comunidad.
           </p>
         </div>
 
         {state.status === 'loading' ? (
-          <div className="flex min-h-[40vh] items-center justify-center">
-            <div className="h-8 w-8 animate-spin border-2 border-primary border-t-transparent" />
-          </div>
+          <LoadingState className="min-h-[40vh] justify-center">
+            Cargando testimonios publicados…
+          </LoadingState>
         ) : state.status === 'error' ? (
           <div className="mx-auto mt-16 max-w-2xl">
-            <LoadFailure error={state.error} resource="los testimonios publicados" onRetry={reload} />
+            <LoadFailure
+              error={state.error}
+              resource="los testimonios publicados"
+              onRetry={reload}
+            />
           </div>
         ) : testimonials.length === 0 ? (
           <div className="mx-auto mt-16 max-w-2xl border border-dashed p-10 text-center">
@@ -402,7 +449,11 @@ export default function PublicTestimonialsPage() {
         ) : (
           <div className="mt-16 grid gap-8 lg:grid-cols-2">
             {testimonials.map((testimonial) => (
-              <TestimonialCard key={testimonial.id} slug={slug} testimonial={testimonial} />
+              <TestimonialCard
+                key={testimonial.id}
+                slug={slug}
+                testimonial={testimonial}
+              />
             ))}
           </div>
         )}

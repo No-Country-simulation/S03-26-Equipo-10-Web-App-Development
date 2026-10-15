@@ -53,7 +53,7 @@ La eliminación y su presentación diferenciada se incorporan en fase 3; esta fa
 
 ## Diseño y límites
 
-Se conserva la identidad crema/terracota, esquinas rectas y serif editorial para citas/títulos. Se reutilizan Dialog/AlertDialog de Radix, foco y teclado nativos. Contraste, cierres localizados y feedback transversal continúan en fase 2; no se acredita WCAG completa con esta corrección.
+Se conserva la identidad crema/terracota, esquinas rectas y serif editorial para citas/títulos. Se reutilizan Dialog/AlertDialog de Radix, foco y teclado nativos. La fase 2 añade valoración textual, cierre localizado, retorno de foco, sans para controles y colores semánticos compartidos; ver la [base compartida](../technical/2026-10-15_frontend_base_compartida.md). No se acredita WCAG completa con estas correcciones.
 
 ## Evidencia de fase 1
 

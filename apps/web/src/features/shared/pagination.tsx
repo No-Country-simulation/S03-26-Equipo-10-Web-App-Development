@@ -50,9 +50,9 @@ export function PageControls({
   return (
     <nav
       aria-label="Paginación"
-      className="mt-4 flex items-center justify-end gap-3 text-sm"
+      className="mt-4 flex flex-wrap items-center justify-end gap-3 text-sm"
     >
-      <span>
+      <span role="status" aria-atomic="true">
         Página {page} de {pages} · {total} registros
       </span>
       <Button

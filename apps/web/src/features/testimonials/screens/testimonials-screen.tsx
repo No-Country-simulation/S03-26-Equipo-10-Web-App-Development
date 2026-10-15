@@ -14,6 +14,7 @@ import { testimonialStatusLabels } from '@/features/testimonials/presentation';
 import { listTestimonials } from '../api';
 import { PageControls } from '@/features/shared/pagination';
 import { LoadFailure } from '@/features/shared/load-failure';
+import { LoadingState } from '@/features/shared/feedback';
 import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 export function TestimonialsScreen() {
@@ -186,12 +187,7 @@ export function TestimonialsScreen() {
       </div>
 
       {state.status === 'loading' ? (
-        <div className="flex items-center gap-3 py-20">
-          <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
-          <span className="font-body text-sm text-muted-foreground">
-            Cargando...
-          </span>
-        </div>
+        <LoadingState>Cargando testimonios…</LoadingState>
       ) : state.status === 'error' ? (
         <LoadFailure
           error={state.error}
@@ -205,23 +201,44 @@ export function TestimonialsScreen() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto bg-card shadow-soft-lg">
+        <div
+          role="region"
+          aria-label="Tabla de testimonios"
+          tabIndex={0}
+          className="min-w-0 overflow-x-auto bg-card shadow-soft-lg"
+        >
           <table className="w-full">
+            <caption className="sr-only">Testimonios de este espacio</caption>
             <thead>
               <tr className="border-b">
-                <th className="py-4 pl-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <th
+                  scope="col"
+                  className="py-4 pl-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
                   ID
                 </th>
-                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <th
+                  scope="col"
+                  className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
                   Autor
                 </th>
-                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <th
+                  scope="col"
+                  className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
                   Extracto
                 </th>
-                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <th
+                  scope="col"
+                  className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
                   Estado
                 </th>
-                <th className="py-4 text-right pr-4 font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <th
+                  scope="col"
+                  className="py-4 text-right pr-4 font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
+                >
                   Acción
                 </th>
               </tr>
@@ -268,13 +285,13 @@ export function TestimonialsScreen() {
                       className={cn(
                         'inline-block px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
                         t.status === 'published' &&
-                          'bg-primary/20 text-primary',
-                        t.status === 'pending' && 'bg-accent/20 text-accent',
+                          'bg-primary/10 text-primary',
+                        t.status === 'pending' && 'bg-warning/10 text-warning',
                         t.status === 'draft' &&
                           'bg-muted text-muted-foreground',
-                        t.status === 'approved' && 'bg-primary/10 text-primary',
+                        t.status === 'approved' && 'bg-success/10 text-success',
                         t.status === 'rejected' &&
-                          'bg-destructive/20 text-destructive',
+                          'bg-destructive/10 text-destructive',
                       )}
                     >
                       {testimonialStatusLabels[t.status] ?? t.status}

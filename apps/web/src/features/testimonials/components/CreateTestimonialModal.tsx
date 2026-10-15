@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { listCategories, listTags } from '@/features/catalog/api';
 import { PageControls } from '@/features/shared/pagination';
 import { createTestimonial } from '../api';
+import { useDialogFocus } from '@/features/shared/use-dialog-focus';
 import { DiscardChangesDialog } from './discard-changes-dialog';
 import { actionFailureCopy } from '@/features/shared/load-failure';
 
@@ -30,6 +31,7 @@ export function CreateTestimonialModal({
   onCreated,
 }: CreateTestimonialModalProps) {
   const { fetchApi } = useSession();
+  const focus = useDialogFocus();
 
   const [authorName, setAuthorName] = useState('');
   const [content, setContent] = useState('');
@@ -151,7 +153,10 @@ export function CreateTestimonialModal({
 
   return (
     <Dialog open={open} onOpenChange={requestClose}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden border-0 bg-background rounded-none shadow-2xl">
+      <DialogContent
+        {...focus}
+        className="max-w-2xl p-0 overflow-hidden border-0 bg-background rounded-none shadow-2xl"
+      >
         <DialogTitle className="sr-only">Crear nuevo testimonio</DialogTitle>
         <DialogDescription className="sr-only">
           Formulario para registrar un nuevo testimonio en el sistema
@@ -218,7 +223,7 @@ export function CreateTestimonialModal({
                   value={authorName}
                   onChange={(e) => setAuthorName(e.target.value)}
                   placeholder="Nombre completo del cliente"
-                  className="w-full mt-3 bg-transparent font-caption text-2xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary pb-2 transition-colors"
+                  className="w-full mt-3 bg-transparent font-body text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary pb-2 transition-colors"
                 />
               </div>
 
@@ -238,7 +243,7 @@ export function CreateTestimonialModal({
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Escribe aquí la experiencia del cliente con tu producto o servicio..."
-                  className="w-full mt-3 bg-transparent font-caption text-xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary resize-y min-h-[180px] transition-colors"
+                  className="w-full mt-3 bg-transparent font-body text-base leading-relaxed text-foreground placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary resize-y min-h-[180px] transition-colors"
                 />
               </div>
             </div>
@@ -250,7 +255,7 @@ export function CreateTestimonialModal({
                 <legend className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   Valoración del cliente
                 </legend>
-                <div className="flex justify-center gap-2 py-4">
+                <div className="flex justify-center gap-0.5 py-4">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <label key={star} className="cursor-pointer">
                       <input
@@ -262,7 +267,7 @@ export function CreateTestimonialModal({
                         aria-label={`${star} ${star === 1 ? 'estrella' : 'estrellas'}`}
                         className="peer sr-only"
                       />
-                      <span className="flex h-10 w-10 items-center justify-center transition-transform hover:scale-110 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring motion-reduce:transform-none">
+                      <span className="flex h-11 w-11 items-center justify-center transition-transform hover:scale-110 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring motion-reduce:transform-none">
                         <Star
                           aria-hidden="true"
                           className={cn(
@@ -277,6 +282,7 @@ export function CreateTestimonialModal({
                   ))}
                 </div>
                 <p className="text-center font-body text-xs text-muted-foreground">
+                  <span>{rating} de 5 estrellas · </span>
                   {rating === 5 && 'Excelente'}
                   {rating === 4 && 'Muy bueno'}
                   {rating === 3 && 'Bueno'}

@@ -5,12 +5,14 @@ import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { TestimonialRecord, TenantUser } from '@/lib/api';
 import { MessageSquareQuote, Users, Clock, TrendingUp } from 'lucide-react';
+import { RatingDisplay } from '@/features/shared/rating-display';
 import { cn } from '@/lib/utils';
 import { TestimonialModal } from '@/features/testimonials';
 import { testimonialStatusLabels } from '@/features/testimonials/presentation';
 import { listTestimonials } from '@/features/testimonials/api';
 import { listUsers } from '@/features/users/api';
 import { LoadFailure } from '@/features/shared/load-failure';
+import { LoadingState } from '@/features/shared/feedback';
 import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 export default function AdminOverviewPage() {
@@ -86,12 +88,7 @@ export default function AdminOverviewPage() {
       />
 
       {state.status === 'loading' ? (
-        <div className="flex items-center gap-3 py-20">
-          <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
-          <span className="font-body text-sm text-muted-foreground">
-            Cargando métricas...
-          </span>
-        </div>
+        <LoadingState>Cargando métricas del inicio…</LoadingState>
       ) : state.status === 'error' ? (
         <LoadFailure
           error={state.error}
@@ -121,7 +118,7 @@ export default function AdminOverviewPage() {
                     )}
                   />
                 </div>
-                <p className="mt-3 font-caption text-4xl font-light italic text-foreground">
+                <p className="mt-3 font-body tabular-nums text-4xl font-medium text-foreground">
                   {m.value}
                 </p>
               </div>
@@ -159,14 +156,15 @@ export default function AdminOverviewPage() {
                         className={cn(
                           'px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
                           t.status === 'published' &&
-                            'bg-primary/20 text-primary',
-                          t.status === 'pending' && 'bg-accent/20 text-accent',
+                            'bg-primary/10 text-primary',
+                          t.status === 'pending' &&
+                            'bg-warning/10 text-warning',
                           t.status === 'draft' &&
                             'bg-muted text-muted-foreground',
                           t.status === 'approved' &&
-                            'bg-primary/10 text-primary',
+                            'bg-success/10 text-success',
                           t.status === 'rejected' &&
-                            'bg-destructive/20 text-destructive',
+                            'bg-destructive/10 text-destructive',
                         )}
                       >
                         {testimonialStatusLabels[t.status] ?? t.status}
@@ -175,23 +173,7 @@ export default function AdminOverviewPage() {
                     <p className="font-caption text-sm italic leading-relaxed text-muted-foreground line-clamp-3">
                       &ldquo;{t.content}&rdquo;
                     </p>
-                    <div className="mt-4 flex items-center gap-1">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <svg
-                          key={i}
-                          className={cn(
-                            'h-3.5 w-3.5',
-                            i < t.rating
-                              ? 'text-primary'
-                              : 'text-muted-foreground/20',
-                          )}
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                    </div>
+                    <RatingDisplay rating={t.rating} className="mt-4" />
                   </button>
                 ))}
               </div>
