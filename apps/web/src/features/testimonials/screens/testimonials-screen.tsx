@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Plus, RefreshCw, Search } from 'lucide-react';
 import { TestimonialModal } from '../components/TestimonialModal';
 import { CreateTestimonialModal } from '../components/CreateTestimonialModal';
+import { testimonialStatusLabels } from '@/features/testimonials/presentation';
 import { listTestimonials } from '../api';
 import { PageControls } from '@/features/shared/pagination';
 import { LoadFailure } from '@/features/shared/load-failure';
@@ -19,15 +20,21 @@ export function TestimonialsScreen() {
   const { session, fetchApi } = useSession();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [selectedTestimonial, setSelectedTestimonial] = useState<TestimonialRecord | null>(null);
+  const [selectedTestimonial, setSelectedTestimonial] =
+    useState<TestimonialRecord | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   // Filter States
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null,
+  );
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
-  const load = useCallback(async () => (await listTestimonials(fetchApi, page)).data, [fetchApi, page]);
+  const load = useCallback(
+    async () => (await listTestimonials(fetchApi, page)).data,
+    [fetchApi, page],
+  );
   const { state, reload } = useRemoteResource(load, Boolean(session));
   const testimonials = state.status === 'success' ? state.data.items : [];
   const total = state.status === 'success' ? state.data.meta.total : 0;
@@ -36,14 +43,15 @@ export function TestimonialsScreen() {
   const categoryCounts = new Map<string, { name: string; count: number }>();
   const tagCounts = new Map<string, { name: string; count: number }>();
 
-  testimonials.forEach(t => {
+  testimonials.forEach((t) => {
     if (t.category) {
       const existing = categoryCounts.get(t.category.id);
       if (existing) existing.count++;
-      else categoryCounts.set(t.category.id, { name: t.category.name, count: 1 });
+      else
+        categoryCounts.set(t.category.id, { name: t.category.name, count: 1 });
     }
     if (t.tags) {
-      t.tags.forEach(tag => {
+      t.tags.forEach((tag) => {
         const existing = tagCounts.get(tag.id);
         if (existing) existing.count++;
         else tagCounts.set(tag.id, { name: tag.name, count: 1 });
@@ -51,18 +59,28 @@ export function TestimonialsScreen() {
     }
   });
 
-  const filtered = testimonials.filter(
-    (t) => {
-      const matchSearch = t.authorName.toLowerCase().includes(search.toLowerCase()) || t.content.toLowerCase().includes(search.toLowerCase());
-      const matchCategory = selectedCategoryId ? t.categoryId === selectedCategoryId : true;
-      const matchTags = selectedTagIds.length > 0 ? selectedTagIds.every(tagId => t.tags?.some(tag => tag.id === tagId)) : true;
-      return matchSearch && matchCategory && matchTags;
-    }
-  );
+  const filtered = testimonials.filter((t) => {
+    const matchSearch =
+      t.authorName.toLowerCase().includes(search.toLowerCase()) ||
+      t.content.toLowerCase().includes(search.toLowerCase());
+    const matchCategory = selectedCategoryId
+      ? t.categoryId === selectedCategoryId
+      : true;
+    const matchTags =
+      selectedTagIds.length > 0
+        ? selectedTagIds.every((tagId) =>
+            t.tags?.some((tag) => tag.id === tagId),
+          )
+        : true;
+    return matchSearch && matchCategory && matchTags;
+  });
 
   return (
     <>
-      <DashboardHeader title="Testimonios" description="Gestiona y modera las opiniones de tus clientes.">
+      <DashboardHeader
+        title="Testimonios"
+        description="Gestiona y modera las opiniones de tus clientes."
+      >
         <Button
           onClick={() => setCreateOpen(true)}
           className="h-10 bg-primary px-6 font-body text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
@@ -100,26 +118,32 @@ export function TestimonialsScreen() {
               aria-pressed={selectedCategoryId === null}
               onClick={() => setSelectedCategoryId(null)}
               className={cn(
-                "min-h-8 font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                selectedCategoryId === null ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:bg-muted/50 border-border"
+                'min-h-8 font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                selectedCategoryId === null
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-transparent text-muted-foreground hover:bg-muted/50 border-border',
               )}
             >
               Todas ({testimonials.length})
             </button>
-            {Array.from(categoryCounts.entries()).map(([id, { name, count }]) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={selectedCategoryId === id}
-                onClick={() => setSelectedCategoryId(id)}
-                className={cn(
-                  "min-h-8 font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                  selectedCategoryId === id ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-muted-foreground hover:bg-muted/50 border-border"
-                )}
-              >
-                {name} ({count})
-              </button>
-            ))}
+            {Array.from(categoryCounts.entries()).map(
+              ([id, { name, count }]) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={selectedCategoryId === id}
+                  onClick={() => setSelectedCategoryId(id)}
+                  className={cn(
+                    'min-h-8 font-body text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 transition-colors border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                    selectedCategoryId === id
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-transparent text-muted-foreground hover:bg-muted/50 border-border',
+                  )}
+                >
+                  {name} ({count})
+                </button>
+              ),
+            )}
           </div>
         )}
 
@@ -132,15 +156,17 @@ export function TestimonialsScreen() {
                 type="button"
                 aria-pressed={selectedTagIds.includes(id)}
                 onClick={() => {
-                  setSelectedTagIds(prev =>
-                    prev.includes(id) ? prev.filter(tid => tid !== id) : [...prev, id]
+                  setSelectedTagIds((prev) =>
+                    prev.includes(id)
+                      ? prev.filter((tid) => tid !== id)
+                      : [...prev, id],
                   );
                 }}
                 className={cn(
-                  "min-h-8 font-body text-[10px] uppercase tracking-wider px-2 py-1 transition-colors border rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  'min-h-8 font-body text-[10px] uppercase tracking-wider px-2 py-1 transition-colors border rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                   selectedTagIds.includes(id)
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-transparent text-muted-foreground border-border hover:border-foreground/30"
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-transparent text-muted-foreground border-border hover:border-foreground/30',
                 )}
               >
                 #{name} <span className="opacity-50">({count})</span>
@@ -162,24 +188,42 @@ export function TestimonialsScreen() {
       {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20">
           <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
-          <span className="font-body text-sm text-muted-foreground">Cargando...</span>
+          <span className="font-body text-sm text-muted-foreground">
+            Cargando...
+          </span>
         </div>
       ) : state.status === 'error' ? (
-        <LoadFailure error={state.error} resource="los testimonios" onRetry={reload} />
+        <LoadFailure
+          error={state.error}
+          resource="los testimonios"
+          onRetry={reload}
+        />
       ) : filtered.length === 0 ? (
         <div className="border border-dashed p-12 text-center">
-          <p className="font-body text-sm text-muted-foreground">No se encontraron testimonios.</p>
+          <p className="font-body text-sm text-muted-foreground">
+            No se encontraron testimonios.
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto bg-card shadow-soft-lg">
           <table className="w-full">
             <thead>
               <tr className="border-b">
-                <th className="py-4 pl-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">ID</th>
-                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Autor</th>
-                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Extracto</th>
-                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estado</th>
-                <th className="py-4 text-right pr-4 font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Acción</th>
+                <th className="py-4 pl-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  ID
+                </th>
+                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Autor
+                </th>
+                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Extracto
+                </th>
+                <th className="py-4 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Estado
+                </th>
+                <th className="py-4 text-right pr-4 font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Acción
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -188,30 +232,52 @@ export function TestimonialsScreen() {
                   key={t.id}
                   className="border-b border-border/50 transition-colors hover:bg-muted/10 group"
                 >
-                  <td className="py-4 pl-4 font-body text-xs text-muted-foreground">{t.id.split('-')[0]}</td>
-                  <td className="py-4 pr-4 font-body text-sm font-medium text-foreground">{t.authorName}</td>
+                  <td className="py-4 pl-4 font-body text-xs text-muted-foreground">
+                    {t.id.split('-')[0]}
+                  </td>
+                  <td className="py-4 pr-4 font-body text-sm font-medium text-foreground">
+                    {t.authorName}
+                  </td>
                   <td className="max-w-[200px] sm:max-w-xs py-4 pr-4">
                     <div className="truncate font-caption text-sm italic text-muted-foreground mb-1">
                       &ldquo;{t.content}&rdquo;
                     </div>
                     <div className="flex gap-1 overflow-hidden">
-                      {t.category && <span className="text-[8px] bg-primary/10 text-primary px-1 font-body uppercase">{t.category.name}</span>}
-                      {t.tags?.slice(0, 2).map(tag => (
-                        <span key={tag.id} className="text-[8px] border px-1 font-body text-muted-foreground uppercase">#{tag.name}</span>
+                      {t.category && (
+                        <span className="text-[8px] bg-primary/10 text-primary px-1 font-body uppercase">
+                          {t.category.name}
+                        </span>
+                      )}
+                      {t.tags?.slice(0, 2).map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="text-[8px] border px-1 font-body text-muted-foreground uppercase"
+                        >
+                          #{tag.name}
+                        </span>
                       ))}
-                      {(t.tags?.length || 0) > 2 && <span className="text-[8px] text-muted-foreground">...</span>}
+                      {(t.tags?.length || 0) > 2 && (
+                        <span className="text-[8px] text-muted-foreground">
+                          ...
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="py-4 pr-4">
-                    <span className={cn(
-                      'inline-block px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
-                      t.status === 'published' && 'bg-primary/20 text-primary',
-                      t.status === 'pending' && 'bg-accent/20 text-accent',
-                      t.status === 'draft' && 'bg-muted text-muted-foreground',
-                      t.status === 'approved' && 'bg-primary/10 text-primary',
-                      t.status === 'rejected' && 'bg-destructive/20 text-destructive',
-                    )}>
-                      {t.status}
+                    <span
+                      className={cn(
+                        'inline-block px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
+                        t.status === 'published' &&
+                          'bg-primary/20 text-primary',
+                        t.status === 'pending' && 'bg-accent/20 text-accent',
+                        t.status === 'draft' &&
+                          'bg-muted text-muted-foreground',
+                        t.status === 'approved' && 'bg-primary/10 text-primary',
+                        t.status === 'rejected' &&
+                          'bg-destructive/20 text-destructive',
+                      )}
+                    >
+                      {testimonialStatusLabels[t.status] ?? t.status}
                     </span>
                   </td>
                   <td className="py-4 pr-4 text-right">
@@ -234,7 +300,9 @@ export function TestimonialsScreen() {
         </div>
       )}
 
-      {state.status === 'success' && <PageControls page={page} total={total} limit={20} onChange={setPage} />}
+      {state.status === 'success' && (
+        <PageControls page={page} total={total} limit={20} onChange={setPage} />
+      )}
 
       <CreateTestimonialModal
         open={createOpen}
@@ -247,9 +315,12 @@ export function TestimonialsScreen() {
         open={sheetOpen}
         onOpenChange={(open) => {
           setSheetOpen(open);
-          if (!open) setTimeout(() => setSelectedTestimonial(null), 300);
+          if (!open) setSelectedTestimonial(null);
         }}
-        onUpdated={reload}
+        onUpdated={(updated) => {
+          setSelectedTestimonial(updated);
+          reload();
+        }}
       />
     </>
   );

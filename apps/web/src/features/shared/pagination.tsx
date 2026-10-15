@@ -56,6 +56,7 @@ export function PageControls({
         Página {page} de {pages} · {total} registros
       </span>
       <Button
+        type="button"
         variant="outline"
         size="sm"
         disabled={page <= 1}
@@ -64,6 +65,7 @@ export function PageControls({
         Anterior
       </Button>
       <Button
+        type="button"
         variant="outline"
         size="sm"
         disabled={page >= pages}

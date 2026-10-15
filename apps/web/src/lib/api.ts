@@ -48,6 +48,7 @@ export interface Tag {
 
 export interface TestimonialRecord {
   id: string;
+  createdById: string | null;
   authorName: string;
   content: string;
   rating: number;
@@ -133,7 +134,8 @@ export async function requestApi<T>(
   init: RequestInit = {},
 ): Promise<ApiEnvelope<T>> {
   const headers = new Headers(init.headers);
-  if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+  if (!headers.has('Content-Type'))
+    headers.set('Content-Type', 'application/json');
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     credentials: 'include',

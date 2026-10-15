@@ -7,6 +7,7 @@ import { TestimonialRecord, TenantUser } from '@/lib/api';
 import { MessageSquareQuote, Users, Clock, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TestimonialModal } from '@/features/testimonials';
+import { testimonialStatusLabels } from '@/features/testimonials/presentation';
 import { listTestimonials } from '@/features/testimonials/api';
 import { listUsers } from '@/features/users/api';
 import { LoadFailure } from '@/features/shared/load-failure';
@@ -14,13 +15,19 @@ import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 export default function AdminOverviewPage() {
   const { session, fetchApi, isAdmin } = useSession();
-  const [selectedTestimonial, setSelectedTestimonial] = useState<TestimonialRecord | null>(null);
+  const [selectedTestimonial, setSelectedTestimonial] =
+    useState<TestimonialRecord | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     const [tRes, uRes] = await Promise.all([
       listTestimonials(fetchApi),
-      isAdmin ? listUsers(fetchApi) : Promise.resolve({ data: { items: [] as TenantUser[], meta: { total: 0 } }, success: true }),
+      isAdmin
+        ? listUsers(fetchApi)
+        : Promise.resolve({
+            data: { items: [] as TenantUser[], meta: { total: 0 } },
+            success: true,
+          }),
     ]);
     return {
       testimonials: tRes.data.items,
@@ -29,11 +36,15 @@ export default function AdminOverviewPage() {
     };
   }, [fetchApi, isAdmin]);
   const { state, reload } = useRemoteResource(load, Boolean(session));
-  const testimonials: TestimonialRecord[] = state.status === 'success' ? state.data.testimonials : [];
-  const testimonialTotal = state.status === 'success' ? state.data.testimonialTotal : 0;
+  const testimonials: TestimonialRecord[] =
+    state.status === 'success' ? state.data.testimonials : [];
+  const testimonialTotal =
+    state.status === 'success' ? state.data.testimonialTotal : 0;
   const userTotal = state.status === 'success' ? state.data.userTotal : 0;
 
-  const pending = testimonials.filter((t) => t.status === 'pending' || t.status === 'draft').length;
+  const pending = testimonials.filter(
+    (t) => t.status === 'pending' || t.status === 'draft',
+  ).length;
   const published = testimonials.filter((t) => t.status === 'published').length;
 
   const metrics = [
@@ -77,10 +88,16 @@ export default function AdminOverviewPage() {
       {state.status === 'loading' ? (
         <div className="flex items-center gap-3 py-20">
           <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
-          <span className="font-body text-sm text-muted-foreground">Cargando métricas...</span>
+          <span className="font-body text-sm text-muted-foreground">
+            Cargando métricas...
+          </span>
         </div>
       ) : state.status === 'error' ? (
-        <LoadFailure error={state.error} resource="el resumen" onRetry={reload} />
+        <LoadFailure
+          error={state.error}
+          resource="el resumen"
+          onRetry={reload}
+        />
       ) : (
         <>
           {/* Metric Cards */}
@@ -97,9 +114,16 @@ export default function AdminOverviewPage() {
                   <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     {m.label}
                   </span>
-                  <m.icon className={cn('h-4 w-4', m.accent ? 'text-primary' : 'text-muted-foreground/50')} />
+                  <m.icon
+                    className={cn(
+                      'h-4 w-4',
+                      m.accent ? 'text-primary' : 'text-muted-foreground/50',
+                    )}
+                  />
                 </div>
-                <p className="mt-3 font-caption text-4xl font-light italic text-foreground">{m.value}</p>
+                <p className="mt-3 font-caption text-4xl font-light italic text-foreground">
+                  {m.value}
+                </p>
               </div>
             ))}
           </div>
@@ -119,8 +143,8 @@ export default function AdminOverviewPage() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {testimonials.slice(0, 6).map((t) => (
-                  <button 
-                    key={t.id} 
+                  <button
+                    key={t.id}
                     onClick={() => {
                       setSelectedTestimonial(t);
                       setModalOpen(true);
@@ -134,14 +158,18 @@ export default function AdminOverviewPage() {
                       <span
                         className={cn(
                           'px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
-                          t.status === 'published' && 'bg-primary/20 text-primary',
+                          t.status === 'published' &&
+                            'bg-primary/20 text-primary',
                           t.status === 'pending' && 'bg-accent/20 text-accent',
-                          t.status === 'draft' && 'bg-muted text-muted-foreground',
-                          t.status === 'approved' && 'bg-primary/10 text-primary',
-                          t.status === 'rejected' && 'bg-destructive/20 text-destructive',
+                          t.status === 'draft' &&
+                            'bg-muted text-muted-foreground',
+                          t.status === 'approved' &&
+                            'bg-primary/10 text-primary',
+                          t.status === 'rejected' &&
+                            'bg-destructive/20 text-destructive',
                         )}
                       >
-                        {t.status}
+                        {testimonialStatusLabels[t.status] ?? t.status}
                       </span>
                     </div>
                     <p className="font-caption text-sm italic leading-relaxed text-muted-foreground line-clamp-3">
@@ -151,7 +179,12 @@ export default function AdminOverviewPage() {
                       {Array.from({ length: 5 }).map((_, i) => (
                         <svg
                           key={i}
-                          className={cn('h-3.5 w-3.5', i < t.rating ? 'text-primary' : 'text-muted-foreground/20')}
+                          className={cn(
+                            'h-3.5 w-3.5',
+                            i < t.rating
+                              ? 'text-primary'
+                              : 'text-muted-foreground/20',
+                          )}
                           fill="currentColor"
                           viewBox="0 0 20 20"
                         >
@@ -167,14 +200,17 @@ export default function AdminOverviewPage() {
         </>
       )}
 
-      <TestimonialModal 
+      <TestimonialModal
         testimonial={selectedTestimonial}
         open={modalOpen}
         onOpenChange={(open) => {
           setModalOpen(open);
-          if (!open) setTimeout(() => setSelectedTestimonial(null), 300);
+          if (!open) setSelectedTestimonial(null);
         }}
-        onUpdated={reload}
+        onUpdated={(updated) => {
+          setSelectedTestimonial(updated);
+          reload();
+        }}
       />
     </>
   );

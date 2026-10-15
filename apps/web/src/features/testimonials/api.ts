@@ -8,6 +8,7 @@ import { pagePath, sessionPageRequest } from '@/features/shared/pagination';
 export const testimonialSchema = z
   .object({
     id: z.string(),
+    createdById: z.string().nullable(),
     authorName: z.string(),
     content: z.string(),
     rating: z.number(),

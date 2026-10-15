@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from '@/hooks/use-session';
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { listCategories, listTags } from '@/features/catalog/api';
 import { PageControls } from '@/features/shared/pagination';
 import { createTestimonial } from '../api';
+import { DiscardChangesDialog } from './discard-changes-dialog';
 import { actionFailureCopy } from '@/features/shared/load-failure';
 
 interface CreateTestimonialModalProps {
@@ -36,12 +37,18 @@ export function CreateTestimonialModal({
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const submissionLock = useRef(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [metaRevision, setMetaRevision] = useState(0);
+  const [metaLoading, setMetaLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [metaError, setMetaError] = useState(false);
 
   // Metadata
-  const [categories, setCategories] = useState<{id: string, name: string}[]>([]);
-  const [allTags, setAllTags] = useState<{id: string, name: string}[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
+    [],
+  );
+  const [allTags, setAllTags] = useState<{ id: string; name: string }[]>([]);
   const [categoryPage, setCategoryPage] = useState(1);
   const [tagPage, setTagPage] = useState(1);
   const [categoryTotal, setCategoryTotal] = useState(0);
@@ -52,21 +59,42 @@ export function CreateTestimonialModal({
     async function loadMeta() {
       if (!open) return;
       setMetaError(false);
+      setMetaLoading(true);
       try {
         const [catRes, tagRes] = await Promise.all([
           listCategories(fetchApi, categoryPage, 20),
           listTags(fetchApi, tagPage, 20),
         ]);
         if (!active) return;
-        setCategories(previous => [...previous.filter(item => item.id === categoryId && !catRes.data.items.some(next => next.id === item.id)), ...catRes.data.items]);
-        setAllTags(previous => [...previous.filter(item => tagIds.includes(item.id) && !tagRes.data.items.some(next => next.id === item.id)), ...tagRes.data.items]);
+        setCategories((previous) => [
+          ...previous.filter(
+            (item) =>
+              item.id === categoryId &&
+              !catRes.data.items.some((next) => next.id === item.id),
+          ),
+          ...catRes.data.items,
+        ]);
+        setAllTags((previous) => [
+          ...previous.filter(
+            (item) =>
+              tagIds.includes(item.id) &&
+              !tagRes.data.items.some((next) => next.id === item.id),
+          ),
+          ...tagRes.data.items,
+        ]);
         setCategoryTotal(catRes.data.meta.total);
         setTagTotal(tagRes.data.meta.total);
-      } catch { if (active) setMetaError(true); }
+      } catch {
+        if (active) setMetaError(true);
+      } finally {
+        if (active) setMetaLoading(false);
+      }
     }
     void loadMeta();
-    return () => { active = false; };
-  }, [open, fetchApi, categoryPage, tagPage, categoryId, tagIds]);
+    return () => {
+      active = false;
+    };
+  }, [open, fetchApi, categoryPage, tagPage, categoryId, tagIds, metaRevision]);
 
   function resetForm() {
     setAuthorName('');
@@ -75,12 +103,31 @@ export function CreateTestimonialModal({
     setCategoryId(null);
     setTagIds([]);
     setFormError(null);
+    setCategoryPage(1);
+    setTagPage(1);
+    setCategories([]);
+    setAllTags([]);
+  }
+
+  function requestClose(nextOpen: boolean) {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+    if (submissionLock.current) return;
+    if (authorName || content || rating !== 5 || categoryId || tagIds.length) {
+      setDiscardOpen(true);
+      return;
+    }
+    resetForm();
+    onOpenChange(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!authorName.trim() || !content.trim()) return;
+    if (submissionLock.current || !authorName.trim() || !content.trim()) return;
 
+    submissionLock.current = true;
     setSubmitting(true);
     setFormError(null);
     try {
@@ -97,204 +144,288 @@ export function CreateTestimonialModal({
     } catch (err) {
       setFormError(actionFailureCopy(err, 'la creación del testimonio'));
     } finally {
+      submissionLock.current = false;
       setSubmitting(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(val) => { if (!val) resetForm(); onOpenChange(val); }}>
+    <Dialog open={open} onOpenChange={requestClose}>
       <DialogContent className="max-w-2xl p-0 overflow-hidden border-0 bg-background rounded-none shadow-2xl">
         <DialogTitle className="sr-only">Crear nuevo testimonio</DialogTitle>
-        <DialogDescription className="sr-only">Formulario para registrar un nuevo testimonio en el sistema</DialogDescription>
+        <DialogDescription className="sr-only">
+          Formulario para registrar un nuevo testimonio en el sistema
+        </DialogDescription>
 
-        <form onSubmit={handleSubmit} className="flex flex-col md:flex-row max-h-[90vh]">
+        <form
+          onSubmit={handleSubmit}
+          aria-busy={submitting}
+          className="flex max-h-[90dvh] flex-col overflow-y-auto md:flex-row md:overflow-hidden"
+        >
+          <fieldset disabled={submitting} className="contents">
+            {/* Left Column: Editorial Content Entry */}
+            <div className="relative shrink-0 bg-card p-8 border-b md:min-w-0 md:flex-1 md:overflow-y-auto md:border-b-0 md:border-r md:p-12">
+              <div className="absolute top-0 left-0 w-full h-1 bg-primary/40" />
 
-          {/* Left Column: Editorial Content Entry */}
-          <div className="flex-1 bg-card p-8 md:p-12 border-b md:border-b-0 md:border-r relative overflow-y-auto">
-            <div className="absolute top-0 left-0 w-full h-1 bg-primary/40" />
+              <header className="flex items-center gap-3 mb-10">
+                <PenLine className="w-5 h-5 text-primary" />
+                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-primary">
+                  Nuevo Testimonio
+                </span>
+              </header>
 
-            <header className="flex items-center gap-3 mb-10">
-              <PenLine className="w-5 h-5 text-primary" />
-              <span className="font-body text-[10px] font-bold uppercase tracking-widest text-primary">
-                Nuevo Testimonio
-              </span>
-            </header>
-
-            {formError && <p role="alert" className="mb-6 border border-destructive p-3 font-body text-sm">{formError}</p>}
-            {metaError && <p role="alert" className="mb-6 border border-destructive p-3 font-body text-sm">No se pudieron cargar categorías y etiquetas. Cerrá y abrí el formulario para reintentar.</p>}
-
-            {/* Author */}
-            <div className="mb-8">
-              <Label htmlFor="new-testimonial-author" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Autor del testimonio
-              </Label>
-              <input
-                id="new-testimonial-author"
-                type="text"
-                required
-                value={authorName}
-                onChange={(e) => setAuthorName(e.target.value)}
-                placeholder="Nombre completo del cliente"
-                className="w-full mt-3 bg-transparent font-caption text-2xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary pb-2 transition-colors"
-              />
-            </div>
-
-            {/* Content */}
-            <div>
-              <Label htmlFor="new-testimonial-content" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Contenido del testimonio
-              </Label>
-              <textarea
-                id="new-testimonial-content"
-                required
-                minLength={10}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Escribe aquí la experiencia del cliente con tu producto o servicio..."
-                className="w-full mt-3 bg-transparent font-caption text-xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary resize-y min-h-[180px] transition-colors"
-              />
-            </div>
-          </div>
-
-          {/* Right Column: Rating & Actions */}
-          <div className="w-full md:w-[280px] bg-background p-6 flex flex-col justify-between gap-8 overflow-y-auto">
-
-            {/* Rating */}
-            <fieldset className="space-y-4">
-              <legend className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Valoración del cliente
-              </legend>
-              <div className="flex justify-center gap-2 py-4">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <label key={star} className="cursor-pointer">
-                    <input type="radio" name="new-testimonial-rating" value={star} checked={rating === star}
-                      onChange={() => setRating(star)} aria-label={`${star} ${star === 1 ? 'estrella' : 'estrellas'}`}
-                      className="peer sr-only" />
-                    <span className="flex h-10 w-10 items-center justify-center transition-transform hover:scale-110 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring motion-reduce:transform-none">
-                    <Star aria-hidden="true"
-                      className={cn(
-                        'h-8 w-8 transition-colors',
-                        rating >= star
-                          ? 'fill-primary text-primary'
-                          : 'text-muted-foreground/60',
-                      )}
-                    />
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-center font-body text-xs text-muted-foreground">
-                {rating === 5 && 'Excelente'}
-                {rating === 4 && 'Muy bueno'}
-                {rating === 3 && 'Bueno'}
-                {rating === 2 && 'Regular'}
-                {rating === 1 && 'Malo'}
-              </p>
-            </fieldset>
-
-            <div className="h-px bg-border" />
-
-            {/* Categorization */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="new-testimonial-category" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground block mb-2">
-                  Categoría
-                </Label>
-                <select 
-                  id="new-testimonial-category"
-                  value={categoryId || ''} 
-                  onChange={e => setCategoryId(e.target.value || null)}
-                  className="w-full bg-background border-b border-border p-2 font-body text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary transition-colors"
+              {formError && (
+                <p
+                  role="alert"
+                  className="mb-6 border border-destructive p-3 font-body text-sm"
                 >
-                  <option value="">Sin Categoría</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <PageControls page={categoryPage} total={categoryTotal} limit={20} onChange={setCategoryPage} />
-              </div>
+                  {formError}
+                </p>
+              )}
+              {metaError && (
+                <p
+                  role="alert"
+                  className="mb-6 border border-destructive p-3 font-body text-sm"
+                >
+                  No se pudieron cargar categorías y etiquetas. Tu borrador se
+                  conserva.
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={metaLoading}
+                    onClick={() => setMetaRevision((value) => value + 1)}
+                    className="mt-2"
+                  >
+                    Reintentar categorías y etiquetas
+                  </Button>
+                </p>
+              )}
 
-              <div>
-                <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">
-                  Etiquetas
+              {/* Author */}
+              <div className="mb-8">
+                <Label
+                  htmlFor="new-testimonial-author"
+                  className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                >
+                  Autor del testimonio
                 </Label>
-                <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto p-2 border border-dashed">
-                  {allTags.map(tag => (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      aria-pressed={tagIds.includes(tag.id)}
-                      onClick={() => {
-                        setTagIds(prev => 
-                          prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
-                        );
-                      }}
-                      className={cn(
-                        "min-h-8 font-body text-[10px] uppercase tracking-wider px-2 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                        tagIds.includes(tag.id) 
-                          ? "bg-primary text-primary-foreground" 
-                          : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      )}
-                    >
-                      {tag.name}
-                    </button>
-                  ))}
-                  {allTags.length === 0 && <p className="text-[8px] text-muted-foreground italic w-full text-center">No hay etiquetas</p>}
-                </div>
-                <PageControls page={tagPage} total={tagTotal} limit={20} onChange={setTagPage} />
+                <input
+                  id="new-testimonial-author"
+                  type="text"
+                  required
+                  minLength={2}
+                  maxLength={120}
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                  placeholder="Nombre completo del cliente"
+                  className="w-full mt-3 bg-transparent font-caption text-2xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary pb-2 transition-colors"
+                />
+              </div>
+
+              {/* Content */}
+              <div>
+                <Label
+                  htmlFor="new-testimonial-content"
+                  className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground"
+                >
+                  Contenido del testimonio
+                </Label>
+                <textarea
+                  id="new-testimonial-content"
+                  required
+                  minLength={10}
+                  maxLength={1000}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Escribe aquí la experiencia del cliente con tu producto o servicio..."
+                  className="w-full mt-3 bg-transparent font-caption text-xl italic leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring border-b-2 border-border focus:border-primary resize-y min-h-[180px] transition-colors"
+                />
               </div>
             </div>
 
-            <div className="h-px bg-border" />
-
-            {/* Preview hint */}
-            <div className="flex-1 p-4 border border-dashed text-center flex flex-col items-center justify-center gap-2">
-              <p className="font-body text-[10px] uppercase tracking-widest text-muted-foreground">
-                Vista previa
-              </p>
-              {content.trim() ? (
-                <p className="font-caption text-sm italic text-foreground/60 line-clamp-3">
-                  &ldquo;{content}&rdquo;
+            {/* Right Column: Rating & Actions */}
+            <div className="flex w-full shrink-0 flex-col justify-between gap-8 bg-background p-6 md:w-[280px] md:overflow-y-auto">
+              {/* Rating */}
+              <fieldset className="space-y-4">
+                <legend className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Valoración del cliente
+                </legend>
+                <div className="flex justify-center gap-2 py-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <label key={star} className="cursor-pointer">
+                      <input
+                        type="radio"
+                        name="new-testimonial-rating"
+                        value={star}
+                        checked={rating === star}
+                        onChange={() => setRating(star)}
+                        aria-label={`${star} ${star === 1 ? 'estrella' : 'estrellas'}`}
+                        className="peer sr-only"
+                      />
+                      <span className="flex h-10 w-10 items-center justify-center transition-transform hover:scale-110 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring motion-reduce:transform-none">
+                        <Star
+                          aria-hidden="true"
+                          className={cn(
+                            'h-8 w-8 transition-colors',
+                            rating >= star
+                              ? 'fill-primary text-primary'
+                              : 'text-muted-foreground/60',
+                          )}
+                        />
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-center font-body text-xs text-muted-foreground">
+                  {rating === 5 && 'Excelente'}
+                  {rating === 4 && 'Muy bueno'}
+                  {rating === 3 && 'Bueno'}
+                  {rating === 2 && 'Regular'}
+                  {rating === 1 && 'Malo'}
                 </p>
-              ) : (
-                <p className="font-body text-xs text-muted-foreground">
-                  El extracto aparecerá aquí...
-                </p>
-              )}
-              {authorName.trim() && (
-                <p className="font-body text-[10px] font-bold uppercase tracking-wider text-foreground/70 mt-2">
-                  — {authorName}
-                </p>
-              )}
-            </div>
+              </fieldset>
 
-            <div className="h-px bg-border" />
+              <div className="h-px bg-border" />
 
-            {/* Actions */}
-            <div className="flex flex-col gap-2">
-              <Button
-                type="submit"
-                disabled={submitting || !authorName.trim() || !content.trim()}
-                className="w-full rounded-none font-body text-xs uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 py-5"
-              >
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creando...
-                  </>
+              {/* Categorization */}
+              <div className="space-y-4">
+                <div>
+                  <Label
+                    htmlFor="new-testimonial-category"
+                    className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground block mb-2"
+                  >
+                    Categoría
+                  </Label>
+                  <select
+                    id="new-testimonial-category"
+                    value={categoryId || ''}
+                    onChange={(e) => setCategoryId(e.target.value || null)}
+                    className="w-full bg-background border-b border-border p-2 font-body text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus:border-primary transition-colors"
+                  >
+                    <option value="">Sin Categoría</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <PageControls
+                    page={categoryPage}
+                    total={categoryTotal}
+                    limit={20}
+                    onChange={setCategoryPage}
+                  />
+                </div>
+
+                <div>
+                  <Label className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">
+                    Etiquetas
+                  </Label>
+                  <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto p-2 border border-dashed">
+                    {allTags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        aria-pressed={tagIds.includes(tag.id)}
+                        onClick={() => {
+                          setTagIds((prev) =>
+                            prev.includes(tag.id)
+                              ? prev.filter((id) => id !== tag.id)
+                              : [...prev, tag.id],
+                          );
+                        }}
+                        className={cn(
+                          'min-h-8 font-body text-[10px] uppercase tracking-wider px-2 py-1 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                          tagIds.includes(tag.id)
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                        )}
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                    {allTags.length === 0 && (
+                      <p className="text-[8px] text-muted-foreground italic w-full text-center">
+                        No hay etiquetas
+                      </p>
+                    )}
+                  </div>
+                  <PageControls
+                    page={tagPage}
+                    total={tagTotal}
+                    limit={20}
+                    onChange={setTagPage}
+                  />
+                </div>
+              </div>
+
+              <div className="h-px bg-border" />
+
+              {/* Preview hint */}
+              <div className="flex-1 p-4 border border-dashed text-center flex flex-col items-center justify-center gap-2">
+                <p className="font-body text-[10px] uppercase tracking-widest text-muted-foreground">
+                  Vista previa
+                </p>
+                {content.trim() ? (
+                  <p className="font-caption text-sm italic text-foreground/60 line-clamp-3">
+                    &ldquo;{content}&rdquo;
+                  </p>
                 ) : (
-                  'Registrar Testimonio'
+                  <p className="font-body text-xs text-muted-foreground">
+                    El extracto aparecerá aquí...
+                  </p>
                 )}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => { resetForm(); onOpenChange(false); }}
-                className="w-full rounded-none font-body text-[10px] uppercase tracking-wider text-muted-foreground"
-              >
-                Cancelar
-              </Button>
+                {authorName.trim() && (
+                  <p className="font-body text-[10px] font-bold uppercase tracking-wider text-foreground/70 mt-2">
+                    — {authorName}
+                  </p>
+                )}
+              </div>
+
+              <div className="h-px bg-border" />
+
+              {/* Actions */}
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="submit"
+                  disabled={submitting || !authorName.trim() || !content.trim()}
+                  className="w-full rounded-none font-body text-xs uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 py-5"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creando...
+                    </>
+                  ) : (
+                    'Registrar Testimonio'
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => requestClose(false)}
+                  className="w-full rounded-none font-body text-[10px] uppercase tracking-wider text-muted-foreground"
+                >
+                  Cancelar
+                </Button>
+              </div>
             </div>
-          </div>
+          </fieldset>
         </form>
+        {submitting && (
+          <p role="status" className="px-6 pb-4 font-body text-sm">
+            Creando el testimonio. Esperá el resultado antes de cerrar.
+          </p>
+        )}
+        <DiscardChangesDialog
+          open={discardOpen}
+          onOpenChange={setDiscardOpen}
+          creation
+          onDiscard={() => {
+            resetForm();
+            onOpenChange(false);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );

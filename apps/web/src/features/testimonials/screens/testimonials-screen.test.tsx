@@ -6,7 +6,9 @@ import { ApiError } from '@/lib/api';
 
 const { fetchApi, session } = vi.hoisted(() => ({
   fetchApi: vi.fn(),
-  session: { user: { id: 'admin' } },
+  session: {
+    user: { id: 'admin', roles: ['admin'], email: 'admin@example.invalid' },
+  },
 }));
 
 vi.mock('@/hooks/use-session', () => ({
@@ -17,6 +19,7 @@ const records = [
   {
     id: 'ana-1',
     authorName: 'Ana',
+    createdById: 'admin',
     content: 'Excelente servicio',
     rating: 5,
     status: 'draft',
@@ -26,6 +29,7 @@ const records = [
   {
     id: 'beto-1',
     authorName: 'Beto',
+    createdById: null,
     content: 'Muy buena atención',
     rating: 4,
     status: 'pending',
@@ -148,4 +152,37 @@ describe('TestimonialsScreen', () => {
     );
     expect(screen.getByRole('button', { name: 'Aprobar' })).toBeEnabled();
   });
+});
+
+// The response is authoritative even if refreshing the collection fails.
+it('reconciles an open detail from the mutation without reopening after a list failure', async () => {
+  let reads = 0;
+  fetchApi.mockImplementation(async (path: string) => {
+    if (path.endsWith('/approve'))
+      return { success: true, data: { ...records[1], status: 'approved' } };
+    if (path.startsWith('/testimonials?page=')) {
+      if (reads++ > 0) throw new Error('refresh failed');
+      return {
+        success: true,
+        data: records,
+        meta: { page: 1, limit: 20, total: 2 },
+      };
+    }
+    return { success: true, data: [], meta: { page: 1, limit: 20, total: 0 } };
+  });
+  render(<TestimonialsScreen />);
+  const user = userEvent.setup();
+  await user.click(
+    within(await screen.findByRole('row', { name: /Beto/ })).getByRole(
+      'button',
+      { name: /Abrir Testimonio/ },
+    ),
+  );
+  await user.click(screen.getByRole('button', { name: 'Aprobar' }));
+  expect(
+    await screen.findByRole('button', { name: 'Publicar Ahora' }),
+  ).toBeEnabled();
+  expect(
+    within(screen.getByRole('dialog')).getByText('Aprobado'),
+  ).toBeInTheDocument();
 });

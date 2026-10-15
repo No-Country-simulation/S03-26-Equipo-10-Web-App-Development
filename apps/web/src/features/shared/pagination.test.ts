@@ -46,6 +46,7 @@ describe('contrato HTTP de paginación administrativa: data[] y meta en envelope
   it('conserva un testimonio real y valida sus campos antes de mostrarlo', async () => {
     const record = {
       id: 'fixture',
+      createdById: null,
       authorName: 'Autor sintético',
       content: 'Contenido persistido de ejemplo',
       rating: 5,
