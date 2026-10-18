@@ -297,3 +297,9 @@ Commit sugerido: `docs(web): ampliá la auditoría impeccable a todas las interf
 F19 corregido localmente: recursos y guardados independientes, borradores y feedback conservados al refrescar, respuestas conciliadas por campo y lecturas obsoletas descartadas. Nombre editable con contexto del espacio en el shell, logo con confirmación/descarte, recepción diferenciada del enlace y guía opcional basada en datos reales. O04/O14 y contexto de O24 tienen implementación verificable; el cierre integral de O24 continúa en fases 11/12.
 
 Los controles consumen los endpoints existentes. Por decisión humana, Analítica/Webhooks se presentan como parámetros técnicos editables **sin prometer control de acceso o entrega**. Testimonios y scoring explican sus efectos efectivos, incluida la independencia de captura anónima y galería. Contratos, pruebas y límites en [web-settings](../modules/web-settings.md) y el [registro de fase 7](../plan/2026-10-14_feat-mejoras-integrales-frontend.md). Integración con servicios reales/E2E sigue pendiente por Docker no disponible; fixtures y detector no sustituyen esa aceptación. La auditoría original se conserva como evidencia histórica.
+
+### Seguimiento de fase 8 — 2026-10-18
+
+F10 y oportunidades O02/O03 corregidos localmente: acceso/registro vacíos, sin demo ficticia, tarea y regreso visibles en móvil, vocabulario de espacio/cuenta administradora, requisitos anticipados, errores asociados y borradores conservados. El bloqueo de solicitudes se mantiene hasta la navegación confirmada. La presentación consume los contratos vigentes sin modificar sesión, cookies, CSRF o contraseñas del backend.
+
+Ver [web-auth](../modules/web-auth.md) y el [registro de fase 8](../plan/2026-10-14_feat-mejoras-integrales-frontend.md). La inspección con fixtures, pruebas dirigidas y detector no sustituye PostgreSQL/Redis, los seis E2E reales ni CI del SHA final. La auditoría original se conserva como evidencia histórica.

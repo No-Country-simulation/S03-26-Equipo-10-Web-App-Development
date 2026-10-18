@@ -30,11 +30,11 @@ Gestiona la **autenticación y sesiones** de usuarios dentro de un tenant. Emite
 
 ## 3. DTOs (nestjs-zod)
 
-| DTO                | Campos                            | Validación                                               |
-| ------------------ | --------------------------------- | -------------------------------------------------------- |
-| `LoginDto`         | `email`, `password`               | email format, string                                     |
-| `RegisterAdminDto` | `tenantName`, `email`, `password` | min lengths, email format                                |
-| `RefreshTokenDto`  | `refreshToken` opcional           | string de al menos 20 caracteres para Bearer y migración |
+| DTO                | Campos                            | Validación                                                                             |
+| ------------------ | --------------------------------- | -------------------------------------------------------------------------------------- |
+| `LoginDto`         | `email`, `password`               | email format, string                                                                   |
+| `RegisterAdminDto` | `tenantName`, `email`, `password` | nombre 3–120; email válido; contraseña 8–72 con mayúscula, minúscula, número y símbolo |
+| `RefreshTokenDto`  | `refreshToken` opcional           | string de al menos 20 caracteres para Bearer y migración                               |
 
 ---
 
@@ -146,3 +146,7 @@ interface AuthenticatedUser {
 ## Administración de acceso — verificación de fase 4 (2026-10-17)
 
 El frontend administrativo integra la activación/desactivación existente sin cambiar JWT, refresh, cookies o CSRF. `CredentialRepository.findActiveUser` rechaza cuentas/tenants inactivos en cada request y `AuthService` conserva sus comprobaciones de login/refresh. Reactivar permite usar sesiones todavía válidas; no implica revocación permanente. Contrato y evidencia en [usuarios](api-users.md) y el [plan integral](../plan/2026-10-14_feat-mejoras-integrales-frontend.md).
+
+## Presentación web desde fase 8
+
+Login y registro comienzan vacíos y explican la tarea y sus requisitos sin credenciales demo públicas. Registro conserva `tenantName` (3–120), email y la política vigente de contraseña (8–72, mayúscula, minúscula, número y símbolo); el login no impone esa política a contraseñas existentes. Se asocian errores, se conservan campos y se bloquean envíos repetidos. La API, cookies/CSRF, hash, recuperación y redirección permanecen vigentes sin cambios backend. Ver [interfaz de autenticación](web-auth.md).

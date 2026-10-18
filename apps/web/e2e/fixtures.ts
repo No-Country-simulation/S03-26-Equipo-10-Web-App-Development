@@ -149,10 +149,19 @@ export async function login(
   account: ReturnType<typeof credentials>,
 ) {
   await page.goto('/admin/login');
+  await expect(page.getByRole('main')).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Iniciar sesión', level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Volver al inicio', exact: true }),
+  ).toHaveAttribute('href', '/');
+  await expect(page.getByLabel('Email', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Contraseña', { exact: true })).toHaveValue('');
   await page.getByLabel('Email', { exact: true }).fill(account.email);
   await page.getByLabel('Contraseña', { exact: true }).fill(account.password);
   await page
-    .getByRole('button', { name: 'Iniciar Sesión', exact: true })
+    .getByRole('button', { name: 'Iniciar sesión', exact: true })
     .click();
   await expect(page).toHaveURL(/\/admin$/);
   await expect(

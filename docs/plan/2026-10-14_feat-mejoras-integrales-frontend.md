@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 7 implementada y validada localmente, pendiente de commit y ACK; fase 6 registrada en `24b64b6` y aprobada. Integración/E2E reales pendientes por Docker no disponible.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 8 implementada y validada localmente, pendiente de commit y ACK; fase 7 registrada en `8152850` y aprobada. Integración/E2E reales pendientes por Docker no disponible.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. El ACK «Continuar» del 2026-10-18 posterior a `24b64b6` autoriza únicamente la fase 7. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. El ACK «Continuar» del 2026-10-18 posterior a `24b64b6` autoriza únicamente la fase 7. El ACK «Continuar» del 2026-10-18 posterior a `8152850` autoriza únicamente la fase 8. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
 
 ## 1. Contexto y restricciones
 
@@ -190,11 +190,11 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Commit:** `feat(webhooks): mejorá configuración y seguimiento de entregas`  
 **ACK humano:** recibido. **Commit registrado:** `24b64b6`. **Detenerse y esperar ACK.**
 
-### [Actual] Fase 7 — Configuración, marca y primera puesta en marcha
+### [Completada] Fase 7 — Configuración, marca y primera puesta en marcha
 
 **Cubre:** F19 y onboarding/contexto.
 
-**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y E2E reales pendientes por Docker no disponible. La fase 8 no está autorizada.
+**Estado de ejecución:** completada; commit `8152850` verificado y ACK «Continuar» recibido. Integración PostgreSQL/Redis y E2E reales pendientes por Docker no disponible.
 
 - [x] Separar carga/guardado de marca, logo, enlace, recepción y capacidades.
 - [x] Conservar slug pendiente durante operaciones independientes.
@@ -207,18 +207,20 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Cierre/pruebas:** fallo de flags no bloquea marca/enlace; logo no sobrescribe draft del slug; mensaje/foco sobreviven al refresco; guardar/activar flags respeta permisos; progreso no promete tareas inexistentes ni usa estado ficticio persistido.
 
 **Commit:** `feat(settings): mejorá la configuración y la puesta en marcha`  
-**ACK humano:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido. **Commit registrado:** `8152850`. **Detenerse y esperar ACK.**
 
-### [Pendiente] Fase 8 — Login y registro
+### [Actual] Fase 8 — Login y registro
 
 **Cubre:** F10 y semántica de autenticación.
 
-- [ ] Campos vacíos y sin credenciales preseleccionadas.
-- [ ] No ofrecer demo sin entorno real configurado.
-- [ ] Main, título visible móvil, regreso y errores asociados.
-- [ ] Requisitos de contraseña anticipados.
-- [ ] Voseo y términos de espacio/cuenta administradora consistentes.
-- [ ] Preservar cookies, CSRF, sesión y redirecciones.
+**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y E2E reales pendientes por Docker no disponible. La fase 9 no está autorizada.
+
+- [x] Campos vacíos y sin credenciales preseleccionadas.
+- [x] No ofrecer demo sin entorno real configurado.
+- [x] Main, título visible móvil, regreso y errores asociados.
+- [x] Requisitos de contraseña anticipados.
+- [x] Voseo y términos de espacio/cuenta administradora consistentes.
+- [x] Preservar cookies, CSRF, sesión y redirecciones.
 
 **Cierre/pruebas:** datos de ejemplo no se envían por omisión; errores conservan campos; teclado móvil; sesión, refresh y logout sin regresiones. No construir recuperación de contraseña ni invitaciones.
 
@@ -306,7 +308,7 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | F07 | Rotación webhook sin busy guard/contexto           | 6                                | Un intento UI por destino; conflictos y respuestas tardías tratados        | Corregido localmente en fase 6; integración/E2E reales pendientes     |
 | F08 | Vencimiento cambia por UTC/local                   | 5                                | UTC/Argentina; guardar intacto preserva instante                           | Corregido localmente en fase 5; integración/E2E reales pendientes     |
 | F09 | Publicados posteriores a veinte inaccesibles       | 9                                | Publicado 21 y final/paginación real                                       | Pendiente                                                             |
-| F10 | Registro precompletado                             | 8                                | Campos vacíos; validación evita alta accidental                            | Pendiente                                                             |
+| F10 | Registro precompletado                             | 8                                | Campos vacíos; validación evita alta accidental                            | Corregido localmente en fase 8; integración/E2E reales pendientes     |
 | F11 | CTA y enlaces sin destino                          | 11                               | Navegación/acción real; marketing borrador no renderizado                  | Pendiente                                                             |
 | F12 | Desborde de portada                                | 11                               | 320/375/768 px, zoom y acciones alcanzables                                | Pendiente                                                             |
 | F13 | Contraste dark                                     | 2                                | Parejas reales y estados de ambos temas                                    | Corregido localmente en fase 2                                        |
@@ -329,8 +331,8 @@ Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar c
 | ID  | Superficie/oportunidad                                        | Fase         | Evidencia de aceptación                                                             | Estado                                                                          |
 | --- | ------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Pendiente                                                                       |
-| O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Pendiente                                                                       |
-| O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Pendiente                                                                       |
+| O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Corregido localmente en fase 8; integración/E2E reales pendientes               |
+| O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Corregido localmente en fase 8; integración/E2E reales pendientes               |
 | O04 | Inicio: pendientes, alcance y primera acción                  | 3, 7         | Totales globales, borradores separados y onboarding derivado                        | Fases 3/7 corregidas localmente; integración/E2E reales pendientes              |
 | O05 | Listado: estado, consulta global y detalle contextual         | 3            | URL, filtros, limpiar y siguiente/anterior coherentes                               | Corregido localmente en fase 3; E2E reales pendientes                           |
 | O06 | Alta: contenido principal y clasificación progresiva          | 1, 2         | Borrador recuperable, móvil y preview sin dominar escritura                         | Corregido localmente en fases 1/2; cierre integral pendiente                    |
@@ -364,8 +366,8 @@ No añadir nombre personal del actor a BI sin un contrato autorizado que lo apor
 | Ruta activa                    | Fases propietarias | Verificación específica                                               | Estado                                                                                 |
 | ------------------------------ | ------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `/`                            | 2, 11              | Header/CTA, anchors, borradores, autoplay, mobile/zoom                | Parcial: base compartida de fase 2; flujo propio pendiente                             |
-| `/admin/login`                 | 2, 8               | Vacío, errores, sesión/refresh/logout y semántica móvil               | Parcial: base compartida de fase 2; flujo propio pendiente                             |
-| `/admin/register`              | 2, 8               | Campos vacíos, contraseña, alta y errores preservados                 | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/login`                 | 2, 8               | Vacío, errores, sesión/refresh/logout y semántica móvil               | Corregido localmente en fase 8; integración/E2E reales pendientes                      |
+| `/admin/register`              | 2, 8               | Campos vacíos, contraseña, alta y errores preservados                 | Corregido localmente en fase 8; integración/E2E reales pendientes                      |
 | `/admin`                       | 1, 2, 3, 7         | Resumen real, recientes, pendientes y onboarding según rol            | Fases 1/2/3/7 corregidas localmente; integración/E2E reales y cierre pendientes        |
 | `/admin/testimonials`          | 1, 2, 3            | Consulta/detalle/alta/edición/moderación/medios/eliminación y roles   | Fases 1/2/3 corregidas localmente; integración/E2E reales y cierre integral pendientes |
 | `/admin/categories`            | 2, 4               | Buscar/crear/renombrar/eliminar, asociaciones y página                | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
@@ -412,19 +414,20 @@ Las redirecciones no deben eliminar autorización ni crear loops; validar identi
 
 ### Formularios y estados compartidos
 
-| Superficie                        | Fase           | Pruebas adicionales                                                 | Estado                                                                  |
-| --------------------------------- | -------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Crear testimonio                  | 1, 2, 3        | Paginación sin submit, metadatos fallidos, dirty/Escape y móvil     | Parcial: fases 1/2 validadas; resto pendiente                           |
-| Editar/detalle/moderar            | 1, 2, 3        | Propiedad/estado, respuesta actualizada, notas y siguiente/anterior | Parcial: fases 1/2 validadas; resto pendiente                           |
-| Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados    | Parcial: fases 1/2 validadas; resto pendiente                           |
-| Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                           | Corregido localmente en fase 4; integración/E2E pendientes              |
-| Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                  | Corregido localmente en fase 4; integración/E2E pendientes              |
-| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada            | Corregido localmente en fase 5; integración/E2E reales pendientes       |
-| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                 | Corregido localmente en fase 6; integración/E2E reales pendientes       |
-| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                     | Corregido localmente en fase 6; integración/E2E reales pendientes       |
-| Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes     | Corregido localmente en fase 7; integración/E2E reales pendientes       |
-| Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                             | Fases 2/7 corregidas localmente; cierre integral en fase 12             |
-| Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado       | Parcial: fases 1/2/3/4 validadas localmente; cierre integral en fase 12 |
+| Superficie                        | Fase           | Pruebas adicionales                                                           | Estado                                                                  |
+| --------------------------------- | -------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Crear testimonio                  | 1, 2, 3        | Paginación sin submit, metadatos fallidos, dirty/Escape y móvil               | Parcial: fases 1/2 validadas; resto pendiente                           |
+| Editar/detalle/moderar            | 1, 2, 3        | Propiedad/estado, respuesta actualizada, notas y siguiente/anterior           | Parcial: fases 1/2 validadas; resto pendiente                           |
+| Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados              | Parcial: fases 1/2 validadas; resto pendiente                           |
+| Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                                     | Corregido localmente en fase 4; integración/E2E pendientes              |
+| Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                            | Corregido localmente en fase 4; integración/E2E pendientes              |
+| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada                      | Corregido localmente en fase 5; integración/E2E reales pendientes       |
+| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                           | Corregido localmente en fase 6; integración/E2E reales pendientes       |
+| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                               | Corregido localmente en fase 6; integración/E2E reales pendientes       |
+| Login y registro                  | 8              | Campos vacíos, validación, foco, borradores, bloqueo, transporte y navegación | Corregido localmente en fase 8; integración/E2E reales pendientes       |
+| Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes               | Corregido localmente en fase 7; integración/E2E reales pendientes       |
+| Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                                       | Fases 2/7 corregidas localmente; cierre integral en fase 12             |
+| Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado                 | Parcial: fases 1/2/3/4 validadas localmente; cierre integral en fase 12 |
 
 ## 7. Registro de fase 0 y baseline
 
@@ -783,3 +786,31 @@ Logo con descarte de selección, confirmación de borrado y cancelación segura;
 **Impeccable:** workflows Operate, harden, clarify y onboard aplicados a esta fase. Una ronda agrupada, corrección en bloque y una confirmación posterior. La primera ronda se interrumpió por el timeout de compilación inicial de `/admin`; se completó ampliando la espera de la herramienta, sin considerar ese intento aprobación ni defecto del producto. La revisión detectó la marca rota y se corrigió. Pares de texto en reposo: mínimo observado **5,14:1 claro / 7,42:1 oscuro**. La confirmación capturó además una muestra intermedia de **1,91:1** durante el crossfade de Copiar en móvil claro: se suprime esa transición en el control, conservando sus colores finales. No se abre otra ronda visual de pulido. La actualización de identidad desde un refresco y el retorno de foco al campo editado después del guardado se verifican además con pruebas de comportamiento. No se reclama certificación WCAG, rendimiento de producción ni validación completa de rutas ajenas a esta fase.
 
 **Límites/cierre:** las nuevas interacciones reutilizan endpoints vigentes; la API sigue siendo autoridad. CI/servicios reales y SHA final pendientes; sin despliegue. Cambios y borradores viven en memoria; no se implementa persistencia de borradores frente a recarga completa/navegación fuera de ruta. Fase 7 queda `[Actual]`, implementada y pendiente de commit humano y ACK. Sugerencia: `feat(settings): mejorá la configuración y la puesta en marcha`. Detenerse; el próximo ACK habilita sólo fase 8.
+
+### Fase 8 — acceso y creación de espacios (2026-10-18)
+
+**Autorización/base:** ACK «Continuar» tras verificar `8152850`, rama correcta y árbol limpio. Se ejecuta sólo fase 8; fase 9 sin autorización.
+
+**Cambios:** login y registro vacíos, sin acceso demo ni credenciales públicas. Un marco compartido conserva crema/terracota, serif editorial y controles sans, y agrega un único `main`, título de tarea móvil/desktop, regreso a Inicio y enlaces cruzados en voseo. Se retiran términos internos como tenant y la identificación legal no acreditada del panel de acceso. Crear espacio describe la primera cuenta administradora y el ingreso al panel, sin prometer solicitudes, invitaciones o recuperación de contraseña.
+
+Los requisitos se presentan antes del envío: nombre 3–120, email y contraseña nueva 8–72 con mayúscula, minúscula, número y símbolo. El login conserva compatibilidad con contraseñas existentes sin imponerles esa política nueva. Errores locales asociados a campos y foco al primero inválido; errores del servidor contextualizados en español, asociados al formulario/campos y sin exponer detalles técnicos arbitrarios. Fallos 401/409 y resultados inciertos conservan texto y contraseña sólo en memoria. Un candado síncrono y campos de sólo lectura impiden cambios/dobles envíos pendientes; tras confirmación se mantiene el bloqueo hasta navegar. No se alteran API, cookies, CSRF, sesión, refresh, logout o `/admin` como destino. No hay cambios de esquema, infraestructura, dependencias, hooks ni manifiesto raíz.
+
+**Trazabilidad:** F10, O02, O03, rutas `/admin/login` y `/admin/register` y ambos formularios actualizados. Contrato y límites en [web-auth](../modules/web-auth.md); especificación [API Auth](../modules/api-auth.md) aclarada sin cambios backend. Se mantienen seis E2E y sus gates: SESSION amplía validación de registro vacío y el helper de login verifica main, título, regreso y campos vacíos antes de ingresar credenciales propias.
+
+| Comando/evidencia                                                                                                                                                                                     | Resultado                                                                                                  | Alcance/límite                                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test --workspace @testimonial-cms/web -- --maxWorkers=2`                                                                                                                                         | **318/318**, 50 archivos                                                                                   | Suite completa sin omisiones; auth dirigida 18/18, transporte/upgrade, formularios y resto del frontend.                                                                                                    |
+| `npm test --workspace @testimonial-cms/api -- --runTestsByPath test/auth.service.spec.ts test/auth.controller.spec.ts test/auth-flow.spec.ts test/password-dto.spec.ts test/password.service.spec.ts` | **27/27**, cinco suites                                                                                    | Política/hash y flujos de auth seleccionados; persistencia/servicios externos simulados donde la suite lo define. No equivale a integración PostgreSQL/Redis.                                               |
+| `npm run typecheck --workspace @testimonial-cms/web`                                                                                                                                                  | Aprobado                                                                                                   | No se cambia producción backend.                                                                                                                                                                            |
+| `npm run lint --workspace @testimonial-cms/web`                                                                                                                                                       | Sin errores, **9 advertencias previas**                                                                    | Sin nuevas advertencias ni supresiones.                                                                                                                                                                     |
+| Prettier sobre archivos afectados; `git diff --check`                                                                                                                                                 | Aprobados                                                                                                  | Sin staging ni archivos protegidos alterados.                                                                                                                                                               |
+| Detector Impeccable sobre seis archivos UI de autenticación                                                                                                                                           | `[]`, exit 0                                                                                               | No certifica por sí solo accesibilidad ni integridad del flujo.                                                                                                                                             |
+| Chrome local/Playwright + Next dev, 1440×1000 y 320×812, claro/oscuro, reduced motion y storage denegado                                                                                              | Cuatro combinaciones; cero errores JS y overflow horizontal; foco/Tab, validación y reintentos conservados | Respuestas API sintéticas. Cero POST al enviar vacío; un intento rechazado y otro confirmado por flujo. Se comprueban ambos destinos `/admin`; no se capturan contraseñas ni valores de acceso en imágenes. |
+| `E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 npm run test:e2e --workspace @testimonial-cms/web`                                                                                                                 | Falla al crear la red exclusiva                                                                            | Docker no disponible: no se iniciaron servicios ni ejecutaron migraciones o E2E. Autorización limitada al harness descartable permanece vigente; no se desactivan gates.                                    |
+| `npm run test:e2e:list --workspace @testimonial-cms/web`                                                                                                                                              | **6 recorridos descubiertos**                                                                              | Discovery no equivale a aceptación real. CI y SHA final pendientes.                                                                                                                                         |
+
+**Red/Green:** antes de producción fallaron campos inicialmente vacíos, validación asociada, requisitos anticipados, errores localizados y bloqueos de doble submit. Las pantallas originales fallaron por ausencia de `main`/título de tarea y regreso; tres pruebas de navegación con campos explícitos siguieron aprobando antes del cambio de marco. Las fallas causadas por valores antiguos acumulados al escribir sobre inputs precargados no se cuentan como una regresión independiente. No se relajaron reglas, gates ni assertions para ocultar defectos.
+
+**Impeccable:** workflows Operate/clarify/harden. Ronda visual agrupada con corrección en bloque y una única confirmación posterior, sin más pulido. El arranque de la herramienta se interrumpió por compilación inicial de Next mayor que su timeout; luego un selector de alertas también incluía el anunciador interno de Next. Se corrigen la espera/alcance del selector y se completa la ronda; esos intentos no son defectos de producto ni aprobación. La revisión detecta una muestra transitoria de contraste **3,72:1** en el submit al interpolar el tema: se suprime la transición de color de los controles de autenticación. Confirmación de pares estables: mínimo **5,14:1 claro / 7,42:1 oscuro**, sin combinaciones por debajo del umbral medido. No se reclama certificación WCAG, zoom real al 200%, dispositivo táctil físico ni rendimiento de producción. Se preserva el overlay de desarrollo existente para la fase 12.
+
+**Cierre:** implementación y validación local preparadas; integración real/CI pendientes por sus servicios y SHA. Evidencia sintética declarada, sin despliegue. Fase 8 conserva `[Actual]`, pendiente de commit humano y ACK. Sugerencia: `fix(auth): aclará el acceso y eliminá valores preseleccionados`. Detenerse; el próximo ACK habilita únicamente fase 9.

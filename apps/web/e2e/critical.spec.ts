@@ -17,6 +17,33 @@ test('E2E-SESSION login, recarga, rotación y revocación al cerrar sesión', as
   playwright,
   baseURL,
 }) => {
+  await page.goto('/admin/register');
+  await expect(
+    page.getByRole('heading', { name: 'Crear tu espacio', level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Nombre del espacio', { exact: true }),
+  ).toHaveValue('');
+  await expect(
+    page.getByLabel('Email de la cuenta administradora', { exact: true }),
+  ).toHaveValue('');
+  await expect(page.getByLabel('Contraseña', { exact: true })).toHaveValue('');
+  await expect(
+    page.getByText(
+      'De 8 a 72 caracteres, con mayúscula, minúscula, número y símbolo.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Crear espacio y cuenta', exact: true })
+    .click();
+  await expect(
+    page.getByLabel('Nombre del espacio', { exact: true }),
+  ).toHaveAttribute('aria-invalid', 'true');
+  await expect(
+    page.getByLabel('Nombre del espacio', { exact: true }),
+  ).toBeFocused();
+  await expect(page).toHaveURL(/\/admin\/register$/);
   await login(page, tenant.account);
   const authCookies = (await context.cookies()).filter((cookie) =>
     ['accessToken', 'refreshToken'].includes(cookie.name),

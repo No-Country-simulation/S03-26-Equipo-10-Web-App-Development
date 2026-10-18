@@ -1,13 +1,14 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RegisterAdminForm } from '@/features/auth/components/register-admin-form';
+import { AuthPageLayout } from '../components/auth-page-layout';
 import { registerAdmin } from '../api';
 import { clearLegacySession } from '@/lib/session-store';
 
 export default function AdminRegisterPage() {
   const router = useRouter();
-
   async function handleRegister(payload: {
     tenantName: string;
     email: string;
@@ -17,68 +18,32 @@ export default function AdminRegisterPage() {
     clearLegacySession();
     router.push('/admin');
   }
-
   return (
-    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1fr_1.2fr]">
-      {/* Left Panel: Striking Identity */}
-      <div className="relative hidden flex-col justify-between surface-inverse bg-foreground p-12 text-background lg:flex">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 bg-primary"></span>
-          <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">
-            Testimonial CMS
+    <AuthPageLayout
+      title="Crear tu espacio"
+      introduction="Creá el espacio de tu organización y su primera cuenta administradora. Al terminar, vas a ingresar al panel."
+      sideTitle={
+        <>
+          Dale voz a <br />
+          <span className="font-body font-bold not-italic text-primary">
+            tus clientes.
           </span>
-        </div>
-
-        <div>
-          <h1 className="font-caption text-6xl italic leading-tight text-background opacity-90 xl:text-7xl xl:leading-none">
-            Tu imperio <br />{' '}
-            <span className="font-body font-bold not-italic text-primary">
-              Comienza.
-            </span>
-          </h1>
-          <p className="mt-6 max-w-sm font-body text-sm font-light leading-relaxed opacity-60">
-            Registrá tu tenant y obtené control absoluto sobre los testimonios
-            que definen la autoridad de tu empresa.
-          </p>
-        </div>
-
-        <div className="font-body text-xs uppercase tracking-widest opacity-80">
-          © {new Date().getFullYear()} Testimonial CMS, LLC.
-        </div>
-      </div>
-
-      {/* Right Panel: Minimal Form */}
-      <div className="flex items-center justify-center bg-background p-8 lg:p-12">
-        <div className="w-full max-w-md">
-          <div className="mb-10 lg:hidden">
-            <span className="h-2 w-2 bg-primary inline-block mr-2"></span>
-            <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">
-              Testimonial CMS
-            </span>
-          </div>
-
-          <h2 className="mb-2 font-caption text-4xl text-foreground">
-            Registro
-          </h2>
-          <p className="mb-8 font-body text-sm text-muted-foreground">
-            Crearás tu espacio de trabajo y la cuenta administrativa base.
-          </p>
-
-          <RegisterAdminForm onSubmit={handleRegister} />
-
-          <div className="mt-12 border-t pt-6 text-center">
-            <p className="text-xs text-muted-foreground">
-              ¿Ya tienes una cuenta?{' '}
-              <a
-                href="/admin/login"
-                className="font-bold text-primary hover:underline"
-              >
-                Ingresar al Dashboard
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+      sideDescription="Reuní testimonios, revisá su contenido y elegí cuáles mostrar en tu galería pública."
+      footer={
+        <>
+          ¿Ya tenés una cuenta?{' '}
+          <Link
+            href="/admin/login"
+            className="inline-flex min-h-11 items-center font-medium text-primary underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Iniciá sesión
+          </Link>
+        </>
+      }
+    >
+      <RegisterAdminForm onSubmit={handleRegister} />
+    </AuthPageLayout>
   );
 }
