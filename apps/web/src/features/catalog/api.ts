@@ -49,8 +49,37 @@ export const createTag = (fetchApi: SessionFetch, name: string) =>
     body: JSON.stringify({ name }),
   });
 export const deleteCategory = (fetchApi: SessionFetch, id: string) =>
-  sessionRequest(fetchApi, `/categories/${id}`, deletedSchema, {
-    method: 'DELETE',
-  });
+  sessionRequest(
+    fetchApi,
+    `/categories/${encodeURIComponent(id)}`,
+    deletedSchema.extend({ id: z.literal(id), deleted: z.literal(true) }),
+    {
+      method: 'DELETE',
+    },
+  );
 export const deleteTag = (fetchApi: SessionFetch, id: string) =>
-  sessionRequest(fetchApi, `/tags/${id}`, deletedSchema, { method: 'DELETE' });
+  sessionRequest(
+    fetchApi,
+    `/tags/${encodeURIComponent(id)}`,
+    deletedSchema.extend({ id: z.literal(id), deleted: z.literal(true) }),
+    { method: 'DELETE' },
+  );
+
+export const renameCategory = (
+  fetchApi: SessionFetch,
+  id: string,
+  name: string,
+) =>
+  sessionRequest(
+    fetchApi,
+    `/categories/${encodeURIComponent(id)}`,
+    categorySchema.refine((item) => item.id === id && item.name === name),
+    { method: 'PATCH', body: JSON.stringify({ name }) },
+  );
+export const renameTag = (fetchApi: SessionFetch, id: string, name: string) =>
+  sessionRequest(
+    fetchApi,
+    `/tags/${encodeURIComponent(id)}`,
+    tagSchema.refine((item) => item.id === id && item.name === name),
+    { method: 'PATCH', body: JSON.stringify({ name }) },
+  );

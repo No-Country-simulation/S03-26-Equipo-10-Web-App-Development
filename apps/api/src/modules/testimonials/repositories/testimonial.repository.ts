@@ -98,10 +98,13 @@ export class TestimonialRepository {
           categoryId: data.categoryId ?? null,
           ...(data.tagIds !== undefined && {
             tags: {
-              create: data.tagIds.map((tagId) => ({
-                tenantId: data.tenantId,
-                tagId,
-              })),
+              create: data.tagIds.map(
+                (
+                  tagId,
+                ): Prisma.TestimonialTagUncheckedCreateWithoutTestimonialInput => ({
+                  tagId,
+                }),
+              ),
             },
           }),
         },
@@ -151,7 +154,13 @@ export class TestimonialRepository {
           ...(data.tagIds !== undefined && {
             tags: {
               deleteMany: {},
-              create: data.tagIds.map((tagId) => ({ tenantId, tagId })),
+              create: data.tagIds.map(
+                (
+                  tagId,
+                ): Prisma.TestimonialTagUncheckedCreateWithoutTestimonialInput => ({
+                  tagId,
+                }),
+              ),
             },
           }),
           updatedAt: new Date(),

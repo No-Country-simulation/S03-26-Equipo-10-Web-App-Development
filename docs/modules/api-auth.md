@@ -1,5 +1,7 @@
 # Módulo: Auth (`apps/api/src/modules/auth/`)
+
 # Código: SKL-PRO-001 — Nivel 3, Especificación Técnica
+
 # Última actualización: 2026-10-01
 
 ---
@@ -14,25 +16,25 @@ Gestiona la **autenticación y sesiones** de usuarios dentro de un tenant. Emite
 
 ## 2. Endpoints
 
-| Método | Ruta | Descripción | Rate Limit | Guard |
-|--------|------|-------------|------------|-------|
-| `POST` | `/api/v1/auth/register-admin` | Registra nuevo admin + crea tenant | 10/min por IP | `RateLimitGuard`; sin garantía `Idempotency-Key` |
-| `POST` | `/api/v1/auth/login` | Login con email + contraseña | 5/min por IP | `RateLimitGuard` |
-| `POST` | `/api/v1/auth/refresh` | Rota refresh token | 20/min por IP | `RateLimitGuard` |
-| `GET` | `/api/v1/auth/csrf` | Entrega HMAC vinculado al refresh cookie activo | 60/min por IP | `RateLimitGuard` |
-| `POST` | `/api/v1/auth/upgrade-session` | Consume una vez un refresh legado y establece cookies | 20/min por IP | `RateLimitGuard`, Origin |
-| `POST` | `/api/v1/auth/logout` | Invalida refresh token y limpia cookies | — | — |
-| `GET`  | `/api/v1/auth/me` | Retorna usuario autenticado actual | — | `JwtAuthGuard` |
+| Método | Ruta                           | Descripción                                           | Rate Limit    | Guard                                            |
+| ------ | ------------------------------ | ----------------------------------------------------- | ------------- | ------------------------------------------------ |
+| `POST` | `/api/v1/auth/register-admin`  | Registra nuevo admin + crea tenant                    | 10/min por IP | `RateLimitGuard`; sin garantía `Idempotency-Key` |
+| `POST` | `/api/v1/auth/login`           | Login con email + contraseña                          | 5/min por IP  | `RateLimitGuard`                                 |
+| `POST` | `/api/v1/auth/refresh`         | Rota refresh token                                    | 20/min por IP | `RateLimitGuard`                                 |
+| `GET`  | `/api/v1/auth/csrf`            | Entrega HMAC vinculado al refresh cookie activo       | 60/min por IP | `RateLimitGuard`                                 |
+| `POST` | `/api/v1/auth/upgrade-session` | Consume una vez un refresh legado y establece cookies | 20/min por IP | `RateLimitGuard`, Origin                         |
+| `POST` | `/api/v1/auth/logout`          | Invalida refresh token y limpia cookies               | —             | —                                                |
+| `GET`  | `/api/v1/auth/me`              | Retorna usuario autenticado actual                    | —             | `JwtAuthGuard`                                   |
 
 ---
 
 ## 3. DTOs (nestjs-zod)
 
-| DTO | Campos | Validación |
-|-----|--------|------------|
-| `LoginDto` | `email`, `password` | email format, string |
-| `RegisterAdminDto` | `tenantName`, `email`, `password` | min lengths, email format |
-| `RefreshTokenDto` | `refreshToken` opcional | string de al menos 20 caracteres para Bearer y migración |
+| DTO                | Campos                            | Validación                                               |
+| ------------------ | --------------------------------- | -------------------------------------------------------- |
+| `LoginDto`         | `email`, `password`               | email format, string                                     |
+| `RegisterAdminDto` | `tenantName`, `email`, `password` | min lengths, email format                                |
+| `RefreshTokenDto`  | `refreshToken` opcional           | string de al menos 20 caracteres para Bearer y migración |
 
 ---
 
@@ -46,11 +48,13 @@ AuthController
 ```
 
 **Guards reutilizables** (en `common/guards/`):
+
 - `JwtAuthGuard` — valida Access Token JWT de cookie `accessToken` o Bearer explícito; las sesiones nuevas verifican que la familia no esté revocada
 - `CsrfGuard` — exige HMAC de sesión en `x-csrf-token` para mutaciones con cookies y valida Origin
 - `RateLimitGuard` — limita peticiones por IP (configurable por decorator)
 
 **Decorators** (en `common/decorators/`):
+
 - `@CurrentUser()` — inyecta `AuthenticatedUser` desde el request
 - `@RateLimit({ limit, windowSeconds, scope })` — configura cuotas atómicas con TTL en Redis por IP confiable y, cuando corresponda, tenant y clave API. Los intentos fallidos de login también comparten Redis; una mutación con cuota responde 503 si no puede verificarse. Ver [operación de Redis](../operations/10_redis_quotas_cache.md).
 - `register-admin` no usa `@Idempotent()` ni ofrece deduplicación por `Idempotency-Key`. La [remediación](../technical/08_http_idempotency_contract.md) reservó esa garantía para rutas con tenant y actor verificables; la unicidad del email se verifica por separado.
@@ -95,10 +99,10 @@ Un hash scrypt verificado se reemplaza por Argon2id al iniciar sesión.
 ```typescript
 // common/interfaces/auth-context.interface.ts
 interface AuthenticatedUser {
-  userId: string;      // UUID
-  tenantId: string;    // UUID — SIEMPRE presente, usar para filtrar queries
+  userId: string; // UUID
+  tenantId: string; // UUID — SIEMPRE presente, usar para filtrar queries
   email: string;
-  roles: string[];     // ['admin'] | ['editor']
+  roles: string[]; // ['admin'] | ['editor']
 }
 ```
 
@@ -108,21 +112,21 @@ interface AuthenticatedUser {
 
 ## 7. Reglas de Negocio Aplicables
 
-| ID | Regla |
-|----|-------|
-| `BR-SEC-001` | Contraseñas hasheadas con Argon2id; nunca en texto plano |
+| ID           | Regla                                                            |
+| ------------ | ---------------------------------------------------------------- |
+| `BR-SEC-001` | Contraseñas hasheadas con Argon2id; nunca en texto plano         |
 | `BR-SEC-002` | Refresh tokens almacenados hasheados en DB; rotación en cada uso |
-| `BR-SEC-003` | Tokens en cookies HttpOnly únicamente; nunca en `localStorage` |
+| `BR-SEC-003` | Tokens en cookies HttpOnly únicamente; nunca en `localStorage`   |
 
 ---
 
 ## 8. Tests Existentes
 
-| Archivo | Tipo | Cobertura |
-|---------|------|-----------|
-| `auth-cookie-http.integration.spec.ts` | HTTP con PostgreSQL y Redis | registro, CSRF, refresh, logout, login |
-| `auth-session-postgres.integration.spec.ts` | PostgreSQL | carrera de refresh, reutilización, auditoría y revocación |
-| `password.service.spec.ts` | Unidad | Argon2id y verificación scrypt heredado |
+| Archivo                                     | Tipo                        | Cobertura                                                 |
+| ------------------------------------------- | --------------------------- | --------------------------------------------------------- |
+| `auth-cookie-http.integration.spec.ts`      | HTTP con PostgreSQL y Redis | registro, CSRF, refresh, logout, login                    |
+| `auth-session-postgres.integration.spec.ts` | PostgreSQL                  | carrera de refresh, reutilización, auditoría y revocación |
+| `password.service.spec.ts`                  | Unidad                      | Argon2id y verificación scrypt heredado                   |
 
 ---
 
@@ -135,6 +139,10 @@ interface AuthenticatedUser {
 
 ## 10. Historial de Cambios
 
-| Fecha | Cambio |
-|-------|--------|
+| Fecha      | Cambio                            |
+| ---------- | --------------------------------- |
 | 2026-09-18 | Spec inicial creada (SKL-PRO-001) |
+
+## Administración de acceso — verificación de fase 4 (2026-10-17)
+
+El frontend administrativo integra la activación/desactivación existente sin cambiar JWT, refresh, cookies o CSRF. `CredentialRepository.findActiveUser` rechaza cuentas/tenants inactivos en cada request y `AuthService` conserva sus comprobaciones de login/refresh. Reactivar permite usar sesiones todavía válidas; no implica revocación permanente. Contrato y evidencia en [usuarios](api-users.md) y el [plan integral](../plan/2026-10-14_feat-mejoras-integrales-frontend.md).

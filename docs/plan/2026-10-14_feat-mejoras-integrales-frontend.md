@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 3 implementada y validada localmente; pendiente de commit y ACK, con integración/E2E reales pendientes por Docker no disponible.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 4 implementada y validada localmente, pendiente de commit y ACK; fase 3 registrada en `263fd55` y aprobada, con integración/E2E reales pendientes por Docker no disponible.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autoriza únicamente la fase 3. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
 
 ## 1. Contexto y restricciones
 
@@ -114,11 +114,11 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Commit:** `fix(web): unificá accesibilidad, estados y contraste`  
 **ACK humano:** recibido. **Commit registrado:** `9ec32c4`. **Detenerse y esperar ACK.**
 
-### [Actual] Fase 3 — Búsqueda global, revisión e inicio operativo
+### [Completada] Fase 3 — Búsqueda global, revisión e inicio operativo
 
 **Cubre:** F03 y mejoras de testimonios/inicio.
 
-**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y seis E2E reales pendientes por daemon Docker no disponible. No está autorizada la fase 4.
+**Estado de ejecución:** completada localmente; commit `263fd55` verificado y ACK «Continuar» del 2026-10-17 recibido. Integración PostgreSQL/Redis y seis E2E reales pendientes por daemon Docker no disponible. La fase 4 está autorizada por ese ACK.
 
 - [x] Implementar contratos de búsqueda, catálogos y resumen de la sección 2.
 - [x] Llevar búsqueda, filtros, orden y página a URL; cancelar/descartar respuestas obsoletas.
@@ -131,19 +131,21 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Cierre/pruebas:** coincidencia originalmente fuera de página accesible desde página 1; AND de etiquetas; URL/total/resultados coherentes; desempates estables; conteos globales; tenant ajeno excluido; detalle fuera de página y 403/404; borrado autorizado y confirmación. Probar compatibilidad de consultas anteriores.
 
 **Commit:** `feat(testimonials): agregá búsqueda global y revisión contextual`  
-**ACK humano:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido. **Commit registrado:** `263fd55`. **Detenerse y esperar ACK.**
 
-### [Pendiente] Fase 4 — Categorías, etiquetas y usuarios
+### [Actual] Fase 4 — Categorías, etiquetas y usuarios
 
 **Cubre:** F06, F16, F17, F18.
 
-- [ ] Integrar búsqueda, renombrado y conteos de asociaciones de catálogos.
-- [ ] Confirmar eliminación explicando efecto y mostrar acciones en dispositivos táctiles.
-- [ ] Conservar página válida después de crear/eliminar.
-- [ ] Usar Crear usuario y explicar contraseña/permisos efectivos.
-- [ ] Activar/desactivar otras cuentas con confirmación; impedir controles de desactivación/eliminación propia.
-- [ ] Verificar rechazo backend de cuentas desactivadas.
-- [ ] No ofrecer edición de rol: el DTO por sí solo no acredita implementación completa del contrato.
+**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y E2E reales pendientes por daemon Docker no disponible. La fase 5 no está autorizada.
+
+- [x] Integrar búsqueda, renombrado y conteos de asociaciones de catálogos.
+- [x] Confirmar eliminación explicando efecto y mostrar acciones en dispositivos táctiles.
+- [x] Conservar página válida después de crear/eliminar.
+- [x] Usar Crear usuario y explicar contraseña/permisos efectivos.
+- [x] Activar/desactivar otras cuentas con confirmación; impedir controles de desactivación/eliminación propia.
+- [x] Verificar rechazo backend de cuentas desactivadas.
+- [x] No ofrecer edición de rol: el DTO por sí solo no acredita implementación completa del contrato.
 
 **Cierre/pruebas:** asociaciones tenant correctas, cancelación sin DELETE, eliminación sin testimonios borrados, última página válida, requisitos de contraseña anticipados, acceso de cuenta desactivada rechazado y acciones propias protegidas. Ejemplos opcionales por programa/cohorte, sin taxonomía obligatoria ni datos reales de alumnos.
 
@@ -293,7 +295,7 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | F03 | Búsqueda/filtros de página                         | 3                                | Coincidencia fuera de página, AND, total y URL coherentes, tenant negativo | Corregido localmente en fase 3; integración PostgreSQL pendiente      |
 | F04 | Detalle anterior tras mutación                     | 1                                | Estado/contenido/medios actualizados sin reabrir                           | Corregido localmente en fase 1                                        |
 | F05 | Recuperación descarta borrador                     | 1                                | Reintento y cierre con decisión; texto preservado                          | Corregido localmente en fase 1                                        |
-| F06 | Borrado de categoría sin advertir desclasificación | 4                                | Cancelar sin DELETE; confirmar conserva testimonios sin categoría          | Pendiente                                                             |
+| F06 | Borrado de categoría sin advertir desclasificación | 4                                | Cancelar sin DELETE; confirmar conserva testimonios sin categoría          | Corregido localmente en fase 4; integración/E2E reales pendientes     |
 | F07 | Rotación webhook sin busy guard/contexto           | 6                                | Un intento UI por destino; conflictos y respuestas tardías tratados        | Pendiente                                                             |
 | F08 | Vencimiento cambia por UTC/local                   | 5                                | UTC/Argentina; guardar intacto preserva instante                           | Pendiente                                                             |
 | F09 | Publicados posteriores a veinte inaccesibles       | 9                                | Publicado 21 y final/paginación real                                       | Pendiente                                                             |
@@ -303,9 +305,9 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | F13 | Contraste dark                                     | 2                                | Parejas reales y estados de ambos temas                                    | Corregido localmente en fase 2                                        |
 | F14 | Vencida aparece revocada                           | 5                                | Estados diferenciados y acciones pertinentes                               | Pendiente                                                             |
 | F15 | Revelación anterior perdida                        | 5                                | Error siguiente preserva secreto en memoria; salida deliberada             | Pendiente                                                             |
-| F16 | Invitar y contraseña mal explicados                | 4                                | Crear usuario describe resultado; requisitos y errores asociados           | Pendiente                                                             |
-| F17 | Última página inválida                             | 3 en testimonios; 4 en catálogos | Último elemento eliminado y página corregida                               | Pendiente                                                             |
-| F18 | Borrado y acciones de etiquetas                    | 4                                | Decisión explícita, efecto real y controles táctiles descubribles          | Pendiente                                                             |
+| F16 | Invitar y contraseña mal explicados                | 4                                | Crear usuario describe resultado; requisitos y errores asociados           | Corregido localmente en fase 4; integración/E2E reales pendientes     |
+| F17 | Última página inválida                             | 3 en testimonios; 4 en catálogos | Último elemento eliminado y página corregida                               | Corregido localmente en fases 3/4; integración/E2E reales pendientes  |
+| F18 | Borrado y acciones de etiquetas                    | 4                                | Decisión explícita, efecto real y controles táctiles descubribles          | Corregido localmente en fase 4; integración/E2E reales pendientes     |
 | F19 | Configuración acoplada/draft y mensaje perdidos    | 7                                | Fallas independientes, slug y confirmación/foco conservados                | Pendiente                                                             |
 | F20 | Historial/secreto webhook sin contexto             | 6                                | Recurso identificado y actualización conserva página                       | Pendiente                                                             |
 | F21 | Analítica sin período/referencia útil              | 10                               | Alcance real y datos autorizados sin N+1                                   | Pendiente                                                             |
@@ -326,9 +328,9 @@ Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar c
 | O05 | Listado: estado, consulta global y detalle contextual         | 3            | URL, filtros, limpiar y siguiente/anterior coherentes                               | Corregido localmente en fase 3; E2E reales pendientes                                 |
 | O06 | Alta: contenido principal y clasificación progresiva          | 1, 2         | Borrador recuperable, móvil y preview sin dominar escritura                         | Corregido localmente en fases 1/2; cierre integral pendiente                          |
 | O07 | Detalle: estado español y acción siguiente                    | 1, 3         | Mutación confirmada, permisos, visibilidad pública y eliminación informada          | Corregido localmente en fases 1/3; integración real pendiente                         |
-| O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Pendiente                                                                             |
-| O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Pendiente                                                                             |
-| O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Pendiente                                                                             |
+| O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Corregido localmente en fase 4; integración/E2E reales pendientes                     |
+| O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Corregido localmente en fase 4; integración/E2E reales pendientes                     |
+| O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Corregido localmente en fase 4; integración/E2E reales pendientes                     |
 | O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Pendiente                                                                             |
 | O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Pendiente                                                                             |
 | O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Pendiente                                                                             |
@@ -359,9 +361,9 @@ No añadir nombre personal del actor a BI sin un contrato autorizado que lo apor
 | `/admin/register`              | 2, 8               | Campos vacíos, contraseña, alta y errores preservados                 | Parcial: base compartida de fase 2; flujo propio pendiente                             |
 | `/admin`                       | 1, 2, 3, 7         | Resumen real, recientes, pendientes y onboarding según rol            | Parcial: fases 1/2/3 validadas localmente; onboarding de fase 7 pendiente              |
 | `/admin/testimonials`          | 1, 2, 3            | Consulta/detalle/alta/edición/moderación/medios/eliminación y roles   | Fases 1/2/3 corregidas localmente; integración/E2E reales y cierre integral pendientes |
-| `/admin/categories`            | 2, 4               | Buscar/crear/renombrar/eliminar, asociaciones y página                | Parcial: base compartida de fase 2; flujo propio pendiente                             |
-| `/admin/tags`                  | 2, 4               | Buscar/crear/renombrar/eliminar y tablet táctil                       | Parcial: base compartida de fase 2; flujo propio pendiente                             |
-| `/admin/users`                 | 2, 4               | Alta, contraseña, estado de acceso, confirmación y rol                | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/categories`            | 2, 4               | Buscar/crear/renombrar/eliminar, asociaciones y página                | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
+| `/admin/tags`                  | 2, 4               | Buscar/crear/renombrar/eliminar y tablet táctil                       | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
+| `/admin/users`                 | 2, 4               | Alta, contraseña, estado de acceso, confirmación y rol                | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
 | `/admin/api-keys`              | 2, 5               | Scopes/fechas/estado/revelación/copia/revocación/rotación             | Parcial: base compartida de fase 2; flujo propio pendiente                             |
 | `/admin/webhooks`              | 2, 6               | Alta/edición/pausa/prueba/rotación/historial/replay y legado          | Parcial: base compartida de fase 2; flujo propio pendiente                             |
 | `/admin/settings`              | 2, 7               | Marca/logo/slug/recepción/capacidades y fallas independientes         | Parcial: base compartida de fase 2; flujo propio pendiente                             |
@@ -403,19 +405,19 @@ Las redirecciones no deben eliminar autorización ni crear loops; validar identi
 
 ### Formularios y estados compartidos
 
-| Superficie                        | Fase           | Pruebas adicionales                                                 | Estado                                                 |
-| --------------------------------- | -------------- | ------------------------------------------------------------------- | ------------------------------------------------------ |
-| Crear testimonio                  | 1, 2, 3        | Paginación sin submit, metadatos fallidos, dirty/Escape y móvil     | Parcial: fases 1/2 validadas; resto pendiente          |
-| Editar/detalle/moderar            | 1, 2, 3        | Propiedad/estado, respuesta actualizada, notas y siguiente/anterior | Parcial: fases 1/2 validadas; resto pendiente          |
-| Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados    | Parcial: fases 1/2 validadas; resto pendiente          |
-| Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                           | Pendiente                                              |
-| Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                  | Pendiente                                              |
-| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada            | Pendiente                                              |
-| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                 | Pendiente                                              |
-| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                     | Pendiente                                              |
-| Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes     | Pendiente                                              |
-| Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                             | Parcial: fase 2 validada; contexto de fase 7 pendiente |
-| Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado       | Parcial: fases 1/2 validadas; resto pendiente          |
+| Superficie                        | Fase           | Pruebas adicionales                                                 | Estado                                                                  |
+| --------------------------------- | -------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Crear testimonio                  | 1, 2, 3        | Paginación sin submit, metadatos fallidos, dirty/Escape y móvil     | Parcial: fases 1/2 validadas; resto pendiente                           |
+| Editar/detalle/moderar            | 1, 2, 3        | Propiedad/estado, respuesta actualizada, notas y siguiente/anterior | Parcial: fases 1/2 validadas; resto pendiente                           |
+| Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados    | Parcial: fases 1/2 validadas; resto pendiente                           |
+| Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                           | Corregido localmente en fase 4; integración/E2E pendientes              |
+| Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                  | Corregido localmente en fase 4; integración/E2E pendientes              |
+| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada            | Pendiente                                                               |
+| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                 | Pendiente                                                               |
+| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                     | Pendiente                                                               |
+| Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes     | Pendiente                                                               |
+| Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                             | Parcial: fase 2 validada; contexto de fase 7 pendiente                  |
+| Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado       | Parcial: fases 1/2/3/4 validadas localmente; cierre integral en fase 12 |
 
 ## 7. Registro de fase 0 y baseline
 
@@ -582,4 +584,74 @@ npm test --workspace @testimonial-cms/api -- --runTestsByPath \
 
 **Commit sugerido:** `feat(testimonials): agregá búsqueda global y revisión contextual`.
 
-**Estado:** fase 3 preparada para revisión y commit, pendiente de ACK; detenerse antes de fase 4.
+**Cierre registrado el 2026-10-17:** commit humano `263fd55` verificado y ACK «Continuar» recibido para fase 4. Los límites de integración descritos se conservan.
+
+### Fase 4 — catálogos y gestión de usuarios (2026-10-17)
+
+**Autorización y Git:** ACK «Continuar» del 2026-10-17, posterior a la fase 3; commit `263fd55` verificado y árbol limpio al iniciar en `codex/mejoras-integrales-frontend`. Se ejecuta sólo fase 4. No se crean commits automáticamente.
+
+**Catálogos:**
+
+- Pantallas de categorías/etiquetas componen un catálogo operativo común con búsqueda global paginada, conteos por tenant y acciones visibles sin hover. Crear/renombrar inline, validación 2–80 caracteres, confirmación de descarte y borradores conservados tras error. Renombrar conserva ID/asociaciones; duplicados tienen conflicto legible.
+- Borrado identificado con nombre, cantidad y consecuencia: se conservan testimonios y se quita su categoría/etiqueta. Cancelación sin DELETE y bloqueo síncrono de operaciones. Crear vuelve a página 1; borrar/renombrar corrige página inválida sin convertir un fallo en vacío exitoso. Se conserva la consulta.
+- Limpieza transaccional de asociaciones de etiquetas antes de borrar la etiqueta, compatible con las FK existentes. Errores de unicidad, inexistencia y referencias concurrentes se traducen a conflictos/404 seguros. Se invalida caché pública después de renombrar, eliminar o adjuntar/desvincular etiquetas.
+- Se detectó incompatibilidad de los inputs anidados de etiquetas con el cliente Prisma instalado: el parent aporta tenant/testimonio y el hijo acepta `tagId`. Se corrigen creación y edición, manteniendo la comprobación previa de pertenencia y la FK compuesta. Hay Red/Green de ese contrato con cliente simulado; ejecución real sigue pendiente.
+
+**Usuarios:**
+
+- Creación directa con campos vacíos; no se ofrece invitación por email. Requisitos completos antes de enviar, explicación de roles al crear, contraseña sólo en memoria y conservación del formulario ante errores. Cerrar con datos pendientes pide decisión y crear vuelve a página 1.
+- Activación/desactivación mediante PATCH vigente, con confirmación que identifica cuenta y efecto sobre acceso/sesiones. Respuesta validada para mismo ID/estado. Se conserva contraseña/roles; no se cambia autenticación o expiración y no se promete revocación definitiva.
+- No hay controles de desactivación/borrado propios y los handlers comprueban identidad. La API no incorpora una nueva prohibición global de autogestión; este límite corresponde a los controles acordados. No se ofrece editar roles existentes, cuyo DTO no acredita implementación.
+- Si el borrado encuentra historial protegido, conserva la cuenta mediante rollback y comunica 409 `USER_HAS_HISTORY` con la alternativa de desactivar. No se purgan sesiones ni auditoría para forzar el borrado. Los adaptadores exigen confirmación explícita de eliminación y no presentan como exitoso un ID/estado distinto.
+- La verificación HTTP demuestra que un JWT previamente emitido deja de dar acceso mientras la cuenta está desactivada y vuelve a ser admisible al reactivar si aún es válido. Los casos de login/refresh inactivos permanecen cubiertos en las suites de autenticación seleccionadas.
+
+**Verificación y recuperación:**
+
+La inspección agrupada en Chrome/Next dev usa exclusivamente HTTP sintético y datos de prueba: 1440×1000 y 375×812, claro/oscuro, storage denegado, nombre de 80 caracteres, conflictos, renombrado, confirmaciones, cancelación sin DELETE, página corregida, cuenta propia, validación de contraseña, creación desde página 2 y activación/desactivación. Comprobación de contención de usuarios a 320 px. La primera ronda detectó compresión del nombre/campo por los botones en móvil; se corrigió en bloque con filas de nombre y acciones separadas. La única confirmación posterior pasó las cuatro combinaciones. La tabla de usuarios conserva scroll accesible y explica cómo alcanzar acciones.
+
+Se actualiza E2E-RBAC para comprobar acceso directo denegado, desactivación/reactivación y uso de la misma credencial, manteniendo sus assertions de permiso y ausencia de cambios ajenos. Permanecen seis recorridos, sin relajar gates, privacidad, integridad o retries.
+
+`catalog-admin.integration.spec.ts` añade tres casos PostgreSQL de renombrado/borrado con asociaciones, acceso/islamiento y rollback con historial. El test de paginación existente recibe un sustituto explícito de caché porque el servicio ahora la invalida. Se adapta un mock heredado de eliminación de testimonios a la transacción de fase 3 manteniendo la assertion NotFound y el tenant; su fallo era de fixture, no una autorización para relajar el contrato.
+
+Docker sigue sin daemon en `/var/run/docker.sock`. Se reintentó el harness bajo el ACK específico ya otorgado; falló al crear su red, antes de crear servicios, migrar o ejecutar recorridos. No se eludió el harness ni se usaron bases persistentes. PostgreSQL/Redis, E2E reales, build de producción y CI del SHA final no se declaran aprobados.
+
+**Resultados finales:** se registran en la tabla siguiente. Los mocks no acreditan atomicidad, restricciones PostgreSQL o Redis reales. Las fixtures de navegador no equivalen a aceptación de integración, WCAG completa, lector de pantalla o dispositivo físico. El logo faltante previo conserva su fase de marca; no se adelanta otra fase.
+
+### Resultados finales de fase 4
+
+| Validación                                                                                    | Resultado                                                                     | Alcance / límite                                                                                                                                                                                                       |
+| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test --workspace @testimonial-cms/web -- --maxWorkers=2`                                 | **255/255**, 43 archivos, exit 0, 37,68 s                                     | Suite web completa con HTTP simulado; cero omisiones. Tras corregir una opción de tipos de Testing Library en una prueba, el archivo afectado se verifica por separado.                                                |
+| Jest API seleccionado: diez suites                                                            | **79/79**, exit 0                                                             | Catálogos, inputs anidados, historial, credenciales, auth/login/refresh, límites multi-tenant y regresiones de testimonios; persistencia simulada según suite.                                                         |
+| `npm test --workspace @testimonial-cms/api -- --runTestsByPath test/user-access-http.spec.ts` | **2/2**, exit 0                                                               | Pipeline HTTP/JWT/RBAC/servicios/repositorios reales, Prisma simulado. Token previo, activación, validación y otro tenant.                                                                                             |
+| Typecheck web y API                                                                           | Exit 0 en ambos                                                               | Tipos de todos los archivos y fixtures afectados, incluidos E2E/PG preparados.                                                                                                                                         |
+| Lint web / API afectada                                                                       | Exit 0; web conserva diez advertencias previas, API afectada sin advertencias | No se ocultan advertencias ni se relajan reglas.                                                                                                                                                                       |
+| Impeccable detect sobre cinco archivos UI activos                                             | `[]`, exit 0                                                                  | Catálogo común, dos composiciones, usuarios y mensajes compartidos; no equivale a auditoría WCAG completa.                                                                                                             |
+| Chrome/Playwright con HTTP sintético                                                          | Cuatro combinaciones aprobadas y confirmadas                                  | Escritorio/móvil × claro/oscuro, controles visibles, datos largos, formularios, contraste heredado de tokens, teclado/foco de confirmación, storage denegado, operaciones y contención a 320 px. Sin integración real. |
+| `npm run test:e2e:list --workspace @testimonial-cms/web`                                      | Seis tests en dos archivos, exit 0                                            | Descubrimiento, no ejecución; E2E-RBAC ampliado, sin eliminar assertions anteriores.                                                                                                                                   |
+| `E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 npm run test:e2e --workspace @testimonial-cms/web`         | **No aprobado: exit 1** al crear red propia                                   | Docker sin daemon; no se ejecutaron servicios, migraciones ni recorridos. El ACK específico del harness se conserva, sin habilitar otros destinos.                                                                     |
+| Prettier afectado / `git diff --check`                                                        | Aprobados                                                                     | Archivos afectados, sin schema, migraciones, manifiestos, dependencias, infraestructura o hooks modificados. Sin staging ni commit automático.                                                                         |
+
+Comando de diez suites API:
+
+```sh
+npm test --workspace @testimonial-cms/api -- --runTestsByPath \
+  test/catalog-mutations.spec.ts \
+  test/catalog-nested-tags.spec.ts \
+  test/user-history.spec.ts \
+  test/credential.repository.spec.ts \
+  test/auth.service.spec.ts \
+  test/auth-flow.spec.ts \
+  test/phase2-api-boundaries.spec.ts \
+  test/testimonials.service.spec.ts \
+  test/testimonial-content-validation.spec.ts \
+  test/testimonial-event-payload.spec.ts
+```
+
+**Red/Green y correcciones de pruebas:** cinco fallos funcionales UI antes de implementar búsqueda/confirmaciones/creación directa/activación; fallos de contrato previos para limpieza de etiquetas, cache, duplicados e historial. Se observaron dos rechazos del input anidado incompatible con Prisma antes de corregirlo; el sustituto valida exclusivamente ese contrato, sin acreditar consultas/transacciones reales. Las fallas de fixture por constructor de caché, estructura de transacción heredada, opciones de Testing Library o tipos anidados no se presentan como Red funcional ni se usan para debilitar assertions. Se mantienen el NotFound y el tenant de la prueba heredada.
+
+**Evidencia local:** `/tmp/frontend-phase4-*` y capturas sintéticas `/tmp/phase4-*`. No se versionan credenciales, contraseñas, tokens, cuerpos de usuarios reales o logs de proveedores. Las tres integraciones PostgreSQL nuevas están preparadas pero no ejecutadas, al igual que los seis E2E, Redis real, build de producción y CI. Ninguna aprobación se traslada al futuro SHA por estas pruebas locales.
+
+**Commit sugerido:** `feat(admin): mejorá catálogos y gestión de usuarios`.
+
+**Estado:** fase 4 preparada para revisión y commit, pendiente de ACK; detenerse antes de fase 5.

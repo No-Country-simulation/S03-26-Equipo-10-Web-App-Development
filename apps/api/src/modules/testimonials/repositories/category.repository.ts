@@ -6,6 +6,8 @@ import { pageOffset } from '../../../common/pagination/admin-page';
 import type { CatalogQuery } from '../dto/admin-query';
 import type { Prisma } from '@prisma/client';
 
+import { rethrowCatalogWrite } from './catalog-write-error';
+
 @Injectable()
 export class CategoryRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -57,9 +59,11 @@ export class CategoryRepository {
   }
 
   async create(tenantId: string, name: string): Promise<CategoryView> {
-    const row = await this.prisma.category.create({
-      data: { tenantId, name },
-    });
+    const row = await this.prisma.category
+      .create({
+        data: { tenantId, name },
+      })
+      .catch(rethrowCatalogWrite);
 
     return {
       id: row.id,
@@ -73,10 +77,12 @@ export class CategoryRepository {
     id: string,
     name: string,
   ): Promise<CategoryView> {
-    const row = await this.prisma.category.update({
-      where: { id, tenantId },
-      data: { name },
-    });
+    const row = await this.prisma.category
+      .update({
+        where: { id, tenantId },
+        data: { name },
+      })
+      .catch(rethrowCatalogWrite);
 
     return {
       id: row.id,
@@ -86,12 +92,14 @@ export class CategoryRepository {
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      await tx.testimonial.updateMany({
-        where: { tenantId, categoryId: id },
-        data: { categoryId: null },
-      });
-      await tx.category.delete({ where: { id, tenantId } });
-    });
+    await this.prisma
+      .$transaction(async (tx) => {
+        await tx.testimonial.updateMany({
+          where: { tenantId, categoryId: id },
+          data: { categoryId: null },
+        });
+        await tx.category.delete({ where: { id, tenantId } });
+      })
+      .catch(rethrowCatalogWrite);
   }
 }

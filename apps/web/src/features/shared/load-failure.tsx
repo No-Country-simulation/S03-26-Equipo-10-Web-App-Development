@@ -39,6 +39,10 @@ export function loadFailureCopy(
 
 export function actionFailureCopy(error: unknown, action: string) {
   if (error instanceof ApiError) {
+    if (error.code === 'CATALOG_NAME_TAKEN')
+      return 'Ya existe una clasificación con ese nombre en el espacio. Elegí otro nombre.';
+    if (error.code === 'USER_HAS_HISTORY')
+      return 'Esta cuenta tiene historial asociado y no se puede eliminar. Podés desactivarla para retirar su acceso y conservar el historial.';
     if (error.code === 'TESTIMONIAL_HAS_ACTIVITY')
       return 'Este testimonio tiene actividad registrada y no se puede eliminar. Si está publicado, podés ocultarlo para retirarlo de la galería.';
     if (error.status === 403)

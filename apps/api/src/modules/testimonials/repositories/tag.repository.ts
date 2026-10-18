@@ -7,6 +7,8 @@ import { pageOffset } from '../../../common/pagination/admin-page';
 import type { CatalogQuery } from '../dto/admin-query';
 import type { Prisma } from '@prisma/client';
 
+import { rethrowCatalogWrite } from './catalog-write-error';
+
 @Injectable()
 export class TagRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -62,9 +64,11 @@ export class TagRepository {
   }
 
   async create(tenantId: string, name: string): Promise<TagView> {
-    const row = await this.prisma.tag.create({
-      data: { tenantId, name },
-    });
+    const row = await this.prisma.tag
+      .create({
+        data: { tenantId, name },
+      })
+      .catch(rethrowCatalogWrite);
 
     return {
       id: row.id,
@@ -74,10 +78,12 @@ export class TagRepository {
   }
 
   async update(tenantId: string, id: string, name: string): Promise<TagView> {
-    const row = await this.prisma.tag.update({
-      where: { id, tenantId },
-      data: { name },
-    });
+    const row = await this.prisma.tag
+      .update({
+        where: { id, tenantId },
+        data: { name },
+      })
+      .catch(rethrowCatalogWrite);
 
     return {
       id: row.id,
@@ -87,7 +93,12 @@ export class TagRepository {
   }
 
   async remove(tenantId: string, id: string): Promise<void> {
-    await this.prisma.tag.delete({ where: { id, tenantId } });
+    await this.prisma
+      .$transaction(async (tx) => {
+        await tx.testimonialTag.deleteMany({ where: { tenantId, tagId: id } });
+        await tx.tag.delete({ where: { id, tenantId } });
+      })
+      .catch(rethrowCatalogWrite);
   }
 
   async attachToTestimonial(

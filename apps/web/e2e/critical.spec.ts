@@ -295,7 +295,7 @@ test('E2E-RBAC editor sin permisos de usuarios ni configuración de tenant', asy
     email: z.string(),
     roles: z.array(z.string()),
   });
-  await tenant.write(
+  const createdEditor = await tenant.write(
     'POST',
     '/users',
     { ...editor, role: 'editor' },
@@ -343,4 +343,34 @@ test('E2E-RBAC editor sin permisos de usuarios ni configuración de tenant', asy
   ).toBe(403);
   expect(await tenant.get('/users', z.array(userSchema))).toEqual(beforeUsers);
   expect(await tenant.get('/tenants/me', tenantSchema)).toEqual(beforeTenant);
+  // Direct navigation does not grant an editor the administrative users view.
+  await page.goto('/admin/users');
+  await expect(
+    page.getByRole('heading', { name: 'Acceso denegado', exact: true }),
+  ).toBeVisible();
+  const accessSchema = userSchema.extend({ isActive: z.boolean() });
+  const disabled = await tenant.write(
+    'PATCH',
+    `/users/${createdEditor.id}`,
+    { isActive: false },
+    accessSchema,
+  );
+  expect(disabled.isActive).toBe(false);
+  expect(disabled.roles).toEqual(['editor']);
+  // The same already-issued browser credential must stop working immediately.
+  expect((await page.context().request.get('/api/v1/auth/me')).status()).toBe(
+    401,
+  );
+  const enabled = await tenant.write(
+    'PATCH',
+    `/users/${createdEditor.id}`,
+    { isActive: true },
+    accessSchema,
+  );
+  expect(enabled.isActive).toBe(true);
+  expect(enabled.roles).toEqual(['editor']);
+  // Reactivation permits a still-valid session; it does not permanently revoke it.
+  expect((await page.context().request.get('/api/v1/auth/me')).status()).toBe(
+    200,
+  );
 });

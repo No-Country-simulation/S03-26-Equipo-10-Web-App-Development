@@ -2,7 +2,7 @@
 
 # Código: SKL-PRO-001 — Nivel 3, Especificación Técnica
 
-# Última actualización: 2026-10-15
+# Última actualización: 2026-10-17
 
 > Contrato activo de límites: JSON general hasta 1 MiB. Los POST de subida de imagen y envío público con imagen aceptan un cuerpo JSON de hasta 14 MiB para transportar base64; la imagen decodificada se valida a un máximo de 10 MiB antes de persistir o llamar a Cloudinary. Los listados administrativos de testimonios, categorías y etiquetas responden por HTTP `{ success: true, data: [], meta: { page, limit, total } }` (internamente, el servicio devuelve `{ items, meta }`); `page` por defecto es 1 y `limit` por defecto es 20, máximo 100.
 
@@ -66,6 +66,14 @@ Filtros antes de `skip/take`; `meta.total` usa las mismas condiciones y tenant. 
 Resumen, catálogos y testimonios recientes son consultas separadas sobre datos vivos; no se promete un snapshot histórico ni una reserva de posiciones entre páginas concurrentemente modificadas. No hay consultas individuales por testimonio para obtener sus etiquetas/categoría.
 
 `GET /api/v1/testimonials/:id` conserva la lectura aislada por tenant y 404 para inexistentes/ajenos. `DELETE` conserva admin para cualquier testimonio y editor sólo para propios, sin una restricción adicional por estado en el contrato vigente. La eliminación de asociaciones de etiquetas y del testimonio es transaccional. Si tiene actividad registrada, devuelve 409 con código `TESTIMONIAL_HAS_ACTIVITY`, conserva el registro, sus etiquetas y los eventos; el frontend explica el ocultamiento para publicados. Decisión humana confirmada el 2026-10-15. Una referencia concurrente que impide borrar produce conflicto y revierte la transacción. Después de borrar un publicado sin actividad se invalida la caché pública del tenant. No se altera el esquema ni se amplían permisos para acomodar controles. La tabla RBAC histórica de `business_rules.md` propone restricciones de eliminación por estado distintas del servicio actual; esta fase conserva el contrato implementado conforme al plan aprobado y registra la divergencia, sin presentar ambas fuentes como equivalentes.
+
+## Mutaciones de catálogos — fase 4
+
+PATCH de categorías/etiquetas renombra por ID y tenant, conserva asociaciones e invalida la caché pública del tenant. DELETE de categoría desclasifica sus testimonios antes de eliminarla; DELETE de etiqueta elimina las asociaciones correspondientes antes de borrar la etiqueta, sin borrar testimonios. Ambas limpiezas son transaccionales y filtran por tenant. Las referencias concurrentes que impiden escribir devuelven conflicto; una fila desaparecida devuelve 404 y un nombre duplicado devuelve 409 `CATALOG_NAME_TAKEN`. Se invalida caché después de confirmar la escritura, también al adjuntar/desvincular etiquetas mediante los endpoints existentes. No se reintenta automáticamente una mutación cuyo resultado sea incierto.
+
+La creación/edición de etiquetas anidadas en un testimonio usa el input generado por Prisma 6.5: el parent aporta testimonial y tenant; cada input hijo contiene `tagId`. Se mantiene la validación previa de pertenencia de categoría/etiquetas y las FK compuestas. Se retiró un campo tenant redundante que ese input anidado no admite; no se eliminó el filtro de seguridad del testimonio ni de las referencias.
+
+Las pruebas de contrato del cliente Prisma emplean un sustituto limitado al input instalado, no una DB. Las integraciones PostgreSQL de catálogos y persistencia existentes comprueban el comportamiento real cuando se ejecuten en un entorno disponible. No se declara validación de transacciones/Redis a partir de mocks.
 
 ## 4. DTOs (nestjs-zod)
 
