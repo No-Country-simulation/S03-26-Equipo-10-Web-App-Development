@@ -307,9 +307,41 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
       z.array(z.object({ id: z.string(), content: z.string() })),
     );
     expect(records).toEqual([{ id: submitted.data.id, content }]);
+    // Exercise the persisted analytics contract independently of observer timing.
+    expect(
+      (
+        await anonymous.request.post(
+          `/api/v1/public/analytics/tenants/${tenant.slug}/events`,
+          {
+            data: {
+              testimonialId: submitted.data.id,
+              eventType: 'view',
+              source: 'e2e-public-gallery',
+            },
+          },
+        )
+      ).status(),
+    ).toBe(201);
   } finally {
     await anonymous.close();
   }
+  await page.goto('/admin/analytics');
+  await expect(
+    page.getByText(/Acumulado desde el primer evento registrado/),
+  ).toBeVisible();
+  await expect(page.getByText(/Observado:/)).toContainText('UTC');
+  await expect(page.getByText(/hasta 50 eventos recientes/)).toBeVisible();
+  const contextLink = page
+    .getByRole('link', { name: authorName, exact: true })
+    .first();
+  await expect(contextLink).toHaveAttribute(
+    'href',
+    `/admin/testimonials?page=1&testimonial=${submitted.data.id}`,
+  );
+  await contextLink.click();
+  await expect(
+    page.getByRole('dialog', { name: `Testimonio de ${authorName}` }),
+  ).toBeVisible();
 });
 
 test('E2E-TENANT-CSRF deniega tenant ajeno y CSRF sin modificar datos', async ({

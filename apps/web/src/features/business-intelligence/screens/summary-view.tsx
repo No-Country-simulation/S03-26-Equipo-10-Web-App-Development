@@ -5,11 +5,16 @@ import { Button } from '@/components/ui/button';
 import type { SessionFetch } from '@/lib/api/validated-response';
 import { getBiDashboard } from '../api';
 import { useBiResource } from '../use-bi-resource';
-import type { BiQuery } from '../query';
+import { biHref, type BiQuery } from '../query';
 import { number, percentage, rating, statusNames, timestamp } from '../format';
 import { downloadBiCsv, type CsvReport } from '../csv';
 import { InventoryTrend } from '../components/inventory-trend';
-import { BiFailure, Loading, RangeForm } from '../components/shared';
+import {
+  BiFailure,
+  DetailLink,
+  Loading,
+  RangeForm,
+} from '../components/shared';
 
 export default function SummaryView({
   fetchApi,
@@ -30,6 +35,9 @@ export default function SummaryView({
   );
   const resource = useBiResource(load, true, null, refreshKey);
   const data = resource.data;
+  const operationHref = biHref(new URLSearchParams({ from, to }), {
+    view: 'operation',
+  });
   const [exportError, setExportError] = useState('');
   function exportCsv(report: CsvReport) {
     if (!data || resource.error) return;
@@ -58,6 +66,26 @@ export default function SummaryView({
       )}
       {data && (
         <>
+          <section
+            aria-label="Siguiente paso de inteligencia de negocio"
+            className="mb-5 space-y-2 text-sm"
+          >
+            <h2 className="text-lg font-semibold">
+              {data.freshness.status === 'not_loaded'
+                ? 'Prepará tu primera carga'
+                : data.freshness.status === 'stale'
+                  ? 'Revisá la vigencia de los datos'
+                  : 'Datos dentro del plazo de vigencia'}
+            </h2>
+            <p>
+              {data.freshness.status === 'not_loaded'
+                ? 'La ausencia de un corte no equivale a un inventario vacío.'
+                : 'Los indicadores usan cortes históricos; no reflejan cambios del CMS en tiempo real.'}
+            </p>
+            <DetailLink href={operationHref}>
+              Consultar operación y cargas
+            </DetailLink>
+          </section>
           <div
             className="mb-6 flex flex-wrap items-center gap-2"
             aria-label="Descargas CSV del rango visible"
@@ -124,9 +152,16 @@ export default function SummaryView({
             {[
               [
                 'Testimonios del último corte',
-                number(data.summary.totalTestimonials),
+                data.freshness.status === 'not_loaded'
+                  ? 'Sin corte'
+                  : number(data.summary.totalTestimonials),
               ],
-              ['Rating promedio', rating(data.summary.averageRating)],
+              [
+                'Rating promedio',
+                data.freshness.status === 'not_loaded'
+                  ? 'Sin corte'
+                  : rating(data.summary.averageRating),
+              ],
               ['Vistas en el rango', number(data.summary.views)],
               ['CTR en el rango', percentage(data.summary.ctr)],
               ['Clics en el rango', number(data.summary.clicks)],
@@ -147,7 +182,7 @@ export default function SummaryView({
             porcentaje puede superar 100 %.
           </p>
           <div className="my-8 grid gap-8 md:grid-cols-2">
-            <section>
+            <section className="min-w-0">
               <h2 className="font-body font-semibold">
                 Estados del último corte
               </h2>
@@ -165,11 +200,13 @@ export default function SummaryView({
                 </ul>
               ) : (
                 <p className="mt-4 text-sm">
-                  No hay testimonios en el último corte.
+                  {data.freshness.status === 'not_loaded'
+                    ? 'Todavía no hay un corte para clasificar los testimonios.'
+                    : 'No hay testimonios en el último corte.'}
                 </p>
               )}
             </section>
-            <section>
+            <section className="min-w-0">
               <h2 className="font-body font-semibold">
                 Categorías del último corte
               </h2>
@@ -178,9 +215,9 @@ export default function SummaryView({
                   {data.categories.map((row) => (
                     <li
                       key={row.categoryKey}
-                      className="flex justify-between gap-4 border-b py-2"
+                      className="flex flex-wrap justify-between gap-4 border-b py-2"
                     >
-                      <span className="break-words">{row.name}</span>
+                      <span className="min-w-0 break-words">{row.name}</span>
                       <span className="shrink-0">
                         {number(row.count)} · rating {rating(row.averageRating)}
                       </span>
@@ -189,7 +226,9 @@ export default function SummaryView({
                 </ul>
               ) : (
                 <p className="mt-4 text-sm">
-                  No hay categorías con testimonios en el último corte.
+                  {data.freshness.status === 'not_loaded'
+                    ? 'Las categorías aparecerán después de la primera carga.'
+                    : 'No hay categorías con testimonios en el último corte.'}
                 </p>
               )}
             </section>
@@ -207,7 +246,12 @@ export default function SummaryView({
               <summary className="cursor-pointer font-body text-sm">
                 Ver detalle diario e interacciones
               </summary>
-              <div className="mt-4 overflow-x-auto">
+              <div
+                role="region"
+                aria-label="Detalle diario en UTC"
+                tabIndex={0}
+                className="mt-4 relative min-w-0 max-w-full overflow-x-auto overscroll-x-contain [contain:inline-size]"
+              >
                 <table className="w-full text-left font-body text-sm">
                   <caption className="sr-only">
                     Evolución diaria e interacciones del rango en UTC

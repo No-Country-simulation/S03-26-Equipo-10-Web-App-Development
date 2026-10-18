@@ -477,4 +477,62 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
       }),
     ).toBe(1);
   });
+  it('reads accumulated analytics and bounded testimonial context only for the authenticated tenant', async () => {
+    const analytics = new AnalyticsRepository(prisma as PrismaService);
+    const published = await prisma.testimonialStatus.findUniqueOrThrow({
+      where: { code: 'published' },
+    });
+    const own = await prisma.testimonial.create({
+      data: {
+        ...data(),
+        authorName: 'Autora analítica sintética',
+        statusId: published.id,
+      },
+    });
+    const foreign = await prisma.testimonial.create({
+      data: {
+        ...data(),
+        tenantId: otherTenantId,
+        authorName: 'Autora de otra empresa',
+        statusId: published.id,
+      },
+    });
+    await analytics.trackEvent(otherTenantId, {
+      testimonialId: foreign.id,
+      eventType: 'click',
+    });
+    for (let index = 0; index < 51; index++)
+      await analytics.trackEvent(tenantId, {
+        testimonialId: own.id,
+        eventType: 'view',
+      });
+    const result = await analytics.getDashboard(tenantId);
+    expect(result.totalViews).toBe(
+      await prisma.analyticsEvent.count({
+        where: {
+          tenantId,
+          eventType: { code: 'view' },
+          createdAt: { lte: new Date(result.observedAt) },
+        },
+      }),
+    );
+    expect(result.recentEventsLimit).toBe(50);
+    expect(result.events).toHaveLength(50);
+    expect(
+      result.events.every(
+        (event) =>
+          event.testimonial.id === own.id &&
+          event.testimonial.authorName === 'Autora analítica sintética',
+      ),
+    ).toBe(true);
+    expect(result.events.map((event) => event.id)).toEqual(
+      [...result.events.map((event) => event.id)].sort((a, b) => b - a),
+    );
+    const earliest = await prisma.analyticsEvent.findFirst({
+      where: { tenantId },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(result.period.from).toBe(earliest?.createdAt.toISOString());
+    expect(result.period.to).toBe(result.observedAt);
+  });
 });

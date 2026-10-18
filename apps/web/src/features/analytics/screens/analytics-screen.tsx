@@ -1,61 +1,48 @@
 'use client';
 
 import { useCallback } from 'react';
+import Link from 'next/link';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { RefreshCw, Eye, MousePointerClick, Play } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { getAnalyticsDashboard } from '../api';
 import { LoadFailure } from '@/features/shared/load-failure';
 import { LoadingState } from '@/features/shared/feedback';
 import { useRemoteResource } from '@/features/shared/use-remote-resource';
+import { testimonialLocation } from '@/features/testimonials/query';
+import { timestamp } from '@/features/business-intelligence/format';
 
-interface AnalyticsSummary {
-  totalViews: number;
-  totalClicks: number;
-  totalPlays: number;
-  events: Array<{
-    id: number;
-    testimonialId: string;
-    eventType: string;
-    createdAt: string;
-  }>;
-}
-
+const eventLabels = {
+  view: 'Visualización',
+  click: 'Clic',
+  play: 'Reproducción',
+};
+const linkClass = 'text-primary underline underline-offset-4';
 export default function AnalyticsPage() {
   const { session, fetchApi } = useSession();
   const load = useCallback(
     async () => (await getAnalyticsDashboard(fetchApi)).data,
     [fetchApi],
   );
-  const { state, reload } = useRemoteResource<AnalyticsSummary>(
-    load,
-    Boolean(session),
-  );
+  const { state, reload } = useRemoteResource(load, Boolean(session));
   const data = state.status === 'success' ? state.data : null;
-
-  const metrics = [
-    { label: 'Visualizaciones', value: data?.totalViews ?? 0, icon: Eye },
-    { label: 'Clics', value: data?.totalClicks ?? 0, icon: MousePointerClick },
-    { label: 'Reproducciones', value: data?.totalPlays ?? 0, icon: Play },
-  ];
-
   return (
-    <>
+    <div className="min-w-0 font-body">
       <DashboardHeader
         title="Analítica"
-        description="Métricas de interacción con tus testimonios."
+        description="Interacciones registradas con los testimonios de este espacio."
       >
         <Button
-          variant="ghost"
+          type="button"
+          variant="outline"
           onClick={reload}
-          className="h-10 font-body text-xs uppercase tracking-wider"
+          disabled={state.status === 'loading'}
         >
-          <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
+          <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
+          Actualizar métricas
         </Button>
       </DashboardHeader>
-
       {state.status === 'loading' ? (
         <LoadingState>Cargando métricas…</LoadingState>
       ) : state.status === 'error' ? (
@@ -65,105 +52,128 @@ export default function AnalyticsPage() {
           onRetry={reload}
         />
       ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {metrics.map((m) => (
-              <div
-                key={m.label}
-                className="border p-8 transition-colors hover:bg-card"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {m.label}
-                  </span>
-                  <m.icon className="h-5 w-5 text-primary/50" />
+        data && (
+          <>
+            <section
+              aria-label="Alcance de las métricas"
+              className="mb-6 space-y-2 text-sm"
+            >
+              <p>
+                {data.period.from
+                  ? `Acumulado desde el primer evento registrado: ${timestamp(data.period.from)}.`
+                  : 'Acumulado de toda la actividad registrada. Todavía no hay eventos.'}
+              </p>
+              <p>Observado: {timestamp(data.observedAt)}.</p>
+              <p className="text-muted-foreground">
+                Son eventos, no personas únicas ni conversiones. La actividad
+                pública puede quedar incompleta si el navegador bloquea el
+                tracking.
+              </p>
+            </section>
+            <dl className="grid gap-6 border-y py-6 sm:grid-cols-3">
+              {[
+                ['Visualizaciones', data.totalViews],
+                ['Clics', data.totalClicks],
+                ['Reproducciones', data.totalPlays],
+              ].map(([label, value]) => (
+                <div className="min-w-0" key={label}>
+                  <dt className="text-sm text-muted-foreground">{label}</dt>
+                  <dd className="mt-2 break-words text-3xl font-medium tabular-nums">
+                    {value.toLocaleString('es-AR')}
+                  </dd>
                 </div>
-                <p className="mt-4 font-body tabular-nums text-5xl font-medium text-foreground">
-                  {m.value.toLocaleString()}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-12">
-            <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
-              Eventos Recientes
-            </h2>
-            {!data?.events || data.events.length === 0 ? (
-              <div className="border border-dashed p-12 text-center">
-                <p className="font-body text-sm text-muted-foreground">
-                  No hay eventos de analítica registrados.
-                </p>
-              </div>
-            ) : (
-              <div
-                role="region"
-                aria-label="Tabla de métricas"
-                tabIndex={0}
-                className="min-w-0 overflow-x-auto"
-              >
-                <table className="w-full">
-                  <caption className="sr-only">
-                    Métricas de este espacio
-                  </caption>
-                  <thead>
-                    <tr className="border-b">
-                      <th
-                        scope="col"
-                        className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                      >
-                        Tipo
-                      </th>
-                      <th
-                        scope="col"
-                        className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                      >
-                        Testimonio ID
-                      </th>
-                      <th
-                        scope="col"
-                        className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                      >
-                        Fecha
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.events.slice(0, 20).map((ev) => (
-                      <tr
-                        key={ev.id}
-                        className="border-b border-foreground/5 transition-colors hover:bg-card"
-                      >
-                        <td className="py-3 pr-4">
-                          <span
-                            className={cn(
-                              'px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
-                              ev.eventType === 'view' &&
-                                'bg-primary/10 text-primary',
-                              ev.eventType === 'click' &&
-                                'bg-accent/20 text-accent',
-                              ev.eventType === 'play' &&
-                                'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {ev.eventType}
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4 font-mono text-xs text-muted-foreground">
-                          {ev.testimonialId.slice(0, 8)}...
-                        </td>
-                        <td className="py-3 font-body text-xs text-muted-foreground">
-                          {new Date(ev.createdAt).toLocaleString()}
-                        </td>
+              ))}
+            </dl>
+            <section className="mt-10" aria-labelledby="recent-events">
+              <h2 id="recent-events" className="text-xl font-semibold">
+                Eventos recientes
+              </h2>
+              <p className="mb-5 mt-2 text-sm text-muted-foreground">
+                Mostrando {data.events.length} de hasta {data.recentEventsLimit}{' '}
+                eventos recientes, del más nuevo al más antiguo. Los totales
+                incluyen toda la actividad acumulada.
+              </p>
+              {data.events.length === 0 ? (
+                <div className="space-y-4 border border-dashed p-6">
+                  <p>
+                    Todavía no hay interacciones registradas. Publicá una
+                    historia y compartí tu galería para empezar.
+                  </p>
+                  <div className="flex flex-wrap gap-4">
+                    <Link
+                      className={linkClass}
+                      href="/admin/testimonials?status=approved"
+                    >
+                      Revisar testimonios para publicar
+                    </Link>
+                    <Link className={linkClass} href="/admin/settings">
+                      Configurar el enlace público
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  role="region"
+                  aria-label="Eventos recientes del espacio"
+                  tabIndex={0}
+                  className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain [contain:inline-size]"
+                >
+                  <table className="w-full min-w-[38rem] text-left text-sm">
+                    <caption className="sr-only">
+                      Eventos recientes y testimonios asociados; fechas en UTC
+                    </caption>
+                    <thead>
+                      <tr>
+                        {['Interacción', 'Testimonio', 'Fecha UTC'].map(
+                          (label) => (
+                            <th
+                              key={label}
+                              scope="col"
+                              className="border-b p-3 font-medium text-muted-foreground"
+                            >
+                              {label}
+                            </th>
+                          ),
+                        )}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </>
+                    </thead>
+                    <tbody>
+                      {data.events.map((event) => (
+                        <tr key={event.id} className="border-b">
+                          <td className="p-3 align-top">
+                            {eventLabels[event.eventType]}
+                          </td>
+                          <td className="max-w-sm p-3 align-top">
+                            <Link
+                              prefetch={false}
+                              className={`${linkClass} break-words`}
+                              href={testimonialLocation(
+                                1,
+                                {},
+                                event.testimonial.id,
+                              )}
+                            >
+                              {event.testimonial.authorName}
+                            </Link>
+                            <p className="mt-2 break-words text-muted-foreground">
+                              {event.testimonial.excerpt}
+                            </p>
+                          </td>
+                          <td className="whitespace-nowrap p-3 align-top">
+                            <time dateTime={event.createdAt}>
+                              {timestamp(event.createdAt)}
+                            </time>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </>
+        )
       )}
-    </>
+    </div>
   );
 }
