@@ -8,12 +8,12 @@
 
 ## API y autorización
 
-| Método / ruta | Entrada | Respuesta `data` | Autorización |
-| --- | --- | --- | --- |
-| `GET /api/v1/tenants/me` | Sesión actual | TenantView existente más `logoUrl: string \| null` | Sesión vigente, comportamiento actual. |
-| `PUT /api/v1/tenants/me/logo` | `{ imageBase64: string }` | TenantView con el logo confirmado; HTTP 200 | JWT, rol admin y CSRF de sesión. |
-| `DELETE /api/v1/tenants/me/logo` | Sin cuerpo | TenantView con `logoUrl: null`; HTTP 200 | JWT, rol admin y CSRF de sesión. |
-| `GET /api/v1/public/testimonials/:slug/form-info` | Slug público | `{ name, isPublicFormEnabled, logoUrl }` | Lectura pública actual. |
+| Método / ruta                                     | Entrada                   | Respuesta `data`                                   | Autorización                           |
+| ------------------------------------------------- | ------------------------- | -------------------------------------------------- | -------------------------------------- |
+| `GET /api/v1/tenants/me`                          | Sesión actual             | TenantView existente más `logoUrl: string \| null` | Sesión vigente, comportamiento actual. |
+| `PUT /api/v1/tenants/me/logo`                     | `{ imageBase64: string }` | TenantView con el logo confirmado; HTTP 200        | JWT, rol admin y CSRF de sesión.       |
+| `DELETE /api/v1/tenants/me/logo`                  | Sin cuerpo                | TenantView con `logoUrl: null`; HTTP 200           | JWT, rol admin y CSRF de sesión.       |
+| `GET /api/v1/public/testimonials/:slug/form-info` | Slug público              | `{ name, isPublicFormEnabled, logoUrl }`           | Lectura pública actual.                |
 
 Conservar el envelope HTTP vigente `{ success, data }`. `logoPublicId` y los trabajos internos no forman parte de TenantView ni de las respuestas públicas. El PUT no acepta `tenantId`, URLs arbitrarias ni IDs del proveedor. El PATCH general de tenant no acepta campos de logo. El DELETE repetido devuelve el tenant con logo NULL.
 
@@ -63,3 +63,7 @@ Probar firma/MIME, Base64 inválido, cero bytes, 2 MiB exactos y exceso; límite
 - Ante jobs `dead`, comprobar configuración/proveedor y el código técnico del job. Reintentar sólo referencias que ya no estén en `tenants.logo_public_id`, con una intervención operativa autorizada que restablezca `pending`, intentos cero, vencimiento actual y lease NULL. No editar referencias de tenant para rescatar una carga vencida. La cola no tiene purga automática; medir crecimiento antes de definir retención.
 - La integración PostgreSQL usa `TEST_LOGO_DATABASE_URL` **sólo hacia una base descartable**. Crea un esquema aleatorio, una fixture mínima previa y ejecuta el DDL de la migración allí; elimina el esquema al terminar. No usa `migrate deploy`, `db push` ni tablas de un despliegue existente.
 - Las pruebas verifican persistencia real, atomicidad, concurrencia, aislamiento, lease vencido y recuperación. El protocolo Cloudinary se prueba con respuestas simuladas; falta una prueba real con una cuenta configurada y verificar invalidación CDN. La interfaz se verifica con pruebas DOM; no se declara una revisión visual de navegador ni capacidad productiva.
+
+## Consumo web desde fase 7
+
+El editor permanece montado al refrescar datos del espacio, conserva mensajes/borradores independientes, ofrece descartar la selección y confirma la eliminación. La respuesta actualiza sólo `logoUrl`; no pisa nombre, enlace o recepción confirmados por otras operaciones. Se valida pertenencia de la respuesta antes de mostrar el cambio. Ver [configuración y primera puesta en marcha](web-settings.md). No se alteran estos endpoints, el esquema, el CAS ni la limpieza durable.

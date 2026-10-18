@@ -17,10 +17,13 @@ import {
 import { listUsers } from '@/features/users/api';
 import { LoadFailure } from '@/features/shared/load-failure';
 import { LoadingState } from '@/features/shared/feedback';
+import { GettingStarted } from '../components/getting-started';
+import { useWorkspaceIdentity } from '@/features/shared/workspace-identity';
 import { useRemoteResource } from '@/features/shared/use-remote-resource';
 
 export default function AdminOverviewPage() {
   const { session, fetchApi, isAdmin } = useSession();
+  const identity = useWorkspaceIdentity();
   const [selectedTestimonial, setSelectedTestimonial] =
     useState<TestimonialRecord | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,9 +50,15 @@ export default function AdminOverviewPage() {
     <>
       <DashboardHeader
         title={`Bienvenido, ${session?.user.email.split('@')[0] ?? ''}`}
-        description={`Espacio: ${session?.user.tenantName ?? '—'} · ${isAdmin ? 'Administración' : 'Edición'}`}
+        description={`Espacio: ${identity?.name ?? session?.user.tenantName ?? '—'} · ${isAdmin ? 'Administración' : 'Edición'}`}
       />
 
+      {isAdmin && (
+        <GettingStarted
+          fetchApi={fetchApi}
+          summary={state.status === 'success' ? state.data.summary : undefined}
+        />
+      )}
       {state.status === 'loading' ? (
         <LoadingState>Cargando métricas del inicio…</LoadingState>
       ) : state.status === 'error' ? (

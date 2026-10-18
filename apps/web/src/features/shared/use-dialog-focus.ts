@@ -11,9 +11,11 @@ export function useDialogFocus() {
           : null;
     },
     onCloseAutoFocus(event: Event) {
-      const target = origin.current?.isConnected
-        ? origin.current
-        : document.getElementById('main-content');
+      const target =
+        origin.current?.isConnected &&
+        !origin.current.matches(':disabled, [aria-disabled="true"]')
+          ? origin.current
+          : document.getElementById('main-content');
       if (target) {
         event.preventDefault();
         target.focus();

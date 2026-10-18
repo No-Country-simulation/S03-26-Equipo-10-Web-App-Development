@@ -71,6 +71,7 @@ const navItems: NavItem[] = [
 ];
 
 interface DashboardSidebarProps {
+  workspaceName?: string;
   userEmail?: string;
   userRoles?: string[];
   isAdmin: boolean;
@@ -78,6 +79,7 @@ interface DashboardSidebarProps {
 }
 
 function SidebarContent({
+  workspaceName,
   userEmail,
   userRoles,
   isAdmin,
@@ -97,17 +99,21 @@ function SidebarContent({
           onClick={onNavigate}
           className="flex items-center gap-3 group w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sidebar-primary"
         >
-          <img
-            src="/favicon.ico"
-            alt=""
-            className="h-6 w-6 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6 motion-reduce:transform-none"
-          />
+          <MessageSquareQuote aria-hidden="true" className="h-6 w-6 shrink-0" />
           <span className="font-body text-xs font-bold uppercase tracking-[0.2em] transition-all duration-300 group-hover:underline group-hover:underline-offset-4">
             Testimonial CMS
           </span>
         </Link>
       </div>
 
+      {workspaceName && (
+        <p
+          className="break-words border-b border-sidebar-border px-6 py-4 font-body text-sm font-medium"
+          aria-label={`Espacio actual: ${workspaceName}`}
+        >
+          {workspaceName}
+        </p>
+      )}
       {/* Navigation */}
       <nav
         aria-label="Navegación del panel"
@@ -259,8 +265,16 @@ export function DashboardSidebar(props: DashboardSidebarProps) {
             />
           </SheetContent>
         </Sheet>
-        <span className="font-body text-xs font-bold uppercase tracking-widest">
-          Testimonial CMS
+        <span
+          className="min-w-0 truncate font-body text-sm font-medium"
+          title={props.workspaceName}
+          aria-label={
+            props.workspaceName
+              ? `Espacio actual: ${props.workspaceName}`
+              : undefined
+          }
+        >
+          {props.workspaceName ?? 'Testimonial CMS'}
         </span>
       </div>
     </>

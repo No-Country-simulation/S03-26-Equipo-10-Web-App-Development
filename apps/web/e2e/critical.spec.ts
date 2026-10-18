@@ -396,6 +396,21 @@ test('E2E-RBAC editor sin permisos de usuarios ni configuración de tenant', asy
       data: { name: 'Cambio de configuración prohibido' },
     }),
   ).toBe(403);
+  expect(
+    await browserCall(page, { path: '/feature-flags', method: 'GET' }),
+  ).toBe(403);
+  expect(
+    await browserCall(page, {
+      path: '/feature-flags/enable_scoring',
+      method: 'PATCH',
+      csrf: true,
+      data: { enabled: false },
+    }),
+  ).toBe(403);
+  await page.goto('/admin/settings');
+  await expect(
+    page.getByText('Acceso restringido a administradores', { exact: true }),
+  ).toBeVisible();
   expect(await tenant.get('/users', z.array(userSchema))).toEqual(beforeUsers);
   expect(await tenant.get('/tenants/me', tenantSchema)).toEqual(beforeTenant);
   // Webhook administration remains restricted even when called directly.

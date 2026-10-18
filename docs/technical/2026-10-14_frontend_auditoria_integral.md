@@ -291,3 +291,9 @@ Regresiones de comportamiento prioritarias: paginar metadatos sin crear, editor 
 Esta entrega modifica documentación únicamente. No aplica mejoras a la UI, no cambia contratos, dependencias declaradas, esquema, infraestructura o configuración de despliegue, ni avanza fases de los planes existentes.
 
 Commit sugerido: `docs(web): ampliá la auditoría impeccable a todas las interfaces`.
+
+### Seguimiento de fase 7 — 2026-10-18
+
+F19 corregido localmente: recursos y guardados independientes, borradores y feedback conservados al refrescar, respuestas conciliadas por campo y lecturas obsoletas descartadas. Nombre editable con contexto del espacio en el shell, logo con confirmación/descarte, recepción diferenciada del enlace y guía opcional basada en datos reales. O04/O14 y contexto de O24 tienen implementación verificable; el cierre integral de O24 continúa en fases 11/12.
+
+Los controles consumen los endpoints existentes. Por decisión humana, Analítica/Webhooks se presentan como parámetros técnicos editables **sin prometer control de acceso o entrega**. Testimonios y scoring explican sus efectos efectivos, incluida la independencia de captura anónima y galería. Contratos, pruebas y límites en [web-settings](../modules/web-settings.md) y el [registro de fase 7](../plan/2026-10-14_feat-mejoras-integrales-frontend.md). Integración con servicios reales/E2E sigue pendiente por Docker no disponible; fixtures y detector no sustituyen esa aceptación. La auditoría original se conserva como evidencia histórica.
