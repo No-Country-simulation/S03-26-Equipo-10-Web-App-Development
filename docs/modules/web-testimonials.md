@@ -75,3 +75,7 @@ Anterior/siguiente recorren los resultados de la consulta, incluso sus páginas 
 Inicio consume `/testimonials/summary` y consulta por separado hasta seis recientes y hasta seis pendientes. Presenta primero la revisión, diferencia borradores y muestra los totales de todos los estados; no presenta la muestra reciente como total global. Los enlaces de revisión incorporan el contexto de consulta. El onboarding pertenece a fase 7.
 
 La protección de borradores cubre las acciones del modal y la navegación contextual; siguen siendo datos en memoria. No se garantiza persistencia ante recarga o navegación externa/browser back. La aceptación real con PostgreSQL/Redis y los seis E2E sigue pendiente: el harness autorizado el 2026-10-15 no pudo crear la red porque Docker no tenía daemon disponible. No se ejecutaron migraciones. Ver comandos/evidencia en el plan activo.
+
+## Superficies públicas desde fase 9
+
+Captura y galería tienen su [especificación pública](web-public-testimonials.md): marca aun con recepción cerrada, paginación de veinte sin descartar meta, lectura independiente de tracking, rating deliberado, validación de adjuntos y confirmación de texto guardado incluso en resultados parciales. No se modifican publicación, permisos ni aislamiento del backend.

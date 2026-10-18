@@ -303,3 +303,9 @@ Los controles consumen los endpoints existentes. Por decisión humana, Analític
 F10 y oportunidades O02/O03 corregidos localmente: acceso/registro vacíos, sin demo ficticia, tarea y regreso visibles en móvil, vocabulario de espacio/cuenta administradora, requisitos anticipados, errores asociados y borradores conservados. El bloqueo de solicitudes se mantiene hasta la navegación confirmada. La presentación consume los contratos vigentes sin modificar sesión, cookies, CSRF o contraseñas del backend.
 
 Ver [web-auth](../modules/web-auth.md) y el [registro de fase 8](../plan/2026-10-14_feat-mejoras-integrales-frontend.md). La inspección con fixtures, pruebas dirigidas y detector no sustituye PostgreSQL/Redis, los seis E2E reales ni CI del SHA final. La auditoría original se conserva como evidencia histórica.
+
+### Seguimiento de fase 9 — 2026-10-18
+
+F09 y la parte pública de F22 corregidos localmente: galería con marca independiente de recepción, paginación 20+1 con alcance/reintentos/foco, lectura sin rótulos de telemetría e independiente de tracking/storage. Captura requiere calificación deliberada, informa límites antes de adjuntar, conserva texto ante error y distingue texto guardado de medios fallidos sin sugerir duplicar el envío. Estados, nombres largos y medios diferidos/fallback verificados en superficies sintéticas.
+
+O15/O16 y ambas rutas tienen implementación y trazabilidad en [web-public-testimonials](../modules/web-public-testimonials.md) y el [registro de fase 9](../plan/2026-10-14_feat-mejoras-integrales-frontend.md). El caso PostgreSQL de 21 publicados y aislamiento está escrito y pendiente de ejecución; los seis E2E siguen bloqueados antes de iniciar servicios por Docker no disponible. La auditoría original permanece como evidencia histórica, sin convertir fixtures/detector en aceptación real.

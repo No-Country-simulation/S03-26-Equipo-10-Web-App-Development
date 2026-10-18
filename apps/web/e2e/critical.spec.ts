@@ -176,7 +176,7 @@ test('E2E-SESSION login, recarga, rotación y revocación al cerrar sesión', as
   }
   await page.goto('/admin/testimonials');
   await expect(
-    page.getByRole('button', { name: 'Iniciar Sesión', exact: true }),
+    page.getByRole('button', { name: 'Iniciar sesión', exact: true }),
   ).toBeVisible();
 });
 
@@ -190,6 +190,12 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   await page.goto(`/p/${tenant.slug}`);
   await page.getByLabel('Contanos tu historia', { exact: true }).fill(content);
   await page.getByLabel('Tu Nombre Completo', { exact: true }).fill(authorName);
+  await expect(
+    page.getByRole('radio', { name: '5 estrellas', exact: true }),
+  ).not.toBeChecked();
+  await page
+    .getByRole('radio', { name: '4 estrellas', exact: true })
+    .press('Space');
   const submission = page.waitForResponse(
     (response) =>
       response.url().endsWith(`/${tenant.slug}/submit`) &&
@@ -290,6 +296,9 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   try {
     const wall = await anonymous.newPage();
     await wall.goto(`/t/${tenant.slug}`);
+    await expect(
+      wall.getByRole('heading', { name: tenant.name, exact: true }),
+    ).toBeVisible();
     await expect(wall.getByText(content, { exact: false })).toBeVisible();
     await wall.reload();
     await expect(wall.getByText(content, { exact: false })).toBeVisible();

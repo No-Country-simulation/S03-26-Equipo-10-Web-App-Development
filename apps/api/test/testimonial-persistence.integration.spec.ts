@@ -288,6 +288,60 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
       ).toEqual(expected);
     }
   });
+  it('reaches the twenty-first publication without exposing another tenant or unpublished content', async () => {
+    const marker = `public-pages-${randomUUID()}`;
+    const category = await prisma.category.create({
+      data: { tenantId, name: marker },
+    });
+    const foreignCategory = await prisma.category.create({
+      data: { tenantId: otherTenantId, name: marker },
+    });
+    const published = await prisma.testimonialStatus.findUniqueOrThrow({
+      where: { code: 'published' },
+    });
+    const pending = await prisma.testimonialStatus.findUniqueOrThrow({
+      where: { code: 'pending' },
+    });
+    const rows = Array.from({ length: 21 }, (_, index) => ({
+      ...data(),
+      id: randomUUID(),
+      categoryId: category.id,
+      statusId: published.id,
+      score: index + 1,
+      publishedAt: new Date('2026-10-18T00:00:00Z'),
+    }));
+    await prisma.testimonial.createMany({ data: rows });
+    await prisma.testimonial.create({
+      data: { ...data(), categoryId: category.id, statusId: pending.id },
+    });
+    const foreign = await prisma.testimonial.create({
+      data: {
+        ...data(),
+        tenantId: otherTenantId,
+        categoryId: foreignCategory.id,
+        statusId: published.id,
+        score: 100,
+      },
+    });
+    const first = await repo.findPublished(tenantId, {
+      category: marker,
+      page: 1,
+      limit: 20,
+    });
+    const second = await repo.findPublished(tenantId, {
+      category: marker,
+      page: 2,
+      limit: 20,
+    });
+    expect(first.total).toBe(21);
+    expect(first.items).toHaveLength(20);
+    expect(second.total).toBe(21);
+    expect(second.items.map((item) => item.id)).toEqual([rows[0]!.id]);
+    const ids = [...first.items, ...second.items].map((item) => item.id);
+    expect(new Set(ids).size).toBe(21);
+    expect(ids).not.toContain(foreign.id);
+  });
+
   it('filters before pagination, combines tags with AND and excludes foreign tenant resources', async () => {
     const marker = `search-${randomUUID()}`;
     const category = await prisma.category.create({
