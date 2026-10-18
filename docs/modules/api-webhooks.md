@@ -1,14 +1,18 @@
 # Módulo de webhooks
 
+**Actualizado:** 2026-10-18.
+
 **Estado:** implementación local de las Fases 3 y 7 del [plan HITL](../plan/2026-09-30_chore-endurecimiento-seguridad.md). Las migraciones y el despliegue persistente requieren revisión separada.
 
-Los listados administrativos de destinos y entregas aceptan `page` y `limit` (1 y 20 por defecto, máximo 100) y responden `{ items, meta: { page, limit, total } }`. La API expone métricas de intentos por resultado, entregas pendientes y `dead`, fallos de polling y edad del evento pendiente más antiguo en `/api/v1/internal/metrics` mediante `x-metrics-token`. Ver [operación de fase 8](../operations/14_phase8_observability_rollout.md).
+Los listados administrativos de destinos y entregas aceptan `page` y `limit` (1 y 20 por defecto, máximo 100) y responden por HTTP `{ success: true, data: [], meta: { page, limit, total } }`; los servicios internos usan `{ items, meta }`. La API expone métricas de intentos por resultado, entregas pendientes y `dead`, fallos de polling y edad del evento pendiente más antiguo en `/api/v1/internal/metrics` mediante `x-metrics-token`. Ver [operación de fase 8](../operations/14_phase8_observability_rollout.md).
 
 ## Escritura y entrega
 
 El productor escribe el cambio de dominio, un `outbox_events` y una entrega lógica por destino activo en la **misma transacción PostgreSQL**. La pareja `(outbox_event_id, webhook_id)` es única y cada entrega guarda la URL de destino vigente al crearse. Los cambios posteriores de URL solo afectan eventos nuevos. Los eventos anteriores a esta versión, sin entregas inicializadas, se recuperan mediante un inicializador transaccional que usa `FOR UPDATE SKIP LOCKED`.
 
 El procesador consulta entregas `pending` cuyo `next_retry_at` haya vencido. Cada adquisición usa `FOR UPDATE SKIP LOCKED`, incrementa el contador e inserta un registro en `webhook_delivery_attempts` antes de hacer HTTP. Procesa como máximo cinco entregas a la vez por instancia. Un token de lease identifica al propietario del intento; un resultado tardío no puede sobrescribir el estado si el lease venció y otro worker lo adquirió. Los intentos interrumpidos quedan en el historial.
+
+Pausar o archivar un destino evita crear entregas para eventos nuevos; no elimina las ya encoladas, cuyo despacho puede continuar. El cambio posterior de evento tampoco reescribe el envelope de eventos anteriores.
 
 Cada intento hace **una sola llamada HTTP** con timeout de cinco segundos. 2xx confirma; 408, 429, 5xx y errores de red se reprograman con backoff exponencial y full jitter. Otros 4xx y 3xx terminan como `dead`. El presupuesto es de diez intentos o 72 horas por ciclo. Un administrador puede reenviar una entrega `dead`, lo que abre un presupuesto nuevo sin borrar el historial. `outbox_events.status` pasa a `processed` solo cuando todas las entregas están en `success` o `dead`. `dead` es un resultado terminal visible, no un éxito de transporte.
 
@@ -26,21 +30,25 @@ Los destinos legados firmados conservan `X-Signature` (HMAC-SHA-256 del body con
 
 Todos exigen sesión autenticada, rol `admin` y tenant actual.
 
-`POST /test` y `POST /replay` usan el [contrato transaccional de idempotencia HTTP](../technical/08_http_idempotency_contract.md) cuando se envía `Idempotency-Key`: la reserva, el efecto y el resultado se confirman juntos. La migración correspondiente está preparada, pero su aplicación y la concurrencia en PostgreSQL no están verificadas. Esta garantía es distinta de la deduplicación por evento que deben hacer los **receptores** de webhooks salientes.
+`POST /test` y `POST /replay` usan el [contrato transaccional de idempotencia HTTP](../technical/08_http_idempotency_contract.md) cuando se envía `Idempotency-Key`: la reserva, el efecto y el resultado se confirman juntos. La aplicación a una base persistente requiere su ACK específico. La fase 6 de frontend no pudo revalidar este contrato con PostgreSQL/Redis locales por Docker no disponible; los checks de cada SHA deben acreditarse por separado. Esta garantía es distinta de la deduplicación por evento que deben hacer los **receptores** de webhooks salientes.
 
-| Método | Ruta | Resultado |
-| --- | --- | --- |
-| `GET` | `/api/v1/webhooks` | Destinos del tenant |
-| `POST` | `/api/v1/webhooks` | Crea un destino HTTPS |
-| `POST` | `/api/v1/webhooks/:webhook_id/rotate-secret` | Revela un secreto nuevo una sola vez; gracia de 24 horas |
-| `PATCH` | `/api/v1/webhooks/:webhook_id` | Modifica un destino |
-| `DELETE` | `/api/v1/webhooks/:webhook_id` | Archiva el destino; permanece visible para consultar entregas e intentos |
-| `GET` | `/api/v1/webhooks/:webhook_id/deliveries` | Estado e intentos recientes |
-| `POST` | `/api/v1/webhooks/:webhook_id/test` | Encola una prueba solo para ese destino; responde `202` con ID de evento |
-| `POST` | `/api/v1/webhooks/:webhook_id/deliveries/:delivery_id/replay` | Reabre una entrega `dead` del tenant; responde `202` |
+| Método   | Ruta                                                          | Resultado                                                                |
+| -------- | ------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `GET`    | `/api/v1/webhooks`                                            | Destinos del tenant                                                      |
+| `POST`   | `/api/v1/webhooks`                                            | Crea un destino HTTPS                                                    |
+| `POST`   | `/api/v1/webhooks/:webhook_id/rotate-secret`                  | Revela un secreto nuevo una sola vez; gracia de 24 horas                 |
+| `PATCH`  | `/api/v1/webhooks/:webhook_id`                                | Modifica un destino                                                      |
+| `DELETE` | `/api/v1/webhooks/:webhook_id`                                | Archiva el destino; permanece visible para consultar entregas e intentos |
+| `GET`    | `/api/v1/webhooks/:webhook_id/deliveries`                     | Estado e intentos recientes (hasta 20 intentos por entrega)              |
+| `POST`   | `/api/v1/webhooks/:webhook_id/test`                           | Encola una prueba solo para ese destino; responde `202` con ID de evento |
+| `POST`   | `/api/v1/webhooks/:webhook_id/deliveries/:delivery_id/replay` | Reabre una entrega `dead` del tenant; responde `202`                     |
 
 ## Datos y despliegue
 
 La migración `20260930000000_webhook_delivery_expand` añade columnas y la tabla de intentos sin romper los escritores antiguos. El corte `20260930000001_webhook_delivery_cutover` deduplica filas históricas, crea la unicidad y reabre eventos que la versión anterior marcó `processed` aunque una entrega había fallado. Antes del **corte**, drenar todos los procesadores antiguos; sus escrituras duplicadas ya no son compatibles con el índice único. Después se activa la versión nueva. Las columnas legadas permanecen durante la ventana de rollback, pero un rollback del procesador exige el mismo corte coordinado y no debe iniciar workers antiguos con el índice único vigente. El backfill con datos sintéticos y la suite de concurrencia se prueban en PostgreSQL 18 descartable. No ejecutar `prisma migrate deploy` ni aplicar estas migraciones a una base persistente sin autorización separada.
 
 La migración `20261002010000_webhook_secrets_expand` añade columnas de cifrado y conserva el lector del secreto legado durante la transición. El backfill se ejecuta después de drenar escritores viejos y solo con autorización separada para la base persistente. Los límites del cliente HTTP, la defensa SSRF y la ventana de HTTP legado están descritos en [la guía SSRF](../operations/08_webhook_ssrf_rollout.md). Métricas, alertas y retiro de columnas legadas pertenecen a la Fase 8.
+
+## Interfaz administrativa
+
+Ver [Webhooks en el panel](web-webhooks.md): edición HTTPS/evento, pausa/reactivación, archivo con historial conservado, bloqueo por destino, revelación contextual y diferencia entre encolado y recepción HTTP. La fase 6 del plan de frontend consume el PATCH existente, sin cambiar contratos de entrega ni introducir otro worker o cola.

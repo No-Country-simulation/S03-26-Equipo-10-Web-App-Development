@@ -69,9 +69,9 @@ export function useActionConfirmation() {
             if (lock.current) event.preventDefault();
           }}
         >
-          <AlertDialogHeader>
+          <AlertDialogHeader className="min-w-0">
             <AlertDialogTitle>{request?.title}</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="break-words">
               {request?.description}
             </AlertDialogDescription>
           </AlertDialogHeader>

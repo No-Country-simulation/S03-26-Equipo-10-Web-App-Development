@@ -68,8 +68,8 @@ it.each([
       hasSignature: true,
       signatureGraceUntil: null,
     },
-    trigger: 'Eliminar webhook https://receiver.example.invalid/events',
-    confirm: 'Eliminar webhook',
+    trigger: 'Archivar webhook https://receiver.example.invalid/events',
+    confirm: 'Archivar webhook',
     context: 'receiver.example.invalid',
   },
 ])(
@@ -87,8 +87,22 @@ it.each([
       if (path.startsWith('/' + resource + '?'))
         return {
           success: true,
-          data: removed ? [] : [record],
-          meta: { page: 1, limit: 20, total: removed ? 0 : 1 },
+          data:
+            removed && resource !== 'webhooks'
+              ? []
+              : [
+                  {
+                    ...record,
+                    ...(removed && resource === 'webhooks'
+                      ? { isActive: false, deletedAt: date }
+                      : {}),
+                  },
+                ],
+          meta: {
+            page: 1,
+            limit: 20,
+            total: removed && resource !== 'webhooks' ? 0 : 1,
+          },
         };
       throw new Error('Unexpected request');
     });
@@ -110,8 +124,12 @@ it.each([
     ).toHaveLength(1);
     expect(
       await screen.findByText(
-        /Usuario eliminado|API key revocada|Webhook eliminado/,
+        /Usuario eliminado|API key revocada|Webhook archivado/,
       ),
     ).toBeInTheDocument();
+    if (resource === 'webhooks')
+      expect(
+        screen.getByText('Archivado', { exact: true }),
+      ).toBeInTheDocument();
   },
 );

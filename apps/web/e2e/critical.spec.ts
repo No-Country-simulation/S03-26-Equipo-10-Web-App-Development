@@ -398,6 +398,22 @@ test('E2E-RBAC editor sin permisos de usuarios ni configuración de tenant', asy
   ).toBe(403);
   expect(await tenant.get('/users', z.array(userSchema))).toEqual(beforeUsers);
   expect(await tenant.get('/tenants/me', tenantSchema)).toEqual(beforeTenant);
+  // Webhook administration remains restricted even when called directly.
+  expect(await browserCall(page, { path: '/webhooks', method: 'GET' })).toBe(
+    403,
+  );
+  expect(
+    await browserCall(page, {
+      path: '/webhooks/00000000-0000-4000-8000-000000000001',
+      method: 'PATCH',
+      csrf: true,
+      data: { isActive: true },
+    }),
+  ).toBe(403);
+  await page.goto('/admin/webhooks');
+  await expect(
+    page.getByRole('heading', { name: 'Acceso denegado', exact: true }),
+  ).toBeVisible();
   // Direct navigation does not grant an editor the administrative users view.
   await page.goto('/admin/users');
   await expect(

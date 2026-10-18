@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 5 implementada y validada localmente, pendiente de commit y ACK; fase 4 registrada en `a9ab823` y aprobada. Integración/E2E reales pendientes por Docker no disponible.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 6 implementada y validada localmente, pendiente de commit y ACK; fase 5 registrada en `52e4800` y aprobada. Integración/E2E reales pendientes por Docker no disponible.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
 
 ## 1. Contexto y restricciones
 
@@ -152,11 +152,11 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Commit:** `feat(admin): mejorá catálogos y gestión de usuarios`  
 **ACK humano:** recibido. **Commit registrado:** `a9ab823`. **Detenerse y esperar ACK.**
 
-### [Actual] Fase 5 — API keys
+### [Completada] Fase 5 — API keys
 
 **Cubre:** F08, F14, F15.
 
-**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y E2E reales pendientes por Docker no disponible. La fase 6 no está autorizada.
+**Estado de ejecución:** implementada y validada localmente; commit `52e4800` y ACK recibidos. Integración PostgreSQL/Redis y E2E reales pendientes por Docker no disponible.
 
 - [x] Convertir UTC/hora local correctamente y preservar instante si no se edita.
 - [x] Distinguir Activa, Vencida y Revocada con acciones pertinentes.
@@ -168,19 +168,21 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Cierre/pruebas:** rotación sin desplazamiento en UTC y Argentina; estados diferenciados; fallo siguiente conserva revelación; doble operación bloqueada; clipboard denegado recuperable; secretos ausentes de storage/logs/evidencia. No generar credenciales reales para capturas.
 
 **Commit:** `fix(api-keys): corregí vencimientos y protegé la revelación`  
-**ACK humano:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido. **Commit registrado:** `52e4800`. **Detenerse y esperar ACK.**
 
-### [Pendiente] Fase 6 — Webhooks
+### [Actual] Fase 6 — Webhooks
 
 **Cubre:** F07, F20.
 
-- [ ] Bloqueo de mutación pendiente por destino y feedback ocupado.
-- [ ] Identificar URL/evento en revelación, historial y confirmaciones.
-- [ ] Mantener destino/página al actualizar y reintentar historial.
-- [ ] Traducir estados y mostrar intentos en detalle expansible.
-- [ ] Integrar edición HTTPS/evento y pausa/reactivación por PATCH vigente.
-- [ ] Guiar crear, configurar receptor, probar y comprobar resultado; separar encolado de entregado.
-- [ ] Preservar SSRF, firma, CAS/concurrencia y gracia del backend.
+**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y E2E reales pendientes por Docker no disponible. La fase 7 no está autorizada.
+
+- [x] Bloqueo de mutación pendiente por destino y feedback ocupado.
+- [x] Identificar URL/evento en revelación, historial y confirmaciones.
+- [x] Mantener destino/página al actualizar y reintentar historial.
+- [x] Traducir estados y mostrar intentos en detalle expansible.
+- [x] Integrar edición HTTPS/evento y pausa/reactivación por PATCH vigente.
+- [x] Guiar crear, configurar receptor, probar y comprobar resultado; separar encolado de entregado.
+- [x] Preservar SSRF, firma, CAS/concurrencia y gracia del backend.
 
 **Cierre/pruebas:** una sola operación pendiente por destino, respuestas tardías no contaminan otro recurso, conflicto 409 comprensible, actualización conserva página, intentos accesibles y reactivación respeta firma/HTTPS. Entregas externas simuladas no acreditan proveedor real.
 
@@ -298,7 +300,7 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | F04 | Detalle anterior tras mutación                     | 1                                | Estado/contenido/medios actualizados sin reabrir                           | Corregido localmente en fase 1                                        |
 | F05 | Recuperación descarta borrador                     | 1                                | Reintento y cierre con decisión; texto preservado                          | Corregido localmente en fase 1                                        |
 | F06 | Borrado de categoría sin advertir desclasificación | 4                                | Cancelar sin DELETE; confirmar conserva testimonios sin categoría          | Corregido localmente en fase 4; integración/E2E reales pendientes     |
-| F07 | Rotación webhook sin busy guard/contexto           | 6                                | Un intento UI por destino; conflictos y respuestas tardías tratados        | Pendiente                                                             |
+| F07 | Rotación webhook sin busy guard/contexto           | 6                                | Un intento UI por destino; conflictos y respuestas tardías tratados        | Corregido localmente en fase 6; integración/E2E reales pendientes     |
 | F08 | Vencimiento cambia por UTC/local                   | 5                                | UTC/Argentina; guardar intacto preserva instante                           | Corregido localmente en fase 5; integración/E2E reales pendientes     |
 | F09 | Publicados posteriores a veinte inaccesibles       | 9                                | Publicado 21 y final/paginación real                                       | Pendiente                                                             |
 | F10 | Registro precompletado                             | 8                                | Campos vacíos; validación evita alta accidental                            | Pendiente                                                             |
@@ -311,7 +313,7 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | F17 | Última página inválida                             | 3 en testimonios; 4 en catálogos | Último elemento eliminado y página corregida                               | Corregido localmente en fases 3/4; integración/E2E reales pendientes  |
 | F18 | Borrado y acciones de etiquetas                    | 4                                | Decisión explícita, efecto real y controles táctiles descubribles          | Corregido localmente en fase 4; integración/E2E reales pendientes     |
 | F19 | Configuración acoplada/draft y mensaje perdidos    | 7                                | Fallas independientes, slug y confirmación/foco conservados                | Pendiente                                                             |
-| F20 | Historial/secreto webhook sin contexto             | 6                                | Recurso identificado y actualización conserva página                       | Pendiente                                                             |
+| F20 | Historial/secreto webhook sin contexto             | 6                                | Recurso identificado y actualización conserva página                       | Corregido localmente en fase 6; integración/E2E reales pendientes     |
 | F21 | Analítica sin período/referencia útil              | 10                               | Alcance real y datos autorizados sin N+1                                   | Pendiente                                                             |
 | F22 | Semántica, storage, cargas y cierres               | 2 común; 8 auth; 9 público       | Roles/foco/rating/expansión, storage denegado y main/título móvil          | Parcial: base de fase 2 validada; auth/público específicos pendientes |
 | F23 | Doce rutas preparatorias expuestas                 | 11                               | Aliases/contenido útil; autorización y ausencia de placeholders            | Pendiente                                                             |
@@ -334,7 +336,7 @@ Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar c
 | O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Corregido localmente en fase 4; integración/E2E reales pendientes                     |
 | O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Corregido localmente en fase 4; integración/E2E reales pendientes                     |
 | O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Corregido localmente en fase 5; integración/E2E reales pendientes                     |
-| O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Pendiente                                                                             |
+| O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Corregido localmente en fase 6; integración/E2E reales pendientes                     |
 | O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Pendiente                                                                             |
 | O14 | Ajustes: marca/captura/capacidades independientes             | 7            | Guardados independientes; scoring real; capacidades operables                       | Pendiente                                                                             |
 | O15 | Captura: marca, rating deliberado y límites previos           | 9            | Validación, parcial/completo y foco sin duplicados                                  | Pendiente                                                                             |
@@ -367,7 +369,7 @@ No añadir nombre personal del actor a BI sin un contrato autorizado que lo apor
 | `/admin/tags`                  | 2, 4               | Buscar/crear/renombrar/eliminar y tablet táctil                       | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
 | `/admin/users`                 | 2, 4               | Alta, contraseña, estado de acceso, confirmación y rol                | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
 | `/admin/api-keys`              | 2, 5               | Scopes/fechas/estado/revelación/copia/revocación/rotación             | Fases 2/5 validadas localmente; integración/E2E reales y cierre integral pendientes    |
-| `/admin/webhooks`              | 2, 6               | Alta/edición/pausa/prueba/rotación/historial/replay y legado          | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/webhooks`              | 2, 6               | Alta/edición/pausa/prueba/rotación/historial/replay y legado          | Fases 2/6 validadas localmente; integración/E2E reales y cierre integral pendientes    |
 | `/admin/settings`              | 2, 7               | Marca/logo/slug/recepción/capacidades y fallas independientes         | Parcial: base compartida de fase 2; flujo propio pendiente                             |
 | `/admin/analytics`             | 2, 10              | Período/eventos/referencias/alcance/vacío/error                       | Parcial: base compartida de fase 2; flujo propio pendiente                             |
 | `/admin/business-intelligence` | 2, 10              | Siete superficies de la tabla siguiente, URL/CSV/polling/roles        | Parcial: base compartida de fase 2; flujo propio pendiente                             |
@@ -415,8 +417,8 @@ Las redirecciones no deben eliminar autorización ni crear loops; validar identi
 | Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                           | Corregido localmente en fase 4; integración/E2E pendientes              |
 | Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                  | Corregido localmente en fase 4; integración/E2E pendientes              |
 | Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada            | Corregido localmente en fase 5; integración/E2E reales pendientes       |
-| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                 | Pendiente                                                               |
-| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                     | Pendiente                                                               |
+| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                 | Corregido localmente en fase 6; integración/E2E reales pendientes       |
+| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                     | Corregido localmente en fase 6; integración/E2E reales pendientes       |
 | Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes     | Pendiente                                                               |
 | Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                             | Parcial: fase 2 validada; contexto de fase 7 pendiente                  |
 | Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado       | Parcial: fases 1/2/3/4 validadas localmente; cierre integral en fase 12 |
@@ -698,3 +700,55 @@ La protección de salida intercepta enlaces, Cerrar sesión del shell y Atrás o
 **Commit sugerido:** `fix(api-keys): corregí vencimientos y protegé la revelación`.
 
 **Estado:** fase 5 preparada para revisión y commit, pendiente de ACK; detenerse antes de fase 6.
+
+**Cierre registrado de fase 5 (2026-10-18):** commit humano `52e4800` verificado, árbol limpio al iniciar y ACK «Continuar» para fase 6. Se conservan los límites de integración reales de las fases anteriores.
+
+### Fase 6 — configuración y entregas de webhooks (2026-10-18)
+
+**Autorización y alcance:** únicamente fase 6 en `codex/mejoras-integrales-frontend`. Impeccable `harden`/`clarify`, craft-floor y detector; skill `webhook-architecture-engineering` contrastada con el ledger PostgreSQL y las políticas reales del proyecto. No se adoptan como requisitos nuevos las arquitecturas genéricas, colas ni capacidades de terceros de esa skill. No se cambió backend de producción, esquema, criptografía, política de gracia ni infraestructura.
+
+**Implementación:** candado síncrono por destino, con estado ocupado y operaciones independientes en otros destinos. La generación de secretos se serializa además globalmente por existir un único espacio de revelación. La UI no permite repetir una rotación conocida en gracia; explica un 409 por gracia/cambio concurrente, conservando su contexto. Secretos exclusivamente en memoria, separados de metadata, con URL/evento y fecha de gracia confirmados por API; copia anunciada y fallback manual; ocultamiento y reemplazo deliberados. Abrir otro formulario o un error de generación no elimina el secreto anterior. No se promete recuperación después de abandonar la página o cerrar el proceso.
+
+Se integraron edición HTTPS/evento y pausa/reactivación mediante PATCH existente, con campos conservados ante errores y confirmación para descartar cambios. La reactivación conoce bloqueos legados y orienta a editar HTTPS o rotar firma; la API sigue siendo autoridad. El DELETE se presenta como **archivo**, conserva su registro e historial, y no cancela retroactivamente entregas ya encoladas. Pausar tiene ese mismo límite. Se muestran los eventos registrados y se conserva un código actual distinto sin inventar otros.
+
+El historial se compone fuera del contenedor horizontal del listado; URL/evento actual, IDs de evento/entrega, estado en español y hasta 20 intentos recientes expandibles con teclado. El contador puede incluir intentos anteriores y otros ciclos. Se conserva destino/página al actualizar o reintentar, se corrigen páginas fuera del total y se ignoran consultas obsoletas. Una mutación tardía no vuelve a seleccionar otro recurso ni reabre un historial cerrado. Los avisos se identifican por destino y sobreviven a paginación/recarga. Prueba aceptada y reenvío pendiente se anuncian como **encolados**, nunca como recepción confirmada. Un 2xx no acredita procesamiento interno del receptor.
+
+**Trazabilidad:** F07 → bloqueo por destino y de generación, gracia/409 y respuestas tardías; F20 → contexto de secreto/historial, página conservada y copia anunciada. O12, ruta `/admin/webhooks` y ambos formularios actualizados en las matrices. Contratos y límites en [api-webhooks](../modules/api-webhooks.md) y [web-webhooks](../modules/web-webhooks.md).
+
+### Resultados finales de fase 6
+
+| Verificación                                                  | Resultado                                                     | Evidencia/límite                                                                                                                                                                                                             |
+| ------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test --workspace @testimonial-cms/web -- --maxWorkers=2` | **291/291**, 48 archivos, exit 0                              | 53,42 s. Incluye regresiones previas y hosts de confirmación; no acredita DB/HTTP reales. Primera pasada 289/289; se agregaron dos casos pertinentes de rotación pendiente y copia anunciada antes de la final.              |
+| Selección webhooks/confirmaciones                             | **25/25**, cuatro archivos, exit 0                            | Bloqueo sin esperar render, página, secreto, intentos, PATCH, error/409, flags legados, copia, generación fallida, consulta y mutación tardías.                                                                              |
+| Selección API                                                 | **33/33**, seis suites, exit 0                                | Administración, SSRF, firmas/secretos, política de destino, transporte y retry; mocks donde se declaran, sin ledger PostgreSQL real. Comando debajo.                                                                         |
+| Tipos web/API                                                 | Ambos aprobados, exit 0                                       | Incluye ampliación E2E e integración PostgreSQL preparada.                                                                                                                                                                   |
+| Lint web/API afectada                                         | Sin errores, exit 0                                           | Diez advertencias web heredadas sobre imágenes/variables sin uso; API afectada sin avisos.                                                                                                                                   |
+| Chrome/Playwright con HTTP simulado                           | Cuatro combinaciones aprobadas y confirmadas, cero errores JS | Escritorio 1440×1000 y móvil 320×812, claro/oscuro, storage bloqueado, datos largos, errores, reintentos, operaciones y copia. No se envió a proveedores ni se generaron secretos reales para capturas.                      |
+| Contraste y teclado                                           | Aprobados en combinaciones medidas                            | Estados success/warning sobre fondo efectivo: mínimo 6,03:1 claro y 11,45:1 oscuro. Expansión de intentos con Enter, foco inicial de cancelación y URL extrema contenida en confirmación. No es una auditoría WCAG completa. |
+| Impeccable detector                                           | Sin hallazgos (`[]`), exit 0                                  | Pantalla, historial, revelación y confirmación compartida; no sustituye el resto de pruebas.                                                                                                                                 |
+| `npm run test:e2e:list --workspace @testimonial-cms/web`      | Seis tests en dos archivos, exit 0                            | E2E-RBAC ampliado para denegación de GET/PATCH y navegación directa al editor; assertions anteriores y gates conservados. Descubrimiento, no ejecución.                                                                      |
+| Harness autorizado PostgreSQL/Redis/E2E                       | **No aprobado: exit 1** al crear red propia                   | `E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 npm run test:e2e --workspace @testimonial-cms/web`. Docker no disponible; no se ejecutaron servicios, migraciones ni recorridos. ACK descartable conservado.                              |
+| Formato / `git diff --check`                                  | Aprobados; 16 archivos formateados, sin errores               | Sólo archivos afectados. No hay cambios en schema, migraciones, manifiestos, raíz, dependencias, infraestructura ni hooks. Sin staging/commit automático.                                                                    |
+
+```sh
+npm test --workspace @testimonial-cms/api -- --runTestsByPath \
+  test/webhook-admin-controls.spec.ts \
+  test/webhooks-service-ssrf.spec.ts \
+  test/webhook-secret-contract.spec.ts \
+  test/webhook-destination-policy.spec.ts \
+  test/webhook-transport-ssrf.spec.ts \
+  test/delivery-retry-policy.spec.ts
+```
+
+**Red/Green y fixtures:** seis fallos funcionales iniciales UI (duplicación, actualización a página 1, revelación sin contexto, ausencia de estados/intentos, replay tardío que volvía a otro recurso y falta de edición) y cinco fallos de adaptadores (destino/entrega ajenos o archivo no confirmado). Se corrigió la fixture compartida que retiraba el webhook del listado al borrar: el backend ya lo archivaba y conservaba. La prueba ahora también exige ver el estado Archivado, sin quitar la cancelación ni la assertion de una sola mutación. Esa diferencia de fixture no se cuenta como un defecto nuevo del backend. Las pruebas nuevas del servicio caracterizan sus restricciones vigentes; no se presentan como una implementación nueva de seguridad.
+
+**Revisión visual acotada:** una ronda agrupada y un único lote de ajustes: intentos como filas separadas y contención de URL extensa en la confirmación compartida. Se reforzó además el cambio inmediato de referencia del historial para evitar una ventana entre un click y el próximo render. Una sola ronda de confirmación verificó cuatro combinaciones, hostname de 63 caracteres más path extenso, contraste y teclado. No se siguió puliendo después.
+
+**Pendientes reales:** la integración PostgreSQL ampliada prueba URL/evento, pausa, tenant y archivo conservado; está preparada pero no ejecutada. También pendientes las integraciones HTTP/Redis/ledger existentes, los seis E2E, build de producción y CI del futuro SHA. Las pruebas de frontend con fixtures y los sustitutos de persistencia no se presentan como aceptación de esas capas.
+
+**Evidencia efímera saneada:** `/tmp/phase6-*` y `/tmp/frontend-phase6-*`; capturas exclusivamente de listado, formulario, intentos y confirmaciones sin revelación. Sin secretos, tokens, contraseñas o datos de personas reales versionados en contexto/evidencia.
+
+**Commit sugerido:** `feat(webhooks): mejorá configuración y seguimiento de entregas`.
+
+**Estado:** fase 6 preparada para revisión y commit, pendiente de ACK; detenerse antes de fase 7.
