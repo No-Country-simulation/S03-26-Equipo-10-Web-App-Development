@@ -22,9 +22,11 @@ const apiKeySchema = z
     updatedAt: z.string(),
   })
   .passthrough();
-const createdKeySchema = z
-  .object({ apiKey: z.string(), id: z.string(), name: z.string() })
-  .passthrough();
+const createdKeySchema = z.object({
+  apiKey: z.string().min(1),
+  id: z.string().min(1),
+  name: z.string().min(2),
+});
 
 export const listApiKeys = (fetchApi: SessionFetch, page = 1) =>
   sessionPageRequest(fetchApi, pagePath('/api-keys', page), apiKeySchema);
@@ -43,14 +45,19 @@ export const rotateApiKey = (
   id: string,
   input: ApiKeyInput,
 ) =>
-  sessionRequest(fetchApi, `/api-keys/${id}/rotate`, createdKeySchema, {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+  sessionRequest(
+    fetchApi,
+    `/api-keys/${id}/rotate`,
+    createdKeySchema.refine((key) => key.id === id),
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  );
 export const revokeApiKey = (fetchApi: SessionFetch, id: string) =>
   sessionRequest(
     fetchApi,
     `/api-keys/${id}`,
-    z.object({ id: z.string(), revoked: z.boolean() }),
+    z.object({ id: z.literal(id), revoked: z.literal(true) }),
     { method: 'DELETE' },
   );

@@ -65,6 +65,61 @@ test('E2E-SESSION login, recarga, rotación y revocación al cerrar sesión', as
       currentRefresh && previousRefresh && currentRefresh !== previousRefresh,
     ),
   ).toBe(true);
+  // API key expiration and one-time reveal, without exposing credentials in assertions.
+  const expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  expiry.setSeconds(37, 123);
+  const integration = await tenant.write(
+    'POST',
+    '/api-keys',
+    {
+      name: 'Integración E2E',
+      scopes: ['testimonials:read'],
+      expiresAt: expiry.toISOString(),
+    },
+    z.object({ id: z.string().uuid() }),
+  );
+  await page.goto('/admin/api-keys');
+  await page
+    .getByRole('row')
+    .filter({ hasText: 'Integración E2E' })
+    .getByRole('button', { name: 'Rotar', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Rotar API key', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', {
+      name: 'API key de «Integración E2E»',
+      exact: true,
+    }),
+  ).toBeVisible();
+  const secret = page.getByLabel('Clave completa para copiar', { exact: true });
+  expect(
+    await secret.evaluate((element) =>
+      (element as HTMLTextAreaElement).value.startsWith('ak_'),
+    ),
+  ).toBe(true);
+  const metadata = await tenant.get(
+    `/api-keys/${integration.id}`,
+    z.object({ expiresAt: z.string() }),
+  );
+  expect(metadata.expiresAt).toBe(expiry.toISOString());
+  await page
+    .getByRole('button', { name: 'Ocultar API key', exact: true })
+    .click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Cancelar', exact: true })
+    .click();
+  expect(await secret.count()).toBe(1);
+  await page
+    .getByRole('button', { name: 'Ocultar API key', exact: true })
+    .click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Ya la guardé, ocultar', exact: true })
+    .click();
+  await expect(secret).toHaveCount(0);
   await page
     .getByRole('button', { name: 'Cerrar Sesión', exact: true })
     .click();

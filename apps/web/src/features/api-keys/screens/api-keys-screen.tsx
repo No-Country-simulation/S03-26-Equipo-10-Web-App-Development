@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, type FormEvent } from 'react';
+import { useCallback, useRef, useState, type FormEvent } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Button } from '@/components/ui/button';
@@ -15,13 +15,20 @@ import {
   Check,
   ShieldAlert,
 } from 'lucide-react';
-import { createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from '../api';
+import {
+  createApiKey,
+  listApiKeys,
+  revokeApiKey,
+  rotateApiKey,
+  type ApiKeyInput,
+} from '../api';
+import { expiryChange, localExpiry, scopeLabels } from '../key-form';
+import { useKeyExitGuard } from '../use-key-exit-guard';
 import { PageControls } from '@/features/shared/pagination';
-import { LoadFailure } from '@/features/shared/load-failure';
+import { LoadFailure, actionFailureCopy } from '@/features/shared/load-failure';
 import { LoadingState, ActionFeedback } from '@/features/shared/feedback';
 import { useActionConfirmation } from '@/features/shared/use-action-confirmation';
 import { useRemoteResource } from '@/features/shared/use-remote-resource';
-import { actionFailureCopy } from '@/features/shared/load-failure';
 
 export type ApiKeyView = {
   id: string;
@@ -29,7 +36,7 @@ export type ApiKeyView = {
   name: string;
   isActive: boolean;
   publicId: string | null;
-  scopes: Array<'testimonials:read' | 'analytics:write'>;
+  scopes: Array<keyof typeof scopeLabels>;
   status: 'ACTIVE' | 'REVOKED' | 'EXPIRED';
   legacy: boolean;
   expiresAt: string | null;
@@ -38,273 +45,390 @@ export type ApiKeyView = {
   createdAt: string;
   updatedAt: string;
 };
+const dateLabel = (value: string) =>
+  new Date(value).toLocaleString('es-AR', { timeZoneName: 'short' });
+const stateLabels = {
+  ACTIVE: 'Activa',
+  EXPIRED: 'Vencida',
+  REVOKED: 'Revocada',
+} as const;
 
 export default function ApiKeysPage() {
   const { session, fetchApi } = useSession();
   const [page, setPage] = useState(1);
   const confirmation = useActionConfirmation();
   const [showForm, setShowForm] = useState(false);
-  const [rotationTarget, setRotationTarget] = useState<ApiKeyView | null>(null);
-  const [createLoading, setCreateLoading] = useState(false);
-
-  // State to hold the newly generated raw token
-  const [newRawToken, setNewRawToken] = useState<string | null>(null);
+  const [target, setTarget] = useState<ApiKeyView | null>(null);
+  const [replacement, setReplacement] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const [reveal, setReveal] = useState<{
+    value: string;
+    name: string;
+    rotated: boolean;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [actionMessage, setActionMessage] = useState<{
     kind: 'error' | 'success';
     text: string;
   } | null>(null);
-
+  const secretField = useRef<HTMLTextAreaElement>(null);
+  const rotationTarget = replacement ? null : target;
+  const isAdmin = Boolean(session?.user.roles.includes('admin'));
   const load = useCallback(
     async () => (await listApiKeys(fetchApi, page)).data,
     [fetchApi, page],
   );
-  const { state, reload } = useRemoteResource(load, Boolean(session));
+  const { state, reload } = useRemoteResource(load, isAdmin);
   const apiKeys: ApiKeyView[] =
     state.status === 'success' ? state.data.items : [];
   const total = state.status === 'success' ? state.data.meta.total : 0;
 
-  async function handleCreate(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setCreateLoading(true);
-    setNewRawToken(null);
-    setCopied(false);
-    setActionMessage(null);
-    const fd = new FormData(e.currentTarget);
-    try {
-      const expiry = fd.get('expiresAt');
-      const input = {
-        name: String(fd.get('name') ?? ''),
-        scopes: fd
-          .getAll('scopes')
-          .map(String)
-          .filter(
-            (value): value is 'testimonials:read' | 'analytics:write' =>
-              value === 'testimonials:read' || value === 'analytics:write',
-          ),
-        ...(expiry
-          ? { expiresAt: new Date(String(expiry)).toISOString() }
-          : {}),
-      };
-      if (input.scopes.length === 0)
-        throw new Error('Elegí al menos un permiso');
-      const res = rotationTarget
-        ? await rotateApiKey(fetchApi, rotationTarget.id, input)
-        : await createApiKey(fetchApi, input);
-      setNewRawToken(res.data.apiKey);
-      setShowForm(false);
-      setRotationTarget(null);
-      reload();
-    } catch (err) {
+  function discardReveal(leave?: () => void) {
+    if (lock.current) {
       setActionMessage({
         kind: 'error',
-        text:
-          err instanceof Error && err.message === 'Elegí al menos un permiso'
-            ? err.message
-            : actionFailureCopy(err, 'la generación de la API key'),
+        text: 'Esperá el resultado de la operación antes de salir.',
       });
+      return;
+    }
+    confirmation.confirm({
+      title: leave ? 'Salir con una API key revelada' : 'Ocultar API key',
+      description: `La clave de «${reveal?.name ?? 'la integración'}» no volverá a mostrarse. Guardala en un lugar seguro antes de continuar. Ocultarla no la revoca.`,
+      confirmLabel: leave ? 'Ocultar y salir' : 'Ya la guardé, ocultar',
+      task: 'el cierre de la revelación',
+      destructive: false,
+      action: async () => {
+        setReveal(null);
+        leave?.();
+      },
+    });
+  }
+  useKeyExitGuard(Boolean(reveal) || busy, (leave) => discardReveal(leave));
+
+  async function generate(input: ApiKeyInput, rotating: ApiKeyView | null) {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setActionMessage(null);
+    try {
+      const result = rotating
+        ? await rotateApiKey(fetchApi, rotating.id, input)
+        : await createApiKey(fetchApi, input);
+      setReveal({
+        value: result.data.apiKey,
+        name: result.data.name,
+        rotated: Boolean(rotating),
+      });
+      setCopied(false);
+      setCopyError(false);
+      setShowForm(false);
+      setTarget(null);
+      setReplacement(false);
+      if (!rotating) setPage(1);
+      reload();
     } finally {
-      setCreateLoading(false);
+      lock.current = false;
+      setBusy(false);
     }
   }
-
-  function handleRevoke(id: string) {
-    const key = apiKeys.find((item) => item.id === id);
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (lock.current) return;
+    const fd = new FormData(event.currentTarget);
+    try {
+      const scopes = fd
+        .getAll('scopes')
+        .map(String)
+        .filter(
+          (value): value is keyof typeof scopeLabels => value in scopeLabels,
+        );
+      if (scopes.length === 0) throw new Error('Elegí al menos un permiso.');
+      const expiresAt = expiryChange(
+        String(fd.get('expiresAt') ?? ''),
+        rotationTarget?.expiresAt ?? null,
+      );
+      const input = {
+        name: String(fd.get('name') ?? '').trim(),
+        scopes,
+        ...(expiresAt ? { expiresAt } : {}),
+      };
+      if (reveal) {
+        confirmation.confirm({
+          title: 'Reemplazar la revelación',
+          description: `Guardá primero la clave de «${reveal.name}». Si la generación de «${input.name}» termina correctamente, su clave ocupará este lugar. Si falla, conservarás la revelación actual.`,
+          confirmLabel: 'Generar y reemplazar',
+          task: 'la generación de la API key',
+          destructive: false,
+          action: () => generate(input, rotationTarget),
+        });
+      } else await generate(input, rotationTarget);
+    } catch (cause) {
+      const validation =
+        cause instanceof Error &&
+        /^(Elegí|Revisá|La rotación)/.test(cause.message);
+      setActionMessage({
+        kind: 'error',
+        text: validation
+          ? cause.message
+          : actionFailureCopy(cause, 'la generación de la API key'),
+      });
+    }
+  }
+  function revoke(key: ApiKeyView) {
+    if (lock.current) return;
     confirmation.confirm({
       title: 'Revocar API key',
       confirmLabel: 'Revocar API key',
       task: 'la revocación de la API key',
-      description: `La API key «${key?.name ?? 'seleccionada'}» dejará de funcionar en las integraciones que la utilizan. Esta acción no se puede deshacer.`,
+      description: `La API key «${key.name}» y todas sus credenciales dejarán de funcionar de inmediato. Esta acción no se puede deshacer.`,
       action: async () => {
-        await revokeApiKey(fetchApi, id);
-        setActionMessage({ kind: 'success', text: 'API key revocada.' });
-        reload();
+        if (lock.current) return;
+        lock.current = true;
+        setBusy(true);
+        try {
+          await revokeApiKey(fetchApi, key.id);
+          setActionMessage({ kind: 'success', text: 'API key revocada.' });
+          reload();
+        } finally {
+          lock.current = false;
+          setBusy(false);
+        }
       },
     });
   }
-
-  function startRotation(key: ApiKeyView) {
-    setRotationTarget(key);
+  async function copy() {
+    if (!reveal) return;
+    try {
+      await navigator.clipboard.writeText(reveal.value);
+      setCopied(true);
+      setCopyError(false);
+    } catch {
+      setCopyError(true);
+      secretField.current?.focus();
+      secretField.current?.select();
+    }
+  }
+  function openForm(key: ApiKeyView | null = null, replace = false) {
+    if (lock.current) return;
+    setTarget(key);
+    setReplacement(replace);
     setShowForm(true);
-    setNewRawToken(null);
+    setActionMessage(null);
   }
 
-  const copyToClipboard = async () => {
-    if (newRawToken) {
-      try {
-        await navigator.clipboard.writeText(newRawToken);
-        setCopied(true);
-      } catch {
-        setActionMessage({
-          kind: 'error',
-          text: 'No se pudo copiar la API key. Seleccionala y copiala manualmente.',
-        });
-      }
-    }
-  };
-
-  if (!session?.user.roles.includes('admin')) {
+  if (!isAdmin)
     return (
-      <div className="flex flex-col items-center justify-center p-20 text-center">
-        <ShieldAlert className="h-10 w-10 text-destructive mb-4" />
-        <h2 className="font-body text-lg font-bold">Acceso Denegado</h2>
+      <div className="flex flex-col items-center justify-center p-12 text-center">
+        <ShieldAlert className="mb-4 h-10 w-10 text-destructive" />
+        <h2 className="font-body text-lg font-bold">Acceso denegado</h2>
         <p className="text-muted-foreground">
           Solo administradores pueden ver esta sección.
         </p>
       </div>
     );
-  }
 
   return (
     <>
       <DashboardHeader
-        title="API Keys"
-        description="Gestiona los tokens de acceso para conectar aplicaciones externas."
+        title="API keys"
+        description="Conectá integraciones con permisos y vencimientos propios."
       >
-        <Button
-          onClick={() => {
-            setRotationTarget(null);
-            setShowForm(!showForm);
-          }}
-          className="h-10 bg-primary px-6 font-body text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Generar Token
+        <Button type="button" disabled={busy} onClick={() => openForm()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nueva API key
         </Button>
-        <Button
-          variant="ghost"
-          onClick={reload}
-          className="h-10 font-body text-xs uppercase tracking-wider"
-        >
-          <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
+        <Button type="button" disabled={busy} variant="ghost" onClick={reload}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Actualizar
         </Button>
       </DashboardHeader>
-
       {actionMessage && (
         <ActionFeedback kind={actionMessage.kind}>
           {actionMessage.text}
         </ActionFeedback>
       )}
-
-      {newRawToken && (
-        <div
-          role="status"
-          className="mb-8 border border-primary bg-primary/10 p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+      {busy && (
+        <LoadingState>
+          Procesando la API key. Esperá el resultado antes de salir.
+        </LoadingState>
+      )}
+      {reveal && (
+        <section
+          aria-labelledby="key-reveal-title"
+          className="mb-8 min-w-0 border border-primary bg-card p-4 font-body sm:p-6"
         >
-          <div>
-            <h3 className="font-body text-sm font-bold text-foreground">
-              Tu API Key ha sido generada exitosamente
-            </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Copia este token ahora.{' '}
-              <strong className="text-foreground">
-                Por razones de seguridad, no volverá a mostrarse nunca más.
-              </strong>
-            </p>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <code className="text-sm border border-primary/20 bg-background px-4 py-2 font-mono flex-1 sm:w-80 truncate">
-              {newRawToken}
-            </code>
+          <h2
+            id="key-reveal-title"
+            className="text-lg font-semibold break-words"
+          >
+            API key de «{reveal.name}»
+          </h2>
+          <p role="status" className="mt-2 text-sm">
+            Clave {reveal.rotated ? 'rotada' : 'creada'}. Guardala ahora: no
+            volverá a mostrarse.
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Usala en el servidor de tu integración y guardala en su gestor de
+            secretos.
+          </p>
+          <Label htmlFor="revealed-api-key" className="mt-4 block">
+            Clave completa para copiar
+          </Label>
+          <textarea
+            ref={secretField}
+            id="revealed-api-key"
+            readOnly
+            spellCheck={false}
+            autoComplete="off"
+            value={reveal.value}
+            rows={3}
+            className="mt-2 w-full resize-none border bg-background p-3 font-mono text-sm break-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          {copyError && (
+            <ActionFeedback>
+              No se pudo copiar. La clave está seleccionada: usá el menú Copiar
+              de tu dispositivo o Ctrl/Cmd+C.
+            </ActionFeedback>
+          )}
+          <div className="mt-3 flex flex-wrap gap-3">
+            <Button type="button" variant="outline" onClick={() => void copy()}>
+              {copied ? (
+                <Check className="mr-2 h-4 w-4" />
+              ) : (
+                <Copy className="mr-2 h-4 w-4" />
+              )}
+              {copied ? 'API key copiada' : 'Copiar API key'}
+            </Button>
             <Button
               type="button"
-              onClick={() => void copyToClipboard()}
-              aria-label={copied ? 'API key copiada' : 'Copiar API key'}
-              variant="outline"
-              className="h-10 w-10 p-0 shrink-0"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => discardReveal()}
             >
-              {copied ? (
-                <Check className="h-4 w-4 text-success" />
-              ) : (
-                <Copy className="h-4 w-4 text-muted-foreground" />
-              )}
+              Ocultar API key
             </Button>
           </div>
-        </div>
+          {reveal.rotated && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Actualizá tu integración con la nueva clave y comprobá la
+              conexión. La anterior conserva sus permisos por hasta 24 horas; su
+              vencimiento previo, el vencimiento actual de la clave o el fin de
+              la ventana legada pueden cortar esa gracia antes. Revocar elimina
+              la gracia de inmediato.
+            </p>
+          )}
+        </section>
       )}
-
       {showForm && (
         <form
-          key={rotationTarget?.id ?? 'create'}
-          onSubmit={handleCreate}
-          className="mb-8 grid gap-4 border bg-card p-6 sm:grid-cols-3 items-end"
+          key={`${target?.id ?? 'new'}-${replacement}`}
+          onSubmit={(event) => void handleCreate(event)}
+          className="mb-8 border bg-card p-4 font-body sm:p-6"
+          aria-label={rotationTarget ? 'Rotación de API key' : 'Nueva API key'}
+          aria-busy={busy}
         >
-          <div className="grid gap-2 sm:col-span-2">
-            <Label
-              htmlFor="api-key-name"
-              className="font-body text-[10px] font-bold uppercase tracking-widest"
-            >
-              Nombre Descriptivo
-            </Label>
-            <Input
-              id="api-key-name"
-              name="name"
-              required
-              defaultValue={rotationTarget?.name ?? ''}
-              className="h-10 bg-transparent"
-              placeholder="Ej. Integración App Móvil, Servidor Nodejs..."
-              minLength={2}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label
-              htmlFor="api-key-expiry"
-              className="font-body text-[10px] font-bold uppercase tracking-widest"
-            >
-              Expira (opcional)
-            </Label>
-            <Input
-              id="api-key-expiry"
-              name="expiresAt"
-              type="datetime-local"
-              defaultValue={rotationTarget?.expiresAt?.slice(0, 16) ?? ''}
-              className="h-10 bg-transparent"
-            />
-          </div>
-          <fieldset className="sm:col-span-3 flex flex-wrap gap-4 text-sm">
-            <legend className="font-body text-[10px] font-bold uppercase tracking-widest mb-2">
-              Permisos
-            </legend>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="scopes"
-                value="testimonials:read"
-                defaultChecked={
-                  !rotationTarget ||
-                  rotationTarget.legacy ||
-                  rotationTarget.scopes.includes('testimonials:read')
-                }
-              />{' '}
-              Leer testimonios
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="scopes"
-                value="analytics:write"
-                defaultChecked={
-                  rotationTarget?.legacy ||
-                  rotationTarget?.scopes.includes('analytics:write') ||
-                  false
-                }
-              />{' '}
-              Escribir analítica
-            </label>
-          </fieldset>
-          <Button
-            type="submit"
-            disabled={createLoading}
-            className="h-10 bg-primary font-body text-xs uppercase tracking-wider text-primary-foreground"
+          <fieldset
+            disabled={busy}
+            className="grid min-w-0 gap-5 sm:grid-cols-2"
           >
-            {createLoading
-              ? 'Generando...'
-              : rotationTarget
-                ? 'Rotar API Key'
-                : 'Crear API Key'}
-          </Button>
+            <legend className="mb-4 text-lg font-semibold">
+              {rotationTarget
+                ? `Rotar «${rotationTarget.name}»`
+                : replacement
+                  ? `Crear reemplazo de «${target?.name}»`
+                  : 'Nueva API key'}
+            </legend>
+            {rotationTarget && (
+              <p className="text-sm text-muted-foreground sm:col-span-2">
+                La nueva clave se mostrará una sola vez. La anterior conserva
+                sus permisos por hasta 24 horas, limitada por su vencimiento
+                previo y el vencimiento actual. En claves legadas también aplica
+                el fin de la ventana de migración.
+              </p>
+            )}
+            {replacement && (
+              <p className="text-sm text-muted-foreground sm:col-span-2">
+                Se creará una API key independiente. La clave vencida seguirá en
+                el historial.
+              </p>
+            )}
+            <div className="grid content-start gap-2">
+              <Label htmlFor="api-key-name">Nombre de la integración</Label>
+              <Input
+                id="api-key-name"
+                name="name"
+                required
+                minLength={2}
+                maxLength={80}
+                defaultValue={target?.name ?? ''}
+                placeholder="Por ejemplo, sitio institucional"
+              />
+            </div>
+            <div className="grid content-start gap-2">
+              <Label htmlFor="api-key-expiry">
+                Vencimiento (hora local, opcional)
+              </Label>
+              <Input
+                id="api-key-expiry"
+                name="expiresAt"
+                type="datetime-local"
+                defaultValue={localExpiry(rotationTarget?.expiresAt ?? null)}
+                required={Boolean(rotationTarget?.expiresAt)}
+                aria-describedby="expiry-hint"
+              />
+              <p id="expiry-hint" className="text-xs text-muted-foreground">
+                {rotationTarget?.expiresAt
+                  ? 'Sin cambios se conserva el instante exacto. La rotación permite conservar o cambiar la fecha, pero no quitarla.'
+                  : 'Si lo dejás vacío, la clave no tendrá vencimiento.'}
+              </p>
+            </div>
+            <fieldset className="grid gap-3 sm:col-span-2">
+              <legend className="mb-2 text-sm font-semibold">Permisos</legend>
+              {(
+                Object.keys(scopeLabels) as Array<keyof typeof scopeLabels>
+              ).map((scope) => (
+                <label
+                  key={scope}
+                  className="flex min-h-11 items-center gap-3 text-sm"
+                >
+                  <input
+                    className="h-5 w-5 accent-primary"
+                    type="checkbox"
+                    name="scopes"
+                    value={scope}
+                    defaultChecked={
+                      target
+                        ? (target.legacy && target.scopes.length === 0) ||
+                          target.scopes.includes(scope)
+                        : scope === 'testimonials:read'
+                    }
+                  />
+                  {scopeLabels[scope]}
+                </label>
+              ))}
+            </fieldset>
+            <div className="flex flex-wrap gap-3 sm:col-span-2">
+              <Button type="submit">
+                {busy
+                  ? 'Generando…'
+                  : rotationTarget
+                    ? 'Rotar API key'
+                    : 'Crear API key'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowForm(false)}
+              >
+                Cerrar formulario
+              </Button>
+            </div>
+          </fieldset>
         </form>
       )}
-
       {state.status === 'loading' ? (
         <LoadingState>Cargando API keys…</LoadingState>
       ) : state.status === 'error' ? (
@@ -314,132 +438,158 @@ export default function ApiKeysPage() {
           onRetry={reload}
         />
       ) : apiKeys.length === 0 ? (
-        <div className="border border-dashed p-12 text-center">
+        <div className="border border-dashed p-8 text-center">
           <p className="font-body text-sm text-muted-foreground">
-            No tienes ninguna API Key activa.
+            Todavía no hay API keys en este espacio. Creá una para conectar tu
+            primera integración.
           </p>
         </div>
       ) : (
-        <div
-          role="region"
-          aria-label="Tabla de API keys"
-          tabIndex={0}
-          className="min-w-0 overflow-x-auto"
-        >
-          <table className="w-full">
-            <caption className="sr-only">Api keys de este espacio</caption>
-            <thead>
-              <tr className="border-b">
-                <th
-                  scope="col"
-                  className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                >
-                  Nombre
-                </th>
-                <th
-                  scope="col"
-                  className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                >
-                  Último Uso
-                </th>
-                <th
-                  scope="col"
-                  className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                >
-                  Estado
-                </th>
-                <th
-                  scope="col"
-                  className="pb-3 text-left font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                >
-                  Permisos y vencimiento
-                </th>
-                <th
-                  scope="col"
-                  className="pb-3 text-right font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground"
-                >
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {apiKeys.map((key) => (
-                <tr
-                  key={key.id}
-                  className="border-b border-foreground/5 transition-colors hover:bg-card"
-                >
-                  <td className="py-4 pr-4 font-body text-sm font-medium text-foreground flex items-center gap-2">
-                    <KeyRound className="h-4 w-4 text-muted-foreground" />{' '}
-                    {key.name}
-                    <span className="text-xs text-muted-foreground">
-                      {key.publicId ?? 'tms_ legado'}
-                    </span>
-                  </td>
-                  <td className="py-4 pr-4 text-sm text-muted-foreground">
-                    {key.lastUsedAt
-                      ? new Date(key.lastUsedAt).toLocaleString()
-                      : 'Nunca'}
-                  </td>
-                  <td className="py-4 pr-4">
-                    <span
-                      className={cn(
-                        'inline-block px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider',
-                        key.isActive
-                          ? 'bg-success/10 text-success'
-                          : 'bg-destructive/10 text-destructive',
-                      )}
+        <>
+          <p className="mb-3 text-sm text-muted-foreground sm:hidden">
+            Deslizá la tabla para ver vencimientos y acciones.
+          </p>
+          <div
+            role="region"
+            aria-label="Tabla de API keys"
+            tabIndex={0}
+            className="min-w-0 overflow-x-auto"
+          >
+            <table className="w-full min-w-[720px] font-body text-sm">
+              <caption className="sr-only">
+                API keys de este espacio, incluidas las vencidas y revocadas
+              </caption>
+              <thead>
+                <tr className="border-b">
+                  {[
+                    'Integración',
+                    'Último uso',
+                    'Estado',
+                    'Permisos y vencimiento',
+                    'Acciones',
+                  ].map((label) => (
+                    <th
+                      key={label}
+                      scope="col"
+                      className="pb-3 pr-4 text-left text-xs font-semibold text-muted-foreground"
                     >
-                      {key.isActive ? 'Activo' : 'Revocado'}
-                    </span>
-                    {key.legacy && (
-                      <p className="mt-1 text-xs text-warning">
-                        Clave legada: migrá antes de{' '}
-                        {key.legacyDeadline
-                          ? new Date(key.legacyDeadline).toLocaleString()
-                          : 'activar la ventana de 30 días'}
-                        .
-                      </p>
-                    )}
-                  </td>
-                  <td className="py-4 pr-4 text-xs text-muted-foreground">
-                    {key.scopes.length
-                      ? key.scopes.join(', ')
-                      : 'Permisos legados'}
-                    <br />
-                    {key.expiresAt
-                      ? `Expira ${new Date(key.expiresAt).toLocaleString()}`
-                      : 'Sin vencimiento'}
-                  </td>
-                  <td className="py-4 text-right">
-                    {key.isActive && (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => startRotation(key)}
-                          className="font-body text-xs tracking-wider uppercase"
-                        >
-                          Rotar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRevoke(key.id)}
-                          className="text-destructive font-body text-xs tracking-wider uppercase hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          Revocar
-                        </Button>
-                      </div>
-                    )}
-                  </td>
+                      {label}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {apiKeys.map((key) => (
+                  <tr key={key.id} className="border-b border-border align-top">
+                    <td className="max-w-64 py-4 pr-4">
+                      <span className="flex items-start gap-2 font-medium break-words">
+                        <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                        {key.name}
+                      </span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {key.publicId ?? 'Clave legada'}
+                      </span>
+                    </td>
+                    <td className="py-4 pr-4 text-muted-foreground">
+                      {key.lastUsedAt ? dateLabel(key.lastUsedAt) : 'Nunca'}
+                    </td>
+                    <td className="py-4 pr-4">
+                      <span
+                        className={cn(
+                          'inline-block px-2 py-1 text-xs font-semibold',
+                          key.status === 'ACTIVE'
+                            ? 'bg-success/10 text-success'
+                            : key.status === 'EXPIRED'
+                              ? 'bg-warning/10 text-warning'
+                              : 'bg-destructive/10 text-destructive',
+                        )}
+                      >
+                        {stateLabels[key.status]}
+                      </span>
+                      {key.legacy && !key.publicId && (
+                        <p className="mt-2 max-w-48 text-xs text-muted-foreground">
+                          Clave legada: migrá{' '}
+                          {key.legacyDeadline
+                            ? `antes del ${dateLabel(key.legacyDeadline)}`
+                            : 'antes de activar la ventana de migración'}
+                          .
+                        </p>
+                      )}
+                    </td>
+                    <td className="py-4 pr-4 text-muted-foreground">
+                      <ul>
+                        {(key.scopes.length
+                          ? key.scopes
+                          : key.legacy
+                            ? ([
+                                'testimonials:read',
+                                'analytics:write',
+                              ] as const)
+                            : []
+                        ).map((scope) => (
+                          <li key={scope}>{scopeLabels[scope]}</li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-xs">
+                        {key.expiresAt
+                          ? `Vence ${dateLabel(key.expiresAt)}`
+                          : 'Sin vencimiento'}
+                      </p>
+                    </td>
+                    <td className="py-4">
+                      <div className="flex flex-wrap gap-2">
+                        {key.status === 'ACTIVE' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => openForm(key)}
+                          >
+                            Rotar
+                          </Button>
+                        )}
+                        {key.status === 'EXPIRED' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => openForm(key, true)}
+                          >
+                            Crear reemplazo
+                          </Button>
+                        )}
+                        {key.status !== 'REVOKED' && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => revoke(key)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            Revocar
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       {state.status === 'success' && (
-        <PageControls page={page} total={total} limit={20} onChange={setPage} />
+        <fieldset disabled={busy}>
+          <PageControls
+            page={page}
+            total={total}
+            limit={20}
+            onChange={setPage}
+          />
+        </fieldset>
       )}
       {confirmation.dialog}
     </>

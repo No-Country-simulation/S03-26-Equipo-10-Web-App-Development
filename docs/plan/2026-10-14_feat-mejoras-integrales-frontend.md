@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 4 implementada y validada localmente, pendiente de commit y ACK; fase 3 registrada en `263fd55` y aprobada, con integración/E2E reales pendientes por Docker no disponible.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 5 implementada y validada localmente, pendiente de commit y ACK; fase 4 registrada en `a9ab823` y aprobada. Integración/E2E reales pendientes por Docker no disponible.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
 
 ## 1. Contexto y restricciones
 
@@ -133,11 +133,11 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Commit:** `feat(testimonials): agregá búsqueda global y revisión contextual`  
 **ACK humano:** recibido. **Commit registrado:** `263fd55`. **Detenerse y esperar ACK.**
 
-### [Actual] Fase 4 — Categorías, etiquetas y usuarios
+### [Completada] Fase 4 — Categorías, etiquetas y usuarios
 
 **Cubre:** F06, F16, F17, F18.
 
-**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y E2E reales pendientes por daemon Docker no disponible. La fase 5 no está autorizada.
+**Estado de ejecución:** implementada y validada localmente; commit `a9ab823` y ACK recibidos. Integración PostgreSQL/Redis y E2E reales pendientes por daemon Docker no disponible.
 
 - [x] Integrar búsqueda, renombrado y conteos de asociaciones de catálogos.
 - [x] Confirmar eliminación explicando efecto y mostrar acciones en dispositivos táctiles.
@@ -150,18 +150,20 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Cierre/pruebas:** asociaciones tenant correctas, cancelación sin DELETE, eliminación sin testimonios borrados, última página válida, requisitos de contraseña anticipados, acceso de cuenta desactivada rechazado y acciones propias protegidas. Ejemplos opcionales por programa/cohorte, sin taxonomía obligatoria ni datos reales de alumnos.
 
 **Commit:** `feat(admin): mejorá catálogos y gestión de usuarios`  
-**ACK humano:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido. **Commit registrado:** `a9ab823`. **Detenerse y esperar ACK.**
 
-### [Pendiente] Fase 5 — API keys
+### [Actual] Fase 5 — API keys
 
 **Cubre:** F08, F14, F15.
 
-- [ ] Convertir UTC/hora local correctamente y preservar instante si no se edita.
-- [ ] Distinguir Activa, Vencida y Revocada con acciones pertinentes.
-- [ ] Proteger revelación al iniciar otra operación, cerrar o navegar.
-- [ ] Identificar integración en confirmaciones/revelaciones.
-- [ ] Bloquear operaciones pendientes y explicar gracia efectiva, limitada por vencimientos.
-- [ ] Conservar scopes comprensibles y copia manual como recuperación.
+**Estado de ejecución:** implementada y validada localmente; pendiente de commit y ACK. Integración PostgreSQL/Redis y E2E reales pendientes por Docker no disponible. La fase 6 no está autorizada.
+
+- [x] Convertir UTC/hora local correctamente y preservar instante si no se edita.
+- [x] Distinguir Activa, Vencida y Revocada con acciones pertinentes.
+- [x] Proteger revelación al iniciar otra operación, cerrar o navegar.
+- [x] Identificar integración en confirmaciones/revelaciones.
+- [x] Bloquear operaciones pendientes y explicar gracia efectiva, limitada por vencimientos.
+- [x] Conservar scopes comprensibles y copia manual como recuperación.
 
 **Cierre/pruebas:** rotación sin desplazamiento en UTC y Argentina; estados diferenciados; fallo siguiente conserva revelación; doble operación bloqueada; clipboard denegado recuperable; secretos ausentes de storage/logs/evidencia. No generar credenciales reales para capturas.
 
@@ -297,14 +299,14 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | F05 | Recuperación descarta borrador                     | 1                                | Reintento y cierre con decisión; texto preservado                          | Corregido localmente en fase 1                                        |
 | F06 | Borrado de categoría sin advertir desclasificación | 4                                | Cancelar sin DELETE; confirmar conserva testimonios sin categoría          | Corregido localmente en fase 4; integración/E2E reales pendientes     |
 | F07 | Rotación webhook sin busy guard/contexto           | 6                                | Un intento UI por destino; conflictos y respuestas tardías tratados        | Pendiente                                                             |
-| F08 | Vencimiento cambia por UTC/local                   | 5                                | UTC/Argentina; guardar intacto preserva instante                           | Pendiente                                                             |
+| F08 | Vencimiento cambia por UTC/local                   | 5                                | UTC/Argentina; guardar intacto preserva instante                           | Corregido localmente en fase 5; integración/E2E reales pendientes     |
 | F09 | Publicados posteriores a veinte inaccesibles       | 9                                | Publicado 21 y final/paginación real                                       | Pendiente                                                             |
 | F10 | Registro precompletado                             | 8                                | Campos vacíos; validación evita alta accidental                            | Pendiente                                                             |
 | F11 | CTA y enlaces sin destino                          | 11                               | Navegación/acción real; marketing borrador no renderizado                  | Pendiente                                                             |
 | F12 | Desborde de portada                                | 11                               | 320/375/768 px, zoom y acciones alcanzables                                | Pendiente                                                             |
 | F13 | Contraste dark                                     | 2                                | Parejas reales y estados de ambos temas                                    | Corregido localmente en fase 2                                        |
-| F14 | Vencida aparece revocada                           | 5                                | Estados diferenciados y acciones pertinentes                               | Pendiente                                                             |
-| F15 | Revelación anterior perdida                        | 5                                | Error siguiente preserva secreto en memoria; salida deliberada             | Pendiente                                                             |
+| F14 | Vencida aparece revocada                           | 5                                | Estados diferenciados y acciones pertinentes                               | Corregido localmente en fase 5; integración/E2E reales pendientes     |
+| F15 | Revelación anterior perdida                        | 5                                | Error siguiente preserva secreto en memoria; salida deliberada             | Corregido localmente en fase 5; integración/E2E reales pendientes     |
 | F16 | Invitar y contraseña mal explicados                | 4                                | Crear usuario describe resultado; requisitos y errores asociados           | Corregido localmente en fase 4; integración/E2E reales pendientes     |
 | F17 | Última página inválida                             | 3 en testimonios; 4 en catálogos | Último elemento eliminado y página corregida                               | Corregido localmente en fases 3/4; integración/E2E reales pendientes  |
 | F18 | Borrado y acciones de etiquetas                    | 4                                | Decisión explícita, efecto real y controles táctiles descubribles          | Corregido localmente en fase 4; integración/E2E reales pendientes     |
@@ -331,7 +333,7 @@ Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar c
 | O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Corregido localmente en fase 4; integración/E2E reales pendientes                     |
 | O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Corregido localmente en fase 4; integración/E2E reales pendientes                     |
 | O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Corregido localmente en fase 4; integración/E2E reales pendientes                     |
-| O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Pendiente                                                                             |
+| O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Corregido localmente en fase 5; integración/E2E reales pendientes                     |
 | O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Pendiente                                                                             |
 | O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Pendiente                                                                             |
 | O14 | Ajustes: marca/captura/capacidades independientes             | 7            | Guardados independientes; scoring real; capacidades operables                       | Pendiente                                                                             |
@@ -364,7 +366,7 @@ No añadir nombre personal del actor a BI sin un contrato autorizado que lo apor
 | `/admin/categories`            | 2, 4               | Buscar/crear/renombrar/eliminar, asociaciones y página                | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
 | `/admin/tags`                  | 2, 4               | Buscar/crear/renombrar/eliminar y tablet táctil                       | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
 | `/admin/users`                 | 2, 4               | Alta, contraseña, estado de acceso, confirmación y rol                | Fases 2/4 validadas localmente; integración/E2E reales y cierre integral pendientes    |
-| `/admin/api-keys`              | 2, 5               | Scopes/fechas/estado/revelación/copia/revocación/rotación             | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/admin/api-keys`              | 2, 5               | Scopes/fechas/estado/revelación/copia/revocación/rotación             | Fases 2/5 validadas localmente; integración/E2E reales y cierre integral pendientes    |
 | `/admin/webhooks`              | 2, 6               | Alta/edición/pausa/prueba/rotación/historial/replay y legado          | Parcial: base compartida de fase 2; flujo propio pendiente                             |
 | `/admin/settings`              | 2, 7               | Marca/logo/slug/recepción/capacidades y fallas independientes         | Parcial: base compartida de fase 2; flujo propio pendiente                             |
 | `/admin/analytics`             | 2, 10              | Período/eventos/referencias/alcance/vacío/error                       | Parcial: base compartida de fase 2; flujo propio pendiente                             |
@@ -412,7 +414,7 @@ Las redirecciones no deben eliminar autorización ni crear loops; validar identi
 | Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados    | Parcial: fases 1/2 validadas; resto pendiente                           |
 | Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                           | Corregido localmente en fase 4; integración/E2E pendientes              |
 | Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                  | Corregido localmente en fase 4; integración/E2E pendientes              |
-| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada            | Pendiente                                                               |
+| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada            | Corregido localmente en fase 5; integración/E2E reales pendientes       |
 | Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                 | Pendiente                                                               |
 | Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                     | Pendiente                                                               |
 | Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes     | Pendiente                                                               |
@@ -655,3 +657,44 @@ npm test --workspace @testimonial-cms/api -- --runTestsByPath \
 **Commit sugerido:** `feat(admin): mejorá catálogos y gestión de usuarios`.
 
 **Estado:** fase 4 preparada para revisión y commit, pendiente de ACK; detenerse antes de fase 5.
+
+**Cierre registrado de fase 4 (2026-10-18):** commit humano `a9ab823` verificado, árbol limpio al iniciar y ACK «Continuar» para fase 5. Las omisiones de integración anteriores siguen vigentes.
+
+### Fase 5 — vencimientos y revelación de API keys (2026-10-18)
+
+**Alcance ejecutado:** únicamente fase 5 en `codex/mejoras-integrales-frontend`. Se aplicaron Impeccable `harden`/`clarify` y detector, junto con `api-key-security-engineering`, React/Next y testing. Contexto de Impeccable reutilizado de la sesión; craft-floor leído antes de editar. No se crean commits automáticamente.
+
+**Implementación:** hora local mediante componentes de fecha; vencimiento intacto omitido en rotación para conservar segundos/milisegundos del servidor; validación de cambios futuros y fechas inexistentes; restricción de quitar vencimiento explicada según contrato vigente. Activa/Vencida/Revocada con acciones correspondientes y reemplazo independiente de una clave vencida. La API conserva su política y su autoridad.
+
+La revelación identifica la integración, muestra la clave completa en un campo seleccionable y anuncia el resultado sin leer el secreto. Un fallo de clipboard selecciona el campo para copia manual. Abrir formulario, paginar o refrescar no la borra; generar otra exige confirmación y sólo la reemplaza al tener una respuesta válida. Ocultar o salir requiere decisión explícita. Un candado síncrono y controles deshabilitados bloquean envíos/mutaciones simultáneas. Gracia descrita como **hasta 24 horas**, sujeta a vencimiento anterior, vencimiento lógico actual, ventana legada y revocación.
+
+La protección de salida intercepta enlaces, Cerrar sesión del shell y Atrás ordinario, además de `beforeunload` para recarga/cierre. Una entrada auxiliar de la misma URL guarda sólo un booleano junto al estado del router; no almacena credenciales. Se verificó cancelar y confirmar, regresar sin restaurar la revelación, y salir mediante Atrás tras navegación cliente. No se promete protección ante terminación del proceso/pestaña, salto múltiple del historial o pérdida de sesión. Esos límites y la recuperación de una operación incierta están en [web-api-keys](../modules/web-api-keys.md).
+
+**Matiz de contrato corregido:** `legacy=true` puede permanecer tras migrar, porque el hash anterior sigue durante la gracia. No se preseleccionan ambos scopes de nuevo ni se pide migración si hay public ID nuevo. La selección histórica de ambos permisos sólo se aplica a una clave legada sin scopes. Adaptadores validan ID de rotación y confirmación efectiva de revocación; no se cambia criptografía ni expiración.
+
+**Trazabilidad:** F08 → `key-form` y rotación UI en UTC/Argentina; F14 → estados y acciones; F15 → error posterior, cierre, navegación y copia manual. O11, ruta `/admin/api-keys` y formulario correspondiente actualizados en las matrices. Contrato y comportamiento documentados en `api-api-keys.md` y `web-api-keys.md`.
+
+### Resultados finales de fase 5
+
+| Verificación                     | Resultado                                                     | Límite/evidencia                                                                                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Suite web completa               | **271/271** en 46 archivos, exit 0                            | Vitest/Testing Library; no acredita backend real.                                                                                                                                                                    |
+| UTC y Argentina                  | 3/3 por zona                                                  | `TZ=UTC` y `TZ=America/Argentina/Buenos_Aires`, `key-form.test.ts`: hora local, edición a UTC, instante intacto y entradas inválidas.                                                                                |
+| API seleccionada                 | 6/6, dos suites                                               | `api-key-crypto.spec.ts` y `api-key-guard.spec.ts`; sin persistencia real.                                                                                                                                           |
+| Tipos API/web                    | Ambos aprobados, exit 0                                       | Incluye el E2E ampliado y la integración preparada.                                                                                                                                                                  |
+| Lint web/API afectada            | Sin errores, exit 0; diez advertencias web preexistentes      | Diez advertencias heredadas de imágenes/variables sin uso; API afectada sin avisos.                                                                                                                                  |
+| Chrome/Playwright HTTP sintético | Cuatro combinaciones aprobadas y confirmadas, cero errores JS | 1440×1000 y 320×812, claro/oscuro, storage bloqueado, tabla contenida, fechas, errores, bloqueo, copia manual y salida. Prueba adicional funcional de salida confirmada/regreso/Atrás aprobada, sin capturas nuevas. |
+| Impeccable detector              | Sin hallazgos (`[]`)                                          | Pantalla activa y shell; no sustituye pruebas ni revisión visual.                                                                                                                                                    |
+| Descubrimiento E2E               | Seis tests en dos archivos, exit 0                            | E2E-SESSION amplía rotación precisa y ocultamiento/cancelación; conserva assertions anteriores y gates.                                                                                                              |
+| Harness PostgreSQL/Redis/E2E     | **No aprobado: exit 1** al crear red propia                   | Docker no disponible. No hubo servicios, migraciones ni recorridos. ACK descartable conservado; no habilita otro destino.                                                                                            |
+| Formato y diff                   | Aprobados                                                     | Sin cambios de schema, migraciones, infraestructura, dependencias, raíz ni hooks; sin staging/commit.                                                                                                                |
+
+**Red/Green:** antes de corregir producción fallaron funcionalmente el vencimiento reenviado con pérdida de precisión, estado de vencida, revelación perdida al siguiente envío, doble submit, respuestas ajenas/no confirmadas de los adaptadores, ampliación de permisos de una clave ya migrada y salida por Cerrar sesión sin confirmación. Una primera assertion de revelación esperaba un campo inexistente en el código viejo: se corrigió el selector y se reprodujo después la desaparición funcional real; esa falla de selector no se cuenta como Red. La primera ejecución completa fue terminada con exit 143, sin resultado: no se cuenta como aprobación. El reintento aprobó 268/268 y la primera verificación final 270/270. Al añadir la regresión de Cerrar sesión se repitió la suite final: 271/271, sin omisiones. No se desactivaron gates ni se alteraron expectativas para ocultar fallas.
+
+**Pendientes reales:** integración PostgreSQL nueva que comprueba rotación sin expiración explícita e instante persistido exacto, integraciones HTTP/Redis existentes y seis E2E del harness; build de producción y checks del futuro SHA. No se confunden fixtures con servicios reales. La validación visual hizo una ronda agrupada, corrigió alineación de campos y una expresión de copy en un único lote, y realizó una sola confirmación. No se hicieron capturas con secretos ni se generaron credenciales reales para evidencia.
+
+**Evidencia efímera saneada:** `/tmp/phase5-*`, `/tmp/frontend-phase5-*`; imágenes sólo de listado/formulario/confirmación sin revelación. Ningún token, contraseña o secreto se agrega al repositorio o a documentos de contexto.
+
+**Commit sugerido:** `fix(api-keys): corregí vencimientos y protegé la revelación`.
+
+**Estado:** fase 5 preparada para revisión y commit, pendiente de ACK; detenerse antes de fase 6.

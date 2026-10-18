@@ -204,6 +204,8 @@ function SidebarContent({
           <ThemeToggle className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-sidebar-ring" />
         </div>
         <button
+          type="button"
+          data-leaves-page
           onClick={() => {
             onNavigate?.();
             onLogout();
