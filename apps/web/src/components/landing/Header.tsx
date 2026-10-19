@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { useSession } from "@/hooks/use-session";
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { useSession } from '@/hooks/use-session';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,110 +11,139 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { User, LogOut, LayoutDashboard, MessageSquareQuote, KeyRound, Webhook } from "lucide-react";
+} from '@/components/ui/dropdown-menu';
+import {
+  User,
+  LogOut,
+  LayoutDashboard,
+  MessageSquareQuote,
+  KeyRound,
+  Webhook,
+} from 'lucide-react';
 
 export function Header() {
   const { session, logout } = useSession({ redirectTo: null });
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
-          <img 
-            src="/favicon.ico" 
-            alt="Testimonial CMS Logo" 
-            className="h-6 w-6 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6"
-          />
-          <span className="font-body text-sm font-bold uppercase tracking-[0.2em] text-foreground transition-all duration-300 group-hover:underline group-hover:underline-offset-4">
-            Testimonial CMS
-          </span>
-        </Link>
-
-        <nav className="flex items-center gap-6">
-          <Link 
-            href="#producto" 
-            className="hidden font-body text-xs font-medium uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground sm:inline"
+    <>
+      <a
+        href="#main-content"
+        className="sr-only z-[60] bg-background p-4 font-body text-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+      >
+        Saltar al contenido
+      </a>
+      <header className="z-50 w-full border-b bg-background lg:sticky lg:top-0">
+        <div className="container grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 py-3 lg:grid-cols-[auto_minmax(0,1fr)_auto]">
+          <Link
+            href="/"
+            className="inline-flex min-h-11 min-w-0 items-center gap-2 font-body text-sm font-semibold tracking-wide"
           >
-            Producto
+            <MessageSquareQuote
+              aria-hidden="true"
+              className="h-5 w-5 shrink-0 text-primary"
+            />
+            <span>Testimonial CMS</span>
           </Link>
-          <Link 
-            href="#precios" 
-            className="hidden font-body text-xs font-medium uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground sm:inline"
+          <nav
+            aria-label="Navegación principal"
+            className="col-span-2 row-start-2 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 font-body text-sm lg:col-span-1 lg:col-start-2 lg:row-start-1"
           >
-            Precios
-          </Link>
-          {session ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-9 w-9 rounded-full border-border bg-background hover:bg-muted">
-                  <User className="h-4 w-4 text-foreground" />
-                  <span className="sr-only">Menú de usuario</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 font-body rounded-none border-border">
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Mi Perfil</p>
-                    <p className="text-xs leading-none text-muted-foreground truncate">
-                      {session.user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="cursor-pointer rounded-none">
-                  <Link href="/admin">
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    <span>Panel de Control</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="cursor-pointer rounded-none">
-                  <Link href="/admin/testimonials">
-                    <MessageSquareQuote className="mr-2 h-4 w-4" />
-                    <span>Testimonios</span>
-                  </Link>
-                </DropdownMenuItem>
-                {session.user.roles.includes('admin') && (
-                  <>
-                    <DropdownMenuItem asChild className="cursor-pointer rounded-none">
-                      <Link href="/admin/api-keys">
-                        <KeyRound className="mr-2 h-4 w-4" />
-                        <span>API Keys</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="cursor-pointer rounded-none">
-                      <Link href="/admin/webhooks">
-                        <Webhook className="mr-2 h-4 w-4" />
-                        <span>Webhooks</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={logout}
-                  className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10 rounded-none"
+            <Link
+              href="/#producto"
+              className="inline-flex min-h-11 items-center hover:underline underline-offset-4"
+            >
+              Producto
+            </Link>
+            <Link
+              href="/docs"
+              className="inline-flex min-h-11 items-center hover:underline underline-offset-4"
+            >
+              Ayuda
+            </Link>
+            {session ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-none transition-none"
+                  >
+                    <User aria-hidden="true" />
+                    Mi espacio
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-64 rounded-none transition-none font-body"
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Cerrar Sesión</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <>
-              <Link 
-                href="/admin/login" 
-                className="font-body text-xs font-medium uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                  <DropdownMenuLabel className="break-words font-normal">
+                    {session.user.tenantName}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link className="min-h-11" href="/admin">
+                      <LayoutDashboard
+                        aria-hidden="true"
+                        className="mr-2 h-4 w-4"
+                      />
+                      Ir al panel
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link className="min-h-11" href="/admin/testimonials">
+                      <MessageSquareQuote
+                        aria-hidden="true"
+                        className="mr-2 h-4 w-4"
+                      />
+                      Testimonios
+                    </Link>
+                  </DropdownMenuItem>
+                  {session.user.roles.includes('admin') && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link className="min-h-11" href="/admin/api-keys">
+                          <KeyRound
+                            aria-hidden="true"
+                            className="mr-2 h-4 w-4"
+                          />
+                          API keys
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link className="min-h-11" href="/admin/webhooks">
+                          <Webhook
+                            aria-hidden="true"
+                            className="mr-2 h-4 w-4"
+                          />
+                          Webhooks
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => void logout()}
+                    className="min-h-11 cursor-pointer"
+                  >
+                    <LogOut aria-hidden="true" className="mr-2 h-4 w-4" />
+                    Cerrar sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-none transition-none"
               >
-                Login
-              </Link>
-              <Button asChild size="sm" className="h-9 bg-primary px-5 font-body text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90">
-                <Link href="/admin/register">Comenzar</Link>
+                <Link href="/admin/login">Ingresar</Link>
               </Button>
-            </>
-          )}
-          <ThemeToggle />
-        </nav>
-      </div>
-    </header>
+            )}
+          </nav>
+          <div className="col-start-2 row-start-1 lg:col-start-3">
+            <ThemeToggle className="rounded-none transition-none" />
+          </div>
+        </div>
+      </header>
+    </>
   );
 }

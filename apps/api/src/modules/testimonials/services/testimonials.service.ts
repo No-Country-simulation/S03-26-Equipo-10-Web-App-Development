@@ -1,23 +1,36 @@
-import { ConflictError, ForbiddenError, NotFoundError } from '../../../common/errors/application.error';
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+} from '../../../common/errors/application.error';
 import { Injectable, Logger } from '@nestjs/common';
 import type { TransactionClient } from '../../../common/repositories/transaction-client';
 import { TenantsService } from '../../tenants';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
 import { CategoryRepository } from '../repositories/category.repository';
 import { AnalyticsService } from '../../analytics';
-import { CloudinaryService, YoutubeService, parseYoutubeUrl } from '../../shared/cloud';
+import {
+  CloudinaryService,
+  YoutubeService,
+  parseYoutubeUrl,
+} from '../../shared/cloud';
 import { CacheService } from '../../../common/services/cache.service';
 import { TransitionTestimonialUseCase } from '../use-cases/transition-testimonial.use-case';
 import { CreateTestimonialUseCase } from '../use-cases/create-testimonial.use-case';
-import { CreateTestimonialDto, PublicTestimonialsQueryDto, UpdateTestimonialDto, SubmitPublicTestimonialDto } from '../dto/testimonial.dto';
+import {
+  CreateTestimonialDto,
+  PublicTestimonialsQueryDto,
+  UpdateTestimonialDto,
+  SubmitPublicTestimonialDto,
+} from '../dto/testimonial.dto';
 import { validateImageBase64 } from '../utils/validate-image-base64';
-import type { AdminPage } from '../../../common/pagination/admin-page';
+import type { TestimonialQuery } from '../dto/admin-query';
 
 /**
  * Servicio central para la gestión de Testimonios.
  * Controla el ciclo de vida, integración con Cloudinary y YouTube, y
  * la emisión de eventos asíncronos mediante el patrón Outbox.
- * 
+ *
  * **Decisión de Diseño:** Se inyectan repositorios concretos en lugar de interfaces genéricas
  * para mantener el pragmatismo y evitar sobre-ingeniería (ver ADR 0001).
  * Los eventos de creación y publicación se guardan con el testimonio en una
@@ -37,16 +50,16 @@ export class TestimonialsService {
     private readonly cache: CacheService,
     private readonly transition: TransitionTestimonialUseCase,
     private readonly create: CreateTestimonialUseCase,
-  ) { }
+  ) {}
 
   /**
    * Crea un nuevo testimonio interno (desde el panel de administración).
-   * 
+   *
    * **Complejidad / Por qué:** Al crear un testimonio, es crítico notificar a otros sistemas
    * (mediante webhooks). En lugar de enviar una petición HTTP aquí (que bloquearía la
    * respuesta al usuario y podría fallar), el repositorio guarda el evento
    * junto con el testimonio en una transacción.
-   * 
+   *
    * @param tenantId - ID del inquilino propietario. Usado para aislamiento (Row-level multi-tenancy).
    * @param creatorUserId - ID del usuario que lo crea.
    * @param dto - Datos validados del testimonio.
@@ -54,7 +67,12 @@ export class TestimonialsService {
    * @throws {NotFoundError} Si la categoría proporcionada no existe o no pertenece al tenant.
    * @returns El testimonio creado (en estado 'draft' por defecto).
    */
-  async createTestimonial(tenantId: string, creatorUserId: string, dto: CreateTestimonialDto, tx?: TransactionClient) {
+  async createTestimonial(
+    tenantId: string,
+    creatorUserId: string,
+    dto: CreateTestimonialDto,
+    tx?: TransactionClient,
+  ) {
     return this.create.execute(tenantId, creatorUserId, dto, tx);
   }
 
@@ -65,7 +83,10 @@ export class TestimonialsService {
   }
 
   async getPublicTestimonial(tenantId: string, testimonialId: string) {
-    const testimonial = await this.repo.findPublishedById(tenantId, testimonialId);
+    const testimonial = await this.repo.findPublishedById(
+      tenantId,
+      testimonialId,
+    );
     if (!testimonial) throw new NotFoundError('Testimonial not found');
     return testimonial;
   }
@@ -77,12 +98,12 @@ export class TestimonialsService {
 
   /**
    * Registra un testimonio enviado desde el widget/formulario público.
-   * 
+   *
    * **Complejidad / Por qué:** Las sumisiones públicas son anónimas (`createdById` es null)
    * y no pueden estar pre-categorizadas. Además, para evitar spam, se verifica en tiempo
    * real que el inquilino tenga el flag `isPublicFormEnabled` encendido. El testimonio
    * transiciona directamente a `pending` (no a `draft`) para que los editores lo moderen.
-   * 
+   *
    * @param slug - Slug público único del Tenant.
    * @param dto - Datos del testimonio público.
    * @throws {ForbiddenError} Si el formulario público del inquilino está desactivado.
@@ -97,25 +118,29 @@ export class TestimonialsService {
       throw new ForbiddenError('This form is currently closed');
     }
 
-    const testimonial = await this.repo.createWithEvent({
-      tenantId: tenant.id,
-      createdById: null, // Anonymous submission
-      authorName: dto.authorName,
-      content: dto.content,
-      rating: dto.rating,
-      categoryId: null, // Public submissions don't assign categories by default
-    }, 'pending', {
-      eventType: 'testimonial.created',
-      payload: testimonial => ({
-        id: testimonial.id,
-        authorName: testimonial.authorName,
-        content: testimonial.content,
-        rating: testimonial.rating,
-        status: testimonial.status,
-        source: 'public_form',
-        createdAt: testimonial.createdAt,
-      }),
-    });
+    const testimonial = await this.repo.createWithEvent(
+      {
+        tenantId: tenant.id,
+        createdById: null, // Anonymous submission
+        authorName: dto.authorName,
+        content: dto.content,
+        rating: dto.rating,
+        categoryId: null, // Public submissions don't assign categories by default
+      },
+      'pending',
+      {
+        eventType: 'testimonial.created',
+        payload: (testimonial) => ({
+          id: testimonial.id,
+          authorName: testimonial.authorName,
+          content: testimonial.content,
+          rating: testimonial.rating,
+          status: testimonial.status,
+          source: 'public_form',
+          createdAt: testimonial.createdAt,
+        }),
+      },
+    );
 
     const failedMedia: Array<'image' | 'video'> = [];
     if (dto.imageBase64) {
@@ -138,14 +163,23 @@ export class TestimonialsService {
 
     return {
       id: testimonial.id,
-      status: failedMedia.length === 0 ? 'success' as const : 'partial' as const,
+      status:
+        failedMedia.length === 0 ? ('success' as const) : ('partial' as const),
       failedMedia,
     };
   }
 
-  private logPublicMediaFailure(tenantId: string, testimonialId: string, media: 'image' | 'video', error: unknown): void {
+  private logPublicMediaFailure(
+    tenantId: string,
+    testimonialId: string,
+    media: 'image' | 'video',
+    error: unknown,
+  ): void {
     this.logger.warn({
-      event: 'public_submission.media_failed', tenantId, testimonialId, media,
+      event: 'public_submission.media_failed',
+      tenantId,
+      testimonialId,
+      media,
       errorType: error instanceof Error ? error.name : 'unknown',
     });
   }
@@ -163,7 +197,14 @@ export class TestimonialsService {
     return this.analyticsService.getTestimonialMetrics(tenantId, testimonialId);
   }
 
-  async listTestimonials(tenantId: string, page: AdminPage = { page: 1, limit: 20 }) {
+  getSummary(tenantId: string) {
+    return this.repo.summarize(tenantId);
+  }
+
+  async listTestimonials(
+    tenantId: string,
+    page: TestimonialQuery = { page: 1, limit: 20 },
+  ) {
     const { items, total } = await this.repo.findByTenant(tenantId, page);
 
     return {
@@ -178,51 +219,73 @@ export class TestimonialsService {
 
   /**
    * Obtiene la lista de testimonios publicados (públicos) de un tenant, con paginación, filtros y caché.
-   * 
-   * **Complejidad / Por qué:** Este endpoint será el más llamado por los widgets insertados 
-   * en sitios web de clientes. Para proteger la base de datos de picos de tráfico, se utiliza 
+   *
+   * **Complejidad / Por qué:** Este endpoint será el más llamado por los widgets insertados
+   * en sitios web de clientes. Para proteger la base de datos de picos de tráfico, se utiliza
    * caché de Redis. La clave de caché es un hash de los parámetros de búsqueda para asegurar
    * que consultas idénticas compartan el resultado.
-   * 
+   *
    * @param tenantId - ID del tenant.
    * @param query - Opciones de búsqueda y paginación (DTO).
    * @returns Lista paginada de testimonios públicos.
    */
-  async listPublicTestimonials(tenantId: string, query: PublicTestimonialsQueryDto) {
+  async listPublicTestimonials(
+    tenantId: string,
+    query: PublicTestimonialsQueryDto,
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
 
     // Clave de caché para memorizar la respuesta y aligerar la base de datos
-    const cacheKey = JSON.stringify({ q: query.q ?? '', tag: query.tag ?? '',
-      category: query.category ?? '', sort: query.sort ?? '', page, limit });
+    const cacheKey = JSON.stringify({
+      q: query.q ?? '',
+      tag: query.tag ?? '',
+      category: query.category ?? '',
+      sort: query.sort ?? '',
+      page,
+      limit,
+    });
 
-    return this.cache.getOrSetPublic(tenantId, cacheKey, async () => {
-      const result = await this.repo.findPublished(tenantId, {
-        ...(query.q !== undefined && { q: query.q }),
-        ...(query.tag !== undefined && { tag: query.tag }),
-        ...(query.category !== undefined && { category: query.category }),
-        ...(query.sort !== undefined && { sort: query.sort }),
-        page,
-        limit,
-      });
-
-      return {
-        items: result.items,
-        meta: {
-          total: result.total,
+    return this.cache.getOrSetPublic(
+      tenantId,
+      cacheKey,
+      async () => {
+        const result = await this.repo.findPublished(tenantId, {
+          ...(query.q !== undefined && { q: query.q }),
+          ...(query.tag !== undefined && { tag: query.tag }),
+          ...(query.category !== undefined && { category: query.category }),
+          ...(query.sort !== undefined && { sort: query.sort }),
           page,
           limit,
-        },
-      };
-    }, 60_000); // 60s TTL
+        });
+
+        return {
+          items: result.items,
+          meta: {
+            total: result.total,
+            page,
+            limit,
+          },
+        };
+      },
+      60_000,
+    ); // 60s TTL
   }
 
-  async listPublicTestimonialsBySlug(slug: string, query: PublicTestimonialsQueryDto) {
+  async listPublicTestimonialsBySlug(
+    slug: string,
+    query: PublicTestimonialsQueryDto,
+  ) {
     const tenant = await this.tenantsService.getTenantByPublicSlug(slug);
     return this.listPublicTestimonials(tenant.id, query);
   }
 
-  async updateTestimonial(tenantId: string, testimonialId: string, user: { userId: string; roles: string[] }, dto: UpdateTestimonialDto) {
+  async updateTestimonial(
+    tenantId: string,
+    testimonialId: string,
+    user: { userId: string; roles: string[] },
+    dto: UpdateTestimonialDto,
+  ) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundError('Testimonial not found');
 
@@ -230,7 +293,11 @@ export class TestimonialsService {
       throw new ConflictError('Published testimonial cannot be edited');
     }
 
-    if (!user.roles.includes('admin') && user.roles.includes('editor') && testimonial.createdById !== user.userId) {
+    if (
+      !user.roles.includes('admin') &&
+      user.roles.includes('editor') &&
+      testimonial.createdById !== user.userId
+    ) {
       throw new ForbiddenError('Editors can only edit their own testimonials');
     }
 
@@ -239,33 +306,45 @@ export class TestimonialsService {
     }
 
     if (dto.categoryId) {
-      const category = await this.categoryRepo.findById(tenantId, dto.categoryId);
+      const category = await this.categoryRepo.findById(
+        tenantId,
+        dto.categoryId,
+      );
       if (!category) throw new NotFoundError('Category not found');
     }
 
-    return this.repo.updateFields(tenantId, testimonialId, {
-      ...(dto.authorName !== undefined && { authorName: dto.authorName }),
-      ...(dto.content !== undefined && { content: dto.content }),
-      ...(dto.rating !== undefined && { rating: dto.rating }),
-      ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
-      ...(dto.tagIds !== undefined && { tagIds: dto.tagIds }),
-    }, testimonial.status);
+    return this.repo.updateFields(
+      tenantId,
+      testimonialId,
+      {
+        ...(dto.authorName !== undefined && { authorName: dto.authorName }),
+        ...(dto.content !== undefined && { content: dto.content }),
+        ...(dto.rating !== undefined && { rating: dto.rating }),
+        ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
+        ...(dto.tagIds !== undefined && { tagIds: dto.tagIds }),
+      },
+      testimonial.status,
+    );
   }
 
   /**
    * Sube una imagen a Cloudinary y actualiza la URL en el testimonio.
-   * 
+   *
    * **Complejidad / Por qué:** Subir la imagen es una operación externa lenta. Se hace
-   * después de la creación del testimonio para que este proceso no bloquee la inserción 
-   * inicial, o se reintente si la red falla. CloudinaryService implementa internamente 
+   * después de la creación del testimonio para que este proceso no bloquee la inserción
+   * inicial, o se reintente si la red falla. CloudinaryService implementa internamente
    * el Circuit Breaker.
-   * 
+   *
    * @param tenantId - ID del inquilino.
    * @param testimonialId - ID del testimonio a actualizar.
    * @param imageBase64 - Imagen en formato Base64 a subir.
    * @throws {ConflictError} Si el testimonio ya está publicado (inmutable).
    */
-  async uploadImage(tenantId: string, testimonialId: string, imageBase64: string) {
+  async uploadImage(
+    tenantId: string,
+    testimonialId: string,
+    imageBase64: string,
+  ) {
     validateImageBase64(imageBase64);
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundError('Testimonial not found');
@@ -274,16 +353,18 @@ export class TestimonialsService {
     }
 
     const result = await this.cloudinaryService.uploadImage(imageBase64);
-    return this.repo.updateMedia(tenantId, testimonialId, testimonial.status, { imageUrl: result.secureUrl });
+    return this.repo.updateMedia(tenantId, testimonialId, testimonial.status, {
+      imageUrl: result.secureUrl,
+    });
   }
 
   /**
    * Adjunta un video de YouTube al testimonio, extrayendo metadatos.
-   * 
-   * **Complejidad / Por qué:** Requerimos el título y miniatura de YouTube de forma síncrona 
+   *
+   * **Complejidad / Por qué:** Requerimos el título y miniatura de YouTube de forma síncrona
    * para poder mostrarlos en el frontend de inmediato sin depender de que el cliente (browser)
    * cargue un iframe pesado solo para leer metadatos.
-   * 
+   *
    * @param tenantId - ID del inquilino.
    * @param testimonialId - ID del testimonio.
    * @param videoUrl - URL válida de YouTube.
@@ -306,15 +387,27 @@ export class TestimonialsService {
     });
   }
 
-  async removeTestimonial(tenantId: string, testimonialId: string, user: { userId: string; roles: string[] }) {
+  async removeTestimonial(
+    tenantId: string,
+    testimonialId: string,
+    user: { userId: string; roles: string[] },
+  ) {
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundError('Testimonial not found');
 
-    if (!user.roles.includes('admin') && user.roles.includes('editor') && testimonial.createdById !== user.userId) {
-      throw new ForbiddenError('Editors can only delete their own testimonials');
+    if (
+      !user.roles.includes('admin') &&
+      user.roles.includes('editor') &&
+      testimonial.createdById !== user.userId
+    ) {
+      throw new ForbiddenError(
+        'Editors can only delete their own testimonials',
+      );
     }
 
     await this.repo.remove(tenantId, testimonialId);
+    if (testimonial.status === 'published')
+      await this.invalidatePublicTestimonials(tenantId);
     return { id: testimonialId, deleted: true };
   }
 
@@ -326,25 +419,39 @@ export class TestimonialsService {
     return this.transition.execute(tenantId, testimonialId, 'approved');
   }
 
-  async rejectTestimonial(tenantId: string, testimonialId: string, reason: string) {
+  async rejectTestimonial(
+    tenantId: string,
+    testimonialId: string,
+    reason: string,
+  ) {
     return this.transition.execute(tenantId, testimonialId, 'rejected', reason);
   }
 
   /**
    * Publica un testimonio (lo hace visible en la API pública).
-   * 
+   *
    * **Complejidad / Por qué:** Al publicar, dos cosas críticas deben ocurrir:
    * 1. Notificar al exterior (Webhooks) mediante el patrón Outbox.
-   * 2. Invalidar la caché de listas públicas para que el nuevo testimonio aparezca 
+   * 2. Invalidar la caché de listas públicas para que el nuevo testimonio aparezca
    *    inmediatamente en el widget del cliente sin esperar al TTL (Time To Live).
-   * 
+   *
    * @param tenantId - ID del inquilino.
    * @param testimonialId - ID del testimonio a publicar.
    * @throws {ConflictError} Si la transición de estado no es válida.
    * @returns El testimonio actualizado.
    */
-  async publishTestimonial(tenantId: string, testimonialId: string, tx?: TransactionClient) {
-    return this.transition.execute(tenantId, testimonialId, 'published', undefined, tx);
+  async publishTestimonial(
+    tenantId: string,
+    testimonialId: string,
+    tx?: TransactionClient,
+  ) {
+    return this.transition.execute(
+      tenantId,
+      testimonialId,
+      'published',
+      undefined,
+      tx,
+    );
   }
 
   async invalidatePublicTestimonials(tenantId: string): Promise<void> {

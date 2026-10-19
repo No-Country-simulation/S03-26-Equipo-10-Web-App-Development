@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-10-12
+# Última actualización: 2026-10-19
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -55,7 +55,7 @@ docs/governance/       → Ethics, compliance
 docs/collaboration/    → Contributing, git workflow, coding standards, setup, changelog
 docs/plan/             → Active HITL orchestration plans
 docs/modules/          → Per-module technical specs
-.agents/skills/        → 26 skills propias de ingeniería (SKL-*) + otras habilidades instaladas
+.agents/skills/        → 27 skills propias de ingeniería (SKL-*) + otras habilidades instaladas
 .agents/rules/         → Operative rules loaded by AI IDE
 .agents/prompts/       → Reusable prompt templates
 infra/                 → Nginx, Docker production configs
@@ -144,6 +144,7 @@ warehouse_time_operation: código actual exige esquema temporal; nunca escritor 
 warehouse_time_validation: plan temporal completado en tres fases con ACK; 58 tests, restauración actual con lector dw, benchmark 3 tenants/160 cortes/98000 detalles: backfill30.85s, dashboard similar, ningún índice nuevo; impacto API aumenta con ETL, habilitación productiva exige capacidad/SLO/ACK; docs/plan/2026-10-08_refactor-bi-tiempo-dimensional.md
 etl: bi:etl/bi:etl:prod requiere0004/protocolo1; polling15s, inventario paginado<=1/min persistido sin sobrescribir preferencias; frecuencia1/6/24h UTC y manuales durables, una empresa por vez, --once acotado respeta programación/presupuesto; lectura bi_export consistente, páginas1000, pool1/2, plazo5min, lease90s/heartbeat20s, fencing; éxito solicitud/run/hechos y avance horario atómicos; bi:migrate requiere --apply y credencial propia
 bi: GET /api/v1/bi/dashboard y /admin/business-intelligence; admin/editor por tenant; rangos UTC, snapshots horarios, métricas y tendencias; DashboardRepository RR READ ONLY UTC pool2/SQL5s/tx10s, conexión lazy sin readiness; Cache-Control private,no-store
+bi_skill: .agents/skills/business-intelligence-engineering/SKILL.md (SKL-BI-001 v1.1.0); BI/ETL/modelado dimensional/métricas/API/dashboard y evaluación predictiva; preserva ADR0004, reconciliación completa, tenant/UTC/fencing y dw/etl, sin equiparar staging/dw/etl a medallón; CDC/lakehouse/ML opcionales, no implementados por la skill; predicción exige baseline/particiones temporales/validación, evidencia local no acredita producción
 bi_time: dashboard sólo dw, resumen último corte global y serie última cabecera por día; vacío=0, ausente=NULL; metadatos desde cabecera, published_at terminal igual finished_at; conexión runtime compartida mantiene permisos etl para métricas
 bi_observability: GET internal/bi/metrics con X-Metrics-Token externo; agregados técnicos globales sin labels tenant/run; ledger durable y logs de fases; alertas propuestas sin despliegue
 bi_operations_prepared: docs/plan/2026-10-09_feat-interfaces-operacion-bi.md, fases1–5 terminadas localmente; habilitación productiva pendiente; 0004 settings/requests/audit/worker_health (20 tablas), versión/idempotencia y lock UUID canónico por tenant; ManagedWarehouseRepository/WorkerControlRepository/EtlScheduler integrados; BI_OPERATIONS_ENABLED false, BI_CONTROL_DATABASE_URL pool2; API operativa /bi/status|settings|runs|requests|audit con JWT/RBAC/CSRF/cuotas, idempotencia DW y señal60s; alertas/vigencia frecuencia+tolerancia/pausa; UI admin/editor Resumen/Ejecuciones/detalles/Operación/Configuración y auditoría admin, CSV y polling visible, URL/identidad aisladas; 170 casos backend BI y72 BI web/115 web totales aprobados; fase5 CMS/worker CLI/2 PG18.6/Redis7, backup-restauración con ACL/keys y aislamiento ante caída OLAP; benchmark20k solicitudes/20k runs, status p95~424ms y CMS121→307ms local, sin certificar SLO, evidencia en plan; docs/modules/web-business-intelligence.md, docs/modules/api-bi-operations.md y docs/operations/21_bi_worker_operations.md
@@ -173,7 +174,7 @@ docs/technical/01_architecture.md   → system architecture + C4 diagrams
 docs/domain/business_rules.md       → domain invariants (source of truth)
 docs/domain/diccionario_de_dato.md  → ERD + all table schemas
 apps/api/prisma/schema.prisma       → canonical data model
-.agents/skills/                     → 26 skills propias de ingeniería (SKL-*) + otras habilidades instaladas (leer las pertinentes)
+.agents/skills/                     → 27 skills propias de ingeniería (SKL-*) + otras habilidades instaladas (leer las pertinentes)
 docs/plan/                          → active HITL plans (read before executing)
 
 ## PROHIBITED (NEVER DO)

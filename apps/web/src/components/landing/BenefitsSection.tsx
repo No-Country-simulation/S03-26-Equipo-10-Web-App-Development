@@ -1,56 +1,39 @@
-import { Database, ShieldCheck, Globe } from "lucide-react";
+import Link from 'next/link';
 
-const benefits = [
-  {
-    icon: Database,
-    title: "Centraliza",
-    description: "Olvídate de correos y archivos sueltos. Todo en un solo panel organizado y accesible.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Modera",
-    description: "Aprueba o rechaza testimonios antes de publicarlos. Mantén el control total sobre tu marca.",
-  },
-  {
-    icon: Globe,
-    title: "Distribuye",
-    description: "API, widget embebible y webhooks para integrar con tu web en minutos, sin código.",
-  },
-];
-
-export const BenefitsSection = () => {
+export function BenefitsSection() {
   return (
-    <section id="producto" className="py-32">
-      <div className="container">
-        <header className="mb-20 max-w-3xl animate-fade-in-up">
-          <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">Producto</span>
-          <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl md:leading-none text-balance">
-            Todo lo que necesitas,<br />
-            <strong className="font-body font-bold not-italic">nada que no.</strong>
-          </h2>
-        </header>
-        
-        <div className="grid gap-0 border-t md:grid-cols-3">
-          {benefits.map((b, index) => (
-            <article 
-              key={b.title} 
-              className={`group flex flex-col justify-between border-b p-10 transition-colors hover:bg-card md:border-b-0 md:border-r last:md:border-r-0 animate-fade-in-up stagger-${index + 1}`}
-            >
-              <div>
-                <header className="mb-8 flex items-center gap-4">
-                  <span className="font-caption text-5xl font-bold italic text-primary/20">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <b.icon className="h-6 w-6 text-primary" />
-                </header>
-                <h3 className="font-body text-xl font-bold uppercase tracking-wider text-foreground">{b.title}</h3>
-                <p className="mt-4 font-body text-sm leading-relaxed text-muted-foreground">{b.description}</p>
-              </div>
-              <footer className="mt-8 h-px w-12 bg-primary transition-all duration-500 group-hover:w-full" />
-            </article>
-          ))}
+    <section
+      id="producto"
+      aria-labelledby="product-title"
+      className="scroll-mt-28 py-14 sm:py-20"
+    >
+      <div className="container grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
+        <h2
+          id="product-title"
+          className="max-w-xl text-balance font-caption text-3xl font-light leading-tight sm:text-5xl"
+        >
+          Las historias de tus clientes,
+          <br />
+          <em className="text-primary">con criterio editorial.</em>
+        </h2>
+        <div className="max-w-prose space-y-5 text-base leading-relaxed text-muted-foreground">
+          <p>
+            Centralizá la recepción y la revisión. Las categorías y etiquetas
+            ayudan a encontrar cada testimonio; los roles de administrador y
+            editor definen las acciones disponibles.
+          </p>
+          <p>
+            Recibir una historia no la hace pública. Tu equipo la revisa y
+            decide cuándo compartirla en la galería.
+          </p>
+          <Link
+            href="/docs#moderacion"
+            className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+          >
+            Conocé el proceso de moderación
+          </Link>
         </div>
       </div>
     </section>
   );
-};
+}

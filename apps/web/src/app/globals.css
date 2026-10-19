@@ -1,4 +1,4 @@
-@import "tailwindcss" source(none);
+@import 'tailwindcss' source(none);
 @config "../../tailwind.config.ts";
 @source "../";
 
@@ -17,29 +17,35 @@
     --card-foreground: 0 0% 4%;
     --popover: 44 20% 98%;
     --popover-foreground: 0 0% 4%;
-    --primary: 14 70% 38%; /* Terracotta legible sobre crema */
+    --primary: 14 72% 34%; /* Terracotta legible sobre crema */
     --primary-foreground: 44 33% 94%;
     --secondary: 40 15% 85%;
     --secondary-foreground: 0 0% 4%;
     --muted: 40 15% 85%;
     --muted-foreground: 0 0% 40%;
-    --accent: 14 70% 38%;
+    --accent: 14 72% 34%;
     --accent-foreground: 44 33% 94%;
     --destructive: 0 68% 38%;
     --destructive-foreground: 0 0% 98%;
+    --success: 145 65% 25%;
+    --success-foreground: 0 0% 98%;
+    --warning: 36 85% 26%;
+    --warning-foreground: 0 0% 98%;
+    --info: 208 70% 32%;
+    --info-foreground: 0 0% 98%;
     --border: 0 0% 80%;
     --input: 0 0% 80%;
-    --ring: 14 70% 38%;
+    --ring: 14 72% 34%;
     --radius: 0rem; /* Very sharp brutalist/editorial corners */
     --section-alt: 44 20% 90%;
-    --sidebar-background: 44 20% 98%;
-    --sidebar-foreground: 0 0% 4%;
-    --sidebar-primary: 14 74% 54%;
-    --sidebar-primary-foreground: 44 33% 94%;
-    --sidebar-accent: 40 15% 85%;
-    --sidebar-accent-foreground: 0 0% 4%;
-    --sidebar-border: 0 0% 80%;
-    --sidebar-ring: 14 74% 54%;
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 44 33% 94%;
+    --sidebar-primary: 14 76% 65%;
+    --sidebar-primary-foreground: 0 0% 4%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 44 33% 94%;
+    --sidebar-border: 0 0% 30%;
+    --sidebar-ring: 14 76% 65%;
   }
 
   .dark {
@@ -49,44 +55,105 @@
     --card-foreground: 44 33% 94%;
     --popover: 0 0% 8%;
     --popover-foreground: 44 33% 94%;
-    --primary: 14 74% 54%; /* Intense Terracotta */
+    --primary: 14 76% 65%; /* Intense Terracotta */
     --primary-foreground: 0 0% 4%;
     --secondary: 0 0% 15%;
     --secondary-foreground: 44 33% 94%;
     --muted: 0 0% 15%;
     --muted-foreground: 44 10% 65%;
-    --accent: 14 74% 54%;
+    --accent: 14 76% 65%;
     --accent-foreground: 0 0% 4%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 75% 72%;
+    --destructive-foreground: 0 0% 4%;
+    --success: 145 55% 66%;
+    --success-foreground: 0 0% 4%;
+    --warning: 38 95% 68%;
+    --warning-foreground: 0 0% 4%;
+    --info: 208 75% 74%;
+    --info-foreground: 0 0% 4%;
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 14 74% 54%;
+    --ring: 14 76% 65%;
     --section-alt: 0 0% 6%;
-    --sidebar-background: 0 0% 8%;
-    --sidebar-foreground: 44 33% 94%;
-    --sidebar-primary: 14 74% 54%;
-    --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 0 0% 15%;
-    --sidebar-accent-foreground: 44 33% 94%;
-    --sidebar-border: 0 0% 20%;
-    --sidebar-ring: 14 74% 54%;
+    --sidebar-background: 44 20% 98%;
+    --sidebar-foreground: 0 0% 4%;
+    --sidebar-primary: 14 72% 34%;
+    --sidebar-primary-foreground: 44 33% 94%;
+    --sidebar-accent: 40 15% 85%;
+    --sidebar-accent-foreground: 0 0% 4%;
+    --sidebar-border: 0 0% 55%;
+    --sidebar-ring: 14 72% 34%;
   }
 }
 
 @layer base {
-  *, ::before, ::after, ::backdrop, ::file-selector-button {
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
     @apply border-border;
   }
-  button:not(:disabled), [role="button"]:not(:disabled) {
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
     cursor: pointer;
   }
-  input::placeholder, textarea::placeholder {
-    color: var(--color-gray-400);
+  input::placeholder,
+  textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+    opacity: 1;
   }
   body {
     @apply bg-background text-foreground;
   }
+  button,
+  input,
+  textarea,
+  select {
+    @apply font-body;
+  }
+  table {
+    @apply font-body;
+    font-variant-numeric: tabular-nums;
+  }
+  select {
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--background));
+  }
+  :where(
+      a,
+      button,
+      input,
+      textarea,
+      select,
+      summary,
+      [tabindex]
+    ):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+  input,
+  textarea {
+    caret-color: hsl(var(--primary));
+  }
+  html {
+    scrollbar-color: hsl(var(--muted-foreground)) hsl(var(--background));
+  }
+  .dark {
+    color-scheme: dark;
+  }
+  :root:not(.dark) {
+    color-scheme: light;
+  }
+}
+
+/* Inverted editorial panels need the opposite action palette as well. */
+.surface-inverse {
+  --primary: var(--sidebar-primary);
+  --primary-foreground: var(--sidebar-primary-foreground);
+  --accent: var(--sidebar-primary);
+  --accent-foreground: var(--sidebar-primary-foreground);
+  --ring: var(--sidebar-ring);
 }
 
 @layer utilities {
@@ -98,20 +165,43 @@
     opacity: 0;
     transform: translateY(20px);
   }
-  .stagger-1 { animation-delay: 100ms; }
-  .stagger-2 { animation-delay: 200ms; }
-  .stagger-3 { animation-delay: 300ms; }
-  .stagger-4 { animation-delay: 400ms; }
-  .stagger-5 { animation-delay: 500ms; }
+  .stagger-1 {
+    animation-delay: 100ms;
+  }
+  .stagger-2 {
+    animation-delay: 200ms;
+  }
+  .stagger-3 {
+    animation-delay: 300ms;
+  }
+  .stagger-4 {
+    animation-delay: 400ms;
+  }
+  .stagger-5 {
+    animation-delay: 500ms;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .ui-overlay,
+  .ui-dialog,
+  .ui-sheet {
+    animation: none;
+    transition: none;
+  }
   .animate-fade-in-up {
     animation: none;
     opacity: 1;
     transform: none;
   }
-  .stagger-1, .stagger-2, .stagger-3, .stagger-4, .stagger-5 {
+  .stagger-1,
+  .stagger-2,
+  .stagger-3,
+  .stagger-4,
+  .stagger-5 {
     animation-delay: 0ms;
   }
 }

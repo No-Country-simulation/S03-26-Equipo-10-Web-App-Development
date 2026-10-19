@@ -44,6 +44,9 @@ test('E2E-MOBILE-CAPTURE tabula, envía y conserva el testimonio sin desbordamie
   await page.goto(`/p/${tenant.slug}`);
   const story = page.getByLabel('Contanos tu historia', { exact: true });
   const author = page.getByLabel('Tu Nombre Completo', { exact: true });
+  await page
+    .getByRole('radio', { name: '4 estrellas', exact: true })
+    .press('Space');
   await expect(story).toBeVisible();
   await expectNoOverflow(page);
   await story.focus();

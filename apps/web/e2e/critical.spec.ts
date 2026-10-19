@@ -17,6 +17,35 @@ test('E2E-SESSION login, recarga, rotación y revocación al cerrar sesión', as
   playwright,
   baseURL,
 }) => {
+  await page.goto('/login');
+  await expect(page).toHaveURL(/\/admin\/login$/);
+  await page.goto('/admin/register');
+  await expect(
+    page.getByRole('heading', { name: 'Crear tu espacio', level: 1 }),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel('Nombre del espacio', { exact: true }),
+  ).toHaveValue('');
+  await expect(
+    page.getByLabel('Email de la cuenta administradora', { exact: true }),
+  ).toHaveValue('');
+  await expect(page.getByLabel('Contraseña', { exact: true })).toHaveValue('');
+  await expect(
+    page.getByText(
+      'De 8 a 72 caracteres, con mayúscula, minúscula, número y símbolo.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Crear espacio y cuenta', exact: true })
+    .click();
+  await expect(
+    page.getByLabel('Nombre del espacio', { exact: true }),
+  ).toHaveAttribute('aria-invalid', 'true');
+  await expect(
+    page.getByLabel('Nombre del espacio', { exact: true }),
+  ).toBeFocused();
+  await expect(page).toHaveURL(/\/admin\/register$/);
   await login(page, tenant.account);
   const authCookies = (await context.cookies()).filter((cookie) =>
     ['accessToken', 'refreshToken'].includes(cookie.name),
@@ -65,6 +94,61 @@ test('E2E-SESSION login, recarga, rotación y revocación al cerrar sesión', as
       currentRefresh && previousRefresh && currentRefresh !== previousRefresh,
     ),
   ).toBe(true);
+  // API key expiration and one-time reveal, without exposing credentials in assertions.
+  const expiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  expiry.setSeconds(37, 123);
+  const integration = await tenant.write(
+    'POST',
+    '/api-keys',
+    {
+      name: 'Integración E2E',
+      scopes: ['testimonials:read'],
+      expiresAt: expiry.toISOString(),
+    },
+    z.object({ id: z.string().uuid() }),
+  );
+  await page.goto('/admin/api-keys');
+  await page
+    .getByRole('row')
+    .filter({ hasText: 'Integración E2E' })
+    .getByRole('button', { name: 'Rotar', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: 'Rotar API key', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', {
+      name: 'API key de «Integración E2E»',
+      exact: true,
+    }),
+  ).toBeVisible();
+  const secret = page.getByLabel('Clave completa para copiar', { exact: true });
+  expect(
+    await secret.evaluate((element) =>
+      (element as HTMLTextAreaElement).value.startsWith('ak_'),
+    ),
+  ).toBe(true);
+  const metadata = await tenant.get(
+    `/api-keys/${integration.id}`,
+    z.object({ expiresAt: z.string() }),
+  );
+  expect(metadata.expiresAt).toBe(expiry.toISOString());
+  await page
+    .getByRole('button', { name: 'Ocultar API key', exact: true })
+    .click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Cancelar', exact: true })
+    .click();
+  expect(await secret.count()).toBe(1);
+  await page
+    .getByRole('button', { name: 'Ocultar API key', exact: true })
+    .click();
+  await page
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Ya la guardé, ocultar', exact: true })
+    .click();
+  await expect(secret).toHaveCount(0);
   await page
     .getByRole('button', { name: 'Cerrar Sesión', exact: true })
     .click();
@@ -94,7 +178,7 @@ test('E2E-SESSION login, recarga, rotación y revocación al cerrar sesión', as
   }
   await page.goto('/admin/testimonials');
   await expect(
-    page.getByRole('button', { name: 'Iniciar Sesión', exact: true }),
+    page.getByRole('button', { name: 'Iniciar sesión', exact: true }),
   ).toBeVisible();
 });
 
@@ -108,6 +192,12 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   await page.goto(`/p/${tenant.slug}`);
   await page.getByLabel('Contanos tu historia', { exact: true }).fill(content);
   await page.getByLabel('Tu Nombre Completo', { exact: true }).fill(authorName);
+  await expect(
+    page.getByRole('radio', { name: '5 estrellas', exact: true }),
+  ).not.toBeChecked();
+  await page
+    .getByRole('radio', { name: '4 estrellas', exact: true })
+    .press('Space');
   const submission = page.waitForResponse(
     (response) =>
       response.url().endsWith(`/${tenant.slug}/submit`) &&
@@ -145,11 +235,25 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   ).toBe(404);
   await login(page, tenant.account);
   await page.goto('/admin/testimonials');
+  await page
+    .getByLabel('Buscar por autor o contenido', { exact: true })
+    .fill(authorName);
+  await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+  await expect(page).toHaveURL(/q=Autor\+de\+recorrido/);
   const row = page.getByRole('row').filter({ hasText: authorName });
-  await expect(row).toContainText('pending');
+  await expect(row).toContainText('Pendiente de revisión');
   await row
     .getByRole('button', { name: 'Abrir Testimonio', exact: true })
     .click();
+  await expect(page).toHaveURL(new RegExp(`testimonial=${submitted.data.id}`));
+  await expect(
+    page.getByRole('dialog', { name: `Testimonio de ${authorName}` }),
+  ).toBeVisible();
+  // The detail must remain reachable through the URL after a full reload.
+  await page.reload();
+  await expect(
+    page.getByRole('dialog', { name: `Testimonio de ${authorName}` }),
+  ).toBeVisible();
   const approved = page.waitForResponse(
     (response) =>
       response.url().endsWith(`${submitted.data.id}/approve`) &&
@@ -158,7 +262,7 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   await page.getByRole('button', { name: 'Aprobar', exact: true }).click();
   expect((await approved).status()).toBe(201);
   await page.keyboard.press('Escape');
-  await expect(row).toContainText('approved');
+  await expect(row).toContainText('Aprobado');
   expect((await tenant.get(path, recordSchema)).status).toBe('approved');
   expect(
     await responseData(
@@ -181,8 +285,24 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
     .click();
   expect((await published).status()).toBe(201);
   await page.keyboard.press('Escape');
-  await expect(row).toContainText('published');
+  await expect(row).toContainText('Publicado');
   expect((await tenant.get(path, recordSchema)).status).toBe('published');
+  await page.goto(`/testimonials/${submitted.data.id}/edit`);
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/testimonials.*testimonial=${submitted.data.id}`),
+  );
+  const publishedDetail = page.getByRole('dialog', {
+    name: `Testimonio de ${authorName}`,
+  });
+  await expect(publishedDetail).toBeVisible();
+  await expect(
+    publishedDetail.getByRole('button', {
+      name: 'Editar Testimonio',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
   // A new anonymous context proves public access independently of admin cookies.
   const anonymous = await page
     .context()
@@ -194,6 +314,9 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   try {
     const wall = await anonymous.newPage();
     await wall.goto(`/t/${tenant.slug}`);
+    await expect(
+      wall.getByRole('heading', { name: tenant.name, exact: true }),
+    ).toBeVisible();
     await expect(wall.getByText(content, { exact: false })).toBeVisible();
     await wall.reload();
     await expect(wall.getByText(content, { exact: false })).toBeVisible();
@@ -202,9 +325,41 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
       z.array(z.object({ id: z.string(), content: z.string() })),
     );
     expect(records).toEqual([{ id: submitted.data.id, content }]);
+    // Exercise the persisted analytics contract independently of observer timing.
+    expect(
+      (
+        await anonymous.request.post(
+          `/api/v1/public/analytics/tenants/${tenant.slug}/events`,
+          {
+            data: {
+              testimonialId: submitted.data.id,
+              eventType: 'view',
+              source: 'e2e-public-gallery',
+            },
+          },
+        )
+      ).status(),
+    ).toBe(201);
   } finally {
     await anonymous.close();
   }
+  await page.goto('/admin/analytics');
+  await expect(
+    page.getByText(/Acumulado desde el primer evento registrado/),
+  ).toBeVisible();
+  await expect(page.getByText(/Observado:/)).toContainText('UTC');
+  await expect(page.getByText(/hasta 50 eventos recientes/)).toBeVisible();
+  const contextLink = page
+    .getByRole('link', { name: authorName, exact: true })
+    .first();
+  await expect(contextLink).toHaveAttribute(
+    'href',
+    `/admin/testimonials?page=1&testimonial=${submitted.data.id}`,
+  );
+  await contextLink.click();
+  await expect(
+    page.getByRole('dialog', { name: `Testimonio de ${authorName}` }),
+  ).toBeVisible();
 });
 
 test('E2E-TENANT-CSRF deniega tenant ajeno y CSRF sin modificar datos', async ({
@@ -281,7 +436,7 @@ test('E2E-RBAC editor sin permisos de usuarios ni configuración de tenant', asy
     email: z.string(),
     roles: z.array(z.string()),
   });
-  await tenant.write(
+  const createdEditor = await tenant.write(
     'POST',
     '/users',
     { ...editor, role: 'editor' },
@@ -327,6 +482,67 @@ test('E2E-RBAC editor sin permisos de usuarios ni configuración de tenant', asy
       data: { name: 'Cambio de configuración prohibido' },
     }),
   ).toBe(403);
+  expect(
+    await browserCall(page, { path: '/feature-flags', method: 'GET' }),
+  ).toBe(403);
+  expect(
+    await browserCall(page, {
+      path: '/feature-flags/enable_scoring',
+      method: 'PATCH',
+      csrf: true,
+      data: { enabled: false },
+    }),
+  ).toBe(403);
+  await page.goto('/admin/settings');
+  await expect(
+    page.getByText('Acceso restringido a administradores', { exact: true }),
+  ).toBeVisible();
   expect(await tenant.get('/users', z.array(userSchema))).toEqual(beforeUsers);
   expect(await tenant.get('/tenants/me', tenantSchema)).toEqual(beforeTenant);
+  // Webhook administration remains restricted even when called directly.
+  expect(await browserCall(page, { path: '/webhooks', method: 'GET' })).toBe(
+    403,
+  );
+  expect(
+    await browserCall(page, {
+      path: '/webhooks/00000000-0000-4000-8000-000000000001',
+      method: 'PATCH',
+      csrf: true,
+      data: { isActive: true },
+    }),
+  ).toBe(403);
+  await page.goto('/admin/webhooks');
+  await expect(
+    page.getByRole('heading', { name: 'Acceso denegado', exact: true }),
+  ).toBeVisible();
+  // Direct navigation does not grant an editor the administrative users view.
+  await page.goto('/admin/users');
+  await expect(
+    page.getByRole('heading', { name: 'Acceso denegado', exact: true }),
+  ).toBeVisible();
+  const accessSchema = userSchema.extend({ isActive: z.boolean() });
+  const disabled = await tenant.write(
+    'PATCH',
+    `/users/${createdEditor.id}`,
+    { isActive: false },
+    accessSchema,
+  );
+  expect(disabled.isActive).toBe(false);
+  expect(disabled.roles).toEqual(['editor']);
+  // The same already-issued browser credential must stop working immediately.
+  expect((await page.context().request.get('/api/v1/auth/me')).status()).toBe(
+    401,
+  );
+  const enabled = await tenant.write(
+    'PATCH',
+    `/users/${createdEditor.id}`,
+    { isActive: true },
+    accessSchema,
+  );
+  expect(enabled.isActive).toBe(true);
+  expect(enabled.roles).toEqual(['editor']);
+  // Reactivation permits a still-valid session; it does not permanently revoke it.
+  expect((await page.context().request.get('/api/v1/auth/me')).status()).toBe(
+    200,
+  );
 });

@@ -1,12 +1,11 @@
 import { z } from 'zod';
 import {
-  deletedSchema,
   sessionRequest,
   type SessionFetch,
 } from '@/lib/api/validated-response';
 import { pagePath, sessionPageRequest } from '@/features/shared/pagination';
 
-const webhookSchema = z
+export const webhookSchema = z
   .object({
     id: z.string(),
     tenantId: z.string(),
@@ -28,9 +27,9 @@ const webhookSchema = z
       .optional(),
     legacySignatureUntil: z.string().nullable().optional(),
   })
-  .passthrough();
+  .strip();
 const revealedWebhookSchema = webhookSchema.extend({
-  signingSecret: z.string(),
+  signingSecret: z.string().min(1),
 });
 
 export const listWebhooks = (fetchApi: SessionFetch, page = 1) =>
@@ -48,19 +47,24 @@ export const rotateWebhookSecret = (fetchApi: SessionFetch, id: string) =>
   sessionRequest(
     fetchApi,
     `/webhooks/${id}/rotate-secret`,
-    revealedWebhookSchema,
+    revealedWebhookSchema.refine((webhook) => webhook.id === id),
     { method: 'POST' },
   );
 export const deleteWebhook = (fetchApi: SessionFetch, id: string) =>
-  sessionRequest(fetchApi, `/webhooks/${id}`, deletedSchema, {
-    method: 'DELETE',
-  });
+  sessionRequest(
+    fetchApi,
+    `/webhooks/${id}`,
+    z.object({ id: z.literal(id), deleted: z.literal(true) }),
+    {
+      method: 'DELETE',
+    },
+  );
 export const testWebhook = (fetchApi: SessionFetch, id: string) =>
   sessionRequest(
     fetchApi,
     `/webhooks/${id}/test`,
     z.object({
-      id: z.string(),
+      id: z.string().min(1),
       status: z.literal('accepted'),
     }),
     { method: 'POST' },
@@ -69,8 +73,11 @@ export const testWebhook = (fetchApi: SessionFetch, id: string) =>
 const deliverySchema = z
   .object({
     id: z.string(),
+    webhookId: z.string(),
+    outboxEventId: z.string().nullable().optional(),
+    errorMessage: z.string().nullable().optional(),
     status: z.string(),
-    attempts: z.number(),
+    attempts: z.number().int().nonnegative(),
     responseCode: z.number().nullable(),
     createdAt: z.string(),
     attemptHistory: z
@@ -96,7 +103,7 @@ export const listWebhookDeliveries = (
   sessionPageRequest(
     fetchApi,
     pagePath(`/webhooks/${webhookId}/deliveries`, page),
-    deliverySchema,
+    deliverySchema.refine((delivery) => delivery.webhookId === webhookId),
   );
 
 export const replayWebhookDelivery = (
@@ -108,8 +115,34 @@ export const replayWebhookDelivery = (
     fetchApi,
     `/webhooks/${webhookId}/deliveries/${deliveryId}/replay`,
     z.object({
-      id: z.string(),
+      id: z.literal(deliveryId),
       status: z.literal('pending'),
     }),
     { method: 'POST' },
+  );
+
+export type WebhookView = z.infer<typeof webhookSchema>;
+export type DeliveryView = z.infer<typeof deliverySchema>;
+export type UpdateWebhookInput = {
+  url?: string;
+  eventCode?: string;
+  isActive?: boolean;
+};
+export const updateWebhook = (
+  fetchApi: SessionFetch,
+  id: string,
+  input: UpdateWebhookInput,
+) =>
+  sessionRequest(
+    fetchApi,
+    `/webhooks/${id}`,
+    webhookSchema.refine(
+      (webhook) =>
+        webhook.id === id &&
+        (input.url === undefined || webhook.url === input.url) &&
+        (input.eventCode === undefined ||
+          webhook.eventCode === input.eventCode) &&
+        (input.isActive === undefined || webhook.isActive === input.isActive),
+    ),
+    { method: 'PATCH', body: JSON.stringify(input) },
   );

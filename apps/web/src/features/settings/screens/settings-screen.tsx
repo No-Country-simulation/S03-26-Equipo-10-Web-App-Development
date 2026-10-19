@@ -1,273 +1,374 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, ShieldAlert, ToggleLeft, ToggleRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { getTenant, listFeatureFlags, updateTenant } from '../api';
+import { RefreshCw } from 'lucide-react';
+import { updateTenant } from '../api';
 import { actionFailureCopy, LoadFailure } from '@/features/shared/load-failure';
-import { useRemoteResource } from '@/features/shared/use-remote-resource';
+import { LoadingState, ActionFeedback } from '@/features/shared/feedback';
+import { useActionConfirmation } from '@/features/shared/use-action-confirmation';
+import { useWorkspaceIdentity } from '@/features/shared/workspace-identity';
+import type { SessionFetch } from '@/lib/api/validated-response';
 import { TenantLogoEditor } from '../components/tenant-logo-editor';
+import { WorkspaceField } from '../components/workspace-field';
+import { FeatureFlagsEditor } from '../components/feature-flags-editor';
+import { useTenantSettings } from '../use-tenant-settings';
 
-interface FeatureFlag {
-  id: string;
-  name: string;
-  enabled?: boolean;
-}
-
-interface TenantInfo {
-  id: string;
-  name: string;
-  publicSlug: string | null;
-  isPublicFormEnabled: boolean;
-  isActive: boolean;
-  createdAt: string;
-  logoUrl: string | null;
-}
-
-export default function SettingsPage() {
-  const { session, fetchApi, isAdmin } = useSession();
-  const [slugInput, setSlugInput] = useState('');
-  const [isSavingSlug, setIsSavingSlug] = useState(false);
-  const [isSavingForm, setIsSavingForm] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [copyMessage, setCopyMessage] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    const [tenantRes, flagsRes] = await Promise.all([getTenant(fetchApi), listFeatureFlags(fetchApi)]);
-    return { tenant: tenantRes.data, flags: flagsRes.data };
-  }, [fetchApi]);
-
-  const { state, reload } = useRemoteResource(load, Boolean(session));
-  const tenant: TenantInfo | null = state.status === 'success' ? state.data.tenant : null;
-  const flags: FeatureFlag[] = state.status === 'success' ? state.data.flags : [];
+function WorkspaceSettings({
+  fetchApi,
+  tenantId,
+}: {
+  fetchApi: SessionFetch;
+  tenantId: string;
+}) {
+  const resource = useTenantSettings(fetchApi, tenantId);
+  const { tenant } = resource;
+  const handledAnchor = useRef<string | null>(null);
   useEffect(() => {
-    if (state.status === 'success') setSlugInput(state.data.tenant.publicSlug ?? '');
-  }, [state]);
-
-  if (!isAdmin) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-center">
-          <ShieldAlert className="mx-auto mb-4 h-10 w-10 text-destructive/50" />
-          <p className="font-body text-sm uppercase tracking-widest text-muted-foreground">Acceso restringido a administradores</p>
-        </div>
-      </div>
-    );
-  }
-
-  async function handleTogglePublicForm() {
-    if (!tenant || isSavingForm) return;
-    setActionError(null);
-    setIsSavingForm(true);
-    try {
-      await updateTenant(fetchApi, { isPublicFormEnabled: !tenant.isPublicFormEnabled });
-      reload();
-    } catch (error) {
-      setActionError(actionFailureCopy(error, 'el cambio del formulario público'));
-    } finally {
-      setIsSavingForm(false);
-    }
-  }
-
-  async function handleSaveSlug() {
-    if (!tenant) return;
-    if (slugInput.length < 3) {
-      setActionError('El enlace debe tener al menos 3 caracteres.');
+    if (resource.loading) return;
+    const name = window.location.hash.slice(1);
+    if (
+      !['brand', 'capture', 'capabilities', 'integrations'].includes(name) ||
+      handledAnchor.current === name
+    )
       return;
-    }
-    setIsSavingSlug(true);
-    setActionError(null);
+    const section = document.getElementById(name);
+    if (!section) return;
+    section.scrollIntoView({ block: 'start' });
+    section.focus({ preventScroll: true });
+    handledAnchor.current = name;
+  }, [resource.loading, tenant?.id]);
+
+  const identity = useWorkspaceIdentity();
+  const rename = identity?.rename;
+  useEffect(() => {
+    if (tenant?.name) rename?.(tenant.name);
+  }, [tenant?.name, rename]);
+  const [savingReception, setSavingReception] = useState(false);
+  const receptionLock = useRef(false);
+  const [receptionError, setReceptionError] = useState<string | null>(null);
+  const [receptionMessage, setReceptionMessage] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const linkInput = useRef<HTMLInputElement>(null);
+  const confirmation = useActionConfirmation();
+  async function toggleReception() {
+    if (!tenant || receptionLock.current) return;
+    receptionLock.current = true;
+    setSavingReception(true);
+    resource.beginWrite();
+    setReceptionError(null);
+    setReceptionMessage(null);
     try {
-      await updateTenant(fetchApi, { publicSlug: slugInput });
-      reload();
-    } catch (error) {
-      setActionError(actionFailureCopy(error, 'el cambio del enlace público'));
+      const response = await updateTenant(
+        fetchApi,
+        { isPublicFormEnabled: !tenant.isPublicFormEnabled },
+        tenantId,
+      );
+      resource.merge(response.data, ['isPublicFormEnabled']);
+      setReceptionMessage(
+        response.data.isPublicFormEnabled
+          ? 'Recepción abierta.'
+          : 'Recepción cerrada. La galería sigue disponible.',
+      );
+    } catch (failure) {
+      setReceptionError(actionFailureCopy(failure, 'el cambio de recepción'));
     } finally {
-      setIsSavingSlug(false);
+      receptionLock.current = false;
+      setSavingReception(false);
+      resource.endWrite();
     }
   }
-
-  const publicLink = typeof window !== 'undefined' ? `${window.location.origin}/p/${tenant?.publicSlug}` : '';
-
+  const publicLink =
+    tenant?.publicSlug && typeof window !== 'undefined'
+      ? `${window.location.origin}/p/${tenant.publicSlug}`
+      : '';
   return (
     <>
-      <DashboardHeader title="Configuración" description="Información de tu espacio de trabajo y módulos opcionales.">
-        <Button variant="ghost" onClick={reload} className="h-10 font-body text-xs uppercase tracking-wider">
-          <RefreshCw className="mr-2 h-4 w-4" /> Refrescar
+      <DashboardHeader
+        title="Configuración"
+        description="Identidad, recepción de testimonios y parámetros de este espacio."
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={resource.loading || resource.writes > 0}
+          onClick={() => void resource.reload()}
+        >
+          <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+          Refrescar
         </Button>
       </DashboardHeader>
-
-      {actionError && <p role="alert" className="mb-6 border border-destructive p-4 font-body text-sm">{actionError}</p>}
-      {state.status === 'loading' ? (
-        <div className="flex items-center gap-3 py-20">
-          <div className="h-5 w-5 animate-spin border-2 border-primary border-t-transparent" />
-          <span className="font-body text-sm text-muted-foreground">Cargando...</span>
-        </div>
-      ) : state.status === 'error' ? (
-        <LoadFailure error={state.error} resource="la configuración" onRetry={reload} />
-      ) : (
-        <div className="grid gap-8">
-          {tenant && <TenantLogoEditor key={tenant.id} tenantId={tenant.id} name={tenant.name}
-            logoUrl={tenant.logoUrl} fetchApi={fetchApi} onSaved={reload} />}
-          {/* Tenant Info */}
-          <div>
-            <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
-              Mi Espacio de Trabajo
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="border p-6">
-                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Nombre de la Marca</span>
-                <p className="mt-2 font-caption text-2xl font-light italic text-foreground">{tenant?.name ?? '—'}</p>
-              </div>
-              <div className="border p-6">
-                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estado de la Cuenta</span>
-                <p className="mt-2">
-                  <span className={cn('px-2 py-0.5 font-body text-[10px] font-bold uppercase tracking-wider', tenant?.isActive ? 'bg-primary/10 text-primary' : 'bg-destructive/20 text-destructive')}>
-                    {tenant?.isActive ? 'Activa' : 'Inactiva'}
-                  </span>
-                </p>
-              </div>
-              <div className="border p-6 sm:col-span-3">
-                <span className="font-body text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Fecha de Creación</span>
-                <p className="mt-2 font-body text-sm text-foreground">{tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Formulario Público */}
-          <div>
-            <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
-              Buzón de Recepción Público
-            </h2>
-            <div className="border p-6 shadow-xs">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-4 mb-4">
-                <div>
-                  <h3 className="font-body text-sm font-medium text-foreground">Habilitar Recepción Externa</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Permite que tus clientes envíen testimonios usando un enlace seguro sin necesidad de iniciar sesión.</p>
-                </div>
-                <button
-                  type="button"
-                  aria-label="Habilitar recepción externa"
-                  aria-pressed={tenant?.isPublicFormEnabled ?? false}
-                  disabled={isSavingForm}
-                  className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-50"
-                  onClick={() => void handleTogglePublicForm()}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={cn('font-body text-[10px] font-bold uppercase tracking-wider', tenant?.isPublicFormEnabled ? 'text-primary' : 'text-muted-foreground')}>
-                      {tenant?.isPublicFormEnabled ? 'Habilitado' : 'Cerrado'}
-                    </span>
-                    {tenant?.isPublicFormEnabled ? (
-                      <ToggleRight className="h-8 w-8 text-primary" />
-                    ) : (
-                      <ToggleLeft className="h-8 w-8 text-muted-foreground/40" />
-                    )}
-                  </div>
-                </button>
-              </div>
-
-              <div className="grid gap-4">
-                <div>
-                  <label htmlFor="public-slug" className="font-body text-xs font-bold uppercase tracking-widest text-muted-foreground block mb-2">Enlace Personalizado</label>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="flex min-w-0 flex-1 max-w-sm">
-                      <span className="inline-flex items-center px-3 border border-r-0 bg-muted/20 text-muted-foreground text-sm font-body">/p/</span>
-                      <input 
-                        id="public-slug"
-                        type="text" 
-                        minLength={3}
-                        maxLength={50}
-                        value={slugInput}
-                        onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                        className="min-w-0 flex-1 w-full border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                        placeholder="tu-empresa"
-                      />
-                    </div>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => void handleSaveSlug()}
-                      disabled={isSavingSlug || slugInput === (tenant?.publicSlug ?? '')}
-                      className="font-body text-xs uppercase tracking-wider"
-                    >
-                      {isSavingSlug ? 'Guardando...' : 'Guardar Enlace'}
-                    </Button>
-                  </div>
-                </div>
-                
-                {tenant?.publicSlug && (
-                  <div className="mt-2 bg-muted/10 p-4 border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground font-body">Tu buzón público está disponible en:</p>
-                      <a href={publicLink} target="_blank" rel="noopener noreferrer" className="mt-1 block break-all text-sm font-medium text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-                        {publicLink}
-                      </a>
-                    </div>
-                    <Button 
-                      variant="default" 
-                      onClick={() => {
-                        void navigator.clipboard.writeText(publicLink)
-                          .then(() => setCopyMessage('Enlace copiado.'))
-                          .catch(() => setCopyMessage('No se pudo copiar el enlace.'));
-                      }}
-                      className="font-body text-xs uppercase tracking-wider"
-                    >
-                      Copiar
-                    </Button>
-                  </div>
-                )}
-                {copyMessage && <p role="status" className="font-body text-sm text-muted-foreground">{copyMessage}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Feature Flags */}
-          <div>
-            <h2 className="mb-6 font-body text-xs font-bold uppercase tracking-widest text-foreground">
-              Módulos Opcionales
-            </h2>
-            {flags.length === 0 ? (
-              <div className="border border-dashed p-12 text-center">
-                <p className="font-body text-sm text-muted-foreground">No hay módulos disponibles.</p>
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                {flags.map((f) => (
-                  <div key={f.id} className="flex items-center justify-between border p-5 transition-colors hover:bg-card">
-                    <div>
-                      <span className="font-body text-sm font-medium text-foreground">
-                        {f.name === 'enable_analytics' && 'Módulo de Analítica Avanzada'}
-                        {f.name === 'enable_webhooks' && 'Integraciones y Webhooks'}
-                        {f.name === 'enable_scoring' && 'Algoritmo de Relevancia Automático'}
-                        {f.name === 'testimonials' && 'Gestor Principal de Testimonios'}
-                        {!['enable_analytics', 'enable_webhooks', 'enable_scoring', 'testimonials'].includes(f.name) && f.name}
-                      </span>
-                      <p className="mt-1 font-body text-xs text-muted-foreground">
-                        {f.name === 'enable_analytics' && 'Obtén gráficas de conversión y clics de tus widgets públicos.'}
-                        {f.name === 'enable_webhooks' && 'Conecta eventos de testimonios con Slack, Zapier u otras herramientas.'}
-                        {f.name === 'enable_scoring' && 'Nuestra IA puntuará y destacará automáticamente tus mejores testimonios.'}
-                        {f.name === 'testimonials' && 'Permite la recepción y gestión manual de contenido.'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={cn('font-body text-[10px] font-bold uppercase tracking-wider', f.enabled ? 'text-primary' : 'text-muted-foreground')}>
-                        {f.enabled ? 'Activo' : 'Inactivo'}
-                      </span>
-                      {f.enabled ? (
-                        <ToggleRight className="h-6 w-6 text-primary" />
-                      ) : (
-                        <ToggleLeft className="h-6 w-6 text-muted-foreground/40" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      {resource.loading && (
+        <LoadingState>
+          {tenant
+            ? 'Actualizando datos del espacio…'
+            : 'Cargando datos del espacio…'}
+        </LoadingState>
       )}
+      {resource.error != null && (
+        <LoadFailure
+          error={resource.error}
+          resource="los datos del espacio"
+          onRetry={() => void resource.reload()}
+        />
+      )}
+      <div className="space-y-10">
+        {tenant && (
+          <>
+            <section
+              id="brand"
+              tabIndex={-1}
+              aria-labelledby="brand-title"
+              className="scroll-mt-20"
+            >
+              <h2 id="brand-title" className="mb-5 font-display text-2xl">
+                Identidad del espacio
+              </h2>
+              <WorkspaceField
+                id="workspace-name"
+                label="Nombre del espacio"
+                value={tenant.name}
+                help="Se muestra en el panel y en las páginas públicas. Usá entre 3 y 120 caracteres."
+                button="Guardar nombre"
+                minLength={3}
+                maxLength={120}
+                save={async (name) => {
+                  resource.beginWrite();
+                  try {
+                    const response = await updateTenant(
+                      fetchApi,
+                      { name },
+                      tenantId,
+                    );
+                    resource.merge(response.data, ['name']);
+                    identity?.rename(response.data.name);
+                  } finally {
+                    resource.endWrite();
+                  }
+                }}
+              />
+              <p className="mt-5 font-body text-sm text-muted-foreground">
+                Cuenta {tenant.isActive ? 'activa' : 'inactiva'} · Creada el{' '}
+                {new Date(tenant.createdAt).toLocaleDateString('es-AR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+                .
+              </p>
+            </section>
+            <TenantLogoEditor
+              key={tenant.id}
+              tenantId={tenant.id}
+              name={tenant.name}
+              logoUrl={tenant.logoUrl}
+              fetchApi={fetchApi}
+              onMutationStart={resource.beginWrite}
+              onMutationEnd={resource.endWrite}
+              onSaved={(response) => resource.merge(response, ['logoUrl'])}
+            />
+            <section
+              id="capture"
+              tabIndex={-1}
+              aria-labelledby="capture-title"
+              className="scroll-mt-20 border-t pt-8"
+            >
+              <h2 id="capture-title" className="mb-5 font-display text-2xl">
+                Enlace y recepción
+              </h2>
+              <WorkspaceField
+                id="public-slug"
+                label="Identificador del enlace"
+                value={tenant.publicSlug ?? ''}
+                help="Entre 3 y 50 letras minúsculas, números o guiones. Cambiarlo reemplaza el enlace anterior: actualizá los lugares donde lo compartiste."
+                button="Guardar enlace"
+                minLength={3}
+                maxLength={50}
+                pattern="[a-z0-9-]+"
+                save={async (publicSlug) => {
+                  resource.beginWrite();
+                  try {
+                    const response = await updateTenant(
+                      fetchApi,
+                      { publicSlug },
+                      tenantId,
+                    );
+                    resource.merge(response.data, ['publicSlug']);
+                    setCopyMessage(null);
+                  } finally {
+                    resource.endWrite();
+                  }
+                }}
+              />
+              {publicLink ? (
+                <div className="mt-6 max-w-2xl space-y-3 font-body">
+                  <label
+                    htmlFor="capture-url"
+                    className="block text-sm font-medium"
+                  >
+                    Enlace configurado para compartir
+                  </label>
+                  <input
+                    ref={linkInput}
+                    id="capture-url"
+                    value={publicLink}
+                    readOnly
+                    className="min-h-11 w-full min-w-0 border bg-background px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                    onFocus={(event) => event.target.select()}
+                  />
+                  <div className="flex flex-wrap items-center gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="transition-none"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(publicLink);
+                          setCopyMessage('Enlace copiado.');
+                        } catch {
+                          linkInput.current?.focus();
+                          linkInput.current?.select();
+                          setCopyMessage(
+                            'No pudimos copiar. El enlace quedó seleccionado para copiarlo manualmente.',
+                          );
+                        }
+                      }}
+                    >
+                      Copiar enlace
+                    </Button>
+                    <a
+                      href={`/p/${tenant.publicSlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+                    >
+                      Ver captura (nueva pestaña)
+                    </a>
+                  </div>
+                  {copyMessage && (
+                    <ActionFeedback kind="info">{copyMessage}</ActionFeedback>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-5 font-body text-sm">
+                  Guardá un identificador para obtener el enlace público.
+                </p>
+              )}
+              <div
+                className="mt-8 max-w-2xl border-t pt-6 font-body"
+                aria-busy={savingReception}
+              >
+                <h3 className="text-base font-medium">
+                  Recepción {tenant.isPublicFormEnabled ? 'abierta' : 'cerrada'}
+                </h3>
+                <p className="my-3 text-sm text-muted-foreground">
+                  {!tenant.publicSlug
+                    ? 'Configurá un enlace para poder recibir nuevos envíos.'
+                    : tenant.isPublicFormEnabled
+                      ? 'Se aceptan nuevos envíos por el enlace configurado.'
+                      : 'El enlace configurado puede mostrar la marca, pero no acepta nuevos envíos.'}{' '}
+                  Cerrar la recepción conserva los testimonios y la galería
+                  pública.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={savingReception}
+                  onClick={() => {
+                    if (tenant.isPublicFormEnabled)
+                      confirmation.confirm({
+                        title: 'Cerrar recepción de testimonios',
+                        description: `El espacio ${tenant.name} dejará de aceptar nuevos envíos anónimos. El enlace, la marca y la galería se conservan. Podés volver a abrirla desde aquí.`,
+                        confirmLabel: 'Confirmar cierre',
+                        task: 'el cierre de recepción',
+                        action: toggleReception,
+                      });
+                    else void toggleReception();
+                  }}
+                >
+                  {savingReception
+                    ? 'Guardando…'
+                    : tenant.isPublicFormEnabled
+                      ? 'Cerrar recepción'
+                      : 'Abrir recepción'}
+                </Button>
+                {receptionError && (
+                  <ActionFeedback className="mt-4">
+                    {receptionError}
+                  </ActionFeedback>
+                )}
+                {receptionMessage && (
+                  <ActionFeedback kind="success" className="mt-4">
+                    {receptionMessage}
+                  </ActionFeedback>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+        <section
+          id="integrations"
+          tabIndex={-1}
+          aria-labelledby="integrations-title"
+          className="scroll-mt-20 border-t pt-8 font-body"
+        >
+          <h2 id="integrations-title" className="font-display text-2xl">
+            Integraciones
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+            Consultá testimonios desde tu aplicación o enviá eventos a un
+            receptor HTTPS. Cada integración se configura en su pantalla.
+          </p>
+          <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <li>
+              <Link
+                className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                href="/admin/api-keys"
+              >
+                Gestionar API keys
+              </Link>
+            </li>
+            <li>
+              <Link
+                className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                href="/admin/webhooks"
+              >
+                Gestionar webhooks
+              </Link>
+            </li>
+            <li>
+              <Link
+                className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                href="/docs#integraciones"
+              >
+                Leer la guía de integración
+              </Link>
+            </li>
+          </ul>
+        </section>
+        <FeatureFlagsEditor fetchApi={fetchApi} tenantId={tenantId} />
+      </div>
+      {confirmation.dialog}
     </>
+  );
+}
+export default function SettingsPage() {
+  const { session, fetchApi, isAdmin } = useSession();
+  if (!isAdmin)
+    return (
+      <p className="py-12 text-center font-body text-sm">
+        Acceso restringido a administradores
+      </p>
+    );
+  if (!session) return <LoadingState>Cargando sesión…</LoadingState>;
+  return (
+    <WorkspaceSettings
+      key={session.user.tenantId}
+      fetchApi={fetchApi}
+      tenantId={session.user.tenantId}
+    />
   );
 }

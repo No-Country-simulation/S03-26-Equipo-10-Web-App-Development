@@ -1,65 +1,67 @@
-import { TrendingUp, BarChart3, Palette, Webhook, Users, Code2 } from "lucide-react";
-
+import Link from 'next/link';
 const features = [
   {
-    icon: TrendingUp,
-    title: "Scoring automático",
-    description: "Nuestro algoritmo destaca los testimonios más relevantes en función del engagement.",
+    title: 'Marca y clasificación',
+    description:
+      'Configurá nombre y logo. Organizá tus testimonios con categorías y etiquetas.',
+    href: '/docs#captura',
+    link: 'Configurar la recepción',
   },
   {
-    icon: BarChart3,
-    title: "Analítica en tiempo real",
-    description: "Mide vistas, clics y CTR para optimizar tu contenido de prueba social.",
+    title: 'Analítica de interacción',
+    description:
+      'Consultá las vistas, los clics y las reproducciones registradas. Los eventos enlazan a su testimonio.',
+    href: '/docs#publicacion',
+    link: 'Entender la publicación y sus métricas',
   },
   {
-    icon: Palette,
-    title: "Widget personalizable",
-    description: "Ajusta colores, tipografía y diseño sin tocar una línea de código.",
+    title: 'Orden por relevancia',
+    description:
+      'El scoring combina valoración, antigüedad e interacciones registradas para ordenar las historias.',
+    href: '/docs#moderacion',
+    link: 'Entender la revisión y el orden',
   },
   {
-    icon: Webhook,
-    title: "Webhooks en tiempo real",
-    description: "Conecta con Slack, CRM o cualquier sistema externo cuando se publique un testimonio.",
-  },
-  {
-    icon: Users,
-    title: "Multi-tenant",
-    description: "Ideal para agencias o empresas con múltiples marcas, todo aislado y seguro.",
-  },
-  {
-    icon: Code2,
-    title: "API pública",
-    description: "Accede a tus testimonios desde cualquier aplicación con nuestra REST API.",
+    title: 'API y webhooks',
+    description:
+      'Consultá testimonios publicados desde tu aplicación y enviá eventos a un receptor HTTPS que configures.',
+    href: '/docs#integraciones',
+    link: 'Preparar una integración',
   },
 ];
-
-export const FeaturesSection = () => {
+export function FeaturesSection() {
   return (
-    <section className="py-32">
+    <section
+      id="caracteristicas"
+      aria-labelledby="features-title"
+      className="scroll-mt-28 py-14 sm:py-20"
+    >
       <div className="container">
-        <div className="mb-20 flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b border-foreground/10 pb-16">
-          <div className="max-w-2xl">
-            <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">Características</span>
-            <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight text-foreground md:text-6xl md:leading-none">
-              Herramientas que <br />
-              <strong className="font-body font-bold not-italic">marcan diferencia.</strong>
-            </h2>
-          </div>
-          <p className="max-w-xs font-body text-sm text-muted-foreground uppercase tracking-widest font-medium">
-            Potencia cada aspecto de tu prueba social.
-          </p>
-        </div>
-        
-        <div className="grid gap-px bg-border sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((f) => (
-            <div key={f.title} className="group bg-background p-10 transition-colors hover:bg-card">
-              <f.icon className="mb-6 h-6 w-6 text-primary transition-transform duration-300 group-hover:scale-110" />
-              <h3 className="font-body text-base font-bold uppercase tracking-wider text-foreground">{f.title}</h3>
-              <p className="mt-3 font-body text-sm leading-relaxed text-muted-foreground">{f.description}</p>
+        <h2
+          id="features-title"
+          className="max-w-2xl text-balance font-caption text-3xl font-light italic leading-tight sm:text-5xl"
+        >
+          Más contexto para tu equipo.
+          <br />
+          Más formas de compartir.
+        </h2>
+        <dl className="mt-10 grid gap-x-16 md:grid-cols-2">
+          {features.map((feature) => (
+            <div key={feature.title} className="min-w-0 border-t py-6">
+              <dt className="text-lg font-semibold">{feature.title}</dt>
+              <dd className="mt-3 max-w-prose text-base leading-relaxed text-muted-foreground">
+                {feature.description}
+                <Link
+                  href={feature.href}
+                  className="mt-3 flex min-h-11 w-fit items-center text-sm text-primary underline underline-offset-4"
+                >
+                  {feature.link}
+                </Link>
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       </div>
     </section>
   );
-};
+}

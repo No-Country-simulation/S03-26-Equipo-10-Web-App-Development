@@ -6,14 +6,14 @@
 
 `/admin/business-intelligence` compone la pantalla del feature mediante Suspense. La sesión vigente (`useSession`) proporciona el transporte privado con cookies, recuperación y CSRF; no se introducen credenciales ni almacenamiento de tokens. NestJS autoriza cada consulta y mutación y obtiene el tenant de sesión.
 
-| Vista | Admin | Editor | Contenido |
-| --- | --- | --- | --- |
-| Resumen | Consulta y CSV | Consulta y CSV | Indicadores, vigencia, estados, categorías, gráfico con cortes ausentes y tabla diaria. |
-| Ejecuciones | Consulta | Consulta | Solicitudes e intentos paginados de forma independiente, filtros UTC/estado/origen. |
-| Detalle | Consulta y acciones permitidas | Consulta | Fase, tiempos, cantidades conocidas, resultado y explicación segura; solicitud con intentos asociados. |
-| Operación | Solicitar, reintentar y cancelar pendiente | Consulta | Señal del worker, programación, presupuesto, actividad y motivos de bloqueo del servidor. |
-| Configuración | Edición versionada | Sólo lectura | Frecuencia 1/6/24 h, pausa y avisos de fallos/atrasos con tolerancia 30/60/120 min. |
-| Auditoría | Consulta | Sin acceso | Actor técnico, instante, solicitud y configuración anterior/posterior. |
+| Vista         | Admin                                      | Editor         | Contenido                                                                                              |
+| ------------- | ------------------------------------------ | -------------- | ------------------------------------------------------------------------------------------------------ |
+| Resumen       | Consulta y CSV                             | Consulta y CSV | Indicadores, vigencia, estados, categorías, gráfico con cortes ausentes y tabla diaria.                |
+| Ejecuciones   | Consulta                                   | Consulta       | Solicitudes e intentos paginados de forma independiente, filtros UTC/estado/origen.                    |
+| Detalle       | Consulta y acciones permitidas             | Consulta       | Fase, tiempos, cantidades conocidas, resultado y explicación segura; solicitud con intentos asociados. |
+| Operación     | Solicitar, reintentar y cancelar pendiente | Consulta       | Señal del worker, programación, presupuesto, actividad y motivos de bloqueo del servidor.              |
+| Configuración | Edición versionada                         | Sólo lectura   | Frecuencia 1/6/24 h, pausa y avisos de fallos/atrasos con tolerancia 30/60/120 min.                    |
+| Auditoría     | Consulta                                   | Sin acceso     | Actor técnico, instante, solicitud y configuración anterior/posterior.                                 |
 
 `view`, `from`, `to`, `page`, `requestPage`, `status`, `origin`, `requestStatus`, `run` y `request` viven en URL. Los enlaces conservan filtros y eliminan detalles al cambiar de vista. Fechas reales UTC, máximo 366 días hasta hoy; 30 días por defecto. Un enlace inválido se explica sin consultar la API. Listas de 20 filas; paginación validada desde `meta` del envelope, nunca inventada.
 
@@ -42,3 +42,13 @@ La UI utiliza los tokens HSL y primitivas existentes; navegación semántica, `a
 ## Evidencia y límites
 
 Pruebas de contratos, UI, permisos, sesión, idempotencia, polling, configuración y CSV en el feature, más regresión web. La revisión móvil/teclado de fase4 usa una API sintética. Fase5 agrega un recorrido con navegador, API real del CMS, worker CLI independiente, dos PostgreSQL18.6 y Redis7 descartables: solicitud pendiente, cierre, nueva sesión y resultado correcto. Las pruebas verifican restauración, privilegios y caída OLAP aislada; el benchmark registra costo local de polling. Estas pruebas no certifican capacidad productiva ni auditoría WCAG completa. Los instantes usan UTC y ciclo explícito de24h para distinguir medianoche de mediodía. `BI_OPERATIONS_ENABLED` permanece desactivada por defecto; no se modificó infraestructura ni se aplicaron migraciones persistentes.
+
+## Mejoras de lectura y protección de edición — fase 10
+
+Las siete superficies conservan sus adaptadores y contratos, URL, UTC, CSV, polling visible y protocolo de comandos inciertos. Resumen y Operación hacen explícita la vigencia y ofrecen el siguiente paso. El gráfico muestra cantidad de testimonios y fechas UTC, una escala numérica (abreviada para cantidades grandes, con desplazamiento horizontal para conservar su legibilidad en móvil) y huecos para días sin corte; cero sigue siendo una observación válida. Los valores exactos permanecen en la tabla diaria y en CSV. Antes del primer corte, inventario y rating se muestran como «Sin corte», sin presentar un cero observado.
+
+Solicitudes e intentos se explican por separado: una intención durable puede tener varios intentos y la aceptación no confirma publicación. Los detalles priorizan estado/fase/resultado y recuperación; los identificadores se consultan en detalles técnicos secundarios. Auditoría muestra sólo las preferencias modificadas con valores anteriores y posteriores, conserva versiones y deja actor/ID en una expansión secundaria. Sin configuración previa se informa la ausencia, sin inventar defaults históricos.
+
+Configuración detecta cambios efectivos contra la base de edición y avisa al salir por enlaces del panel/BI, cierre de sesión o Atrás. Cancelar conserva el formulario; descartar permite salir. Recargar/cerrar usa el aviso nativo del navegador. Durante una escritura no se abandona por los controles de navegación; una respuesta incierta mantiene los campos y exige revisar la versión vigente. No se persiste el draft ni se cambian las garantías del servidor. El guard usa una entrada de historial de la misma URL que contiene sólo un marcador booleano; las preferencias permanecen en memoria. Una nueva pestaña no elimina el formulario actual.
+
+Las regiones de tablas tienen contención de ancho, scroll horizontal y acceso con teclado. La revisión de esta fase usa Chromium con viewports emulados, datos y transporte sintéticos; no reemplaza los servicios reales, otros motores, dispositivo físico ni una auditoría completa con lector de pantalla. La evidencia histórica de integración BI corresponde a su propio SHA y entorno; no se transfiere al nuevo código.

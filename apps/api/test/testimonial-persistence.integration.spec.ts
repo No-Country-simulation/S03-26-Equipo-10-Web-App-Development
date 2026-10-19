@@ -1,16 +1,23 @@
-import { ConflictError, NotFoundError } from '../src/common/errors/application.error';
+import {
+  ConflictError,
+  NotFoundError,
+} from '../src/common/errors/application.error';
 
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../src/modules/database/prisma.service';
 import { TestimonialRepository } from '../src/modules/testimonials/repositories/testimonial.repository';
+import { CategoryRepository } from '../src/modules/testimonials/repositories/category.repository';
+import { TagRepository } from '../src/modules/testimonials/repositories/tag.repository';
 import { AnalyticsRepository } from '../src/modules/analytics/repositories/analytics.repository';
 
 // Requires a disposable PostgreSQL database with the repository migrations applied.
 // Set TEST_DATABASE_URL explicitly; this suite never modifies a developer database by default.
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 if (process.env.CI && !testDatabaseUrl) {
-  throw new Error('TEST_DATABASE_URL is required in CI so PostgreSQL integration tests cannot be skipped');
+  throw new Error(
+    'TEST_DATABASE_URL is required in CI so PostgreSQL integration tests cannot be skipped',
+  );
 }
 const describeWithDatabase = testDatabaseUrl ? describe : describe.skip;
 
@@ -30,13 +37,29 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
 
   beforeAll(async () => {
     if (!testDatabaseUrl) throw new Error('TEST_DATABASE_URL is required');
-    prisma = new PrismaClient({ datasources: { db: { url: testDatabaseUrl } } });
+    prisma = new PrismaClient({
+      datasources: { db: { url: testDatabaseUrl } },
+    });
     await prisma.$connect();
-    for (const code of ['draft', 'pending', 'approved', 'published', 'rejected']) {
-      await prisma.testimonialStatus.upsert({ where: { code }, create: { code }, update: {} });
+    for (const code of [
+      'draft',
+      'pending',
+      'approved',
+      'published',
+      'rejected',
+    ]) {
+      await prisma.testimonialStatus.upsert({
+        where: { code },
+        create: { code },
+        update: {},
+      });
     }
-    const tenant = await prisma.tenant.create({ data: { name: `integration-${randomUUID()}` } });
-    const otherTenant = await prisma.tenant.create({ data: { name: `integration-${randomUUID()}` } });
+    const tenant = await prisma.tenant.create({
+      data: { name: `integration-${randomUUID()}` },
+    });
+    const otherTenant = await prisma.tenant.create({
+      data: { name: `integration-${randomUUID()}` },
+    });
     tenantId = tenant.id;
     otherTenantId = otherTenant.id;
     repo = new TestimonialRepository(prisma as PrismaService);
@@ -45,11 +68,27 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
   afterAll(async () => {
     if (!prisma) return;
     if (tenantId) {
-      await prisma.outboxEvent.deleteMany({ where: { tenantId: { in: [tenantId, otherTenantId] } } });
-      await prisma.testimonialTag.deleteMany({ where: { testimonial: { tenantId: { in: [tenantId, otherTenantId] } } } });
-      await prisma.testimonial.deleteMany({ where: { tenantId: { in: [tenantId, otherTenantId] } } });
-      await prisma.tag.deleteMany({ where: { tenantId: { in: [tenantId, otherTenantId] } } });
-      await prisma.tenant.deleteMany({ where: { id: { in: [tenantId, otherTenantId] } } });
+      await prisma.outboxEvent.deleteMany({
+        where: { tenantId: { in: [tenantId, otherTenantId] } },
+      });
+      await prisma.testimonialTag.deleteMany({
+        where: { testimonial: { tenantId: { in: [tenantId, otherTenantId] } } },
+      });
+      await prisma.analyticsEvent.deleteMany({
+        where: { tenantId: { in: [tenantId, otherTenantId] } },
+      });
+      await prisma.testimonial.deleteMany({
+        where: { tenantId: { in: [tenantId, otherTenantId] } },
+      });
+      await prisma.tag.deleteMany({
+        where: { tenantId: { in: [tenantId, otherTenantId] } },
+      });
+      await prisma.category.deleteMany({
+        where: { tenantId: { in: [tenantId, otherTenantId] } },
+      });
+      await prisma.tenant.deleteMany({
+        where: { id: { in: [tenantId, otherTenantId] } },
+      });
     }
     await prisma.$disconnect();
   });
@@ -57,96 +96,443 @@ describeWithDatabase('testimonial persistence with PostgreSQL', () => {
   it('commits a pending public testimonial and its matching outbox event', async () => {
     const created = await repo.createWithEvent(data(), 'pending', {
       eventType: 'testimonial.created',
-      payload: view => ({ id: view.id, status: view.status, source: 'public_form' }),
+      payload: (view) => ({
+        id: view.id,
+        status: view.status,
+        source: 'public_form',
+      }),
     });
     const event = await prisma.outboxEvent.findFirst({
-      where: { tenantId, eventType: 'testimonial.created', payload: { path: ['id'], equals: created.id } },
+      where: {
+        tenantId,
+        eventType: 'testimonial.created',
+        payload: { path: ['id'], equals: created.id },
+      },
     });
 
     expect(created.status).toBe('pending');
-    expect(event?.payload).toMatchObject({ id: created.id, status: 'pending', source: 'public_form' });
+    expect(event?.payload).toMatchObject({
+      id: created.id,
+      status: 'pending',
+      source: 'public_form',
+    });
   });
 
   it('rolls back a testimonial when the outbox insert fails', async () => {
     const marker = `rollback-${randomUUID()}`;
-    await expect(repo.createWithEvent({ ...data(), content: marker }, 'pending', {
-      eventType: 'testimonial.created',
-      payload: () => ({ invalidJson: BigInt(1) }),
-    })).rejects.toThrow();
+    await expect(
+      repo.createWithEvent({ ...data(), content: marker }, 'pending', {
+        eventType: 'testimonial.created',
+        payload: () => ({ invalidJson: BigInt(1) }),
+      }),
+    ).rejects.toThrow();
 
-    expect(await prisma.testimonial.count({ where: { tenantId, content: marker } })).toBe(0);
+    expect(
+      await prisma.testimonial.count({ where: { tenantId, content: marker } }),
+    ).toBe(0);
   });
 
   it('rolls back publication when its outbox insert fails', async () => {
     const created = await repo.createWithEvent(data(), 'draft', {
-      eventType: 'testimonial.created', payload: view => ({ id: view.id }),
+      eventType: 'testimonial.created',
+      payload: (view) => ({ id: view.id }),
     });
     await repo.updateStatus(tenantId, created.id, 'draft', 'pending');
     await repo.updateStatus(tenantId, created.id, 'pending', 'approved');
 
-    await expect(repo.updateStatus(tenantId, created.id, 'approved', 'published', { publishedAt: new Date() }, {
-      eventType: 'testimonial.published', payload: () => ({ invalidJson: BigInt(1) }),
-    })).rejects.toThrow();
+    await expect(
+      repo.updateStatus(
+        tenantId,
+        created.id,
+        'approved',
+        'published',
+        { publishedAt: new Date() },
+        {
+          eventType: 'testimonial.published',
+          payload: () => ({ invalidJson: BigInt(1) }),
+        },
+      ),
+    ).rejects.toThrow();
 
-    expect((await repo.findById(tenantId, created.id))?.status).toBe('approved');
-    expect(await prisma.outboxEvent.count({ where: { tenantId, eventType: 'testimonial.published', payload: { path: ['id'], equals: created.id } } })).toBe(0);
+    expect((await repo.findById(tenantId, created.id))?.status).toBe(
+      'approved',
+    );
+    expect(
+      await prisma.outboxEvent.count({
+        where: {
+          tenantId,
+          eventType: 'testimonial.published',
+          payload: { path: ['id'], equals: created.id },
+        },
+      }),
+    ).toBe(0);
   });
 
   it('rejects cross-tenant writes and associations', async () => {
     const created = await repo.createWithEvent(data(), 'draft', {
-      eventType: 'testimonial.created', payload: view => ({ id: view.id }),
+      eventType: 'testimonial.created',
+      payload: (view) => ({ id: view.id }),
     });
-    const foreignTag = await prisma.tag.create({ data: { tenantId: otherTenantId, name: `foreign-${randomUUID()}` } });
+    const foreignTag = await prisma.tag.create({
+      data: { tenantId: otherTenantId, name: `foreign-${randomUUID()}` },
+    });
 
-    await expect(repo.updateStatus(otherTenantId, created.id, 'draft', 'pending')).rejects.toThrow(NotFoundError);
-    await expect(repo.updateFields(otherTenantId, created.id, { content: 'Intrusion' }, 'draft')).rejects.toThrow();
-    await expect(repo.updateMedia(otherTenantId, created.id, 'draft', { imageUrl: 'https://example.com/x' })).rejects.toThrow();
-    await expect(repo.updateFields(tenantId, created.id, { tagIds: [foreignTag.id] }, 'draft')).rejects.toThrow();
-    await expect(new AnalyticsRepository(prisma as PrismaService).trackEvent(otherTenantId, {
-      eventType: 'view', testimonialId: created.id,
-    })).rejects.toThrow();
-    expect((await repo.findById(tenantId, created.id))?.content).toBe(data().content);
+    await expect(
+      repo.updateStatus(otherTenantId, created.id, 'draft', 'pending'),
+    ).rejects.toThrow(NotFoundError);
+    await expect(
+      repo.updateFields(
+        otherTenantId,
+        created.id,
+        { content: 'Intrusion' },
+        'draft',
+      ),
+    ).rejects.toThrow();
+    await expect(
+      repo.updateMedia(otherTenantId, created.id, 'draft', {
+        imageUrl: 'https://example.com/x',
+      }),
+    ).rejects.toThrow();
+    await expect(
+      repo.updateFields(
+        tenantId,
+        created.id,
+        { tagIds: [foreignTag.id] },
+        'draft',
+      ),
+    ).rejects.toThrow();
+    await expect(
+      new AnalyticsRepository(prisma as PrismaService).trackEvent(
+        otherTenantId,
+        {
+          eventType: 'view',
+          testimonialId: created.id,
+        },
+      ),
+    ).rejects.toThrow();
+    expect((await repo.findById(tenantId, created.id))?.content).toBe(
+      data().content,
+    );
   });
 
   it('allows only one concurrent transition from the expected state', async () => {
     const created = await repo.createWithEvent(data(), 'draft', {
-      eventType: 'testimonial.created', payload: view => ({ id: view.id }),
+      eventType: 'testimonial.created',
+      payload: (view) => ({ id: view.id }),
     });
     const results = await Promise.allSettled([
       repo.updateStatus(tenantId, created.id, 'draft', 'pending'),
       repo.updateStatus(tenantId, created.id, 'draft', 'pending'),
     ]);
 
-    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
-    expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
-    expect(results.find(result => result.status === 'rejected')).toMatchObject({
+    expect(
+      results.filter((result) => result.status === 'fulfilled'),
+    ).toHaveLength(1);
+    expect(
+      results.filter((result) => result.status === 'rejected'),
+    ).toHaveLength(1);
+    expect(
+      results.find((result) => result.status === 'rejected'),
+    ).toMatchObject({
       reason: expect.any(ConflictError),
     });
     expect((await repo.findById(tenantId, created.id))?.status).toBe('pending');
   });
 
   it('uses the testimonial ID to break ties across administrative and public pages', async () => {
-    const published = await prisma.testimonialStatus.findUniqueOrThrow({ where: { code: 'published' } });
+    const published = await prisma.testimonialStatus.findUniqueOrThrow({
+      where: { code: 'published' },
+    });
     const tiedAt = new Date('2099-01-01T00:00:00.000Z');
     const ids = [randomUUID(), randomUUID(), randomUUID()];
     for (const id of ids) {
       await prisma.testimonial.create({
         data: {
-          id, tenantId, content: 'Tied pagination testimonial', authorName: 'Integration test',
-          rating: 5, statusId: published.id, score: 98765,
-          createdAt: tiedAt, publishedAt: tiedAt,
+          id,
+          tenantId,
+          content: 'Tied pagination testimonial',
+          authorName: 'Integration test',
+          rating: 5,
+          statusId: published.id,
+          score: 98765,
+          createdAt: tiedAt,
+          publishedAt: tiedAt,
         },
       });
     }
     const expected = ids.sort().reverse();
     const adminFirst = await repo.findByTenant(tenantId, { page: 1, limit: 2 });
-    const adminSecond = await repo.findByTenant(tenantId, { page: 2, limit: 2 });
-    expect([...adminFirst.items, ...adminSecond.items].slice(0, 3).map(item => item.id)).toEqual(expected);
+    const adminSecond = await repo.findByTenant(tenantId, {
+      page: 2,
+      limit: 2,
+    });
+    expect(
+      [...adminFirst.items, ...adminSecond.items]
+        .slice(0, 3)
+        .map((item) => item.id),
+    ).toEqual(expected);
 
     for (const sort of ['score:desc', 'publishedAt:desc'] as const) {
-      const first = await repo.findPublished(tenantId, { page: 1, limit: 2, sort });
-      const second = await repo.findPublished(tenantId, { page: 2, limit: 2, sort });
-      expect([...first.items, ...second.items].slice(0, 3).map(item => item.id)).toEqual(expected);
+      const first = await repo.findPublished(tenantId, {
+        page: 1,
+        limit: 2,
+        sort,
+      });
+      const second = await repo.findPublished(tenantId, {
+        page: 2,
+        limit: 2,
+        sort,
+      });
+      expect(
+        [...first.items, ...second.items].slice(0, 3).map((item) => item.id),
+      ).toEqual(expected);
     }
+  });
+  it('reaches the twenty-first publication without exposing another tenant or unpublished content', async () => {
+    const marker = `public-pages-${randomUUID()}`;
+    const category = await prisma.category.create({
+      data: { tenantId, name: marker },
+    });
+    const foreignCategory = await prisma.category.create({
+      data: { tenantId: otherTenantId, name: marker },
+    });
+    const published = await prisma.testimonialStatus.findUniqueOrThrow({
+      where: { code: 'published' },
+    });
+    const pending = await prisma.testimonialStatus.findUniqueOrThrow({
+      where: { code: 'pending' },
+    });
+    const rows = Array.from({ length: 21 }, (_, index) => ({
+      ...data(),
+      id: randomUUID(),
+      categoryId: category.id,
+      statusId: published.id,
+      score: index + 1,
+      publishedAt: new Date('2026-10-18T00:00:00Z'),
+    }));
+    await prisma.testimonial.createMany({ data: rows });
+    await prisma.testimonial.create({
+      data: { ...data(), categoryId: category.id, statusId: pending.id },
+    });
+    const foreign = await prisma.testimonial.create({
+      data: {
+        ...data(),
+        tenantId: otherTenantId,
+        categoryId: foreignCategory.id,
+        statusId: published.id,
+        score: 100,
+      },
+    });
+    const first = await repo.findPublished(tenantId, {
+      category: marker,
+      page: 1,
+      limit: 20,
+    });
+    const second = await repo.findPublished(tenantId, {
+      category: marker,
+      page: 2,
+      limit: 20,
+    });
+    expect(first.total).toBe(21);
+    expect(first.items).toHaveLength(20);
+    expect(second.total).toBe(21);
+    expect(second.items.map((item) => item.id)).toEqual([rows[0]!.id]);
+    const ids = [...first.items, ...second.items].map((item) => item.id);
+    expect(new Set(ids).size).toBe(21);
+    expect(ids).not.toContain(foreign.id);
+  });
+
+  it('filters before pagination, combines tags with AND and excludes foreign tenant resources', async () => {
+    const marker = `search-${randomUUID()}`;
+    const category = await prisma.category.create({
+      data: { tenantId, name: marker },
+    });
+    const firstTag = await prisma.tag.create({
+      data: { tenantId, name: `${marker}-a` },
+    });
+    const secondTag = await prisma.tag.create({
+      data: { tenantId, name: `${marker}-b` },
+    });
+    const created = [];
+    for (let index = 0; index < 23; index++) {
+      created.push(
+        await repo.createWithEvent(
+          {
+            ...data(),
+            authorName: `${marker}-${index}`,
+            content: 'Texto sin la consulta del autor',
+            categoryId: category.id,
+            tagIds: index < 22 ? [firstTag.id, secondTag.id] : [firstTag.id],
+          },
+          'pending',
+          {
+            eventType: 'testimonial.created',
+            payload: (view) => ({ id: view.id }),
+          },
+        ),
+      );
+    }
+    await repo.createWithEvent(
+      { ...data(), tenantId: otherTenantId, authorName: marker },
+      'pending',
+      {
+        eventType: 'testimonial.created',
+        payload: (view) => ({ id: view.id }),
+      },
+    );
+    const query = {
+      page: 1,
+      limit: 20,
+      q: marker.toUpperCase(),
+      status: 'pending' as const,
+      categoryId: category.id,
+      tagIds: [firstTag.id, secondTag.id],
+      sort: 'score:desc' as const,
+    };
+    const first = await repo.findByTenant(tenantId, query);
+    const second = await repo.findByTenant(tenantId, { ...query, page: 2 });
+    expect(first.total).toBe(22);
+    expect(second.total).toBe(22);
+    expect(first.items).toHaveLength(20);
+    expect(second.items).toHaveLength(2);
+    expect([...first.items, ...second.items].map((row) => row.id)).toEqual(
+      created
+        .slice(0, 22)
+        .map((row) => row.id)
+        .sort()
+        .reverse(),
+    );
+    expect(first.items.every((row) => row.tenantId === tenantId)).toBe(true);
+    expect(await repo.findById(otherTenantId, created[0]!.id)).toBeNull();
+    const foreignFilter = await repo.findByTenant(otherTenantId, query);
+    expect(foreignFilter).toEqual({ items: [], total: 0 });
+    expect(
+      (
+        await new CategoryRepository(prisma as PrismaService).findByTenant(
+          tenantId,
+          { page: 1, limit: 1, q: marker },
+        )
+      ).items[0]?.testimonialCount,
+    ).toBe(23);
+    const tags = await new TagRepository(prisma as PrismaService).findByTenant(
+      tenantId,
+      { page: 1, limit: 20, q: marker },
+    );
+    expect(tags.items.map((tag) => tag.testimonialCount)).toEqual([23, 22]);
+    const summary = await repo.summarize(tenantId);
+    expect(summary.total).toBe(
+      await prisma.testimonial.count({ where: { tenantId } }),
+    );
+    expect(summary.byStatus.pending).toBe(
+      await prisma.testimonial.count({
+        where: { tenantId, status: { code: 'pending' } },
+      }),
+    );
+  });
+  it('deletes tag associations atomically but preserves a testimonial with analytics', async () => {
+    const tag = await prisma.tag.create({
+      data: { tenantId, name: `removal-${randomUUID()}` },
+    });
+    const record = await repo.createWithEvent(
+      { ...data(), tagIds: [tag.id] },
+      'draft',
+      {
+        eventType: 'testimonial.created',
+        payload: (view) => ({ id: view.id }),
+      },
+    );
+    await repo.remove(tenantId, record.id);
+    expect(await repo.findById(tenantId, record.id)).toBeNull();
+    expect(
+      await prisma.testimonialTag.count({
+        where: { tenantId, testimonialId: record.id },
+      }),
+    ).toBe(0);
+    expect(await prisma.tag.count({ where: { tenantId, id: tag.id } })).toBe(1);
+    const retained = await repo.createWithEvent(
+      { ...data(), tagIds: [tag.id] },
+      'pending',
+      {
+        eventType: 'testimonial.created',
+        payload: (view) => ({ id: view.id }),
+      },
+    );
+    await new AnalyticsRepository(prisma as PrismaService).trackEvent(
+      tenantId,
+      { eventType: 'view', testimonialId: retained.id },
+    );
+    await expect(repo.remove(tenantId, retained.id)).rejects.toMatchObject({
+      kind: 'conflict',
+      code: 'TESTIMONIAL_HAS_ACTIVITY',
+    });
+    expect(await repo.findById(tenantId, retained.id)).not.toBeNull();
+    expect(
+      await prisma.testimonialTag.count({
+        where: { tenantId, testimonialId: retained.id },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.analyticsEvent.count({
+        where: { tenantId, testimonialId: retained.id },
+      }),
+    ).toBe(1);
+  });
+  it('reads accumulated analytics and bounded testimonial context only for the authenticated tenant', async () => {
+    const analytics = new AnalyticsRepository(prisma as PrismaService);
+    const published = await prisma.testimonialStatus.findUniqueOrThrow({
+      where: { code: 'published' },
+    });
+    const own = await prisma.testimonial.create({
+      data: {
+        ...data(),
+        authorName: 'Autora analítica sintética',
+        statusId: published.id,
+      },
+    });
+    const foreign = await prisma.testimonial.create({
+      data: {
+        ...data(),
+        tenantId: otherTenantId,
+        authorName: 'Autora de otra empresa',
+        statusId: published.id,
+      },
+    });
+    await analytics.trackEvent(otherTenantId, {
+      testimonialId: foreign.id,
+      eventType: 'click',
+    });
+    for (let index = 0; index < 51; index++)
+      await analytics.trackEvent(tenantId, {
+        testimonialId: own.id,
+        eventType: 'view',
+      });
+    const result = await analytics.getDashboard(tenantId);
+    expect(result.totalViews).toBe(
+      await prisma.analyticsEvent.count({
+        where: {
+          tenantId,
+          eventType: { code: 'view' },
+          createdAt: { lte: new Date(result.observedAt) },
+        },
+      }),
+    );
+    expect(result.recentEventsLimit).toBe(50);
+    expect(result.events).toHaveLength(50);
+    expect(
+      result.events.every(
+        (event) =>
+          event.testimonial.id === own.id &&
+          event.testimonial.authorName === 'Autora analítica sintética',
+      ),
+    ).toBe(true);
+    expect(result.events.map((event) => event.id)).toEqual(
+      [...result.events.map((event) => event.id)].sort((a, b) => b - a),
+    );
+    const earliest = await prisma.analyticsEvent.findFirst({
+      where: { tenantId },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(result.period.from).toBe(earliest?.createdAt.toISOString());
+    expect(result.period.to).toBe(result.observedAt);
   });
 });

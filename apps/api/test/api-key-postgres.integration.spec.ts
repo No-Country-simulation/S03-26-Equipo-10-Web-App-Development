@@ -314,6 +314,28 @@ describeWithDatabase('API key lifecycle in PostgreSQL', () => {
     expect(old.expiresAt).toEqual(originalExpiry);
   });
 
+  it('preserves the exact expiration when rotation omits it', async () => {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    expiresAt.setMilliseconds(123);
+    expiresAt.setSeconds(37);
+    const created = await service.createApiKey(tenantId, ownerId, {
+      name: 'Exact expiration',
+      scopes: ['testimonials:read'],
+      expiresAt: expiresAt.toISOString(),
+    } as any);
+    const rotated = await service.rotateApiKey(tenantId, ownerId, created.id, {
+      name: 'Exact expiration rotated',
+      scopes: ['testimonials:read'],
+    } as any);
+    expect(rotated.expiresAt).toEqual(expiresAt);
+    const logical = await prisma.apiKey.findFirstOrThrow({
+      where: { id: created.id, tenantId },
+    });
+    expect(logical.expiresAt).toEqual(expiresAt);
+    const listed = await service.listApiKeys(tenantId);
+    expect(JSON.stringify(listed).includes(rotated.apiKey)).toBe(false);
+  });
+
   it('accepts a legacy tms_ key during migration, then cuts it off after rotation', async () => {
     const raw = `tms_${'a'.repeat(48)}`;
     const crypto = new ApiKeyCryptoService({
