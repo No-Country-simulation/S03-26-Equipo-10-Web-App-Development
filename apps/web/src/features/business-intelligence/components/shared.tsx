@@ -14,6 +14,8 @@ export const linkClass =
   'break-words text-primary underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 export function biFailure(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.code === 'BI_STATISTICS_DISABLED') return 'La analítica estadística todavía no está habilitada. El resumen sigue disponible.';
+    if (error.code === 'BI_STATISTICS_UNAVAILABLE') return 'La analítica estadística no está disponible. Volvé a intentar; se conserva el último informe publicado.';
     if (error.code === 'BI_DISABLED')
       return 'La inteligencia de negocio todavía no está habilitada para este entorno.';
     if (error.code === 'BI_OPERATIONS_DISABLED')

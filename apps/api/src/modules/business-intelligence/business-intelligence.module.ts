@@ -1,3 +1,6 @@
+import { BiStatisticsController, BiStatisticsGuard } from './controllers/bi-statistics.controller';
+import { StatisticsReadRepository } from './repositories/statistics-read.repository';
+import { StatisticsReadService } from './services/statistics-read.service';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { BiController } from './controllers/bi.controller';
 import { BiConnection } from './repositories/bi-connection';
@@ -14,14 +17,15 @@ import { OperationsReadRepository } from './repositories/operations-read.reposit
 import { OperationsControlRepository } from './repositories/operations-control.repository';
 import { OperationsService } from './services/operations.service';
 
-@Module({ controllers: [BiController, BiMetricsController, BiOperationsController], providers: [
-  BiConnection, BiControlConnection, DashboardRepository, DashboardService, BiMetricsService,
+@Module({ controllers: [BiController, BiMetricsController, BiOperationsController, BiStatisticsController], providers: [
+  BiConnection, BiControlConnection, DashboardRepository, DashboardService, BiMetricsService, BiStatisticsGuard, StatisticsReadService,
+  { provide: StatisticsReadRepository, inject: [BiConnection], useFactory: (connection: BiConnection) => new StatisticsReadRepository(connection) },
   BiOperationsGuard, BiIdempotencyKeyPipe, OperationsService,
   { provide: OperationsReadRepository, inject: [BiConnection], useFactory: (connection: BiConnection) => new OperationsReadRepository(connection) },
   { provide: OperationsControlRepository, inject: [BiControlConnection], useFactory: (connection: BiControlConnection) => new OperationsControlRepository(connection) },
 ] })
 export class BusinessIntelligenceModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(BiPrivateMiddleware).forRoutes(BiController, BiOperationsController);
+    consumer.apply(BiPrivateMiddleware).forRoutes(BiController, BiOperationsController, BiStatisticsController);
   }
 }

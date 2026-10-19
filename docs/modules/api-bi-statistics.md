@@ -1,7 +1,7 @@
-# Contrato propuesto: analítica estadística BI
+# Analítica estadística BI
 
 **Versión:** 1 / algoritmo `stats_v1`. **Fecha:** 2026-10-19.
-**Estado:** fases 1–3 implementadas: contratos, datos y motor `stats_v1` con tareas recuperables y publicación independiente. `BI_STATISTICS_ENABLED` controla extracción y cálculo del worker, apagada por defecto. Endpoint y UI pendientes de fase 4; sin aplicación persistente. [Operación de datos](../operations/28_bi_statistics_data.md) y [motor estadístico](../operations/29_bi_statistics_worker.md).
+**Estado:** fases 1–4 implementadas: datos, motor `stats_v1`, endpoint privado y vista con tres CSV. `BI_STATISTICS_ENABLED` es opt-in independiente en worker y API, apagada por defecto. Validación integral y habilitación pendientes de fase 5; sin aplicación persistente. [Operación de datos](../operations/28_bi_statistics_data.md) y [motor estadístico](../operations/29_bi_statistics_worker.md).
 **Plan y SQL:** [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Complementa el [BI vigente](api-business-intelligence.md); no modifica su semántica actual.
 
 ## 1. Propósito, responsabilidades y fuentes
@@ -76,7 +76,7 @@ Sin corte: estado `no_snapshot`; N<30: `insufficient_sample` (N=0 => ratioNULL);
 
 Los inventarios se solapan; esta regla robusta es exploratoria, sin p-values, independencia ni causalidad supuestas. Mediana/MAD: [NIST, detección de atípicos](https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm).
 
-## 3. Persistencia, operación y compatibilidad propuestas
+## 3. Persistencia, operación y compatibilidad
 
 | Objeto propuesto                            | Grano / responsabilidad                                                                                                        |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -90,7 +90,7 @@ Los inventarios se solapan; esta regla robusta es exploratoria, sin p-values, in
 | `dw.statistics_publication`                 | Informe inmutable por tenant/run fuente/algoritmo, metadatos relacionales y tres secciones JSON versionadas. Sin datos crudos. |
 | `dw.statistics_current`                     | Puntero por tenant/algoritmo a la última publicación válida. Sin retroceso de corte.                                           |
 
-SQL promovido en fase2 a nuevas migraciones OLTP/DW y herramienta manual de inicialización, con workers detenidos y preflight0004. No incluir backfill voluminoso dentro de una transacción DDL de30s ni modificar migraciones previas. El marcador de tags nace con cada carga nueva compatible, nunca en el backfill de creaciones. En fase3 el worker consume jobs y publica informes/punteros con permisos específicos; HTTP todavía no los consulta.
+SQL promovido en fase2 a nuevas migraciones OLTP/DW y herramienta manual de inicialización, con workers detenidos y preflight0004. No incluir backfill voluminoso dentro de una transacción DDL de30s ni modificar migraciones previas. El marcador de tags nace con cada carga nueva compatible, nunca en el backfill de creaciones. En fase3 el worker consume jobs y publica informes/punteros con permisos específicos; HTTP consulta únicamente la publicación compatible y validada.
 
 Antes de activar, verificar ambos destinos y roles. `BI_STATISTICS_ENABLED` es opt-in independiente en API y worker y requiere `BI_ENABLED` para consumo HTTP. Sin bandera, no consultar objetos nuevos. El preflight de la etapa opcional ocurre fuera de la transacción base; si no puede operar, preservar cargas/lecturas BI previas y reportar sólo indisponibilidad estadística. No exigir0005 al flujo base cuando estadísticas están desactivadas. Una extracción que sí se inicia como completa no publica silenciosamente relaciones inválidas o conteos parciales.
 
@@ -116,13 +116,13 @@ Antes de activar, verificar ambos destinos y roles. `BI_STATISTICS_ENABLED` es o
 
 No otorgar privilegios a PUBLIC ni crear roles/credenciales desde los borradores. Las conexiones siguen siendo privadas del backend; sin RLS, el tenant debe aparecer en cada consulta y relación propia.
 
-## 4. Contrato HTTP objetivo y tipos
+## 4. Contrato HTTP y tipos
 
 `GET /api/v1/bi/statistics`, sin query ni body; rechazar cualquier query (incluidos tenant/from/to) con400. JWT/RBAC admin/editor antes de bandera/conexión. Lectura con cuota120/min según mecanismo vigente, middleware privado incluso en errores y `Cache-Control: private, no-store`. La lectura no encola ni calcula.
 
 Respuesta200 en envelope existente `{success:true,data:StatisticsResponse}`. El repositorio consulta sólo `dw` en una única lectura RR, incluyendo último corte base y puntero/publicación; el servicio combina preferencias de vigencia desde el mecanismo existente. La frescura es edad del **corte del informe**, comparada con frecuencia+tolerancia, no edad del cálculo. Pausa no rejuvenece datos.
 
-Contrato HTTP objetivo de fase4. Fase3 ya valida con Zod el payload persistido `forecast`/`patterns`/`anomalies`; el envelope, metadatos, vigencia y estados sin publicación se implementarán en fase4:
+Contrato implementado en fase4. Fase3 valida con Zod4 el payload persistido; la API agrega metadatos/vigencia sin recalcular y la web valida con su Zod3 independiente:
 
 ```ts
 type Count = string; // decimal no negativo, sin separadores
@@ -261,7 +261,7 @@ Errores:401/403 según sesión/roles,400 query desconocida,429 cuota,503 `BI_DIS
 
 Persistir sólo forecast/patterns/anomalies del informe en JSON, validados por versión antes de insertar y al leer; metadatos relacionales son autoridad para tenant/run/corte/versión. Nunca aceptar metadatos del JSON como autorización. Las secciones no se mezclan entre publicaciones. Zod comprueba disponibilidad/NULL y límites, además de tipos básicos.
 
-## 5. Interfaz y exportación previstas
+## 5. Interfaz y exportación
 
 `/admin/business-intelligence?view=statistics` para admin/editor. Mantener navegación/URL actuales; las ventanas fijas de esta vista no toman from/to del resumen. Explicar período de cada sección y mostrar corte, vigencia y alcance observado. Método/error en detalle accesible, con cantidad aproximada diferenciada del histórico y sin bandas inventadas.
 
@@ -278,11 +278,11 @@ GET al entrar, actualizar y volver a pestaña; sin polling adicional. Reutilizar
 | Minería             | N29/30; soporte/ab/lift en el límite; doble etiqueta deduplicada; confidencias distintas por dirección; empates y truncamiento con denominador original.                                  | 3 / verificado local                               |
 | Anomalías           | N29/30, referencias20/21, MAD0/par, igualdad al umbral no señala, salto de5pp, threshold>1, huecos, denominador0, actualización del día sin duplicar.                                     | 3 / verificado local                               |
 | Publicación         | Crash antes/después de encolar/commit; token vencido; dos workers; 3 intentos; timeout/cancelación; informe anterior preservado; puntero no retrocede.                                    | 3 / verificado local                               |
-| API/UI              | Dos tenants/admin/editor; query rechazada; JSON inválido/503; flagoff sin conexión nueva; corte viejo/cambio de mes; CSV igual a vista y sin fórmulas; cambio de sesión/teclado/móvil.    | 4 / pendiente                                      |
+| API/UI              | Dos tenants/admin/editor; query rechazada; JSON inválido/503; flagoff sin conexión nueva; corte viejo/cambio de mes; CSV igual a vista y sin fórmulas; cambio de sesión/teclado/móvil.    | 4 / verificado local                               |
 | Sistema             | API/worker/DW reales, privilegios efectivos, restauración, costos de extracción/cálculo/lectura y aislamiento ante caída OLAP.                                                            | 5 / pendiente                                      |
 | Utilidad predictiva | Histórico real suficiente, particiones/cobertura y criterio cumplidos por tenant.                                                                                                         | Pendiente de datos; fixtures no acreditan utilidad |
 
-Las fases2/3 aportan evidencia local de datos, cálculos y publicación detallada en el plan y las guías de operación. API/UI y aceptación integral siguen pendientes; no se acredita utilidad predictiva real ni capacidad productiva.
+Las fases2–4 aportan evidencia local de datos, cálculos, publicación y consumo detallada en el plan y las guías de operación. La aceptación integral sigue pendiente; no se acredita utilidad predictiva real ni capacidad productiva.
 
 ### Oráculos numéricos fijados antes de implementar
 

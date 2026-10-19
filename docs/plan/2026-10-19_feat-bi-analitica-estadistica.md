@@ -1,7 +1,8 @@
 # Plan HITL: analítica estadística del BI
 
 **Fecha:** 2026-10-19. **Rama:** `codex/bi-analitica-estadistica`, base `b0d8cb2`.
-**Estado:** fases 1/2 aprobadas; fase 3 terminada, pendiente ACK. Fases 4/5 pendientes, sin autorización de ejecución.
+**Estado:** fases 1–3 aprobadas; fase 4 terminada, pendiente ACK. Fase 5 pendiente, sin autorización de ejecución.
+**ACK fase 4:** «Continuar», después del cierre y commit humano de fase 3; autoriza endpoint/UI/CSV y validación descartable, no despliegue ni fase 5.
 **ACK fase 3:** «Continuar», después del cierre de fase 2; autoriza motor y validación descartable, no consumo HTTP/UI ni despliegue.
 **ACK fase 2:** «Continuar», después del cierre de fase 1; autoriza datos y validación descartable, no despliegue ni comandos Prisma protegidos.
 **ACK de inicio:** «Empieza, recuerda siempre, realiza una fase y terminala detente propon un commit y espera el ack».
@@ -65,19 +66,19 @@ La etapa estadística empieza después de cerrar origen y publicar ETL. No modif
 - [x] Preparar backfill explícito y reanudable de primeras observaciones desde cortes reales; nunca inferir etiquetas históricas. Detectar discrepancias de `created_at` por identidad, sin elegir silenciosamente una fecha.
 - [x] Validar migraciones, backfill, permisos, replay, vacíos, borrados y atomicidad en PostgreSQL descartable; no usar comandos protegidos sin su autorización específica.
 
-### `[Actual]` 3. Motor estadístico — terminada, pendiente ACK
+### `[Completada]` 3. Motor estadístico — aprobada
 
 - [x] Implementar funciones puras con oráculos independientes antes del código de producción, incluyendo casos frontera del contrato.
 - [x] Construir entradas agregadas acotadas en lectura DW consistente; evaluación por origen sin fuga de información.
 - [x] Integrar cola recuperable, presupuesto 3, lease90s/heartbeat20s/deadline60s y publicación ACID independiente. Priorizar ETL; no reclamar tareas obsoletas.
 - [x] Probar pérdida de lease, reinicios, dos workers, respuesta ambigua tras commit, fallos y puntero monotónico.
 
-### `[Pendiente]` 4. Consumo
+### `[Actual]` 4. Consumo — terminada, pendiente ACK
 
-- Incorporar bandera, GET privado con DTO estricto, cuota y validación de publicación; conservar permisos admin/editor por tenant.
-- Agregar `view=statistics` en la navegación BI, adaptador Zod, tres secciones con tablas/gráficos y CSV desde la respuesta autorizada visible.
-- Actualización al entrar/volver/solicitarla; no agregar polling continuo. Limpiar datos al cambiar sesión y descartar respuestas obsoletas.
-- Probar filtros ajenos rechazados, roles, vigencia, calendario, accesibilidad y CSV equivalente/neutralizado.
+- [x] Incorporar bandera, GET privado con DTO estricto, cuota y validación de publicación; conservar permisos admin/editor por tenant.
+- [x] Agregar `view=statistics` en la navegación BI, adaptador Zod, tres secciones con tablas/gráficos y CSV desde la respuesta autorizada visible.
+- [x] Actualización al entrar/volver/solicitarla; no agregar polling continuo. Limpiar datos al cambiar sesión y descartar respuestas obsoletas.
+- [x] Probar filtros ajenos rechazados, roles, vigencia, calendario, accesibilidad y CSV equivalente/neutralizado.
 
 ### `[Pendiente]` 5. Validación integral
 
@@ -146,4 +147,26 @@ npm test --workspace apps/api -- --runTestsByPath \
 
 **Commit sugerido:** `feat(bi): incorporá el motor estadístico y sus tareas recuperables`
 
-**Detención obligatoria:** esperar ACK antes de activar/ejecutar fase4.
+**Detención de fase 3 cumplida:** ACK «Continuar» recibido después del commit humano `046202e` y antes de fase4. No autoriza validación integral ni despliegue.
+
+## Evidencia y cierre de fase 4
+
+- **Implementado:** `GET /api/v1/bi/statistics` con JWT/RBAC admin/editor antes de flags/conexión, tenant de sesión, DTO query vacío estricto, cuota120/min y middleware privado también en errores. Opt-in API `BI_STATISTICS_ENABLED` independiente del worker, defaultfalse, sin readiness ni conexión adicional. No se ejecutan cálculos ni escrituras desde HTTP.
+- **Implementado:** repositorio lee sólo DW en transacción RR READ ONLY UTC mediante conexión vigente; última cabecera, puntero/publicación, reloj e inicios de cobertura consistentes. Valida JSON `stats_v1` y ancla fuente antes de presentar; metadatos relacionales son autoridad. Preferencias de vigencia usan servicio existente, sin leer jobs ni crear controles nuevos.
+- **Implementado:** estados not_loaded/pending/current/outdated, cantidades desconocidas NULL frente a cero observado, antigüedad desde corte y tolerancia configurada. Retiro de proyección ante informe anterior/stale, con precedencia de TARGET_OUTDATED al cambiar mes; conserva histórico/evaluación/patrones/señales. Errores técnicos y JSON inválido =>503 seguro, sin falso resultado vacío ni fallback OLTP.
+- **Implementado:** `view=statistics` para admin/editor; navegación elimina filtros heredados y explica ventanas propias. Gráficos/tablas de pronóstico, frecuencias/segmentos/pares y señales con leyendas, períodos, versión, cobertura y vigencia; diferencias entre observado/estimado y datos faltantes. Reutiliza sesión, remount por identidad, abortos, retorno a pestaña y botón, sin polling ni lectura de estado operativo en esta vista.
+- **Implementado:** tres CSV independientes con metadatos/estado/motivo, histórico/evaluación/métricas, patrones/cobertura y180 señales. Conteos exactos, porcentajes de transporte expresados como porcentaje, NULL vacío y cero literal; BOM UTF8/CRLF/escape/neutralización de fórmulas. Descargas bloqueadas sin publicación, en actualización o tras error.
+- **Verificado:**16 casos backend nuevos:4 de presentación,9 HTTP y3 lecturas DW con permisos restringidos. JWT/RBAC/middleware/cuota reales salvo dependencias simuladas de identidad/cuota; dos tenants, query ajena, flags off sin servicio,401/403/400/429/503 privados, ausencia/vigencia/cambio de mes, JSON inválido y permisos faltantes aislados del inventario base. Red funcional de presentación constatado con cuatro assertions fallidas antes de implementar; el intento inicial sin módulo aún no era Red funcional.
+- **Regresión final backend:** **255/255 casos en19 suites**, sin omisiones, con dos PostgreSQL18.6 descartables. El primer intento detectó un fixture inválido ya bloqueado por CHECK de DW; se cambió a JSON con estructura válida y valor incompatible, sin relajar restricciones. Repetición afectada17/17 y regresión final completa aprobadas; cantidades no sumables.
+- **Verificado web:**18 casos nuevos (10 contrato/CSV,6 vista/gráfico,2 sesión/navegación); **96/96 en9 archivos BI**. Casos: carga/pendiente, desconocidos, insuficiencia, falta de etiquetas/pares, antigüedad, errores/limpieza, teclado, respuestas tardías de otra sesión y refresh explícito. Tras aclarar edad del corte y denominador del mes parcial, se repitieron los5 casos de vista. La revisión independiente detectó escala vertical y separación temporal incorrectas del gráfico mensual: una nueva prueba falló con las coordenadas previas y pasó tras alinear el máximo al eje y dejar un intervalo hasta el próximo mes. No se ejecutó toda la suite web/CMS ni E2E integral de fase5.
+- **Verificado navegador:** Chrome local en1440×1000 y390×844, API/sesión sintéticas: cero desborde horizontal de página, tablas con scroll local, detalle de90 días accesible y CSV de patrones descargado/equivalente (soporte10/confianzas25 y50/lift1,25). Cero consultas operativas desde estadísticas; lectura manual posterior confirmada. StrictMode de desarrollo hizo dos lecturas iniciales; no es prueba de una tasa productiva. El ejecutable agent-browser no estaba instalado; se usó Playwright con Chrome ya instalado. Detector de UI ejecutado una vez, sin hallazgos mecánicos.
+- **Revisión independiente:** preservación del sistema visual y correspondencia documental comprobadas por las pasadas de UI/documentación previstas en la skill de interfaz. Tras corregir escala y separación mensual, el reviewer calificó ambos hallazgos como resueltos y emitió `ship` exclusivamente para esa pasada; no certifica accesibilidad universal ni integración real.
+- **Documentado:** [consumo, permisos y límites](../operations/30_bi_statistics_consumption.md), contratos API/web y contexto. Sin migraciones nuevas ni cambios a Prisma schema, infraestructura, raíz npm, hooks, dependencias o despliegue. Gráficos y tablas revisados bajo el sistema visual vigente, sin rediseñarlo.
+- **Controles finales:** typecheck, lint y build API/web aprobados. Lint conserva tres warnings API y ocho web previos al cambio; ningún error nuevo. Build web final incluye la corrección geométrica. `git diff --check`, formato de seis documentos de contrato/operación/plan y33 referencias locales válidas. Cero bases/roles de fixtures remanentes en ambos PostgreSQL antes de apagarlos; Next de prueba y navegador cerrados, directorio temporal propio eliminado. No se ejecutó commit automático.
+- **Pendiente:** fase5 con su ACK para aceptación integral, restauración, rendimiento y adaptadores remotos de grants/habilitación; autorizaciones específicas para migraciones persistentes/despliegue. Los fixtures no acreditan utilidad predictiva ni capacidad real.
+
+Regresión backend: comando de fase3 con las dos suites adicionales `test/bi-statistics-read.spec.ts` y `test/bi-statistics-http.integration.spec.ts`. Regresión web: `npm test --workspace apps/web -- src/features/business-intelligence`.
+
+**Commit sugerido:** `feat(bi): agregá la vista estadística y su API privada`
+
+**Detención obligatoria:** esperar ACK antes de activar/ejecutar fase5.

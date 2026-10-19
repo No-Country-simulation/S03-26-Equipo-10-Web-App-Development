@@ -1,7 +1,8 @@
+import { StatisticsReadRepository } from '../src/modules/business-intelligence/repositories/statistics-read.repository';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { installBiWarehouse } from './fixtures/bi-warehouse';
 import { applyWarehouseMigration } from '../src/modules/business-intelligence/repositories/warehouse-migrations';
 import { StatisticsJobRepository } from '../src/modules/business-intelligence/repositories/statistics-job.repository';
@@ -238,6 +239,38 @@ databaseTests('statistical worker on disposable PostgreSQL 18 with restricted id
     await expect(inputs.read({ ...lease, tenantId: other })).rejects.toMatchObject({ code: 'BI_STATISTICS_DATA_INVALID' });
     await admin.$executeRaw`DELETE FROM dw.statistics_history_state WHERE tenant_id = ${tenant}::uuid`;
     await expect(inputs.read(lease)).rejects.toMatchObject({ code: 'BI_STATISTICS_DATA_INVALID' });
+  });
+  function publishedReads() {
+    return new StatisticsReadRepository({ read: work => read.$transaction(async tx => {
+      await tx.$executeRaw`SET TRANSACTION READ ONLY`;
+      await tx.$executeRaw`SET LOCAL timezone = 'UTC'`;
+      return work(tx);
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }) });
+  }
+  it('reads published statistics from DW only, isolates tenants and retains old reports after a new cut', async () => {
+    const first = await cut('2025-01-01Z'); await cut('2025-01-01Z', other, 2);
+    await service.tick(new AbortController().signal); await service.tick(new AbortController().signal);
+    const reads = publishedReads();
+    expect((await reads.read(tenant)).payload?.patterns.totalTestimonials).toBe('100');
+    expect((await reads.read(other)).payload?.patterns.totalTestimonials).toBe('2');
+    expect(await reads.read(randomUUID())).toMatchObject({ latestRunId: null, publication: null, payload: null });
+    const latest = await cut('2025-01-02Z');
+    expect(await reads.read(tenant)).toMatchObject({ latestRunId: latest, publication: { sourceRunId: first } });
+  });
+  it('reports pending calculation without inventing counts and rejects invalid persisted JSON', async () => {
+    await cut('2025-01-01Z'); const reads = publishedReads();
+    expect(await reads.read(tenant)).toMatchObject({ publication: null, payload: null });
+    await service.tick(new AbortController().signal);
+    await admin.$executeRaw`UPDATE dw.statistics_publication SET payload = jsonb_set(payload, '{forecast,value}', '"invalid"'::jsonb) WHERE tenant_id = ${tenant}::uuid`;
+    await expect(reads.read(tenant)).rejects.toMatchObject({ code: 'BI_STATISTICS_UNAVAILABLE' });
+    expect(await read.$queryRaw`SELECT testimonial_count FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenant}::uuid`).toEqual([{ testimonial_count: 100n }]);
+  });
+  it('isolates missing statistics permissions from base inventory reads', async () => {
+    await cut('2025-01-01Z');
+    await admin.$executeRawUnsafe(`REVOKE SELECT ON dw.statistics_publication FROM "${reader}"`);
+    try { await expect(publishedReads().read(tenant)).rejects.toMatchObject({ code: 'BI_STATISTICS_UNAVAILABLE' }); }
+    finally { await admin.$executeRawUnsafe(`GRANT SELECT ON dw.statistics_publication TO "${reader}"`); }
+    expect(await read.$queryRaw`SELECT testimonial_count FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenant}::uuid`).toEqual([{ testimonial_count: 100n }]);
   });
   it('fails optional engine preflight safely with missing permissions', async () => {
     expect(await statisticsEngineReady(write, true)).toBe(true);

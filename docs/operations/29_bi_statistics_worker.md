@@ -1,13 +1,13 @@
 # Motor estadístico BI: cálculo y recuperación
 
-**Fecha:** 2026-10-19. **Estado:** fase 3 implementada y validada localmente; pendiente ACK. Sin habilitación persistente, endpoint ni interfaz nuevos.
+**Fecha:** 2026-10-19. **Estado:** fase 3 implementada, validada localmente y aprobada. Sin habilitación persistente. Endpoint/interfaz de fase4 documentados en [consumo](30_bi_statistics_consumption.md).
 **Referencias:** [plan y evidencia](../plan/2026-10-19_feat-bi-analitica-estadistica.md), [catálogo stats_v1](../modules/api-bi-statistics.md), [preparación de datos](28_bi_statistics_data.md).
 
 ## Ejecución y permisos
 
 El worker existente `bi:etl` ejecuta primero las cargas elegibles y después como máximo una tarea estadística por ciclo. Utiliza la conexión DW existente, pool de dos; el cálculo no abre conexiones OLTP ni incorpora servicios/dependencias. `--once` respeta este límite: si hay varias empresas, las restantes quedan pendientes para próximos ciclos. Un fallo de estadísticas puede producir salida no exitosa de `--once`, pero conserva los runs ETL exitosos y el informe anterior.
 
-`BI_STATISTICS_ENABLED=false` por defecto evita las consultas nuevas. Al habilitarla, el preflight de datos valida esquema/privilegios/inicialización; otro preflight comprueba los permisos del motor. Si sólo falla el segundo, se registra `bi.statistics_engine_unavailable` y continúa la extracción compatible, sin calcular. Ambos se evalúan al arrancar: corregir permisos requiere reinicio controlado. La bandera no habilita HTTP ni UI en esta fase y no participa en readiness del CMS.
+`BI_STATISTICS_ENABLED=false` por defecto evita las consultas nuevas. Al habilitarla, el preflight de datos valida esquema/privilegios/inicialización; otro preflight comprueba los permisos del motor. Si sólo falla el segundo, se registra `bi.statistics_engine_unavailable` y continúa la extracción compatible, sin calcular. Ambos se evalúan al arrancar: corregir permisos requiere reinicio controlado. La bandera de este proceso no habilita por sí sola el consumo HTTP de fase4 y no participa en readiness del CMS.
 
 Los siguientes grants complementan los de datos y el SELECT base del worker sobre DW. Son ejemplos para un entorno posteriormente autorizado; no se aplicaron a recursos persistentes ni amplían la autorización de migración:
 
@@ -37,7 +37,7 @@ Las cantidades permanecen BigInt/cadenas y el cálculo decimal utiliza `Prisma.D
 
 Cada claim incrementa el contador durable hasta tres intentos y fija token, lease90s y deadline60s desde el reloj DW. Heartbeat20s sólo renueva el token vivo y nunca supera el deadline original. Una reserva vencida se recupera con otro token dentro del presupuesto. Un tercer fallo permanece terminal para ese corte/versión; un nuevo corte puede generar otra tarea. No reiniciar contadores manualmente para ocultar fallos.
 
-La publicación toma el lock del job y luego del puntero, valida fuente/token/lease/plazo y confirma informe inmutable, puntero y éxito juntos, con SQL4s/lock1s/tx5s. Cualquier fallo revierte las tres escrituras; el puntero no retrocede. El replay de un éxito no duplica ni mueve el puntero. Si la respuesta se pierde después del commit, se consulta el éxito durable antes de repetir. Un corte base nuevo puede dejar temporalmente el informe anterior; el consumo de su antigüedad se incorporará en fase4.
+La publicación toma el lock del job y luego del puntero, valida fuente/token/lease/plazo y confirma informe inmutable, puntero y éxito juntos, con SQL4s/lock1s/tx5s. Cualquier fallo revierte las tres escrituras; el puntero no retrocede. El replay de un éxito no duplica ni mueve el puntero. Si la respuesta se pierde después del commit, se consulta el éxito durable antes de repetir. Un corte base nuevo puede dejar temporalmente el informe anterior; el consumo de fase4 informa su antigüedad y retira la proyección según vigencia/mes objetivo.
 
 SIGTERM impide reclamar otra tarea; una ya reclamada drena hasta su plazo. Las comprobaciones de plazo se realizan entre lectura/cálculo/publicación y en el fence DW. El cálculo síncrono usa las entradas acotadas; no hay interrupción preventiva del JavaScript ni un worker thread. El costo máximo efectivo debe medirse en fase5.
 

@@ -18,7 +18,7 @@ Este documento no autoriza ejecutar migraciones persistentes. Requiere ACK del e
 2. Aplicar la migración OLTP mediante el procedimiento autorizado y la 0005 mediante el migrador DW manual con identidad propietaria. Son destinos independientes: no existe transacción distribuida.
 3. Provisionar los permisos adicionales indicados abajo. El control HTTP no recibe permisos nuevos.
 4. Con la identidad migradora del warehouse, ejecutar el comprobador; aplicar el backfill explícito sólo después de inspeccionar el resultado y confirmar mantenimiento.
-5. Verificar cero empresas pendientes y cero creaciones faltantes, desplegar worker compatible y recién después considerar el opt-in. El motor de fase3 requiere además los [permisos de cálculo](29_bi_statistics_worker.md); el consumo HTTP sigue pendiente de fase4.
+5. Verificar cero empresas pendientes y cero creaciones faltantes, desplegar worker compatible y recién después considerar el opt-in. El motor de fase3 requiere además los [permisos de cálculo](29_bi_statistics_worker.md); el [consumo HTTP de fase4](30_bi_statistics_consumption.md) requiere además grants de lectura propios.
 
 Desde la raíz del repositorio, con la conexión migradora cargada externamente en el entorno, sin escribirla en archivos de contexto:
 
@@ -66,6 +66,6 @@ Los adaptadores de entrega/auditoría de permisos de demo conservan su catálogo
 
 `BI_STATISTICS_ENABLED` controla extracción/publicación de datos y, desde fase3, cálculo del worker; default false, sin efecto sobre API/UI todavía. Apagada, no consulta vistas ni tablas nuevas. Encendida, un preflight comprueba ledger0005, SELECT de vistas/objetos, DML mínimo y marcador al día. Si falla, registra `bi.statistics_data_unavailable` con código seguro, mantiene el worker base y no publica un falso marcador de tags. La condición se revisa al iniciar el proceso; tras corregirla se reinicia de forma controlada. Un segundo preflight verifica permisos del motor; su fallo permite seguir extrayendo datos compatibles, sin calcular.
 
-Una vez iniciada extracción completa, errores de FK/conteos/fechas abortan el corte entero. Tag dimension, puente, creaciones, marcador y cabecera se confirman juntos, con el fencing final del ETL. No omitir relaciones inconsistentes para aparentar éxito. La cola/cálculo de fase3 funciona después de esa publicación; GET statistics todavía no está registrado.
+Una vez iniciada extracción completa, errores de FK/conteos/fechas abortan el corte entero. Tag dimension, puente, creaciones, marcador y cabecera se confirman juntos, con el fencing final del ETL. No omitir relaciones inconsistentes para aparentar éxito. La cola/cálculo de fase3 funciona después de esa publicación; GET statistics se incorporó en fase4 con su opt-in y permisos de lectura independientes.
 
 Para apagar/revertir: drenar las cargas, recuperar reservas y limpiar staging del worker compatible antes de cambiar bandera/software. Si un proceso con tags cayó y luego se arranca el modo anterior, la cascada permite limpiar enlaces, pero pueden quedar filas de `staging.tags` del run abandonado; saneamiento por tenant/run terminal con identidad de mantenimiento antes de reactivar. No borrar hechos, creaciones ni migraciones para volver al resumen anterior.
