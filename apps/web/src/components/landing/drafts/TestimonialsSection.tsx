@@ -1,3 +1,4 @@
+// Borrador comercial no acreditado. No importar en rutas públicas.
 import { Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

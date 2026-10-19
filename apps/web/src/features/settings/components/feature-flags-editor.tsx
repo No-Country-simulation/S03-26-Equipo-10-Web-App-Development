@@ -148,8 +148,9 @@ export function FeatureFlagsEditor({
   return (
     <section
       id="capabilities"
+      tabIndex={-1}
       aria-labelledby="capabilities-title"
-      className="border-t pt-8"
+      className="scroll-mt-20 border-t pt-8"
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 id="capabilities-title" className="font-display text-2xl">

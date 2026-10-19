@@ -47,3 +47,7 @@ El adaptador valida forma y confirmación del campo pedido; las mutaciones de no
 ## Validación y límites
 
 Pruebas de UI/adaptadores cubren fallas independientes, borradores, lecturas tardías, guardados concurrentes, confirmaciones y foco; contratos HTTP ejecutan controladores, guards, CSRF y servicios reales con repositorios simulados. Esa evidencia no valida PostgreSQL, Redis, cookies reales del navegador ni Cloudinary. La aceptación con servicios reales y los seis E2E permanece separada en el registro del plan. No se despliega desde esta fase.
+
+## Entradas de navegación — fase 11
+
+Las rutas preparatorias de capacidades e integraciones apuntan a `#capabilities` y `#integrations` en esta pantalla. Tras terminar la lectura inicial del espacio, el destino conocido recibe scroll y foco; el guard de anchor evita repetir el salto al refrescar o guardar. Nombre y captura admiten la misma entrada por `#brand`/`#capture`. La sección estática de integraciones precede a los parámetros, para que la carga independiente de esos parámetros no desplace su destino. Los accesos llevan a API keys, webhooks y ayuda, sin configurar servicios externos automáticamente. Se mantienen los permisos de administrador de la pantalla y los endpoints.

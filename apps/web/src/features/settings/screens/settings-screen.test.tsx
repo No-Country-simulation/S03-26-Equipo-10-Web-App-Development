@@ -315,4 +315,38 @@ describe('independent workspace settings', () => {
     expect(getTenant).not.toHaveBeenCalled();
     expect(listFeatureFlags).not.toHaveBeenCalled();
   });
+  it('focuses a linked section after asynchronous tenant loading, without jumping again on refresh', async () => {
+    const previousUrl = window.location.href;
+    const originalScroll = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'scrollIntoView',
+    );
+    const scroll = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scroll,
+    });
+    window.history.replaceState(null, '', '/admin/settings#integrations');
+    try {
+      const user = userEvent.setup();
+      render(<SettingsPage />);
+      const section = await screen.findByRole('region', {
+        name: 'Integraciones',
+      });
+      await waitFor(() => expect(section).toHaveFocus());
+      expect(scroll).toHaveBeenCalledTimes(1);
+      await user.click(screen.getByRole('button', { name: /^Refrescar$/ }));
+      await waitFor(() => expect(getTenant).toHaveBeenCalledTimes(2));
+      expect(scroll).toHaveBeenCalledTimes(1);
+    } finally {
+      window.history.replaceState(null, '', previousUrl);
+      if (originalScroll)
+        Object.defineProperty(
+          HTMLElement.prototype,
+          'scrollIntoView',
+          originalScroll,
+        );
+      else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
+    }
+  });
 });

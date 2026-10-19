@@ -1,64 +1,64 @@
-export const HowItWorksSection = () => {
-  const steps = [
-    {
-      number: '01',
-      title: 'Recopila',
-      description:
-        'Captura testimonios mediante formularios públicos o desde el panel de administración. Sin fricción.',
-    },
-    {
-      number: '02',
-      title: 'Modera',
-      description:
-        'Revisa, aprueba y organiza con categorías y etiquetas personalizadas. Control absoluto.',
-    },
-    {
-      number: '03',
-      title: 'Publica',
-      description:
-        'Inserta el widget en tu sitio o usa la API para mostrarlos dinámicamente. En minutos.',
-    },
-  ];
-
+import Link from 'next/link';
+const steps = [
+  {
+    title: 'Recibí',
+    description:
+      'Configurá tu enlace de captura y abrí la recepción. Cada envío queda pendiente de revisión.',
+    href: '/docs#captura',
+    link: 'Preparar la captura',
+  },
+  {
+    title: 'Revisá',
+    description:
+      'Leé el contenido, organizalo con categorías y etiquetas, y decidí si lo aprobás o rechazás.',
+    href: '/docs#moderacion',
+    link: 'Revisar testimonios',
+  },
+  {
+    title: 'Publicá',
+    description:
+      'Publicá las historias aprobadas y compartí la galería de tu espacio. También podés consultarlas por API.',
+    href: '/docs#publicacion',
+    link: 'Compartir la galería',
+  },
+];
+export function HowItWorksSection() {
   return (
-    <section className="surface-inverse bg-foreground text-background py-32">
+    <section
+      id="como-funciona"
+      aria-labelledby="process-title"
+      className="scroll-mt-28 border-y bg-card py-14 sm:py-20"
+    >
       <div className="container">
-        <div className="mb-20 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-2xl">
-            <span className="font-body text-xs font-bold uppercase tracking-widest text-primary">
-              Proceso
-            </span>
-            <h2 className="mt-4 font-caption text-4xl font-light italic leading-tight md:text-6xl md:leading-none">
-              Tres pasos.
-              <br />
-              <strong className="font-body font-bold not-italic text-primary">
-                Cero complicaciones.
-              </strong>
-            </h2>
-          </div>
-        </div>
-
-        <div className="grid gap-0 border-t border-background/20 md:grid-cols-3">
-          {steps.map((step) => (
-            <div
-              key={step.number}
-              className="group flex flex-col gap-6 border-b border-background/20 p-10 transition-colors hover:bg-background/5 md:border-b-0 md:border-r md:last:border-r-0"
-            >
-              <span className="font-caption text-7xl font-bold italic text-primary/30 transition-colors group-hover:text-primary">
-                {step.number}
+        <h2
+          id="process-title"
+          className="max-w-2xl text-balance font-caption text-3xl font-light italic leading-tight sm:text-5xl"
+        >
+          De la primera historia a tu galería.
+        </h2>
+        <ol className="mt-10 grid gap-8 md:grid-cols-3">
+          {steps.map((step, index) => (
+            <li key={step.title} className="min-w-0 border-t pt-5">
+              <span
+                aria-hidden="true"
+                className="font-caption text-3xl text-primary"
+              >
+                {index + 1}.
               </span>
-              <div>
-                <h3 className="font-body text-2xl font-bold uppercase tracking-wider">
-                  {step.title}
-                </h3>
-                <p className="mt-3 font-body text-sm leading-relaxed text-background/60">
-                  {step.description}
-                </p>
-              </div>
-            </div>
+              <h3 className="mt-3 text-xl font-semibold">{step.title}</h3>
+              <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+                {step.description}
+              </p>
+              <Link
+                href={step.href}
+                className="mt-4 inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4"
+              >
+                {step.link}
+              </Link>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );
-};
+}

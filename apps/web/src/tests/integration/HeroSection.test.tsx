@@ -1,73 +1,43 @@
-import React from 'react';
-import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { render, screen } from '@testing-library/react';
-
-// Mock Embla Carousel (it relies on DOM measurements unavailable in jsdom)
-vi.mock('embla-carousel-react', () => ({
-  __esModule: true,
-  default: () => [vi.fn(), null],
-}));
-
-vi.mock('embla-carousel-autoplay', () => ({
-  __esModule: true,
-  default: () => ({}),
-}));
-
-// Mock lucide-react icons to simple span elements
-vi.mock('lucide-react', () => ({
-  ArrowRight: () => React.createElement('span', { 'data-testid': 'arrow-right' }),
-  ArrowDown: () => React.createElement('span', { 'data-testid': 'arrow-down' }),
-  Key: () => React.createElement('span', { 'data-testid': 'key-icon' }),
-  Webhook: () => React.createElement('span', { 'data-testid': 'webhook-icon' }),
-  TrendingUp: () => React.createElement('span', { 'data-testid': 'trending-icon' }),
-  Shield: () => React.createElement('span', { 'data-testid': 'shield-icon' }),
-}));
-
-// The HeroSection module uses JSX at the top level (carouselSlides array).
-// We must dynamically import AFTER mocks are set up so the module evaluates
-// with the mocked lucide-react instead of the real one.
-let HeroSection: React.ComponentType;
-
-beforeAll(async () => {
-  const mod = await import('@/components/landing/HeroSection');
-  HeroSection = mod.HeroSection;
-});
+import { describe, it, expect } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { HeroSection } from '@/components/landing/HeroSection';
 
 describe('HeroSection', () => {
-  it('renders the main heading with editorial copy', () => {
-    render(React.createElement(HeroSection));
-    
-    expect(screen.getByText('Voces que')).toBeInTheDocument();
-    expect(screen.getByText('convierten.')).toBeInTheDocument();
+  it('explains receiving and deciding what to publish in its main heading', () => {
+    render(<HeroSection />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'Reuní buenas historias.Decidí cuáles publicar.',
+    );
   });
-
-  it('renders the subheading paragraph', () => {
-    render(React.createElement(HeroSection));
-    
+  it('describes the actual reception, review and gallery workflow', () => {
+    render(<HeroSection />);
     expect(
-      screen.getByText(/Gestiona, modera y despliega testimonios/i),
+      screen.getByText(/Recibí testimonios, revisalos con tu equipo/),
     ).toBeInTheDocument();
   });
-
-  it('renders the CTA buttons', () => {
-    render(React.createElement(HeroSection));
-    
-    expect(screen.getByText('Comenzar Ahora')).toBeInTheDocument();
-    expect(screen.getByText('Ver Manifestos')).toBeInTheDocument();
+  it('provides registration and process destinations through links', () => {
+    render(<HeroSection />);
+    expect(
+      screen.getByRole('link', { name: 'Crear tu espacio' }),
+    ).toHaveAttribute('href', '/admin/register');
+    expect(
+      screen.getByRole('link', { name: 'Ver cómo funciona' }),
+    ).toHaveAttribute('href', '/#como-funciona');
   });
-
-  it('renders the Testimonial CMS badge', () => {
-    render(React.createElement(HeroSection));
-    
-    expect(screen.getByText('Testimonial CMS')).toBeInTheDocument();
+  it('keeps reception and review available in the product explanation', () => {
+    render(<HeroSection />);
+    const context = within(
+      screen.getByRole('complementary', { name: 'Qué podés gestionar' }),
+    );
+    expect(context.getByText('Un enlace para recibir')).toBeInTheDocument();
+    expect(
+      context.getByText('Una revisión antes de mostrar'),
+    ).toBeInTheDocument();
   });
-
-  it('renders the carousel slide titles', () => {
-    render(React.createElement(HeroSection));
-    
-    expect(screen.getByText('API-First Design')).toBeInTheDocument();
-    expect(screen.getByText('Webhooks en Tiempo Real')).toBeInTheDocument();
-    expect(screen.getByText('Scoring Algorítmico')).toBeInTheDocument();
-    expect(screen.getByText('Gestión Multi-Tenant')).toBeInTheDocument();
+  it('states that the gallery only exposes published stories', () => {
+    render(<HeroSection />);
+    expect(
+      screen.getByText('Sólo las historias publicadas se muestran al público.'),
+    ).toBeInTheDocument();
   });
 });

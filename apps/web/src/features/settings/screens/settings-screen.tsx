@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from '@/hooks/use-session';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -25,6 +26,22 @@ function WorkspaceSettings({
 }) {
   const resource = useTenantSettings(fetchApi, tenantId);
   const { tenant } = resource;
+  const handledAnchor = useRef<string | null>(null);
+  useEffect(() => {
+    if (resource.loading) return;
+    const name = window.location.hash.slice(1);
+    if (
+      !['brand', 'capture', 'capabilities', 'integrations'].includes(name) ||
+      handledAnchor.current === name
+    )
+      return;
+    const section = document.getElementById(name);
+    if (!section) return;
+    section.scrollIntoView({ block: 'start' });
+    section.focus({ preventScroll: true });
+    handledAnchor.current = name;
+  }, [resource.loading, tenant?.id]);
+
   const identity = useWorkspaceIdentity();
   const rename = identity?.rename;
   useEffect(() => {
@@ -103,6 +120,7 @@ function WorkspaceSettings({
           <>
             <section
               id="brand"
+              tabIndex={-1}
               aria-labelledby="brand-title"
               className="scroll-mt-20"
             >
@@ -154,6 +172,7 @@ function WorkspaceSettings({
             />
             <section
               id="capture"
+              tabIndex={-1}
               aria-labelledby="capture-title"
               className="scroll-mt-20 border-t pt-8"
             >
@@ -290,6 +309,46 @@ function WorkspaceSettings({
             </section>
           </>
         )}
+        <section
+          id="integrations"
+          tabIndex={-1}
+          aria-labelledby="integrations-title"
+          className="scroll-mt-20 border-t pt-8 font-body"
+        >
+          <h2 id="integrations-title" className="font-display text-2xl">
+            Integraciones
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+            Consultá testimonios desde tu aplicación o enviá eventos a un
+            receptor HTTPS. Cada integración se configura en su pantalla.
+          </p>
+          <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <li>
+              <Link
+                className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                href="/admin/api-keys"
+              >
+                Gestionar API keys
+              </Link>
+            </li>
+            <li>
+              <Link
+                className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                href="/admin/webhooks"
+              >
+                Gestionar webhooks
+              </Link>
+            </li>
+            <li>
+              <Link
+                className="inline-flex min-h-11 items-center text-primary underline underline-offset-4"
+                href="/docs#integraciones"
+              >
+                Leer la guía de integración
+              </Link>
+            </li>
+          </ul>
+        </section>
         <FeatureFlagsEditor fetchApi={fetchApi} tenantId={tenantId} />
       </div>
       {confirmation.dialog}

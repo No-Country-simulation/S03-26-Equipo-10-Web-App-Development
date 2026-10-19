@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 10 implementada y validada localmente, pendiente de commit y ACK; fase 9 registrada en `380cba0` y aprobada. Integración/E2E reales pendientes por Docker no disponible.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 11 implementada y validada localmente, pendiente de commit y ACK; fase 10 registrada en `a23d6df` y aprobada. Integración/E2E reales pendientes por Docker no disponible.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. El ACK «Continuar» del 2026-10-18 posterior a `24b64b6` autoriza únicamente la fase 7. El ACK «Continuar» del 2026-10-18 posterior a `8152850` autoriza únicamente la fase 8. El ACK «Continuar» del 2026-10-18 posterior a `b665226` autoriza únicamente la fase 9. El ACK «Continuar» del 2026-10-18 posterior a `380cba0` autoriza únicamente la fase 10. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. El ACK «Continuar» del 2026-10-18 posterior a `24b64b6` autoriza únicamente la fase 7. El ACK «Continuar» del 2026-10-18 posterior a `8152850` autoriza únicamente la fase 8. El ACK «Continuar» del 2026-10-18 posterior a `b665226` autoriza únicamente la fase 9. El ACK «Continuar» del 2026-10-18 posterior a `380cba0` autoriza únicamente la fase 10. El ACK «Continuar» posterior a `a23d6df` autoriza únicamente fase 11. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
 
 ## 1. Contexto y restricciones
 
@@ -246,7 +246,7 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Commit:** `feat(public): mejorá la captura y la galería de testimonios`  
 **ACK humano:** recibido; commit `380cba0` verificado y fase 10 autorizada.
 
-### [Actual] Fase 10 — Analítica y las siete superficies de BI
+### [Completada] Fase 10 — Analítica y las siete superficies de BI
 
 **Cubre:** F21, F24 y mejoras BI.
 
@@ -262,19 +262,19 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Cierre/pruebas:** período/alcance reales, referencias tenant correctas, ausencia de N+1, gráficos con cortes ausentes distintos de cero, draft protegido y conflictos recuperables; roles admin/editor; CSV y polling existentes sin regresiones.
 
 **Commit:** `feat(analytics): clarificá métricas y operación de inteligencia de negocio`  
-**ACK humano:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido; commit `a23d6df` verificado y fase 11 autorizada.
 
-### [Pendiente] Fase 11 — Landing, ayuda y rutas preparatorias
+### [Actual] Fase 11 — Landing, ayuda y rutas preparatorias
 
 **Cubre:** F11, F12, F23.
 
-- [ ] Destinos reales y header/titulares/CTA móviles corregidos.
-- [ ] Capacidades y funcionamiento verificados como contenido principal.
-- [ ] Conservar marketing no acreditado como borradores no montados y sin URL pública.
-- [ ] Ayuda real en /docs para captura, moderación, publicación, API keys y webhooks, sin secretos ni widget nuevo prometido.
-- [ ] Aliases a rutas activas; detalle/edición por entrada contextual autorizada.
-- [ ] Flags/integraciones dirigidos a secciones reales de configuración.
-- [ ] Retirar enlaces legales/contacto sin contenido aprobado; pausa de autoplay y reduced motion.
+- [x] Destinos reales y header/titulares/CTA móviles corregidos.
+- [x] Capacidades y funcionamiento verificados como contenido principal.
+- [x] Conservar marketing no acreditado como borradores no montados y sin URL pública.
+- [x] Ayuda real en /docs para captura, moderación, publicación, API keys y webhooks, sin secretos ni widget nuevo prometido.
+- [x] Aliases a rutas activas; detalle/edición por entrada contextual autorizada.
+- [x] Flags/integraciones dirigidos a secciones reales de configuración.
+- [x] Retirar enlaces legales/contacto sin contenido aprobado; pausa de autoplay y reduced motion.
 
 **Cierre/pruebas:** CTA y navegación producen su resultado; no hay placeholders públicos; aliases conservan autorización; borradores comerciales no renderizados; teclado, zoom y 320/375/768 px sin pérdida de acciones.
 
@@ -311,8 +311,8 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | F08 | Vencimiento cambia por UTC/local                   | 5                                | UTC/Argentina; guardar intacto preserva instante                           | Corregido localmente en fase 5; integración/E2E reales pendientes                      |
 | F09 | Publicados posteriores a veinte inaccesibles       | 9                                | Publicado 21 y final/paginación real                                       | Corregido localmente en fase 9; integración/E2E reales pendientes                      |
 | F10 | Registro precompletado                             | 8                                | Campos vacíos; validación evita alta accidental                            | Corregido localmente en fase 8; integración/E2E reales pendientes                      |
-| F11 | CTA y enlaces sin destino                          | 11                               | Navegación/acción real; marketing borrador no renderizado                  | Pendiente                                                                              |
-| F12 | Desborde de portada                                | 11                               | 320/375/768 px, zoom y acciones alcanzables                                | Pendiente                                                                              |
+| F11 | CTA y enlaces sin destino                          | 11                               | Navegación/acción real; marketing borrador no renderizado                  | Corregido localmente en fase 11; E2E y cierre integral pendientes                      |
+| F12 | Desborde de portada                                | 11                               | 320/375/768 px, zoom y acciones alcanzables                                | Corregido localmente en fase 11; E2E y cierre integral pendientes                      |
 | F13 | Contraste dark                                     | 2                                | Parejas reales y estados de ambos temas                                    | Corregido localmente en fase 2                                                         |
 | F14 | Vencida aparece revocada                           | 5                                | Estados diferenciados y acciones pertinentes                               | Corregido localmente en fase 5; integración/E2E reales pendientes                      |
 | F15 | Revelación anterior perdida                        | 5                                | Error siguiente preserva secreto en memoria; salida deliberada             | Corregido localmente en fase 5; integración/E2E reales pendientes                      |
@@ -323,7 +323,7 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 | F20 | Historial/secreto webhook sin contexto             | 6                                | Recurso identificado y actualización conserva página                       | Corregido localmente en fase 6; integración/E2E reales pendientes                      |
 | F21 | Analítica sin período/referencia útil              | 10                               | Alcance real y datos autorizados sin N+1                                   | Corregido localmente en fase 10; integración real pendiente                            |
 | F22 | Semántica, storage, cargas y cierres               | 2 común; 8 auth; 9 público       | Roles/foco/rating/expansión, storage denegado y main/título móvil          | Fases 2/8/9 corregidas localmente; integración/E2E reales y cierre integral pendientes |
-| F23 | Doce rutas preparatorias expuestas                 | 11                               | Aliases/contenido útil; autorización y ausencia de placeholders            | Pendiente                                                                              |
+| F23 | Doce rutas preparatorias expuestas                 | 11                               | Aliases/contenido útil; autorización y ausencia de placeholders            | Corregido localmente en fase 11; E2E y cierre integral pendientes                      |
 | F24 | Draft BI descartado al navegar                     | 10                               | Conservar/descartar explícito; conflicto mantiene intención                | Corregido localmente en fase 10; integración real pendiente                            |
 
 ## 5. Matriz de oportunidades de diseño
@@ -332,7 +332,7 @@ Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar c
 
 | ID  | Superficie/oportunidad                                        | Fase         | Evidencia de aceptación                                                             | Estado                                                                          |
 | --- | ------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Pendiente                                                                       |
+| O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Corregido localmente en fase 11; E2E y cierre integral pendientes               |
 | O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Corregido localmente en fase 8; integración/E2E reales pendientes               |
 | O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Corregido localmente en fase 8; integración/E2E reales pendientes               |
 | O04 | Inicio: pendientes, alcance y primera acción                  | 3, 7         | Totales globales, borradores separados y onboarding derivado                        | Fases 3/7 corregidas localmente; integración/E2E reales pendientes              |
@@ -357,7 +357,7 @@ Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar c
 | O23 | BI auditoría: cambios legibles                                | 10           | Diff antes/después y actor técnico preservado; editor restringido                   | Corregido localmente en fase 10; integración real pendiente                     |
 | O24 | Sistema visual: densidad, estado, contexto, foco y movimiento | 2, 7, 11, 12 | Identidad conservada, controles legibles, organización persistente y reduced motion | Parcial: base de fase 2 y contexto de fase 7 validados localmente; faltan 11/12 |
 | O25 | Rendimiento: lazy, cleanup, polling y overlays                | 12           | Medición de producción y cambios motivados; no memoización especulativa             | Pendiente                                                                       |
-| O26 | Preparación ruteada: aliases y ayuda real                     | 11           | Doce decisiones resueltas sin construir doce flujos alternativos                    | Pendiente                                                                       |
+| O26 | Preparación ruteada: aliases y ayuda real                     | 11           | Doce decisiones resueltas sin construir doce flujos alternativos                    | Corregido localmente en fase 11; E2E y cierre integral pendientes               |
 
 No añadir nombre personal del actor a BI sin un contrato autorizado que lo aporte. Mantener actor técnico como dato secundario. No implementar fusión de etiquetas, cambio de rol, borrado de medios sin endpoint ni un sistema de membresías multiempresa como ampliaciones implícitas.
 
@@ -367,7 +367,7 @@ No añadir nombre personal del actor a BI sin un contrato autorizado que lo apor
 
 | Ruta activa                    | Fases propietarias | Verificación específica                                               | Estado                                                                                 |
 | ------------------------------ | ------------------ | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `/`                            | 2, 11              | Header/CTA, anchors, borradores, autoplay, mobile/zoom                | Parcial: base compartida de fase 2; flujo propio pendiente                             |
+| `/`                            | 2, 11              | Header/CTA, anchors, borradores, autoplay, mobile/zoom                | Corregido localmente en fases 2/11; E2E y cierre integral pendientes                   |
 | `/admin/login`                 | 2, 8               | Vacío, errores, sesión/refresh/logout y semántica móvil               | Corregido localmente en fase 8; integración/E2E reales pendientes                      |
 | `/admin/register`              | 2, 8               | Campos vacíos, contraseña, alta y errores preservados                 | Corregido localmente en fase 8; integración/E2E reales pendientes                      |
 | `/admin`                       | 1, 2, 3, 7         | Resumen real, recientes, pendientes y onboarding según rol            | Fases 1/2/3/7 corregidas localmente; integración/E2E reales y cierre pendientes        |
@@ -399,20 +399,20 @@ No añadir nombre personal del actor a BI sin un contrato autorizado que lo apor
 
 Las redirecciones no deben eliminar autorización ni crear loops; validar identificadores y query de contexto. La fase 11 define e implementa destinos coherentes con las entradas completadas en fases anteriores.
 
-| Ruta                      | Destino/comportamiento acordado                                                    | Fase | Estado    |
-| ------------------------- | ---------------------------------------------------------------------------------- | ---- | --------- |
-| `/login`                  | Alias a `/admin/login`                                                             | 11   | Pendiente |
-| `/docs`                   | Ayuda pública real; deja de ser placeholder                                        | 11   | Pendiente |
-| `/dashboard`              | Alias a `/admin`                                                                   | 11   | Pendiente |
-| `/analytics`              | Alias a `/admin/analytics`                                                         | 11   | Pendiente |
-| `/testimonials`           | Alias a `/admin/testimonials`                                                      | 11   | Pendiente |
-| `/testimonials/[id]`      | Entrada contextual autorizada en testimonios                                       | 11   | Pendiente |
-| `/testimonials/[id]/edit` | Entrada contextual de edición con permisos/estado reales                           | 11   | Pendiente |
-| `/settings/users`         | Alias a `/admin/users`                                                             | 11   | Pendiente |
-| `/settings/webhooks`      | Alias a `/admin/webhooks`                                                          | 11   | Pendiente |
-| `/settings/api-keys`      | Alias a `/admin/api-keys`                                                          | 11   | Pendiente |
-| `/settings/feature-flags` | Sección real de capacidades en configuración                                       | 11   | Pendiente |
-| `/settings/integrations`  | Sección real de integraciones en configuración con accesos a claves/webhooks/ayuda | 11   | Pendiente |
+| Ruta                      | Destino/comportamiento acordado                                                    | Fase | Estado                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------- | ---- | -------------------------------------------------------------- |
+| `/login`                  | Alias a `/admin/login`                                                             | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/docs`                   | Ayuda pública real; deja de ser placeholder                                        | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/dashboard`              | Alias a `/admin`                                                                   | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/analytics`              | Alias a `/admin/analytics`                                                         | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/testimonials`           | Alias a `/admin/testimonials`                                                      | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/testimonials/[id]`      | Entrada contextual autorizada en testimonios                                       | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/testimonials/[id]/edit` | Entrada contextual de edición con permisos/estado reales                           | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/settings/users`         | Alias a `/admin/users`                                                             | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/settings/webhooks`      | Alias a `/admin/webhooks`                                                          | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/settings/api-keys`      | Alias a `/admin/api-keys`                                                          | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/settings/feature-flags` | Sección real de capacidades en configuración                                       | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
+| `/settings/integrations`  | Sección real de integraciones en configuración con accesos a claves/webhooks/ayuda | 11   | Implementada y verificada localmente en fase 11; E2E pendiente |
 
 ### Formularios y estados compartidos
 
@@ -869,4 +869,29 @@ Las siete superficies BI mejoran vigencia/resultado/acción, escala y unidades d
 
 **Ronda visual acotada:** la inspección agrupada sufrió interrupciones por selectores del script (Configuración duplicada, label de select y alert del anunciador Next), que se acotaron por navegación/rol/main; no se modificó producto para satisfacerlos. Después se completaron escritorio y móvil en ambos temas. Ejecuciones y detalle de solicitud mostraron documento de 874 px con viewport 320: los spans `sr-only` tenían BODY como bloque de posicionamiento y escapaban del scroll. Se corrigieron los wrappers posicionados; el documento final mide 320 y los spans quedan contenidos en DIV. La misma ronda encontró la carrera de Atrás tras guardar/reeditar. Se aplicó un lote de correcciones y una única ronda completa de confirmación, sin nuevas iteraciones visuales de pulido. La revisión posterior de código agregó descarte de salida diferida al desmontar y evitó presentar inventario observado donde falta el primer corte; ambos ajustes se verificaron con 30 casos enfocados, sin otra ronda visual. Agent-browser no está instalado; se usó Playwright/Chromium ya disponible, sin instalar dependencias. Capturas y mediciones temporales contienen sólo fixtures sintéticas; no se copian datos privados ni secretos a documentación.
 
-**Cierre/límites:** implementación y validación local terminadas. PostgreSQL, warehouse real, seis E2E y CI del SHA final siguen pendientes de su entorno; no hay despliegue. Sin esquema/migraciones nuevas, infraestructura, hooks o manifiestos/dependencias. Fase 10 conserva `[Actual]`, pendiente del commit humano y ACK. Commit sugerido: `feat(analytics): clarificá métricas y operación de inteligencia de negocio`. Detenerse; el próximo ACK habilita sólo fase 11.
+**Cierre/límites:** implementación y validación local terminadas. PostgreSQL, warehouse real, seis E2E y CI del SHA final siguen pendientes de su entorno; no hay despliegue. Sin esquema/migraciones nuevas, infraestructura, hooks o manifiestos/dependencias. Cierre humano posterior: commit `a23d6df` verificado y ACK recibido para fase 11. Commit sugerido: `feat(analytics): clarificá métricas y operación de inteligencia de negocio`. Detenerse; el próximo ACK habilita sólo fase 11.
+
+### Fase 11 — Landing, ayuda y rutas preparatorias (2026-10-18)
+
+**Autorización/base:** commit humano de fase 10 `a23d6df` verificado, rama correcta y árbol limpio. El ACK «Continuar» autorizó sólo fase 11; la continuación tras el corte de contexto/tokens preservó los cambios y esa fase. No se ejecutó fase 12.
+
+**Implementación:** portada editorial con titulares y CTA que llevan a registro, proceso y ayuda; header/footer con navegación real y salto al contenido. Capacidades descritas desde los contratos y servicios existentes: captura, moderación, galería, organización, métricas y API/webhooks. Se retiran las promesas de widget, conversión causal, integraciones instantáneas, selector multiempresa y condiciones no acreditadas. Precios, testimonios comerciales y CTA original con condiciones se conservan en componentes `landing/drafts/` sin importar ni montar en rutas públicas; no tienen URL. Sin enlaces vacíos legales/contacto/redes/blog. La portada usa contenido estático en vez de autoplay y mantiene las capacidades visibles en móvil.
+
+`/docs` pasa a ser ayuda pública de cinco tareas con anchors, límites de medios, recepción parcial, estados, publicación, métricas, API keys y webhooks. Las otras once entradas preparatorias son aliases a pantallas vigentes; UUID validado y normalizado para detalle/edición contextual. El alias de edición abre revisión y conserva la acción Editar sólo cuando rol/propiedad/estado la habilitan. Configuración incorpora accesos reales de integración; sus secciones conocidas reciben scroll y foco después de la lectura inicial, sin saltos adicionales al refrescar. El bloque nuevo de integraciones precede a los parámetros para no desplazarse con su carga independiente. Contratos y decisiones en [landing/ayuda/rutas](../modules/web-landing-help-routes.md) y [configuración](../modules/web-settings.md).
+
+| Verificación                                                               | Resultado                                                                                                  | Alcance/límites                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web completa `npm test --workspace @testimonial-cms/web -- --maxWorkers=2` | **363/363**, 57 archivos, sin omisiones                                                                    | Destinos, aliases/UUID inválidos, contenido aprobado, ayuda, hero actualizado al contenido acordado, foco tardío de anchor sin salto al refrescar y regresión completa.                                                                                                                                                                                                                                                    |
+| Selección tras correcciones: landing/help/legacy-routes/settings           | **39/39**, seis archivos                                                                                   | Mock de sesión/transporte donde corresponde; las pruebas de aliases simulan `redirect`/`notFound`. No son integración API.                                                                                                                                                                                                                                                                                                 |
+| Tipos/lint/formato/diff                                                    | Tipos sin errores; lint sin errores y **8 advertencias preexistentes restantes**; formato y diff conformes | Se retira el img del header, eliminando una advertencia anterior. Sin suppressions/config nueva.                                                                                                                                                                                                                                                                                                                           |
+| Red observado antes de producción                                          | **16 fallos funcionales**                                                                                  | Dos de CTA/contenido comercial y catorce de aliases/UUID/ausencia. La evidencia fue observada antes del corte de contexto; no se presenta un log temporal perdido como archivo persistente. El caso nuevo de foco también reproduce el fallo funcional en navegador antes de corregirlo.                                                                                                                                   |
+| Navegador: landing y ayuda                                                 | **20 combinaciones conformes**                                                                             | 320/375/768/1440 px × claro/oscuro, más reflow de 720 CSS px/DPR2 × ambos temas; dos superficies. Documento y body iguales al viewport, un main/h1 por superficie, sin overflow de elementos medidos, anchors internos ausentes, links vacíos ni animaciones activas con movimiento reducido. Medición de textos incluidos con mínimo global 5,1356:1. Capturas emuladas Chromium; no hardware ni auditoría WCAG completa. |
+| Navegación funcional sintética                                             | Destinos y controles verificados                                                                           | Once aliases al destino exacto, UUID inválido, salto de teclado al main, anchors, registro, acceso sin sesión, capacidades/integraciones con foco tras cargar, editor propio editable, publicado sin edición y recurso denegado sin detalle privado. Sesión, recursos y errores son fixtures HTTP; no acreditan backend real.                                                                                              |
+| Detector Impeccable                                                        | Sin hallazgos en pantallas/componentes activos modificados                                                 | Borradores comerciales intencionalmente no montados fuera de este target. No acredita aceptación funcional o accesibilidad completa.                                                                                                                                                                                                                                                                                       |
+| Seis E2E reales                                                            | **Bloqueados antes de servicios**                                                                          | Harness `ed621d8cd355`: `Create owned network failed (1)`. No hubo servicios/migraciones/ejecución. Se mantienen seis recorridos y gates; SESSION amplía `/login` y PUBLISH comprueba el alias `/edit` publicado sin edición.                                                                                                                                                                                              |
+
+**Ronda visual acotada:** inspección agrupada de tamaños/temas, un lote de correcciones y una única confirmación visual completa. El lote corrigió el anchor que llegaba antes del contenido de Configuración y la transición de colores de los CTA, que producía muestras de contraste insuficientes durante el cambio de tema. La confirmación no generó nuevos cambios de UI. Hubo ajustes del guion, no del producto, para reconocer los redirects emitidos por streaming de Next, excluir marcadores React Flight como `$29` al comprobar precios visibles y usar la copia real «No encontramos…» al verificar una denegación. Esa última expectativa causó exit 1 del guion combinado aunque las 20 mediciones visuales conformaran; se clasificó como expectativa incorrecta, se validaron las mediciones guardadas y se repitió únicamente la denegación funcional con su mensaje real, aprobada sin nuevas capturas/inspecciones visuales. No se ocultó ni desactivó un test del proyecto. Agent-browser no está instalado; se usó Playwright/Chromium disponible, sin nuevas dependencias. Capturas y evidencia temporal sólo con datos sintéticos.
+
+**HTTP observado:** los once aliases devolvieron HTML inicial 200 y metadata de refresh al destino exacto por el streaming de App Router. No se afirma un 307 previo al envío ni redirección permanente. Se verificó navegación final y preservación de las pantallas de acceso/permiso. No se introdujo canonical, sitemap, host o política SEO nueva.
+
+**Cierre/límites:** implementación y validación local completas; E2E reales y CI del SHA a registrar pendientes. Sin cambios de API, esquema, migraciones, infraestructura, hooks Git, manifiestos o dependencias; sin despliegue. Fase 11 conserva `[Actual]` hasta commit humano y ACK. Commit sugerido: `feat(web): conectá la landing y reemplazá rutas preparatorias`. Detenerse; el próximo ACK habilita sólo fase 12.

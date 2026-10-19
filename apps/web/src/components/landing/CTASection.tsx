@@ -1,45 +1,41 @@
+import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-export const CTASection = () => {
+export function CTASection() {
   return (
-    <section className="py-32">
-      <div className="container">
-        <div className="relative surface-inverse bg-foreground text-background p-16 md:p-24 overflow-hidden">
-          {/* Decorative large italic text */}
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 font-caption text-[12rem] font-bold italic leading-none text-background/5 select-none pointer-events-none hidden lg:block">
-            CMS
-          </div>
-
-          <div className="relative z-10 max-w-2xl">
-            <h2 className="font-caption text-4xl font-light italic leading-tight md:text-6xl md:leading-none">
-              Comienza a mostrar el{' '}
-              <strong className="font-body font-bold not-italic text-primary">
-                verdadero valor
-              </strong>{' '}
-              de tus clientes.
-            </h2>
-            <p className="mt-6 font-body text-sm leading-relaxed opacity-60">
-              Prueba gratuita de 14 días, sin compromiso. Sin tarjeta de
-              crédito.
-            </p>
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Button
-                size="lg"
-                className="h-14 bg-primary px-8 font-body text-sm uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
-              >
-                Empieza Ahora <ArrowRight className="ml-3 h-4 w-4" />
-              </Button>
-              <a
-                href="#"
-                className="font-body text-sm font-medium uppercase tracking-widest text-background/60 transition-colors hover:text-background"
-              >
-                Hablar con ventas →
-              </a>
-            </div>
-          </div>
+    <section aria-labelledby="start-title" className="border-t py-14 sm:py-20">
+      <div className="container grid items-center gap-7 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="min-w-0">
+          <h2
+            id="start-title"
+            className="max-w-2xl text-balance font-caption text-3xl font-light italic leading-tight sm:text-5xl"
+          >
+            Dale un lugar a la próxima historia.
+          </h2>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
+            Creá tu espacio y prepará el enlace de captura. La ayuda te acompaña
+            desde la recepción hasta la publicación.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3 md:flex-col">
+          <Button
+            asChild
+            size="lg"
+            className="h-auto min-h-12 whitespace-normal rounded-none transition-none px-6 py-3 text-base"
+          >
+            <Link href="/admin/register">
+              Crear un espacio
+              <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+          <Link
+            href="/docs"
+            className="inline-flex min-h-11 items-center justify-center text-sm text-primary underline underline-offset-4"
+          >
+            Leer la guía de inicio
+          </Link>
         </div>
       </div>
     </section>
   );
-};
+}

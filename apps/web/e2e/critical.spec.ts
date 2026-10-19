@@ -17,6 +17,8 @@ test('E2E-SESSION login, recarga, rotación y revocación al cerrar sesión', as
   playwright,
   baseURL,
 }) => {
+  await page.goto('/login');
+  await expect(page).toHaveURL(/\/admin\/login$/);
   await page.goto('/admin/register');
   await expect(
     page.getByRole('heading', { name: 'Crear tu espacio', level: 1 }),
@@ -285,6 +287,22 @@ test('E2E-PUBLISH captura, aprobación y publicación persisten y aparecen en el
   await page.keyboard.press('Escape');
   await expect(row).toContainText('Publicado');
   expect((await tenant.get(path, recordSchema)).status).toBe('published');
+  await page.goto(`/testimonials/${submitted.data.id}/edit`);
+  await expect(page).toHaveURL(
+    new RegExp(`/admin/testimonials.*testimonial=${submitted.data.id}`),
+  );
+  const publishedDetail = page.getByRole('dialog', {
+    name: `Testimonio de ${authorName}`,
+  });
+  await expect(publishedDetail).toBeVisible();
+  await expect(
+    publishedDetail.getByRole('button', {
+      name: 'Editar Testimonio',
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
   // A new anonymous context proves public access independently of admin cookies.
   const anonymous = await page
     .context()
