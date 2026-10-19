@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 12 implementada y validada localmente, preparada para commit y ACK; fase 11 registrada en `fa7838b` y aprobada. Aceptación integral pendiente: servicios reales, seis E2E y CI del SHA final.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 12 registrada en `b14c1be` y aprobada por ACK humano. Aceptación integral pendiente: servicios reales, seis E2E y CI del SHA final.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. El ACK «Continuar» del 2026-10-18 posterior a `24b64b6` autoriza únicamente la fase 7. El ACK «Continuar» del 2026-10-18 posterior a `8152850` autoriza únicamente la fase 8. El ACK «Continuar» del 2026-10-18 posterior a `b665226` autoriza únicamente la fase 9. El ACK «Continuar» del 2026-10-18 posterior a `380cba0` autoriza únicamente la fase 10. El ACK «Continuar» posterior a `a23d6df` autoriza únicamente fase 11. El ACK «Continuar» del 2026-10-18 posterior a `fa7838b` autoriza únicamente fase 12. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. El ACK «Continuar» del 2026-10-18 posterior a `24b64b6` autoriza únicamente la fase 7. El ACK «Continuar» del 2026-10-18 posterior a `8152850` autoriza únicamente la fase 8. El ACK «Continuar» del 2026-10-18 posterior a `b665226` autoriza únicamente la fase 9. El ACK «Continuar» del 2026-10-18 posterior a `380cba0` autoriza únicamente la fase 10. El ACK «Continuar» posterior a `a23d6df` autoriza únicamente fase 11. El ACK «Continuar» del 2026-10-18 posterior a `fa7838b` autoriza únicamente fase 12. El ACK «continuar» del 2026-10-18 posterior a `b14c1be` aprueba la implementación de fase 12, sin eximir los gates pendientes. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
 
 ## 1. Contexto y restricciones
 
@@ -288,12 +288,12 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 - [x] Completar matriz local de rutas/roles/estados/tamaños/temas; límites de integración explícitos.
 - [x] Polish acotado y nueva auditoría/detector del código final según skill.
 - [x] Actualizar documentación y trazabilidad F01–F24 con límites explícitos.
-- [ ] Cierre de integración pendiente: se comprobó que GitHub no conoce el SHA local; servicios reales, seis E2E y checks del próximo SHA aún requeridos.
+- [ ] Cierre de integración pendiente: GitHub no conoce `b14c1be`; daemon Docker ausente. Servicios reales, seis E2E y checks del SHA de integración aún requeridos.
 
 **Cierre/pruebas:** ningún punto acordado queda sin resolución o exclusión humana explícita; suite completa y E2E vigentes; tipos/lint/build y evidencia saneada; no comparar scores de alcances diferentes como si probaran mejora.
 
 **Commit:** `perf(web): optimizá y validá la experiencia integral`  
-**ACK humano de cierre:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido el 2026-10-18 sobre la implementación registrada en `b14c1be`. La aceptación integral sigue pendiente de sus gates; no hay fase siguiente autorizada ni excepción a las verificaciones.
 
 ## 4. Matriz de hallazgos F01–F24
 
@@ -909,3 +909,13 @@ Las siete superficies BI mejoran vigencia/resultado/acción, escala y unidades d
 **Pendientes de aceptación integral:** daemon Docker ausente; harness `dcf3b3b40f10` falla al crear la red propia antes de servicios/migraciones. Se mantienen seis E2E descubiertos, sin ejecución real aceptada. Las 174 integraciones omitidas requieren PG/Redis/warehouse reales y aislados. GitHub no conoce todavía el SHA local completo `fa7838b5feab8d699087a9eb10576f910ef115e3`; checks del próximo commit pendientes. CI debe ejecutar su cobertura y gates completos sobre ese SHA. El ACK del harness se conserva; no autoriza desarrollo/remoto ni excepciones a los gates.
 
 **Cierre humano:** implementación preparada para commit; fase 12 sigue `[Actual]`, pendiente de aceptación integral, commit humano y ACK final. Sin commit automático, push, PR, merge ni despliegue. Sin cambios de esquema, migraciones, infraestructura, hooks o manifiestos. Commit sugerido: `perf(web): optimizá y validá la experiencia integral`. Detenerse y esperar ACK; no marcar el plan completado mientras queden verificaciones obligatorias sin aceptación.
+
+### Seguimiento del ACK final — 2026-10-18
+
+**Commit y autorización:** `b14c1bef5e8797011f7f224fd7290fb4de60140a` (`perf(web): optimizá y validá la experiencia integral`) contiene los siete archivos de fase 12. Árbol inicialmente limpio. Se recibió «continuar» después del cierre local: ACK de la implementación y autorización para comprobar los pendientes; no autoriza push, PR, despliegue ni reemplazar integración real por fixtures.
+
+**Verificación de disponibilidad:** `docker info` fuera del sandbox confirma socket/daemon ausente, no sólo un error de permisos. GitHub Checks para el SHA completo responde HTTP 422 «No commit found» y `gh run list --commit <SHA>` devuelve `[]`. El SHA no tiene checks verificables en remoto. No se repite el harness porque sigue faltando la misma precondición, ni se repiten suites que ya pasaron ante un cambio exclusivamente documental.
+
+**Estado:** implementación de las fases 0–12 registrada y aprobada; aceptación integral abierta. Fase 12 permanece `[Actual]` por las 174 integraciones, seis E2E y CI pendientes. Para avanzar se necesita Docker disponible para el harness propio y el SHA final publicado por el usuario para que pueda ejecutar CI. No se modifica infraestructura ni se inicia un daemon del sistema como efecto lateral. No se marca el plan completado ni se introduce una fase 13.
+
+**Commit documental sugerido:** `docs(plan): registrá el ACK y los pendientes de validación final`. Sin commit automático. Detenerse hasta que cambien esas precondiciones o el usuario indique cómo continuar.
