@@ -14,7 +14,6 @@ vi.mock('../api', () => ({
   trackPublicEvent: track,
 }));
 vi.mock('@/features/public-capture/api', () => ({ getFormInfo: info }));
-vi.mock('@/components/ui/NoiseOverlay', () => ({ NoiseOverlay: () => null }));
 const record = (n = 1) => ({
   id: `synthetic-${n}`,
   authorName: `Autor sintético ${n}`,

@@ -6,7 +6,6 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Star, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
 import { ApiError } from '@/lib/api';
 import { loadFailureCopy } from '@/features/shared/load-failure';
 import {
@@ -212,7 +211,6 @@ function CaptureForm({ slug }: { slug: string }) {
   if (formState.status === 'loading')
     return (
       <main className="flex min-h-screen items-center justify-center bg-background p-6">
-        <NoiseOverlay />
         <p role="status" className="font-body text-base">
           Cargando formulario…
         </p>
@@ -225,7 +223,6 @@ function CaptureForm({ slug }: { slug: string }) {
     );
     return (
       <main className="flex min-h-screen items-center justify-center bg-background p-6">
-        <NoiseOverlay />
         <div className="relative max-w-md text-center">
           <h1 className="font-caption text-3xl italic">{title}</h1>
           <p className="mt-4 font-body text-base text-muted-foreground">
@@ -252,7 +249,6 @@ function CaptureForm({ slug }: { slug: string }) {
       .join(' y ');
     return (
       <main className="flex min-h-screen items-center justify-center bg-background p-6">
-        <NoiseOverlay />
         <div className="relative max-w-lg text-center">
           <div className="mb-8 flex flex-col items-center gap-4">
             <TenantLogo name={info.name} logoUrl={info.logoUrl} />
@@ -296,7 +292,6 @@ function CaptureForm({ slug }: { slug: string }) {
   }
   return (
     <main className="relative min-h-screen bg-background">
-      <NoiseOverlay />
       <div className="relative z-10 grid min-h-screen min-w-0 grid-cols-[minmax(0,1fr)] lg:grid-cols-[1fr_1.2fr]">
         <header className="min-w-0 border-b px-6 py-8 sm:p-12 lg:flex lg:items-center lg:border-b-0 lg:border-r lg:p-16">
           <div className="min-w-0 max-w-md">

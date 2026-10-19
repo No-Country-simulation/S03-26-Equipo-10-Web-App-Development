@@ -10,7 +10,6 @@ import {
 } from 'react';
 import { useParams } from 'next/navigation';
 import { Play, Quote } from 'lucide-react';
-import { NoiseOverlay } from '@/components/ui/NoiseOverlay';
 import { Button } from '@/components/ui/button';
 import { RatingDisplay } from '@/features/shared/rating-display';
 import { cn } from '@/lib/utils';
@@ -437,7 +436,6 @@ function PublicGallery({ slug }: { slug: string }) {
     data.meta.page < 10000;
   return (
     <div className="relative min-h-screen bg-background">
-      <NoiseOverlay />
       <main className="relative z-10 mx-auto max-w-6xl px-6 py-12 sm:px-8 lg:px-12">
         <header className="mx-auto max-w-2xl text-center">
           {brand.state.status === 'success' ? (

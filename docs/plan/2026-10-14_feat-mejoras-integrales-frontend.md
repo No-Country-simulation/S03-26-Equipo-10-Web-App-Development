@@ -1,10 +1,10 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 11 implementada y validada localmente, pendiente de commit y ACK; fase 10 registrada en `a23d6df` y aprobada. Integración/E2E reales pendientes por Docker no disponible.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 12 implementada y validada localmente, preparada para commit y ACK; fase 11 registrada en `fa7838b` y aprobada. Aceptación integral pendiente: servicios reales, seis E2E y CI del SHA final.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
-**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. El ACK «Continuar» del 2026-10-18 posterior a `24b64b6` autoriza únicamente la fase 7. El ACK «Continuar» del 2026-10-18 posterior a `8152850` autoriza únicamente la fase 8. El ACK «Continuar» del 2026-10-18 posterior a `b665226` autoriza únicamente la fase 9. El ACK «Continuar» del 2026-10-18 posterior a `380cba0` autoriza únicamente la fase 10. El ACK «Continuar» posterior a `a23d6df` autoriza únicamente fase 11. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
+**Autorización:** el usuario aprobó este plan en el chat y pidió implementarlo con una detención y un commit sugerido al finalizar cada fase. El ACK «Continuar» del 2026-10-15, posterior al commit de fase 2 (`9ec32c4`), autorizó la fase 3. El ACK «Continuar» del 2026-10-17, posterior al commit `263fd55`, autoriza únicamente la fase 4. El ACK «Continuar» posterior al commit `a9ab823` autoriza únicamente la fase 5. El ACK «Continuar» del 2026-10-18 posterior a `52e4800` autoriza únicamente la fase 6. El ACK «Continuar» del 2026-10-18 posterior a `24b64b6` autoriza únicamente la fase 7. El ACK «Continuar» del 2026-10-18 posterior a `8152850` autoriza únicamente la fase 8. El ACK «Continuar» del 2026-10-18 posterior a `b665226` autoriza únicamente la fase 9. El ACK «Continuar» del 2026-10-18 posterior a `380cba0` autoriza únicamente la fase 10. El ACK «Continuar» posterior a `a23d6df` autoriza únicamente fase 11. El ACK «Continuar» del 2026-10-18 posterior a `fa7838b` autoriza únicamente fase 12. Se registran abajo los ACK específicos para el harness descartable y la conservación de actividad.
 
 ## 1. Contexto y restricciones
 
@@ -264,7 +264,7 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Commit:** `feat(analytics): clarificá métricas y operación de inteligencia de negocio`  
 **ACK humano:** recibido; commit `a23d6df` verificado y fase 11 autorizada.
 
-### [Actual] Fase 11 — Landing, ayuda y rutas preparatorias
+### [Completada] Fase 11 — Landing, ayuda y rutas preparatorias
 
 **Cubre:** F11, F12, F23.
 
@@ -279,16 +279,16 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 **Cierre/pruebas:** CTA y navegación producen su resultado; no hay placeholders públicos; aliases conservan autorización; borradores comerciales no renderizados; teclado, zoom y 320/375/768 px sin pérdida de acciones.
 
 **Commit:** `feat(web): conectá la landing y reemplazá rutas preparatorias`  
-**ACK humano:** pendiente. **Detenerse y esperar ACK.**
+**ACK humano:** recibido el 2026-10-18; commit `fa7838b` verificado.
 
-### [Pendiente] Fase 12 — Rendimiento, validación integral y cierre
+### [Actual] Fase 12 — Rendimiento, validación integral y cierre
 
-- [ ] Medir build de producción, rutas representativas y medios/polling.
-- [ ] Eliminar overlays duplicados y corregir costos demostrados sin refactors especulativos.
-- [ ] Completar matriz de rutas/roles/estados/tamaños/temas.
-- [ ] Polish acotado y nueva auditoría/detector del código final según skill.
-- [ ] Actualizar documentación y trazabilidad F01–F24 con límites explícitos.
-- [ ] Preparar cierre para integración y comprobar checks del SHA correspondiente sin desplegar.
+- [x] Medir build de producción, rutas representativas y medios/polling; distinguir laboratorio de servicios reales.
+- [x] Eliminar overlays duplicados y corregir costos demostrados sin refactors especulativos.
+- [x] Completar matriz local de rutas/roles/estados/tamaños/temas; límites de integración explícitos.
+- [x] Polish acotado y nueva auditoría/detector del código final según skill.
+- [x] Actualizar documentación y trazabilidad F01–F24 con límites explícitos.
+- [ ] Cierre de integración pendiente: se comprobó que GitHub no conoce el SHA local; servicios reales, seis E2E y checks del próximo SHA aún requeridos.
 
 **Cierre/pruebas:** ningún punto acordado queda sin resolución o exclusión humana explícita; suite completa y E2E vigentes; tipos/lint/build y evidencia saneada; no comparar scores de alcances diferentes como si probaran mejora.
 
@@ -297,7 +297,7 @@ Documentar cambios de contrato en las especificaciones de módulos y probar comp
 
 ## 4. Matriz de hallazgos F01–F24
 
-El estado actual se registra por hallazgo. «Corregido localmente» requiere las pruebas de la fase; no sustituye CI, integración real ni el cierre integral. La auditoría y la preparación no cuentan como corrección. Las fases indicadas son propietarias; el cierre integral comprueba regresiones sin implementar anticipadamente otras fases.
+La regresión local de fase 12 y sus límites por hallazgo constan en [validación integral](../technical/2026-10-18_frontend_validacion_integral.md). Ninguna fila con integración pendiente pasa a aceptación integral por un fixture. El estado actual se registra por hallazgo. «Corregido localmente» requiere las pruebas de la fase; no sustituye CI, integración real ni el cierre integral. La auditoría y la preparación no cuentan como corrección. Las fases indicadas son propietarias; el cierre integral comprueba regresiones sin implementar anticipadamente otras fases.
 
 | ID  | Hallazgo                                           | Fase propietaria                 | Prueba/aceptación mínima                                                   | Estado                                                                                 |
 | --- | -------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
@@ -330,34 +330,34 @@ El estado actual se registra por hallazgo. «Corregido localmente» requiere las
 
 Cada fila agrupa una oportunidad de la auditoría por superficie, sin inventar capacidades. Las filas parciales conservan explícitamente las fases pendientes. Las capacidades expresamente excluidas no se considerarán una omisión al cerrar este plan.
 
-| ID  | Superficie/oportunidad                                        | Fase         | Evidencia de aceptación                                                             | Estado                                                                          |
-| --- | ------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Corregido localmente en fase 11; E2E y cierre integral pendientes               |
-| O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Corregido localmente en fase 8; integración/E2E reales pendientes               |
-| O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Corregido localmente en fase 8; integración/E2E reales pendientes               |
-| O04 | Inicio: pendientes, alcance y primera acción                  | 3, 7         | Totales globales, borradores separados y onboarding derivado                        | Fases 3/7 corregidas localmente; integración/E2E reales pendientes              |
-| O05 | Listado: estado, consulta global y detalle contextual         | 3            | URL, filtros, limpiar y siguiente/anterior coherentes                               | Corregido localmente en fase 3; E2E reales pendientes                           |
-| O06 | Alta: contenido principal y clasificación progresiva          | 1, 2         | Borrador recuperable, móvil y preview sin dominar escritura                         | Corregido localmente en fases 1/2; cierre integral pendiente                    |
-| O07 | Detalle: estado español y acción siguiente                    | 1, 3         | Mutación confirmada, permisos, visibilidad pública y eliminación informada          | Corregido localmente en fases 1/3; integración real pendiente                   |
-| O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Corregido localmente en fase 4; integración/E2E reales pendientes               |
-| O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Corregido localmente en fase 4; integración/E2E reales pendientes               |
-| O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Corregido localmente en fase 4; integración/E2E reales pendientes               |
-| O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Corregido localmente en fase 5; integración/E2E reales pendientes               |
-| O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Corregido localmente en fase 6; integración/E2E reales pendientes               |
-| O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Corregido localmente en fase 10; integración real pendiente                     |
-| O14 | Ajustes: marca/captura/capacidades independientes             | 7            | Guardados independientes; scoring real; capacidades operables                       | Corregido localmente en fase 7; integración/E2E reales pendientes               |
-| O15 | Captura: marca, rating deliberado y límites previos           | 9            | Validación, parcial/completo y foco sin duplicados                                  | Corregido localmente en fase 9; integración/E2E reales pendientes               |
-| O16 | Galería: identidad, lectura y cantidad                        | 9            | Marca, cargar más, semántica y ausencia de rótulos de telemetría                    | Corregido localmente en fase 9; integración/E2E reales pendientes               |
-| O17 | BI resumen: vigencia, unidades y cortes                       | 10           | Jerarquía, ejes/unidades, tabla accesible y huecos no interpolados                  | Corregido localmente en fase 10; integración real pendiente                     |
-| O18 | BI ejecuciones: intención vs intento                          | 10           | Agrupación, filtros preservados, dos paginaciones y scroll contenido                | Corregido localmente en fase 10; integración real pendiente                     |
-| O19 | BI detalle ejecución: resultado y recuperación                | 10           | Acción actual comprensible; UUID/código secundarios                                 | Corregido localmente en fase 10; integración real pendiente                     |
-| O20 | BI detalle solicitud: seguimiento durable                     | 10           | Estados fieles sin porcentajes inventados; cancelar sólo pendiente                  | Corregido localmente en fase 10; integración real pendiente                     |
-| O21 | BI operación: acción posible antes de cifras                  | 10           | Motivo junto a bloqueo; aceptada no se presenta como terminada                      | Corregido localmente en fase 10; integración real pendiente                     |
-| O22 | BI configuración: efecto, draft y conflicto                   | 10           | Salida deliberada, UTC, merge explícito y pausa/manual diferenciados                | Corregido localmente en fase 10; integración real pendiente                     |
-| O23 | BI auditoría: cambios legibles                                | 10           | Diff antes/después y actor técnico preservado; editor restringido                   | Corregido localmente en fase 10; integración real pendiente                     |
-| O24 | Sistema visual: densidad, estado, contexto, foco y movimiento | 2, 7, 11, 12 | Identidad conservada, controles legibles, organización persistente y reduced motion | Parcial: base de fase 2 y contexto de fase 7 validados localmente; faltan 11/12 |
-| O25 | Rendimiento: lazy, cleanup, polling y overlays                | 12           | Medición de producción y cambios motivados; no memoización especulativa             | Pendiente                                                                       |
-| O26 | Preparación ruteada: aliases y ayuda real                     | 11           | Doce decisiones resueltas sin construir doce flujos alternativos                    | Corregido localmente en fase 11; E2E y cierre integral pendientes               |
+| ID  | Superficie/oportunidad                                        | Fase         | Evidencia de aceptación                                                             | Estado                                                                           |
+| --- | ------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| O01 | Landing: funcionamiento claro, CTA útil y pruebas reales      | 11           | Primer viewport comprensible, destinos reales, borradores fuera del render          | Corregido localmente en fase 11; E2E y cierre integral pendientes                |
+| O02 | Login: tarea visible, regreso y demo diferenciada             | 8            | Main/h1 móvil, campos vacíos, no demo ficticia                                      | Corregido localmente en fase 8; integración/E2E reales pendientes                |
+| O03 | Registro: espacio/cuenta y requisitos claros                  | 8            | Lenguaje, expectativas y errores junto al campo                                     | Corregido localmente en fase 8; integración/E2E reales pendientes                |
+| O04 | Inicio: pendientes, alcance y primera acción                  | 3, 7         | Totales globales, borradores separados y onboarding derivado                        | Fases 3/7 corregidas localmente; integración/E2E reales pendientes               |
+| O05 | Listado: estado, consulta global y detalle contextual         | 3            | URL, filtros, limpiar y siguiente/anterior coherentes                               | Corregido localmente en fase 3; E2E reales pendientes                            |
+| O06 | Alta: contenido principal y clasificación progresiva          | 1, 2         | Borrador recuperable, móvil y preview sin dominar escritura                         | Corregido localmente en fases 1/2; cierre integral pendiente                     |
+| O07 | Detalle: estado español y acción siguiente                    | 1, 3         | Mutación confirmada, permisos, visibilidad pública y eliminación informada          | Corregido localmente en fases 1/3; integración real pendiente                    |
+| O08 | Categorías: renombrado y asociaciones                         | 4            | Conteo global etiquetado, borrar/renombrar reales                                   | Corregido localmente en fase 4; integración/E2E reales pendientes                |
+| O09 | Etiquetas: búsqueda y complemento de categoría                | 4            | Crear/renombrar sin depender de página; ejemplos opcionales                         | Corregido localmente en fase 4; integración/E2E reales pendientes                |
+| O10 | Usuarios: acción real y estado de acceso                      | 4            | Alta directa clara; activar/desactivar; restricciones propias                       | Corregido localmente en fase 4; integración/E2E reales pendientes                |
+| O11 | API keys: integración, vencimiento y recorrido de rotación    | 5            | Contexto, gracia fiel y revelación protegida                                        | Corregido localmente en fase 5; integración/E2E reales pendientes                |
+| O12 | Webhooks: receptor, prueba, entrega e intentos                | 6            | Configurar y diagnosticar sin recordar fila anterior                                | Corregido localmente en fase 6; integración/E2E reales pendientes                |
+| O13 | Analítica: historia reconocible y alcance                     | 10           | Período, referencia y vacío con acción útil                                         | Corregido localmente en fase 10; integración real pendiente                      |
+| O14 | Ajustes: marca/captura/capacidades independientes             | 7            | Guardados independientes; scoring real; capacidades operables                       | Corregido localmente en fase 7; integración/E2E reales pendientes                |
+| O15 | Captura: marca, rating deliberado y límites previos           | 9            | Validación, parcial/completo y foco sin duplicados                                  | Corregido localmente en fase 9; integración/E2E reales pendientes                |
+| O16 | Galería: identidad, lectura y cantidad                        | 9            | Marca, cargar más, semántica y ausencia de rótulos de telemetría                    | Corregido localmente en fase 9; integración/E2E reales pendientes                |
+| O17 | BI resumen: vigencia, unidades y cortes                       | 10           | Jerarquía, ejes/unidades, tabla accesible y huecos no interpolados                  | Corregido localmente en fase 10; integración real pendiente                      |
+| O18 | BI ejecuciones: intención vs intento                          | 10           | Agrupación, filtros preservados, dos paginaciones y scroll contenido                | Corregido localmente en fase 10; integración real pendiente                      |
+| O19 | BI detalle ejecución: resultado y recuperación                | 10           | Acción actual comprensible; UUID/código secundarios                                 | Corregido localmente en fase 10; integración real pendiente                      |
+| O20 | BI detalle solicitud: seguimiento durable                     | 10           | Estados fieles sin porcentajes inventados; cancelar sólo pendiente                  | Corregido localmente en fase 10; integración real pendiente                      |
+| O21 | BI operación: acción posible antes de cifras                  | 10           | Motivo junto a bloqueo; aceptada no se presenta como terminada                      | Corregido localmente en fase 10; integración real pendiente                      |
+| O22 | BI configuración: efecto, draft y conflicto                   | 10           | Salida deliberada, UTC, merge explícito y pausa/manual diferenciados                | Corregido localmente en fase 10; integración real pendiente                      |
+| O23 | BI auditoría: cambios legibles                                | 10           | Diff antes/después y actor técnico preservado; editor restringido                   | Corregido localmente en fase 10; integración real pendiente                      |
+| O24 | Sistema visual: densidad, estado, contexto, foco y movimiento | 2, 7, 11, 12 | Identidad conservada, controles legibles, organización persistente y reduced motion | Implementado y revisado localmente en fases 2/7/11/12; cierre integral pendiente |
+| O25 | Rendimiento: lazy, cleanup, polling y overlays                | 12           | Medición de producción y cambios motivados; no memoización especulativa             | Medido y corregido localmente en fase 12; servicios/CI pendientes                |
+| O26 | Preparación ruteada: aliases y ayuda real                     | 11           | Doce decisiones resueltas sin construir doce flujos alternativos                    | Corregido localmente en fase 11; E2E y cierre integral pendientes                |
 
 No añadir nombre personal del actor a BI sin un contrato autorizado que lo aporte. Mantener actor técnico como dato secundario. No implementar fusión de etiquetas, cambio de rol, borrado de medios sin endpoint ni un sistema de membresías multiempresa como ampliaciones implícitas.
 
@@ -416,21 +416,21 @@ Las redirecciones no deben eliminar autorización ni crear loops; validar identi
 
 ### Formularios y estados compartidos
 
-| Superficie                        | Fase           | Pruebas adicionales                                                                                  | Estado                                                                  |
-| --------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Crear testimonio                  | 1, 2, 3        | Paginación sin submit, metadatos fallidos, dirty/Escape y móvil                                      | Parcial: fases 1/2 validadas; resto pendiente                           |
-| Editar/detalle/moderar            | 1, 2, 3        | Propiedad/estado, respuesta actualizada, notas y siguiente/anterior                                  | Parcial: fases 1/2 validadas; resto pendiente                           |
-| Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados                                     | Parcial: fases 1/2 validadas; resto pendiente                           |
-| Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                                                            | Corregido localmente en fase 4; integración/E2E pendientes              |
-| Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                                                   | Corregido localmente en fase 4; integración/E2E pendientes              |
-| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada                                             | Corregido localmente en fase 5; integración/E2E reales pendientes       |
-| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                                                  | Corregido localmente en fase 6; integración/E2E reales pendientes       |
-| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                                                      | Corregido localmente en fase 6; integración/E2E reales pendientes       |
-| Captura y galería públicas        | 9              | Rating deliberado, límites, lectura de archivo, 20+1, marca, tracking, parcial/foco y nombres largos | Corregido localmente en fase 9; integración/E2E reales pendientes       |
-| Login y registro                  | 8              | Campos vacíos, validación, foco, borradores, bloqueo, transporte y navegación                        | Corregido localmente en fase 8; integración/E2E reales pendientes       |
-| Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes                                      | Corregido localmente en fase 7; integración/E2E reales pendientes       |
-| Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                                                              | Fases 2/7 corregidas localmente; cierre integral en fase 12             |
-| Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado                                        | Parcial: fases 1/2/3/4 validadas localmente; cierre integral en fase 12 |
+| Superficie                        | Fase           | Pruebas adicionales                                                                                  | Estado                                                                     |
+| --------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Crear testimonio                  | 1, 2, 3        | Paginación sin submit, metadatos fallidos, dirty/Escape y móvil                                      | Regresiones locales de fases 1/2/3 verificadas; integración/E2E pendientes |
+| Editar/detalle/moderar            | 1, 2, 3        | Propiedad/estado, respuesta actualizada, notas y siguiente/anterior                                  | Regresiones locales de fases 1/2/3 verificadas; integración/E2E pendientes |
+| Adjuntos administrativos          | 1, 2           | Carga/error/doble envío, no editar publicado, datos actualizados                                     | Regresiones locales de fases 1/2/3 verificadas; integración/E2E pendientes |
+| Alta/renombrado de catálogos      | 4              | Datos conservados, errores y asociaciones                                                            | Corregido localmente en fase 4; integración/E2E pendientes                 |
+| Alta/estado de usuario            | 4              | Requisitos, rol, cuenta propia y acceso suspendido                                                   | Corregido localmente en fase 4; integración/E2E pendientes                 |
+| Alta/rotación/revelación API key  | 5              | Instante intacto, secreto en memoria y salida deliberada                                             | Corregido localmente en fase 5; integración/E2E reales pendientes          |
+| Alta/edición/rotación webhook     | 6              | Destino identificado, busy/conflicto/legado y firma                                                  | Corregido localmente en fase 6; integración/E2E reales pendientes          |
+| Historial y replay webhook        | 6              | Página/destino, intentos, accepted vs entregado                                                      | Corregido localmente en fase 6; integración/E2E reales pendientes          |
+| Captura y galería públicas        | 9              | Rating deliberado, límites, lectura de archivo, 20+1, marca, tracking, parcial/foco y nombres largos | Corregido localmente en fase 9; integración/E2E reales pendientes          |
+| Login y registro                  | 8              | Campos vacíos, validación, foco, borradores, bloqueo, transporte y navegación                        | Corregido localmente en fase 8; integración/E2E reales pendientes          |
+| Logo y configuración              | 7              | MIME/tamaño/preview, error/conflicto, slug y éxito persistentes                                      | Corregido localmente en fase 7; integración/E2E reales pendientes          |
+| Shell/Sheet/diálogos              | 2, 7           | Contexto, foco, Escape, targets y roles                                                              | Fases 2/7/12 verificadas localmente; aceptación integral pendiente         |
+| Feedback/paginación/boundary/tema | 1, 2, 3, 4, 12 | Estados anunciados, retry, páginas válidas y storage denegado                                        | Regresiones locales verificadas en fase 12; integración/E2E pendientes     |
 
 ## 7. Registro de fase 0 y baseline
 
@@ -895,3 +895,17 @@ Las siete superficies BI mejoran vigencia/resultado/acción, escala y unidades d
 **HTTP observado:** los once aliases devolvieron HTML inicial 200 y metadata de refresh al destino exacto por el streaming de App Router. No se afirma un 307 previo al envío ni redirección permanente. Se verificó navegación final y preservación de las pantallas de acceso/permiso. No se introdujo canonical, sitemap, host o política SEO nueva.
 
 **Cierre/límites:** implementación y validación local completas; E2E reales y CI del SHA a registrar pendientes. Sin cambios de API, esquema, migraciones, infraestructura, hooks Git, manifiestos o dependencias; sin despliegue. Fase 11 conserva `[Actual]` hasta commit humano y ACK. Commit sugerido: `feat(web): conectá la landing y reemplazá rutas preparatorias`. Detenerse; el próximo ACK habilita sólo fase 12.
+
+### Fase 12 — Rendimiento y validación integral (2026-10-18)
+
+**Autorización/base:** commit humano de fase 11 `fa7838b` verificado, árbol inicialmente limpio y ACK «Continuar». Sólo fase 12. [Informe final local y límites por escenario](../technical/2026-10-18_frontend_validacion_integral.md).
+
+**Implementación:** se retiran las segundas instancias de NoiseOverlay de captura (todos sus estados) y galería, y el mock unitario obsoleto. El layout raíz conserva la textura editorial. Baseline DOM: dos capas en cada página pública afectada y una en portada. El JS propio baja de 7,59 a 7,29 kB en captura y de 8,51 a 8,22 kB en galería; First Load JS redondeado queda igual. No se inventa una mejora de latencia a partir de muestras individuales ni se introducen memoización/refactors especulativos.
+
+**Verificaciones:** build de producción anterior y final aprobados, sin fuentes simuladas; 27/27 páginas generadas. API build y tipos de ambos workspaces aprobados. Web 363/363, 57 archivos y gate completo aprobado. API 358 aprobadas/174 omitidas: gate completo rechazado como corresponde. Lint completo sin errores y ocho warnings web preexistentes. Controles nativos 102/102 y release 63/63 tras habilitar procesos/sockets locales; no se tocaron assertions ni gates. Detector Impeccable final sobre `apps/web/src`: exit 0, `[]`. La crítica histórica se conserva; no se cierra automáticamente un target de directorio ni se comparan escalas diferentes.
+
+**Navegador:** una ronda inicial agrupada de 140 casos y una confirmación de 140/140 sobre producción, con fixtures sintéticas explícitas. Una capa, un main, sin desbordes ni fallas de contraste medido/nombres de controles/runtime en la confirmación. La matriz incluye las 22 superficies actuales, las siete vistas BI, admin/editor/anónimo, claro/oscuro, desktop/móvil y estados vacío/error en tablet. Los once aliases, menú con teclado, fallback de YouTube, draft BI, storage denegado y polling en reposo tienen comprobación funcional adicional. El informe contiene distribución exacta, observaciones y exclusiones de la medición; no equivale a servicios reales, WCAG certificada, gestos físicos ni aceptación en otros motores.
+
+**Pendientes de aceptación integral:** daemon Docker ausente; harness `dcf3b3b40f10` falla al crear la red propia antes de servicios/migraciones. Se mantienen seis E2E descubiertos, sin ejecución real aceptada. Las 174 integraciones omitidas requieren PG/Redis/warehouse reales y aislados. GitHub no conoce todavía el SHA local completo `fa7838b5feab8d699087a9eb10576f910ef115e3`; checks del próximo commit pendientes. CI debe ejecutar su cobertura y gates completos sobre ese SHA. El ACK del harness se conserva; no autoriza desarrollo/remoto ni excepciones a los gates.
+
+**Cierre humano:** implementación preparada para commit; fase 12 sigue `[Actual]`, pendiente de aceptación integral, commit humano y ACK final. Sin commit automático, push, PR, merge ni despliegue. Sin cambios de esquema, migraciones, infraestructura, hooks o manifiestos. Commit sugerido: `perf(web): optimizá y validá la experiencia integral`. Detenerse y esperar ACK; no marcar el plan completado mientras queden verificaciones obligatorias sin aceptación.

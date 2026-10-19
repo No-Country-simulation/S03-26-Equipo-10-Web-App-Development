@@ -1,5 +1,7 @@
 # Auditoría integral del frontend — Impeccable — 2026-10-14
 
+> Seguimiento del 2026-10-18: [validación integral de fase 12](./2026-10-18_frontend_validacion_integral.md). Este documento conserva la auditoría inicial; la implementación local no sustituye los gates de integración pendientes.
+
 ## Resultado y alcance
 
 Esta ampliación cubre **las 27 páginas ruteadas: 15 pantallas activas y 12 preparatorias**, sus formularios, diálogos, estados y componentes comunes. Incluye las cinco vistas y los dos detalles de inteligencia de negocio. Sustituye el alcance parcial del informe inicial para decidir mejoras de todo el frontend; conserva aquel informe como antecedente.
