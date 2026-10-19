@@ -2,6 +2,8 @@
 
 **Fecha:** 2026-10-09. **Estado:** warehouse/ETL/scoring, endpoint, panel, métricas y tiempo dimensional implementados; integración y operación verificadas localmente. Despliegue persistente no verificado.
 
+**Evolución propuesta (2026-10-19):** [analítica estadística](api-bi-statistics.md): pronóstico mensual de creaciones observadas, patrones de categorías/etiquetas y señales de proporciones atípicas. Fase 1 documentada en su [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md); sólo contratos y SQL borrador, sin endpoint, bandera, motor ni migraciones nuevas implementados. El contrato vigente de esta página se conserva.
+
 **Referencias:** [Plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md), [diccionario DW](../domain/warehouse_diccionario_de_datos.md), [migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql), [operación ETL](../operations/17_business_intelligence_etl.md), [validación y despliegue](../operations/18_business_intelligence_rollout.md).
 
 ## Fronteras y configuración

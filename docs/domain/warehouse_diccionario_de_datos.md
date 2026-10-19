@@ -1,5 +1,7 @@
 # Diccionario dimensional: Testimonial DW
 
+**Ampliación propuesta (2026-10-19):** taxonomía de etiquetas por corte, primeras observaciones de creación e informes estadísticos versionados, definidos en el [contrato propuesto](../modules/api-bi-statistics.md#3-persistencia-operación-y-compatibilidad-propuestas). Sólo diseño y SQL borrador del [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md); no integra todavía las migraciones ni las tablas implementadas que se describen a continuación.
+
 **Fecha:** 2026-10-09. **Estado:** modelo temporal implementado y probado en PostgreSQL descartable; no aplicado a bases persistentes.
 
 **Motor:** PostgreSQL 18, base `testimonial_dw` en instancia separada.

@@ -1,5 +1,7 @@
 # Interfaz de inteligencia de negocio
 
+**Evolución propuesta (2026-10-19):** vista «Analítica estadística», admin/editor, con pronóstico, patrones, anomalías y tres CSV; [contrato propuesto](api-bi-statistics.md#5-interfaz-y-exportación-previstas). Diseño de fase 1, aún sin ruta/vista, adaptador ni bandera implementados; [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). No altera las vistas vigentes descritas abajo.
+
 **Estado:** frontend implementado y aceptación integral local de fase5 completada; despliegue pendiente. [Evidencia y habilitación](../operations/23_bi_validation_and_release.md). [Plan HITL](../plan/2026-10-09_feat-interfaces-operacion-bi.md), [contratos HTTP](api-bi-operations.md).
 
 ## Entrada, roles y navegación
