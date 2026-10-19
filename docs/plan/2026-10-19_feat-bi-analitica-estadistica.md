@@ -1,7 +1,8 @@
 # Plan HITL: analítica estadística del BI
 
 **Fecha:** 2026-10-19. **Rama:** `codex/bi-analitica-estadistica`, base `b0d8cb2`.
-**Estado:** fase 1 terminada; revisión y ACK pendientes. Fases 2–5 pendientes, sin autorización de ejecución.
+**Estado:** fase 1 aprobada; fase 2 terminada, revisión y ACK pendientes. Fases 3–5 pendientes, sin autorización de ejecución.
+**ACK fase 2:** «Continuar», después del cierre de fase 1; autoriza datos y validación descartable, no despliegue ni comandos Prisma protegidos.
 **ACK de inicio:** «Empieza, recuerda siempre, realiza una fase y terminala detente propon un commit y espera el ack».
 
 ## Contexto y Restricciones
@@ -48,20 +49,20 @@ La etapa estadística empieza después de cerrar origen y publicar ETL. No modif
 
 ## Fases HITL
 
-### `[Actual]` 1. Contratos y diseño — terminada; ACK pendiente
+### `[Completada]` 1. Contratos y diseño — aprobada
 
 - [x] Registrar decisiones, dependencias y restricciones, sin ampliar autorizaciones.
 - [x] Fijar catálogo, fórmulas, cobertura, disponibilidad, tipos/endpoint y aceptación.
 - [x] Preparar SQL separado de migraciones ejecutables, claves compuestas y matriz de permisos.
 - [x] Validar estáticamente formatos, referencias locales, gramática admitida por el migrador y alcance del diff. Esta validación no acredita ejecución PostgreSQL.
 
-### `[Pendiente]` 2. Datos
+### `[Actual]` 2. Datos — terminada; ACK pendiente
 
-- Promover borradores revisados a migraciones aditivas; mantener checksums anteriores. Verificar mantenimiento y precondición 0004 desde el migrador.
-- Incorporar tags/relaciones a tipos, extracción y staging dentro de la transacción fuente existente; conciliar conteos y relaciones sin fan-out.
-- Publicar marcador de cobertura de etiquetas incluso vacío y puente con el snapshot. Actualizar primeras observaciones en la misma publicación.
-- Preparar backfill explícito y reanudable de primeras observaciones desde cortes reales; nunca inferir etiquetas históricas. Detectar discrepancias de `created_at` por identidad, sin elegir silenciosamente una fecha.
-- Validar migraciones, backfill, permisos, replay, vacíos, borrados y atomicidad en PostgreSQL descartable; no usar comandos protegidos sin su autorización específica.
+- [x] Promover borradores revisados a migraciones aditivas; mantener checksums anteriores. Verificar mantenimiento y precondición 0004 desde el migrador.
+- [x] Incorporar tags/relaciones a tipos, extracción y staging dentro de la transacción fuente existente; conciliar conteos y relaciones sin fan-out.
+- [x] Publicar marcador de cobertura de etiquetas incluso vacío y puente con el snapshot. Actualizar primeras observaciones en la misma publicación.
+- [x] Preparar backfill explícito y reanudable de primeras observaciones desde cortes reales; nunca inferir etiquetas históricas. Detectar discrepancias de `created_at` por identidad, sin elegir silenciosamente una fecha.
+- [x] Validar migraciones, backfill, permisos, replay, vacíos, borrados y atomicidad en PostgreSQL descartable; no usar comandos protegidos sin su autorización específica.
 
 ### `[Pendiente]` 3. Motor estadístico
 
@@ -96,4 +97,21 @@ Entregados los documentos y borradores enlazados. Sólo se ejecutan controles lo
 
 **Commit sugerido:** `docs(bi): definí la ampliación de analítica estadística`
 
-**Detención obligatoria:** esperar ACK para fase 2. No existe autorización para ejecutar fases 2–5 en conjunto.
+**Detención de fase 1 cumplida:** ACK «Continuar» recibido antes de fase 2. No autoriza ejecutar fases 2–5 en conjunto.
+
+## Evidencia y cierre de fase 2
+
+- **Implementado:** nueva migración OLTP `20261019000000_bi_statistics_export` con dos vistas y DW `0005_bi_statistics.sql` con diez tablas. La 0005 exige 0004 y mantenimiento sin runs/reservas. Los 18 archivos previos de migración permanecen intactos, al igual que sus entradas/checksums verificados en pruebas.
+- **Implementado:** extracción paginada de etiquetas y relaciones dentro del snapshot RR del origen; conteos BigInt independientes. Publicación y conciliación atómicas de taxonomía, puente, creaciones y marcador de historial dentro del fencing ETL. Un cambio de fecha de creación o conteo incorrecto revierte el corte completo.
+- **Implementado:** `StatisticsHistoryRepository` y CLI manual `--check` / `--apply --maintenance`, con identidad migradora, tandas de hasta1000, mantenimiento, validación temporal previa/final, interrupción/replay y marcador sólo al completar. Incluye empresas vacías y conserva identidades eliminadas observadas; no inventa etiquetas históricas.
+- **Compatibilidad:** preflight opt-in de datos verifica esquema/SELECT/DML/historial al iniciar el worker. Defaultfalse no consulta objetos nuevos; fallo opcional mantiene el worker base y emite código seguro. La bandera del worker se preparó en fase2 porque controla la extracción nueva; la habilitación HTTP/UI sigue reservada a fase4. Sin cálculos, tareas activas, endpoint ni frontend nuevos.
+- **Verificado:** dos PostgreSQL18.6 locales independientes, bases y roles aleatorios restringidos. **22 pruebas nuevas** (18 integración/4 unitarias) aprobadas, sin omisiones: migración/replay/drift/mantenimiento, aislamiento y permisos efectivos, fuente RR con mutación concurrente, vacíos/ausencias, borrados, fechas inconsistentes, backfill interrumpido y retomado, totales falsos, rollback tras perder fence y recuperación con escritor anterior.
+- **Regresión:** corrida amplia **183/183 casos en14 suites**; después de ajustes de permisos/validación, **58/58 casos afectados en4 suites**; tras el último caso de compatibilidad, **22/22 nuevos en2 suites**. No son cantidades sumables. Red funcional del extractor observado antes de implementarlo: el caso nuevo falló por ausencia de entrega de tags; Green posterior. No se afirma ejecutar toda la suite del CMS ni E2E de fase5.
+- **Verificado:** typecheck, build y lint API; lint conserva tres advertencias ajenas al cambio en idempotency/public-testimonials/setup. `git diff --check` y formato documental sin problemas. Sin cambios en Prisma schema, infraestructura, raíz npm, hooks, skills, AGENTS o web.
+- **Operación:** [guía de datos/backfill](../operations/28_bi_statistics_data.md), contratos y diccionario actualizados. La prueba de compatibilidad acredita eliminación de enlaces temporales por cascada al recuperar con modo anterior; pueden quedar labels de staging que requieren saneamiento de mantenimiento, explicado en la guía.
+- **Limpieza verificada:** cero bases/roles de las pruebas remanentes en ambos servidores antes de apagarlos; PostgreSQL temporales detenidos y directorio propio eliminado. No se ejecutaron `prisma migrate deploy`/`db push`, migraciones persistentes, despliegue ni commit automático.
+- **Pendiente:** motor estadístico y tareas recuperables (fase3), API/UI/CSV (fase4), aceptación integral/restauración/capacidad y adaptadores remotos de permisos/habilitación (fase5). Utilidad predictiva con historial real no acreditada.
+
+**Commit sugerido:** `feat(bi): incorporá etiquetas e historial observado al ETL`
+
+**Detención obligatoria:** esperar ACK antes de activar/ejecutar fase3.

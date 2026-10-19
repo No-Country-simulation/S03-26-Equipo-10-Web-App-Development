@@ -69,6 +69,8 @@ export class EtlService {
         categories: async rows => { check(); await this.warehouse.categories(lease, rows); check(); },
         testimonials: async rows => { check(); await this.warehouse.testimonials(lease, rows); check(); },
         events: async rows => { check(); await this.warehouse.events(lease, rows); check(); },
+        tags: async rows => { check(); await this.warehouse.tags(lease, rows); check(); },
+        testimonialTags: async rows => { check(); await this.warehouse.testimonialTags(lease, rows); check(); },
       }, lease.deadline);
       this.observe?.({ phase: 'extraction', durationMs: Date.now() - extractionStarted, status: 'succeeded', rows: {
         categories: counts.categories.toString(), testimonials: counts.testimonials.toString(), events: counts.events.toString() } });

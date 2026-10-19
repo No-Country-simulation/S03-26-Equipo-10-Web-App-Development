@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { EtlError, type CategoryRow, type Counts, type EventRow, type Lease,
-  type SourceSnapshot, type TestimonialRow } from '../etl.types';
+  type SourceSnapshot, type TestimonialRow, type TagRow, type TestimonialTagRow } from '../etl.types';
+import { publishStatisticsData } from './statistics-data';
 
 interface State { leaseRunId: string | null; token: string | null; live: boolean; lastPublishedRunId: string | null }
 
 export class WarehouseRepository {
   readonly operations: boolean = false;
-  constructor(protected readonly client: PrismaClient) {}
+  constructor(protected readonly client: PrismaClient, private readonly statistics = false) {}
 
   protected transaction<T>(work: (tx: Prisma.TransactionClient) => Promise<T>, deadline = Date.now() + 35000): Promise<T> {
     const remaining = Math.min(35000, Math.floor(deadline - Date.now()));
@@ -140,6 +141,22 @@ export class WarehouseRepository {
       FROM jsonb_to_recordset(${data}::jsonb) AS x(id bigint, testimonial uuid, type text, source text, created timestamptz(3))`);
   }
 
+  async tags(lease: Lease, rows: TagRow[]): Promise<void> {
+    if (!this.statistics || rows.some(row => row.tenantId !== lease.tenantId)) throw new EtlError('BI_SOURCE_INCONSISTENT');
+    const data = JSON.stringify(rows.map(row => ({ id: row.tagId, name: row.name })));
+    await this.stage(lease, tx => tx.$executeRaw`INSERT INTO staging.tags (tenant_id, run_id, tag_id, name)
+      SELECT ${lease.tenantId}::uuid, ${lease.runId}::uuid, x.id, x.name
+      FROM jsonb_to_recordset(${data}::jsonb) AS x(id uuid, name text)`);
+  }
+
+  async testimonialTags(lease: Lease, rows: TestimonialTagRow[]): Promise<void> {
+    if (!this.statistics || rows.some(row => row.tenantId !== lease.tenantId)) throw new EtlError('BI_SOURCE_INCONSISTENT');
+    const data = JSON.stringify(rows.map(row => ({ testimonial: row.testimonialId, tag: row.tagId })));
+    await this.stage(lease, tx => tx.$executeRaw`INSERT INTO staging.testimonial_tags (tenant_id, run_id, testimonial_id, tag_id)
+      SELECT ${lease.tenantId}::uuid, ${lease.runId}::uuid, x.testimonial, x.tag
+      FROM jsonb_to_recordset(${data}::jsonb) AS x(testimonial uuid, tag uuid)`);
+  }
+
   async publish(lease: Lease, snapshot: SourceSnapshot, counts: Counts): Promise<void> {
     await this.transaction(async tx => {
       await this.fence(tx, lease);
@@ -219,6 +236,7 @@ export class WarehouseRepository {
         || total.header !== counts.testimonials || total.details !== counts.testimonials) {
         throw new EtlError('BI_SOURCE_INCONSISTENT');
       }
+      if (this.statistics) await publishStatisticsData(tx, lease, counts);
       await this.clearStaging(tx, lease.tenantId, lease.runId);
       // Record completion after staging cleanup so freshness and duration include that work.
       const completed = await tx.$queryRaw<Array<{ run_id: string }>>`
@@ -268,6 +286,10 @@ export class WarehouseRepository {
   }
 
   protected async clearStaging(tx: Prisma.TransactionClient, tenantId: string, runId: string): Promise<void> {
+    if (this.statistics) {
+      await tx.$executeRaw`DELETE FROM staging.testimonial_tags WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;
+      await tx.$executeRaw`DELETE FROM staging.tags WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;
+    }
     await tx.$executeRaw`DELETE FROM staging.analytics_events WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;
     await tx.$executeRaw`DELETE FROM staging.testimonials WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;
     await tx.$executeRaw`DELETE FROM staging.categories WHERE tenant_id = ${tenantId}::uuid AND run_id = ${runId}::uuid`;

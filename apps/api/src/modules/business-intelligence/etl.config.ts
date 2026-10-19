@@ -23,5 +23,5 @@ export function etlConfig(env: NodeJS.ProcessEnv = process.env) {
   if (sameServer && (env.NODE_ENV === 'production' || source.pathname === target.pathname)) {
     throw new EtlError('BI_CONFIGURATION_INVALID');
   }
-  return { sourceUrl, warehouseUrl, pageSize: 1000 };
+  return { sourceUrl, warehouseUrl, pageSize: 1000, statisticsRequested: env.BI_STATISTICS_ENABLED === 'true' };
 }

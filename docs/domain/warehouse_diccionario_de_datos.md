@@ -1,6 +1,6 @@
 # Diccionario dimensional: Testimonial DW
 
-**Ampliación propuesta (2026-10-19):** taxonomía de etiquetas por corte, primeras observaciones de creación e informes estadísticos versionados, definidos en el [contrato propuesto](../modules/api-bi-statistics.md#3-persistencia-operación-y-compatibilidad-propuestas). Sólo diseño y SQL borrador del [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md); no integra todavía las migraciones ni las tablas implementadas que se describen a continuación.
+**Ampliación opcional (2026-10-19):** [0005 estadística](../../apps/api/warehouse/migrations/0005_bi_statistics.sql) añade diez tablas de taxonomía, primeras observaciones, tareas e informes; 30 al aplicar0001–0005. [Grano y contrato](../modules/api-bi-statistics.md#3-persistencia-operación-y-compatibilidad-propuestas), [operación/backfill](../operations/28_bi_statistics_data.md), [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Fase2 implementa datos y valida localmente; cálculo/consumo siguen pendientes, sin aplicación persistente. El modelo base0001–0004 se describe a continuación.
 
 **Fecha:** 2026-10-09. **Estado:** modelo temporal implementado y probado en PostgreSQL descartable; no aplicado a bases persistentes.
 
@@ -88,7 +88,7 @@ erDiagram
 - Empresa vacía: inventario cero, rating NULL y distribuciones vacías; actualización conocida mediante cabecera. Engagement es independiente del inventario y conserva los eventos disponibles del rango; CTR es NULL sólo sin vistas. Empresa nunca cargada: metadatos de carga NULL, estado `not_loaded`.
 - Desaparición de testimonios: la dimensión queda `is_present=false`, el próximo snapshot no contiene ese testimonio; los snapshots anteriores se conservan. Borrados de eventos se reflejan al reconciliar interacciones.
 - Una eliminación legal/expresa de historia requiere un procedimiento específico de purga y tratamiento de respaldos. El borrado operacional no dispara una purga implícita.
-- No copiar tags en v1: agregarlas como puente sin regla de agregación podría multiplicar métricas al hacer joins. No hay sentimiento, embeddings, visitantes únicos, ventas ni predicciones en este modelo.
+- El modelo base0001–0004 no copia tags. La ampliación opcional0005 agrega un puente por corte, sin sumarlo a los hechos para calcular inventario. No hay sentimiento, embeddings, visitantes únicos, ventas ni predicciones calculadas todavía.
 
 ## Índices y crecimiento
 

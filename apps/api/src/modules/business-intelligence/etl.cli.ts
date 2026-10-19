@@ -9,6 +9,7 @@ import { ManagedWarehouseRepository } from './repositories/managed-warehouse.rep
 import { WorkerControlRepository } from './repositories/worker-control.repository';
 import { EtlService } from './services/etl.service';
 import { EtlScheduler, ETL_POLL_MS, WORKER_HEARTBEAT_MS } from './services/etl-scheduler';
+import { statisticsDataReady } from './repositories/statistics-data-preflight';
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
   const logger = new ConsoleLogger('BusinessIntelligenceETL', { json: true });
@@ -16,11 +17,7 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   const config = etlConfig();
   const source = new PrismaClient({ datasources: { db: { url: config.sourceUrl } }, log: [] });
   const target = new PrismaClient({ datasources: { db: { url: config.warehouseUrl } }, log: [] });
-  const inventory = new SourceRepository(source, config.pageSize);
   const control = new WorkerControlRepository(target);
-  const service = new EtlService(inventory, new ManagedWarehouseRepository(target),
-    phase => logger.log({ event: 'bi.etl_phase_finished', ...phase }));
-  const scheduler = new EtlScheduler(inventory, control, service);
   const workerId = randomUUID();
   let heartbeat: Promise<void> | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -30,6 +27,12 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
   process.on('SIGTERM', shutdown);
   try {
     await control.ready(); // No implicit DDL; refuse the old schema before claiming any tenant.
+    const statistics = await statisticsDataReady(source, target, config.statisticsRequested);
+    if (config.statisticsRequested && !statistics) logger.warn({ event: 'bi.statistics_data_unavailable', code: 'BI_STATISTICS_UNAVAILABLE' });
+    const inventory = new SourceRepository(source, config.pageSize, statistics);
+    const service = new EtlService(inventory, new ManagedWarehouseRepository(target, statistics),
+      phase => logger.log({ event: 'bi.etl_phase_finished', ...phase }));
+    const scheduler = new EtlScheduler(inventory, control, service);
     await control.heartbeat(workerId);
     timer = setInterval(() => {
       if (heartbeat) return;

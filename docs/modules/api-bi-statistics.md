@@ -1,7 +1,7 @@
 # Contrato propuesto: analítica estadística BI
 
 **Versión:** 1 / algoritmo `stats_v1`. **Fecha:** 2026-10-19.
-**Estado:** diseño de fase 1; sin endpoint, motor, bandera ni tablas nuevas implementados.
+**Estado:** contratos de fase 1 y datos de fase 2 implementados; migraciones/preflight/extracción/backfill validados localmente. `BI_STATISTICS_ENABLED` controla sólo los datos del worker, apagada por defecto. Motor, tareas de cálculo, endpoint y UI siguen pendientes; sin aplicación persistente. [Operación de datos](../operations/28_bi_statistics_data.md).
 **Plan y SQL:** [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Complementa el [BI vigente](api-business-intelligence.md); no modifica su semántica actual.
 
 ## 1. Propósito, responsabilidades y fuentes
@@ -90,7 +90,7 @@ Los inventarios se solapan; esta regla robusta es exploratoria, sin p-values, in
 | `dw.statistics_publication`                 | Informe inmutable por tenant/run fuente/algoritmo, metadatos relacionales y tres secciones JSON versionadas. Sin datos crudos. |
 | `dw.statistics_current`                     | Puntero por tenant/algoritmo a la última publicación válida. Sin retroceso de corte.                                           |
 
-SQL propuesto fuera de directorios de migración. Fase2 lo revisa/promueve y agrega inicializador manual, con workers detenidos y preflight0004. No incluir backfill voluminoso dentro de una transacción DDL de30s ni modificar migraciones previas. El marcador de tags nace con cada carga nueva compatible, nunca en el backfill de creaciones.
+SQL promovido en fase2 a nuevas migraciones OLTP/DW y herramienta manual de inicialización, con workers detenidos y preflight0004. No incluir backfill voluminoso dentro de una transacción DDL de30s ni modificar migraciones previas. El marcador de tags nace con cada carga nueva compatible, nunca en el backfill de creaciones. Jobs/informes/punteros tienen estructura persistente, pero aún no hay consumidores que calculen o publiquen resultados estadísticos.
 
 Antes de activar, verificar ambos destinos y roles. `BI_STATISTICS_ENABLED` es opt-in independiente en API y worker y requiere `BI_ENABLED` para consumo HTTP. Sin bandera, no consultar objetos nuevos. El preflight de la etapa opcional ocurre fuera de la transacción base; si no puede operar, preservar cargas/lecturas BI previas y reportar sólo indisponibilidad estadística. No exigir0005 al flujo base cuando estadísticas están desactivadas. Una extracción que sí se inicia como completa no publica silenciosamente relaciones inválidas o conteos parciales.
 
