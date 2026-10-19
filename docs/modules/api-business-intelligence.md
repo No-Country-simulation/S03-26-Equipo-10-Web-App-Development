@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-10-09. **Estado:** warehouse/ETL/scoring, endpoint, panel, métricas y tiempo dimensional implementados; integración y operación verificadas localmente. Despliegue persistente no verificado.
 
-**Evolución estadística (2026-10-19):** [contrato](api-bi-statistics.md) y [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Fase2 incorpora migraciones aditivas, etiquetas por corte y primeras observaciones, con backfill manual y opt-in de datos del worker apagado por defecto. [Operación](../operations/28_bi_statistics_data.md). Pronóstico, minería, anomalías, endpoint y UI siguen pendientes de fases3/4; sin migraciones persistentes aplicadas. El dashboard vigente se conserva.
+**Evolución estadística (2026-10-19):** [contrato](api-bi-statistics.md) y [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Fase2 incorpora etiquetas por corte y primeras observaciones con backfill manual; fase3 agrega pronóstico evaluado, patrones y anomalías con tareas recuperables y publicación independiente en DW. Opt-in del worker apagado por defecto. [Datos](../operations/28_bi_statistics_data.md) y [motor](../operations/29_bi_statistics_worker.md). Endpoint y UI pendientes de fase4; sin migraciones persistentes aplicadas. El dashboard vigente se conserva.
 
 **Referencias:** [Plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md), [diccionario DW](../domain/warehouse_diccionario_de_datos.md), [migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql), [operación ETL](../operations/17_business_intelligence_etl.md), [validación y despliegue](../operations/18_business_intelligence_rollout.md).
 

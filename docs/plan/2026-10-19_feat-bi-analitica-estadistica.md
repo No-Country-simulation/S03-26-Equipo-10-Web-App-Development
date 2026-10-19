@@ -1,7 +1,8 @@
 # Plan HITL: analítica estadística del BI
 
 **Fecha:** 2026-10-19. **Rama:** `codex/bi-analitica-estadistica`, base `b0d8cb2`.
-**Estado:** fase 1 aprobada; fase 2 terminada, revisión y ACK pendientes. Fases 3–5 pendientes, sin autorización de ejecución.
+**Estado:** fases 1/2 aprobadas; fase 3 terminada, pendiente ACK. Fases 4/5 pendientes, sin autorización de ejecución.
+**ACK fase 3:** «Continuar», después del cierre de fase 2; autoriza motor y validación descartable, no consumo HTTP/UI ni despliegue.
 **ACK fase 2:** «Continuar», después del cierre de fase 1; autoriza datos y validación descartable, no despliegue ni comandos Prisma protegidos.
 **ACK de inicio:** «Empieza, recuerda siempre, realiza una fase y terminala detente propon un commit y espera el ack».
 
@@ -56,7 +57,7 @@ La etapa estadística empieza después de cerrar origen y publicar ETL. No modif
 - [x] Preparar SQL separado de migraciones ejecutables, claves compuestas y matriz de permisos.
 - [x] Validar estáticamente formatos, referencias locales, gramática admitida por el migrador y alcance del diff. Esta validación no acredita ejecución PostgreSQL.
 
-### `[Actual]` 2. Datos — terminada; ACK pendiente
+### `[Completada]` 2. Datos — aprobada
 
 - [x] Promover borradores revisados a migraciones aditivas; mantener checksums anteriores. Verificar mantenimiento y precondición 0004 desde el migrador.
 - [x] Incorporar tags/relaciones a tipos, extracción y staging dentro de la transacción fuente existente; conciliar conteos y relaciones sin fan-out.
@@ -64,12 +65,12 @@ La etapa estadística empieza después de cerrar origen y publicar ETL. No modif
 - [x] Preparar backfill explícito y reanudable de primeras observaciones desde cortes reales; nunca inferir etiquetas históricas. Detectar discrepancias de `created_at` por identidad, sin elegir silenciosamente una fecha.
 - [x] Validar migraciones, backfill, permisos, replay, vacíos, borrados y atomicidad en PostgreSQL descartable; no usar comandos protegidos sin su autorización específica.
 
-### `[Pendiente]` 3. Motor estadístico
+### `[Actual]` 3. Motor estadístico — terminada, pendiente ACK
 
-- Implementar funciones puras con oráculos independientes antes del código de producción, incluyendo casos frontera del contrato.
-- Construir entradas agregadas acotadas en lectura DW consistente; evaluación por origen sin fuga de información.
-- Integrar cola recuperable, presupuesto 3, lease90s/heartbeat20s/deadline60s y publicación ACID independiente. Priorizar ETL; no reclamar tareas obsoletas.
-- Probar pérdida de lease, reinicios, dos workers, respuesta ambigua tras commit, fallos y puntero monotónico.
+- [x] Implementar funciones puras con oráculos independientes antes del código de producción, incluyendo casos frontera del contrato.
+- [x] Construir entradas agregadas acotadas en lectura DW consistente; evaluación por origen sin fuga de información.
+- [x] Integrar cola recuperable, presupuesto 3, lease90s/heartbeat20s/deadline60s y publicación ACID independiente. Priorizar ETL; no reclamar tareas obsoletas.
+- [x] Probar pérdida de lease, reinicios, dos workers, respuesta ambigua tras commit, fallos y puntero monotónico.
 
 ### `[Pendiente]` 4. Consumo
 
@@ -114,4 +115,35 @@ Entregados los documentos y borradores enlazados. Sólo se ejecutan controles lo
 
 **Commit sugerido:** `feat(bi): incorporá etiquetas e historial observado al ETL`
 
-**Detención obligatoria:** esperar ACK antes de activar/ejecutar fase3.
+**Detención de fase 2 cumplida:** ACK «Continuar» recibido antes de fase 3. No autoriza consumo ni despliegue.
+
+## Evidencia y cierre de fase 3
+
+- **Implementado:** funciones puras `stats_v1` para media3 constante h2, cobertura y seis orígenes, MAE/sesgo, frecuencias, segmentos, asociaciones y señales de mediana/MAD. Promoción predictiva y filtros de soporte/lift con productos enteros exactos; decimales antes de convertir magnitudes a Number. Histórico/razón de indisponibilidad conservados, sin bandas inventadas.
+- **Implementado:** lectura única DW RR READ ONLY UTC; origen de cada fold excluye identidades descubiertas después. Agregados acotados a24 meses, seis orígenes,50 grupos por lista,1225 pares y118 días fuente; no materializa textos ni inventarios completos en Node. Cálculo después de cerrar la transacción de lectura.
+- **Implementado:** descubrimiento idempotente posterior al ETL que repara caídas antes del encolado; claim por tenant con token, presupuesto3, lease90s, heartbeat20s y deadline60s. Recuperación tras expiración, pendientes obsoletas superseded y drenaje ante apagado. Publicación de informe/puntero/éxito ACID con fencing y procedencia; replay y respuesta ambigua post-commit sin duplicados ni retroceso.
+- **Compatibilidad:** CLI prioriza cargas ETL y procesa una tarea estadística por ciclo; preflight opcional de permisos del motor separado del de datos. Bandera apagada no consulta objetos nuevos. Fallo estadístico conserva ETL exitoso y publicación anterior; logs acotados sin nombres/filas/conexiones. Sin endpoint, frontend, migraciones adicionales ni dependencias nuevas.
+- **Verificado:** **52 casos agregados en fase3**,31 motor/6 servicio/14 persistencia/1 CLI real. Oráculos fijados previamente: mediana par, media120, MAE y sesgo, soporte0,1/confianzas0,25 y0,5/lift1,25; casos cero, baseline perfecto, mejora10% exacta con tercios, bisiesto, meses parciales y cortes ausentes. Dos tenants/roles restringidos, dos claims concurrentes, tres intentos, renovación/vencimiento de lease, rollback por deadline/permisos, payload inválido, fuente incorrecta y recuperación de respuesta perdida tras commit.
+- **Regresión final:** **239/239 casos en17 suites**, sin omisiones, sobre dos PostgreSQL18.6 locales descartables. Incluye las cinco suites estadísticas y las doce suites previas de PostgreSQL/worker/tiempo/operación/HTTP/ETL/scheduler/dashboard. Las ejecuciones parciales anteriores no se suman a este total. Red funcional de los oráculos de mediana/asociación constatado antes de implementarlos; una falla inicial de integración por deserialización de `void` del lock se corrigió usando executeRaw, conservando las assertions.
+- **Verificado:** `npm run typecheck --workspace apps/api`, `npm run lint --workspace apps/api` y `npm run build --workspace apps/api`. Lint: cero errores y las mismas tres advertencias previas en idempotency/public-testimonials/setup. No se ejecutó la suite completa del CMS ni E2E; performance/restauración integral corresponden a fase5.
+- **Documentado:** [operación del motor](../operations/29_bi_statistics_worker.md), grants mínimos, recuperación, comportamiento de `--once`, falta de interrupción preventiva del cálculo síncrono y límites de evidencia. Contratos y contexto actualizados sin presentar HTTP/UI como implementados.
+- **Control final:** `git diff --check`, Prettier de los cuatro documentos nuevos/actualizados de plan/contrato/operación y20 referencias locales válidas. Migraciones OLTP/DW, Prisma schema, infraestructura, raíz npm, hooks y web sin cambios en esta fase. Cero bases/roles de fixtures remanentes en ambos servidores; PostgreSQL propios detenidos y directorio temporal eliminado.
+- **Pendiente:** API/UI/CSV de fase4; restauración integral, benchmarks y preparación de habilitación/permisos remotos de fase5. Fixtures sintéticos no acreditan utilidad predictiva real. Sin aplicación persistente, despliegue ni commit automático.
+
+Comando de regresión, con `TEST_BI_SOURCE_DATABASE_URL` y `TEST_BI_WAREHOUSE_DATABASE_URL` apuntando exclusivamente a los servidores descartables de prueba:
+
+```bash
+npm test --workspace apps/api -- --runTestsByPath \
+  test/bi-statistics-data.integration.spec.ts test/bi-statistics-source.spec.ts \
+  test/bi-statistics-worker.integration.spec.ts test/bi-statistics-engine.spec.ts \
+  test/bi-statistics-service.spec.ts test/bi-postgres.integration.spec.ts \
+  test/bi-worker.integration.spec.ts test/bi-snapshot-time.integration.spec.ts \
+  test/bi-operations.integration.spec.ts test/bi-operations-http.integration.spec.ts \
+  test/bi-http.integration.spec.ts test/bi-etl.spec.ts test/bi-snapshot-time.spec.ts \
+  test/bi-scheduler.spec.ts test/bi-operations.spec.ts \
+  test/bi-operations-policy.spec.ts test/bi-dashboard.spec.ts
+```
+
+**Commit sugerido:** `feat(bi): incorporá el motor estadístico y sus tareas recuperables`
+
+**Detención obligatoria:** esperar ACK antes de activar/ejecutar fase4.

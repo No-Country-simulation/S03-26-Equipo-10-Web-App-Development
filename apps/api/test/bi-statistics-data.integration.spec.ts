@@ -9,6 +9,8 @@ import { statisticsDataReady } from '../src/modules/business-intelligence/reposi
 import { applyWarehouseMigration, migrationStatements } from '../src/modules/business-intelligence/repositories/warehouse-migrations';
 import { hourUtc, type Lease, type SourceConsumer, type SourceSnapshot } from '../src/modules/business-intelligence/etl.types';
 import { installBiWarehouse } from './fixtures/bi-warehouse';
+import { main as worker } from '../src/modules/business-intelligence/etl.cli';
+import { ConsoleLogger } from '@nestjs/common';
 
 const sourceUrl = process.env.TEST_BI_SOURCE_DATABASE_URL;
 const targetUrl = process.env.TEST_BI_WAREHOUSE_DATABASE_URL;
@@ -321,5 +323,36 @@ databaseTests('statistics data on two disposable PostgreSQL 18 servers', () => {
     // Labels are not read by the disabled feature; maintenance must clear these terminal-run rows.
     expect(await target.$queryRaw`SELECT count(*) AS n FROM staging.tags`).toEqual([{ n: 2n }]);
     await legacy.fail(recovered, 'BI_ETL_FAILED');
+  });
+  it('runs statistics only after base ETL and processes at most one task per real worker cycle', async () => {
+    await apply(); await grants();
+    await target.$executeRawUnsafe(`GRANT SELECT, INSERT, UPDATE ON etl.tenant_settings, etl.worker_health,
+      etl.statistics_jobs, dw.statistics_current TO "${writer}"`);
+    await target.$executeRawUnsafe(`GRANT SELECT, UPDATE ON etl.load_requests TO "${writer}"`);
+    const previous = { source: process.env.BI_SOURCE_DATABASE_URL, warehouse: process.env.BI_ETL_DATABASE_URL,
+      enabled: process.env.BI_STATISTICS_ENABLED, exitCode: process.exitCode };
+    const log = jest.spyOn(ConsoleLogger.prototype, 'log').mockImplementation(() => undefined);
+    const warn = jest.spyOn(ConsoleLogger.prototype, 'warn').mockImplementation(() => undefined);
+    const origin = new URL(sourceUrl!); origin.pathname = `/${sourceDb}`; origin.username = extractor; origin.password = '';
+    const destination = new URL(targetUrl!); destination.pathname = `/${targetDb}`; destination.username = writer; destination.password = '';
+    try {
+      process.env.BI_SOURCE_DATABASE_URL = origin.toString(); process.env.BI_ETL_DATABASE_URL = destination.toString();
+      process.env.BI_STATISTICS_ENABLED = 'true';
+      await worker(['--once']);
+      expect(warn).not.toHaveBeenCalled();
+      expect(await target.$queryRaw`SELECT count(*) AS n FROM etl.runs WHERE status = 'succeeded'`).toEqual([{ n: 2n }]);
+      expect(await target.$queryRaw`SELECT status, count(*) AS n FROM etl.statistics_jobs GROUP BY status ORDER BY status`)
+        .toEqual([{ status: 'pending', n: 1n }, { status: 'succeeded', n: 1n }]);
+      const events = log.mock.calls.map(call => (call[0] as { event?: string }).event);
+      expect(events.lastIndexOf('bi.etl_tenant_finished')).toBeLessThan(events.indexOf('bi.statistics_task_finished'));
+      await worker(['--once']);
+      expect(await target.$queryRaw`SELECT count(*) AS n FROM etl.runs WHERE status = 'succeeded'`).toEqual([{ n: 2n }]);
+      expect(await target.$queryRaw`SELECT count(*) AS n FROM dw.statistics_publication`).toEqual([{ n: 2n }]);
+    } finally {
+      log.mockRestore(); warn.mockRestore(); process.exitCode = previous.exitCode;
+      if (previous.source === undefined) delete process.env.BI_SOURCE_DATABASE_URL; else process.env.BI_SOURCE_DATABASE_URL = previous.source;
+      if (previous.warehouse === undefined) delete process.env.BI_ETL_DATABASE_URL; else process.env.BI_ETL_DATABASE_URL = previous.warehouse;
+      if (previous.enabled === undefined) delete process.env.BI_STATISTICS_ENABLED; else process.env.BI_STATISTICS_ENABLED = previous.enabled;
+    }
   });
 });

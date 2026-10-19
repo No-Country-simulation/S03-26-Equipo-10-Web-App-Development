@@ -10,6 +10,10 @@ import { WorkerControlRepository } from './repositories/worker-control.repositor
 import { EtlService } from './services/etl.service';
 import { EtlScheduler, ETL_POLL_MS, WORKER_HEARTBEAT_MS } from './services/etl-scheduler';
 import { statisticsDataReady } from './repositories/statistics-data-preflight';
+import { statisticsEngineReady } from './repositories/statistics-engine-preflight';
+import { StatisticsInputRepository } from './repositories/statistics-input.repository';
+import { StatisticsJobRepository } from './repositories/statistics-job.repository';
+import { StatisticsService } from './services/statistics.service';
 
 export async function main(args = process.argv.slice(2)): Promise<void> {
   const logger = new ConsoleLogger('BusinessIntelligenceETL', { json: true });
@@ -33,6 +37,9 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
     const service = new EtlService(inventory, new ManagedWarehouseRepository(target, statistics),
       phase => logger.log({ event: 'bi.etl_phase_finished', ...phase }));
     const scheduler = new EtlScheduler(inventory, control, service);
+    const calculate = await statisticsEngineReady(target, statistics);
+    if (statistics && !calculate) logger.warn({ event: 'bi.statistics_engine_unavailable', code: 'BI_STATISTICS_UNAVAILABLE' });
+    const statisticsService = calculate ? new StatisticsService(new StatisticsJobRepository(target), new StatisticsInputRepository(target)) : null;
     await control.heartbeat(workerId);
     timer = setInterval(() => {
       if (heartbeat) return;
@@ -51,6 +58,12 @@ export async function main(args = process.argv.slice(2)): Promise<void> {
       } catch {
         failed = true;
         logger.warn({ event: 'bi.etl_poll_failed', code: 'BI_UNAVAILABLE' });
+      }
+      if (statisticsService && !controller.signal.aborted) {
+        const statisticsStarted = Date.now();
+        const result = await statisticsService.tick(controller.signal);
+        failed ||= result.status === 'failed';
+        logger.log({ event: 'bi.statistics_task_finished', ...result, durationMs: Date.now() - statisticsStarted });
       }
       logger.log({ event: 'bi.etl_cycle_finished', durationMs: Date.now() - started, failed });
       if (args.includes('--once')) { if (failed) process.exitCode = 1; break; }

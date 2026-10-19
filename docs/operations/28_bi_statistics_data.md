@@ -18,7 +18,7 @@ Este documento no autoriza ejecutar migraciones persistentes. Requiere ACK del e
 2. Aplicar la migración OLTP mediante el procedimiento autorizado y la 0005 mediante el migrador DW manual con identidad propietaria. Son destinos independientes: no existe transacción distribuida.
 3. Provisionar los permisos adicionales indicados abajo. El control HTTP no recibe permisos nuevos.
 4. Con la identidad migradora del warehouse, ejecutar el comprobador; aplicar el backfill explícito sólo después de inspeccionar el resultado y confirmar mantenimiento.
-5. Verificar cero empresas pendientes y cero creaciones faltantes, desplegar worker compatible y recién después considerar el opt-in de datos. El consumo HTTP y los cálculos siguen pendientes de fases 3/4.
+5. Verificar cero empresas pendientes y cero creaciones faltantes, desplegar worker compatible y recién después considerar el opt-in. El motor de fase3 requiere además los [permisos de cálculo](29_bi_statistics_worker.md); el consumo HTTP sigue pendiente de fase4.
 
 Desde la raíz del repositorio, con la conexión migradora cargada externamente en el entorno, sin escribirla en archivos de contexto:
 
@@ -58,14 +58,14 @@ GRANT SELECT ON dw.dim_tag, dw.fact_tag_snapshot, dw.bridge_testimonial_tag_snap
     dw.fact_testimonial_creation, dw.statistics_history_state TO bi_api_reader;
 ```
 
-El escritor de datos no necesita UPDATE/DELETE de creaciones ni escritura del ledger; las publicaciones futuras serán INSERT/SELECT, sin UPDATE/DELETE. Los grants de jobs/informes/punteros se incorporarán con su consumidor en fase 3. No conceder DDL, TRUNCATE ni acceso a nuevas tablas desde `bi_control`.
+El escritor de datos no necesita UPDATE/DELETE de creaciones ni escritura del ledger; los informes sólo admiten INSERT/SELECT, sin UPDATE/DELETE. Los grants de jobs/informes/punteros están en la [guía del motor de fase3](29_bi_statistics_worker.md). No conceder DDL, TRUNCATE ni acceso a nuevas tablas desde `bi_control`.
 
 Los adaptadores de entrega/auditoría de permisos de demo conservan su catálogo anterior. Su ampliación, recursos remotos, restauración y aceptación de habilitación permanecen pendientes del procedimiento final; no activar estadísticas remotas usando sólo los ejemplos de grants de este documento.
 
 ## Opt-in del worker y fallos
 
-En esta fase `BI_STATISTICS_ENABLED` sólo controla la extracción/publicación de datos del worker; default false, sin efecto sobre API/UI todavía. Apagada, no consulta vistas ni tablas nuevas. Encendida, un preflight comprueba ledger0005, SELECT de vistas/objetos, DML mínimo y marcador al día. Si falla, registra `bi.statistics_data_unavailable` con código seguro, mantiene el worker base y no publica un falso marcador de tags. La condición se revisa al iniciar el proceso; tras corregirla se reinicia de forma controlada.
+`BI_STATISTICS_ENABLED` controla extracción/publicación de datos y, desde fase3, cálculo del worker; default false, sin efecto sobre API/UI todavía. Apagada, no consulta vistas ni tablas nuevas. Encendida, un preflight comprueba ledger0005, SELECT de vistas/objetos, DML mínimo y marcador al día. Si falla, registra `bi.statistics_data_unavailable` con código seguro, mantiene el worker base y no publica un falso marcador de tags. La condición se revisa al iniciar el proceso; tras corregirla se reinicia de forma controlada. Un segundo preflight verifica permisos del motor; su fallo permite seguir extrayendo datos compatibles, sin calcular.
 
-Una vez iniciada extracción completa, errores de FK/conteos/fechas abortan el corte entero. Tag dimension, puente, creaciones, marcador y cabecera se confirman juntos, con el fencing final del ETL. No omitir relaciones inconsistentes para aparentar éxito. Cálculos estadísticos, su cola y GET statistics no se ejecutan en esta fase.
+Una vez iniciada extracción completa, errores de FK/conteos/fechas abortan el corte entero. Tag dimension, puente, creaciones, marcador y cabecera se confirman juntos, con el fencing final del ETL. No omitir relaciones inconsistentes para aparentar éxito. La cola/cálculo de fase3 funciona después de esa publicación; GET statistics todavía no está registrado.
 
 Para apagar/revertir: drenar las cargas, recuperar reservas y limpiar staging del worker compatible antes de cambiar bandera/software. Si un proceso con tags cayó y luego se arranca el modo anterior, la cascada permite limpiar enlaces, pero pueden quedar filas de `staging.tags` del run abandonado; saneamiento por tenant/run terminal con identidad de mantenimiento antes de reactivar. No borrar hechos, creaciones ni migraciones para volver al resumen anterior.

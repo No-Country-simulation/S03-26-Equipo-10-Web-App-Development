@@ -1,7 +1,7 @@
 # Contrato propuesto: analítica estadística BI
 
 **Versión:** 1 / algoritmo `stats_v1`. **Fecha:** 2026-10-19.
-**Estado:** contratos de fase 1 y datos de fase 2 implementados; migraciones/preflight/extracción/backfill validados localmente. `BI_STATISTICS_ENABLED` controla sólo los datos del worker, apagada por defecto. Motor, tareas de cálculo, endpoint y UI siguen pendientes; sin aplicación persistente. [Operación de datos](../operations/28_bi_statistics_data.md).
+**Estado:** fases 1–3 implementadas: contratos, datos y motor `stats_v1` con tareas recuperables y publicación independiente. `BI_STATISTICS_ENABLED` controla extracción y cálculo del worker, apagada por defecto. Endpoint y UI pendientes de fase 4; sin aplicación persistente. [Operación de datos](../operations/28_bi_statistics_data.md) y [motor estadístico](../operations/29_bi_statistics_worker.md).
 **Plan y SQL:** [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Complementa el [BI vigente](api-business-intelligence.md); no modifica su semántica actual.
 
 ## 1. Propósito, responsabilidades y fuentes
@@ -90,7 +90,7 @@ Los inventarios se solapan; esta regla robusta es exploratoria, sin p-values, in
 | `dw.statistics_publication`                 | Informe inmutable por tenant/run fuente/algoritmo, metadatos relacionales y tres secciones JSON versionadas. Sin datos crudos. |
 | `dw.statistics_current`                     | Puntero por tenant/algoritmo a la última publicación válida. Sin retroceso de corte.                                           |
 
-SQL promovido en fase2 a nuevas migraciones OLTP/DW y herramienta manual de inicialización, con workers detenidos y preflight0004. No incluir backfill voluminoso dentro de una transacción DDL de30s ni modificar migraciones previas. El marcador de tags nace con cada carga nueva compatible, nunca en el backfill de creaciones. Jobs/informes/punteros tienen estructura persistente, pero aún no hay consumidores que calculen o publiquen resultados estadísticos.
+SQL promovido en fase2 a nuevas migraciones OLTP/DW y herramienta manual de inicialización, con workers detenidos y preflight0004. No incluir backfill voluminoso dentro de una transacción DDL de30s ni modificar migraciones previas. El marcador de tags nace con cada carga nueva compatible, nunca en el backfill de creaciones. En fase3 el worker consume jobs y publica informes/punteros con permisos específicos; HTTP todavía no los consulta.
 
 Antes de activar, verificar ambos destinos y roles. `BI_STATISTICS_ENABLED` es opt-in independiente en API y worker y requiere `BI_ENABLED` para consumo HTTP. Sin bandera, no consultar objetos nuevos. El preflight de la etapa opcional ocurre fuera de la transacción base; si no puede operar, preservar cargas/lecturas BI previas y reportar sólo indisponibilidad estadística. No exigir0005 al flujo base cuando estadísticas están desactivadas. Una extracción que sí se inicia como completa no publica silenciosamente relaciones inválidas o conteos parciales.
 
@@ -122,7 +122,7 @@ No otorgar privilegios a PUBLIC ni crear roles/credenciales desde los borradores
 
 Respuesta200 en envelope existente `{success:true,data:StatisticsResponse}`. El repositorio consulta sólo `dw` en una única lectura RR, incluyendo último corte base y puntero/publicación; el servicio combina preferencias de vigencia desde el mecanismo existente. La frescura es edad del **corte del informe**, comparada con frecuencia+tolerancia, no edad del cálculo. Pausa no rejuvenece datos.
 
-Tipos documentales; se implementarán y validarán en fase4, no existen aún en runtime:
+Contrato HTTP objetivo de fase4. Fase3 ya valida con Zod el payload persistido `forecast`/`patterns`/`anomalies`; el envelope, metadatos, vigencia y estados sin publicación se implementarán en fase4:
 
 ```ts
 type Count = string; // decimal no negativo, sin separadores
@@ -273,16 +273,16 @@ GET al entrar, actualizar y volver a pestaña; sin polling adicional. Reutilizar
 
 | Grupo               | Casos verificables independientes                                                                                                                                                         | Fase / estado                                      |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Datos               | Mismo tenant en FK/joins; tags múltiples no multiplican inventario; marcador vacío distinto de ausente; discrepancia de creación aborta; replay y borrados preservan primera observación. | 2 / pendiente                                      |
-| Pronóstico          | 11/12 meses; 89/90% exactos; bisiestos; orígenes faltantes; datos tardíos excluidos de entradas; h=2 constante; baseline perfecto/empate/10% exactos; MAE/sesgo con ceros y sin fuga.     | 3 / pendiente                                      |
-| Minería             | N29/30; soporte/ab/lift en el límite; doble etiqueta deduplicada; confidencias distintas por dirección; empates y truncamiento con denominador original.                                  | 3 / pendiente                                      |
-| Anomalías           | N29/30, referencias20/21, MAD0/par, igualdad al umbral no señala, salto de5pp, threshold>1, huecos, denominador0, actualización del día sin duplicar.                                     | 3 / pendiente                                      |
-| Publicación         | Crash antes/después de encolar/commit; token vencido; dos workers; 3 intentos; timeout/cancelación; informe anterior preservado; puntero no retrocede.                                    | 3 / pendiente                                      |
+| Datos               | Mismo tenant en FK/joins; tags múltiples no multiplican inventario; marcador vacío distinto de ausente; discrepancia de creación aborta; replay y borrados preservan primera observación. | 2 / verificado local                               |
+| Pronóstico          | 11/12 meses; 89/90% exactos; bisiestos; orígenes faltantes; datos tardíos excluidos de entradas; h=2 constante; baseline perfecto/empate/10% exactos; MAE/sesgo con ceros y sin fuga.     | 3 / verificado local                               |
+| Minería             | N29/30; soporte/ab/lift en el límite; doble etiqueta deduplicada; confidencias distintas por dirección; empates y truncamiento con denominador original.                                  | 3 / verificado local                               |
+| Anomalías           | N29/30, referencias20/21, MAD0/par, igualdad al umbral no señala, salto de5pp, threshold>1, huecos, denominador0, actualización del día sin duplicar.                                     | 3 / verificado local                               |
+| Publicación         | Crash antes/después de encolar/commit; token vencido; dos workers; 3 intentos; timeout/cancelación; informe anterior preservado; puntero no retrocede.                                    | 3 / verificado local                               |
 | API/UI              | Dos tenants/admin/editor; query rechazada; JSON inválido/503; flagoff sin conexión nueva; corte viejo/cambio de mes; CSV igual a vista y sin fórmulas; cambio de sesión/teclado/móvil.    | 4 / pendiente                                      |
 | Sistema             | API/worker/DW reales, privilegios efectivos, restauración, costos de extracción/cálculo/lectura y aislamiento ante caída OLAP.                                                            | 5 / pendiente                                      |
 | Utilidad predictiva | Histórico real suficiente, particiones/cobertura y criterio cumplidos por tenant.                                                                                                         | Pendiente de datos; fixtures no acreditan utilidad |
 
-La fase1 verifica sólo diseño documentado y controles estáticos; no acredita ninguno de los comportamientos runtime de esta tabla.
+Las fases2/3 aportan evidencia local de datos, cálculos y publicación detallada en el plan y las guías de operación. API/UI y aceptación integral siguen pendientes; no se acredita utilidad predictiva real ni capacidad productiva.
 
 ### Oráculos numéricos fijados antes de implementar
 
