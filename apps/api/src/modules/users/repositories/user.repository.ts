@@ -126,9 +126,13 @@ export class UserRepository {
         if (deleted.count !== 1) throw new NotFoundError('User not found');
       })
       .catch((error: unknown) => {
+        // Prisma 6.5 can surface PostgreSQL RESTRICT (23001) as an
+        // UnknownRequestError instead of the usual foreign-key P2003.
         if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2003'
+          (error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2003') ||
+          (error instanceof Prisma.PrismaClientUnknownRequestError &&
+            /\bPostgresError\s*\{\s*code:\s*"23001"/.test(error.message))
         ) {
           throw new ApplicationError(
             'User history must be retained',

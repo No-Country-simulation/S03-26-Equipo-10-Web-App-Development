@@ -1,6 +1,6 @@
 # Mejoras integrales del frontend — ejecución por fases HITL
 
-**Inicio:** 2026-10-14. **Estado:** En progreso — fase 12 registrada en `b14c1be` y aprobada por ACK humano. Aceptación integral pendiente: servicios reales, seis E2E y CI del SHA final.
+**Inicio:** 2026-10-14. **Estado:** En progreso — fase 12 registrada en `b14c1be` y aprobada por ACK humano. Aceptación integral pendiente: CI de PR #11 falló en la traducción de una restricción de historial; corrección local en validación. Seis E2E y checks del SHA corregido aún requeridos.
 
 **Rama:** `codex/mejoras-integrales-frontend`. **Base:** `main`, `aa45b31`.  
 **Issue:** no indicado; no inventar una referencia.  
@@ -919,3 +919,17 @@ Las siete superficies BI mejoran vigencia/resultado/acción, escala y unidades d
 **Estado:** implementación de las fases 0–12 registrada y aprobada; aceptación integral abierta. Fase 12 permanece `[Actual]` por las 174 integraciones, seis E2E y CI pendientes. Para avanzar se necesita Docker disponible para el harness propio y el SHA final publicado por el usuario para que pueda ejecutar CI. No se modifica infraestructura ni se inicia un daemon del sistema como efecto lateral. No se marca el plan completado ni se introduce una fase 13.
 
 **Commit documental sugerido:** `docs(plan): registrá el ACK y los pendientes de validación final`. Sin commit automático. Detenerse hasta que cambien esas precondiciones o el usuario indique cómo continuar.
+
+### Corrección de CI de PR #11 — 2026-10-18
+
+**Autorización:** el usuario informó el check fallido al abrir la PR hacia main y pidió asistencia. Se diagnostica y corrige dentro de la fase 12 actual, sin abrir otra fase ni modificar infraestructura, dependencias, esquema o migraciones. Árbol inicial limpio, head local/remoto de PR `b174eafd5039931ad1875abbd7638f59f39232f7`.
+
+**Evidencia remota:** [PR #11](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/11), [CI 39190959933](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/39190959933). `dependency-review` y `secret-scan` aprobaron. `verify` falló en `Test API with complete integration services`: 80 suites aprobadas/1 fallida, 531 pruebas aprobadas/1 fallida de 532, sin omisiones informadas. PostgreSQL rechazó el borrado, pero Prisma 6.5 reportó SQLSTATE `23001` como `PrismaClientUnknownRequestError`; el repositorio sólo normalizaba `P2003`. El gate de reporte completo también falló correctamente. Los pasos web/build/E2E posteriores no quedan acreditados por ese run.
+
+**Red/Green y corrección:** regresión focalizada con la forma de error del conector observada, usando datos sintéticos: 1 fallo funcional/5 aprobadas antes de producción; 6/6 tras normalizar ese error a `USER_HAS_HISTORY`. Se conservan los negativos para otros códigos, mensajes no clasificados y errores ajenos a Prisma. La transacción, filtros por tenant, constraints y prueba PostgreSQL original permanecen intactos; no se borra historial ni se relajan assertions/gates.
+
+**Integración pendiente:** Docker local sigue sin socket/daemon, confirmado fuera del sandbox; no se toca desarrollo/remoto para reproducir el caso. CI dispone de sus propios servicios descartables y deberá repetir `verify` con el SHA de la corrección. El commit y push siguen siendo humanos según el protocolo vigente; actualizar la misma rama actualiza la PR #11, sin crear otra.
+
+**Validación de la corrección:** `npm test --workspace @testimonial-cms/api -- --json --outputFile=/tmp/frontend-pr11-api-results.json`: 363 aprobadas, 174 omitidas, 537 en total; 61 suites aprobadas y 20 omitidas. Se ejecutó con sockets locales permitidos. Tipos y build API aprobados. Lint API sin errores, con tres advertencias en archivos no modificados (idempotency.repository, public-testimonials.controller y test/setup). La regresión focalizada aprueba 6/6. Formato/diff verificados; no se repite el frontend, que no cambia. El gate completo local debe seguir rechazando el reporte con omisiones; no se presenta como aceptación de PostgreSQL.
+
+**Entrega:** corrección preparada en la rama existente para commit humano y push a PR #11. Commit sugerido: `fix(users): reconocé el bloqueo de borrado por historial`. No se crea commit, push ni merge automáticamente. Tras publicar, se requiere un nuevo run completo aprobado para el SHA corregido; no trasladar el resultado del run fallido anterior.
