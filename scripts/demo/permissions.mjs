@@ -39,8 +39,10 @@ export const permissions = {
 };
 
 /** Inspect effective permissions, including inheritance/ownership/PUBLIC, without changing data. */
-export async function inspectConnection(client, role) {
-  const policy = permissions[role];
+export async function inspectConnection(client, role, statistics = false) {
+  const policy = permissionPolicy(role, statistics);
+  const expanded = permissionPolicy(role, true);
+  const optionalObject = name => !statistics && !permissions[role].tables[name] && Boolean(expanded.tables[name]);
   if (!policy) throw new Error('DEMO_ROLE_INVALID');
   return client.$transaction(async tx => {
     await tx.$executeRaw`SET TRANSACTION READ ONLY`;
@@ -82,8 +84,9 @@ export async function inspectConnection(client, role) {
           OR owner.rolname = 'cms_migrator')))`;
     if (Object.keys(policy.tables).some(name => !objects.some(o => o.name === name))) issues.push('SCHEMA_INCOMPLETE');
     for (const object of objects) {
-      const allowed = policy.tables[object.name] ?? [];
-      if (object.owned || privileges.some(p => object[p] !== allowed.includes(p))) issues.push('TABLE_PRIVILEGES');
+      const allowed = expanded.tables[object.name] ?? [];
+      const optional = optionalObject(object.name);
+      if (object.owned || privileges.some(p => optional ? object[p] && !allowed.includes(p) : object[p] !== allowed.includes(p))) issues.push('TABLE_PRIVILEGES');
       if (object.data_api_grants) issues.push('DATA_API_GRANTS');
     }
     const columns = await tx.$queryRaw`
@@ -96,11 +99,13 @@ export async function inspectConnection(client, role) {
       WHERE a.attnum > 0 AND NOT a.attisdropped AND c.relkind IN ('r', 'p', 'v', 'm')
         AND c.oid::bigint = ANY(${objects.map(o => o.object_id)}::bigint[])`;
     for (const column of columns) {
-      const allowed = policy.tables[column.name] ?? [];
+      const allowed = expanded.tables[column.name] ?? [];
+      const optional = optionalObject(column.name);
       const update = allowed.includes('UPDATE') || (role === 'bi_control' && column.name === 'etl.load_requests'
         && ['status', 'finished_at', 'error_code'].includes(column.column));
-      if (column.can_update !== update || column.can_insert !== allowed.includes('INSERT')
-        || column.can_select !== allowed.includes('SELECT') || column.can_reference) issues.push('COLUMN_PRIVILEGES');
+      if ((optional ? column.can_update && !update : column.can_update !== update)
+        || (optional ? column.can_insert && !allowed.includes('INSERT') : column.can_insert !== allowed.includes('INSERT'))
+        || (optional ? column.can_select && !allowed.includes('SELECT') : column.can_select !== allowed.includes('SELECT')) || column.can_reference) issues.push('COLUMN_PRIVILEGES');
     }
     const sequences = await tx.$queryRaw`
       SELECT n.nspname || '.' || c.relname AS name,
@@ -121,8 +126,27 @@ export async function inspectConnection(client, role) {
     if (role === 'bi_etl_writer') {
       const ledger = await tx.$queryRaw`SELECT version FROM etl.schema_migrations WHERE version = '0004_bi_operations.sql'`;
       if (ledger.length !== 1) issues.push('WAREHOUSE_PROTOCOL');
+      if (statistics) {
+        const statsLedger = await tx.$queryRaw`SELECT version FROM etl.schema_migrations WHERE version = '0005_bi_statistics.sql'`;
+        if (statsLedger.length !== 1) issues.push('STATISTICS_PROTOCOL');
+      }
     }
     return { passed: issues.length === 0, issues: [...new Set(issues)], version: server?.version,
       maxConnections: server?.max_connections };
   }, { timeout: 15000, maxWait: 1000 });
+}
+
+const statisticsTables = {
+  bi_source_reader: mapping(['bi_export.tags', 'bi_export.testimonial_tags'], select),
+  bi_api_reader: mapping(['dw.dim_tag', 'dw.fact_tag_snapshot', 'dw.bridge_testimonial_tag_snapshot',
+    'dw.fact_testimonial_creation', 'dw.statistics_history_state', 'dw.statistics_publication', 'dw.statistics_current'], select),
+  bi_etl_writer: {
+    ...mapping(['staging.tags', 'staging.testimonial_tags'], ['SELECT', 'INSERT', 'DELETE']),
+    ...mapping(['dw.dim_tag', 'dw.statistics_history_state', 'dw.statistics_current', 'etl.statistics_jobs'], write),
+    ...mapping(['dw.fact_tag_snapshot', 'dw.bridge_testimonial_tag_snapshot', 'dw.fact_testimonial_creation', 'dw.statistics_publication'], ['SELECT', 'INSERT']),
+  },
+};
+export function permissionPolicy(role, statistics = false) {
+  const base = permissions[role];
+  return !base || !statistics ? base : { ...base, tables: { ...base.tables, ...statisticsTables[role] } };
 }

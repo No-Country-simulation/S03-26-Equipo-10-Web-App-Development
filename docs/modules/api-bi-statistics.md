@@ -1,7 +1,7 @@
 # Analítica estadística BI
 
 **Versión:** 1 / algoritmo `stats_v1`. **Fecha:** 2026-10-19.
-**Estado:** fases 1–4 implementadas: datos, motor `stats_v1`, endpoint privado y vista con tres CSV. `BI_STATISTICS_ENABLED` es opt-in independiente en worker y API, apagada por defecto. Validación integral y habilitación pendientes de fase 5; sin aplicación persistente. [Operación de datos](../operations/28_bi_statistics_data.md) y [motor estadístico](../operations/29_bi_statistics_worker.md).
+**Estado:** fases 1–5 implementadas y verificadas localmente: datos, motor `stats_v1`, endpoint privado, vista con tres CSV y aceptación integral. Cierre de fase 5 pendiente ACK. `BI_STATISTICS_ENABLED` es opt-in independiente en worker y API, apagada por defecto. Habilitación remota, capacidad productiva y utilidad predictiva real pendientes; sin aplicación persistente. [Evidencia y habilitación](../operations/31_bi_statistics_validation_and_rollout.md). [Operación de datos](../operations/28_bi_statistics_data.md) y [motor estadístico](../operations/29_bi_statistics_worker.md).
 **Plan y SQL:** [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Complementa el [BI vigente](api-business-intelligence.md); no modifica su semántica actual.
 
 ## 1. Propósito, responsabilidades y fuentes
@@ -269,7 +269,7 @@ Tres CSV desde la misma respuesta autorizada visible: pronóstico/histórico/eva
 
 GET al entrar, actualizar y volver a pestaña; sin polling adicional. Reutilizar abortos, descarte de respuestas obsoletas, retiro de datos ante400/401/403/404 y remount por identidad. Tablas con captions, navegación por teclado, foco, móvil y gráficos con alternativa textual; nunca sólo rojo/verde.
 
-## 6. Matriz de aceptación para fases siguientes
+## 6. Matriz de aceptación
 
 | Grupo               | Casos verificables independientes                                                                                                                                                         | Fase / estado                                      |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
@@ -279,10 +279,10 @@ GET al entrar, actualizar y volver a pestaña; sin polling adicional. Reutilizar
 | Anomalías           | N29/30, referencias20/21, MAD0/par, igualdad al umbral no señala, salto de5pp, threshold>1, huecos, denominador0, actualización del día sin duplicar.                                     | 3 / verificado local                               |
 | Publicación         | Crash antes/después de encolar/commit; token vencido; dos workers; 3 intentos; timeout/cancelación; informe anterior preservado; puntero no retrocede.                                    | 3 / verificado local                               |
 | API/UI              | Dos tenants/admin/editor; query rechazada; JSON inválido/503; flagoff sin conexión nueva; corte viejo/cambio de mes; CSV igual a vista y sin fórmulas; cambio de sesión/teclado/móvil.    | 4 / verificado local                               |
-| Sistema             | API/worker/DW reales, privilegios efectivos, restauración, costos de extracción/cálculo/lectura y aislamiento ante caída OLAP.                                                            | 5 / pendiente                                      |
+| Sistema             | API/worker/DW reales, privilegios efectivos, restauración, costos de extracción/cálculo/lectura y aislamiento ante caída OLAP.                                                            | 5 / verificado local                               |
 | Utilidad predictiva | Histórico real suficiente, particiones/cobertura y criterio cumplidos por tenant.                                                                                                         | Pendiente de datos; fixtures no acreditan utilidad |
 
-Las fases2–4 aportan evidencia local de datos, cálculos, publicación y consumo detallada en el plan y las guías de operación. La aceptación integral sigue pendiente; no se acredita utilidad predictiva real ni capacidad productiva.
+Las fases 2–5 aportan evidencia local de datos, cálculos, publicación, consumo y aceptación integral, detallada en el plan y las guías de operación. La fase 5 incluye restauración de 30 tablas con ACL, fallos aislados del CMS y benchmark comparativo. No acredita utilidad predictiva real ni capacidad productiva.
 
 ### Oráculos numéricos fijados antes de implementar
 

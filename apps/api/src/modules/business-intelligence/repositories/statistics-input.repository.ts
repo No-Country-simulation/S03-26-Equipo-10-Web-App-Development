@@ -83,16 +83,26 @@ export class StatisticsInputRepository {
         FROM dw.fact_testimonial_snapshot f JOIN dw.dim_category c ON c.tenant_id = f.tenant_id AND c.category_key = f.category_key
         WHERE f.tenant_id = ${lease.tenantId}::uuid AND f.run_id = ${lease.sourceRunId}::uuid
         GROUP BY c.category_key, c.name, band HAVING count(*) >= 5 ORDER BY count(*) DESC, c.category_key, band LIMIT 50`;
+      // Identical tag sets share a weight, preserving exact pair counts while
+      // avoiding repeated pair expansion for every testimonial in dense snapshots.
       const pairs = await tx.$queryRaw<PatternsInput['pairs']>`
         WITH top_tags AS MATERIALIZED (SELECT tag_id, count(*) AS n FROM dw.bridge_testimonial_tag_snapshot
           WHERE tenant_id = ${lease.tenantId}::uuid AND run_id = ${lease.sourceRunId}::uuid
           GROUP BY tag_id ORDER BY count(*) DESC, tag_id LIMIT 50)
-        SELECT a.tag_id::text AS "tagA", b.tag_id::text AS "tagB", count(DISTINCT a.testimonial_id) AS count, ta.n AS a, tb.n AS b
-        FROM dw.bridge_testimonial_tag_snapshot a JOIN dw.bridge_testimonial_tag_snapshot b
-          ON b.tenant_id = a.tenant_id AND b.run_id = a.run_id AND b.testimonial_id = a.testimonial_id AND a.tag_id < b.tag_id
-        JOIN top_tags ta ON ta.tag_id = a.tag_id JOIN top_tags tb ON tb.tag_id = b.tag_id
-        WHERE a.tenant_id = ${lease.tenantId}::uuid AND a.run_id = ${lease.sourceRunId}::uuid
-        GROUP BY a.tag_id, b.tag_id, ta.n, tb.n ORDER BY a.tag_id, b.tag_id LIMIT 1225`;
+        , baskets AS MATERIALIZED (
+          SELECT b.testimonial_id, array_agg(b.tag_id ORDER BY b.tag_id) AS tags
+          FROM dw.bridge_testimonial_tag_snapshot b JOIN top_tags t ON t.tag_id = b.tag_id
+          WHERE b.tenant_id = ${lease.tenantId}::uuid AND b.run_id = ${lease.sourceRunId}::uuid
+          GROUP BY b.testimonial_id HAVING count(*) >= 2),
+        grouped AS (SELECT tags, count(*) AS weight FROM baskets GROUP BY tags),
+        pairs AS (
+          SELECT a.tag_id AS tag_a, b.tag_id AS tag_b, sum(g.weight)::bigint AS joint
+          FROM grouped g CROSS JOIN LATERAL unnest(g.tags) a(tag_id)
+          CROSS JOIN LATERAL unnest(g.tags) b(tag_id)
+          WHERE a.tag_id < b.tag_id GROUP BY a.tag_id, b.tag_id)
+        SELECT p.tag_a::text AS "tagA", p.tag_b::text AS "tagB", p.joint AS count, ta.n AS a, tb.n AS b
+        FROM pairs p JOIN top_tags ta ON ta.tag_id = p.tag_a JOIN top_tags tb ON tb.tag_id = p.tag_b
+        ORDER BY p.tag_a, p.tag_b LIMIT 1225`;
       const daily = await tx.$queryRaw<DailyInput[]>`
         WITH cuts AS (SELECT DISTINCT ON (snapshot_date_key) tenant_id, run_id, snapshot_at, snapshot_date_key, testimonial_count
           FROM dw.fact_tenant_snapshot WHERE tenant_id = ${lease.tenantId}::uuid AND snapshot_at <= ${lease.sourceSnapshotAt}

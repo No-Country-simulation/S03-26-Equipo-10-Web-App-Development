@@ -272,6 +272,23 @@ databaseTests('statistical worker on disposable PostgreSQL 18 with restricted id
     finally { await admin.$executeRawUnsafe(`GRANT SELECT ON dw.statistics_publication TO "${reader}"`); }
     expect(await read.$queryRaw`SELECT testimonial_count FROM dw.fact_tenant_snapshot WHERE tenant_id = ${tenant}::uuid`).toEqual([{ testimonial_count: 100n }]);
   });
+  it('counts dense identical tag baskets once per testimonial, limits to top fifty and preserves exact pair weights', async () => {
+    const run = await cut('2025-01-01Z');
+    const tags = Array.from({ length: 50 }, () => randomUUID());
+    await admin.$executeRaw`INSERT INTO dw.dim_tag (tenant_id, tag_id, name)
+      SELECT ${tenant}::uuid, id::uuid, 'Synthetic dense tag' FROM unnest(${tags}::text[]) id`;
+    await admin.$executeRaw`INSERT INTO dw.bridge_testimonial_tag_snapshot (tenant_id, run_id, testimonial_id, tag_id)
+      SELECT ${tenant}::uuid, ${run}::uuid, f.testimonial_id, tag::uuid FROM dw.fact_testimonial_snapshot f CROSS JOIN unnest(${tags}::text[]) tag
+      WHERE f.tenant_id = ${tenant}::uuid AND f.run_id = ${run}::uuid`;
+    await admin.$executeRaw`UPDATE dw.fact_tag_snapshot SET tag_count = 52, relation_count = 5060
+      WHERE tenant_id = ${tenant}::uuid AND run_id = ${run}::uuid`;
+    await jobs.discover(); const lease = (await jobs.claim())!;
+    const input = await inputs.read(lease);
+    expect(input.patterns.tags.totalGroups).toBe(52n); expect(input.patterns.tags.items).toHaveLength(50);
+    expect(input.patterns.pairs).toHaveLength(1225);
+    expect(input.patterns.pairs.every(pair => pair.count === 100n && pair.a === 100n && pair.b === 100n)).toBe(true);
+    expect(calculateStatistics(input).patterns.associations).toEqual([]); // lift=1 never qualifies.
+  });
   it('fails optional engine preflight safely with missing permissions', async () => {
     expect(await statisticsEngineReady(write, true)).toBe(true);
     await admin.$executeRawUnsafe(`REVOKE INSERT ON dw.statistics_publication FROM "${writer}"`);

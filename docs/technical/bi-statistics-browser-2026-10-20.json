@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "realBackend": true,
+  "roles": ["admin", "editor"],
+  "tenants": 2,
+  "viewports": [1440, 390],
+  "closedPendingSessionRecovered": true,
+  "csv": {
+    "forecast": {
+      "rows": 25,
+      "matchesSource": true
+    },
+    "patterns": {
+      "rows": 12,
+      "matchesSource": true
+    },
+    "anomalies": {
+      "rows": 180,
+      "matchesSource": true
+    }
+  }
+}

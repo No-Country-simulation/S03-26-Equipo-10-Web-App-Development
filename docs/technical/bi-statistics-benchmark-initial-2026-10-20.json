@@ -1,0 +1,20 @@
+{
+  "failed": true,
+  "evidence": {
+    "statistics": true,
+    "worker": {
+      "code": 1,
+      "durationMs": 52519.690397
+    },
+    "sourceConnected": true,
+    "runDurationMs": 21003,
+    "job": {
+      "durationMs": 30235,
+      "status": "failed",
+      "errorCode": "BI_STATISTICS_FAILED"
+    },
+    "statuses": {
+      "200": 60
+    }
+  }
+}

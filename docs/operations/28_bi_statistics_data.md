@@ -1,6 +1,6 @@
 # Datos de analítica estadística: preparación y mantenimiento
 
-**Fecha:** 2026-10-19. **Estado:** fase 2 implementada y validada en recursos descartables; sin aplicación persistente ni habilitación de analítica.
+**Fecha:** 2026-10-19; aceptación integral: 2026-10-20. **Estado:** fase 2 aprobada; fases 3–5 completan motor, consumo y validación descartable. Sin aplicación persistente ni habilitación remota. [Permisos completos, restauración y habilitación](31_bi_statistics_validation_and_rollout.md).
 **Referencias:** [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md), [contrato](../modules/api-bi-statistics.md), [operación ETL](17_business_intelligence_etl.md).
 
 ## Objetos y compatibilidad
@@ -60,7 +60,7 @@ GRANT SELECT ON dw.dim_tag, dw.fact_tag_snapshot, dw.bridge_testimonial_tag_snap
 
 El escritor de datos no necesita UPDATE/DELETE de creaciones ni escritura del ledger; los informes sólo admiten INSERT/SELECT, sin UPDATE/DELETE. Los grants de jobs/informes/punteros están en la [guía del motor de fase3](29_bi_statistics_worker.md). No conceder DDL, TRUNCATE ni acceso a nuevas tablas desde `bi_control`.
 
-Los adaptadores de entrega/auditoría de permisos de demo conservan su catálogo anterior. Su ampliación, recursos remotos, restauración y aceptación de habilitación permanecen pendientes del procedimiento final; no activar estadísticas remotas usando sólo los ejemplos de grants de este documento.
+La fase 5 amplía el catálogo de preflight y prepara SQL aditivos completos, probados localmente junto con restauración y denegaciones. Ver [aceptación y habilitación](31_bi_statistics_validation_and_rollout.md). La comprobación conectada y aplicación remotas siguen pendientes; no activar estadísticas usando sólo los ejemplos parciales de este documento.
 
 ## Opt-in del worker y fallos
 

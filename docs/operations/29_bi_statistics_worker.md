@@ -39,7 +39,7 @@ Cada claim incrementa el contador durable hasta tres intentos y fija token, leas
 
 La publicación toma el lock del job y luego del puntero, valida fuente/token/lease/plazo y confirma informe inmutable, puntero y éxito juntos, con SQL4s/lock1s/tx5s. Cualquier fallo revierte las tres escrituras; el puntero no retrocede. El replay de un éxito no duplica ni mueve el puntero. Si la respuesta se pierde después del commit, se consulta el éxito durable antes de repetir. Un corte base nuevo puede dejar temporalmente el informe anterior; el consumo de fase4 informa su antigüedad y retira la proyección según vigencia/mes objetivo.
 
-SIGTERM impide reclamar otra tarea; una ya reclamada drena hasta su plazo. Las comprobaciones de plazo se realizan entre lectura/cálculo/publicación y en el fence DW. El cálculo síncrono usa las entradas acotadas; no hay interrupción preventiva del JavaScript ni un worker thread. El costo máximo efectivo debe medirse en fase5.
+SIGTERM impide reclamar otra tarea; una ya reclamada drena hasta su plazo. Las comprobaciones de plazo se realizan entre lectura/cálculo/publicación y en el fence DW. El cálculo síncrono usa las entradas acotadas; no hay interrupción preventiva del JavaScript ni un worker thread. El benchmark de fase 5 midió un caso denso local en 567ms de tarea durable, después de corregir una consulta que agotaba SQL30s; no representa un máximo garantizado. Ver [medición y límites](31_bi_statistics_validation_and_rollout.md).
 
 ## Diagnóstico y recuperación
 
@@ -51,4 +51,4 @@ Ante un fallo, conservar el informe publicado y examinar permisos, disponibilida
 
 Regresión local:239/239 casos en17 suites BI, sin omisiones, sobre dos PostgreSQL18.6 descartables. Se agregaron52 casos en esta fase:31 del motor,6 del servicio,14 de persistencia y uno del CLI real. Incluyen oráculos numéricos, fronteras temporales, datos tardíos, roles restringidos/dos tenants, competencia, presupuesto, lease, deadline, rollback de publicación y respuesta ambigua post-commit. El CLI confirma prioridad ETL y una tarea por ciclo.
 
-Typecheck, lint y build API aprobados; lint conserva tres advertencias anteriores ajenas al cambio. Los fixtures sintéticos verifican mecánica, no utilidad predictiva real. HTTP/UI/CSV corresponden a fase4; restauración integral, benchmarks CMS/ETL/cálculo y despliegue autorizado corresponden a fase5. No se afirma haber ejecutado toda la suite CMS ni E2E.
+Typecheck, lint y build API aprobados; lint conserva tres advertencias anteriores ajenas al cambio. Los fixtures sintéticos verifican mecánica, no utilidad predictiva real. HTTP/UI/CSV corresponden a fase4. La [fase5](31_bi_statistics_validation_and_rollout.md) completa restauración integral, benchmark CMS/ETL/cálculo, permisos propuestos y recorrido real de navegador con recursos descartables. No se ejecutó toda la suite CMS ni despliegue; la aceptación productiva sigue pendiente.

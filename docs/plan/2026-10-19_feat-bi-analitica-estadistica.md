@@ -1,7 +1,8 @@
 # Plan HITL: analítica estadística del BI
 
 **Fecha:** 2026-10-19. **Rama:** `codex/bi-analitica-estadistica`, base `b0d8cb2`.
-**Estado:** fases 1–3 aprobadas; fase 4 terminada, pendiente ACK. Fase 5 pendiente, sin autorización de ejecución.
+**Estado:** fases 1–4 aprobadas; fase 5 terminada y validada localmente, pendiente ACK de cierre. Sin autorización de despliegue persistente.
+**ACK fase 5:** «Continuar», 2026-10-20, después del cierre y commit humano `8fada04`; autoriza validación integral y preparación de habilitación con recursos descartables. Conserva los ACK específicos para migraciones persistentes, infraestructura y despliegue.
 **ACK fase 4:** «Continuar», después del cierre y commit humano de fase 3; autoriza endpoint/UI/CSV y validación descartable, no despliegue ni fase 5.
 **ACK fase 3:** «Continuar», después del cierre de fase 2; autoriza motor y validación descartable, no consumo HTTP/UI ni despliegue.
 **ACK fase 2:** «Continuar», después del cierre de fase 1; autoriza datos y validación descartable, no despliegue ni comandos Prisma protegidos.
@@ -73,19 +74,19 @@ La etapa estadística empieza después de cerrar origen y publicar ETL. No modif
 - [x] Integrar cola recuperable, presupuesto 3, lease90s/heartbeat20s/deadline60s y publicación ACID independiente. Priorizar ETL; no reclamar tareas obsoletas.
 - [x] Probar pérdida de lease, reinicios, dos workers, respuesta ambigua tras commit, fallos y puntero monotónico.
 
-### `[Actual]` 4. Consumo — terminada, pendiente ACK
+### `[Completada]` 4. Consumo — aprobada
 
 - [x] Incorporar bandera, GET privado con DTO estricto, cuota y validación de publicación; conservar permisos admin/editor por tenant.
 - [x] Agregar `view=statistics` en la navegación BI, adaptador Zod, tres secciones con tablas/gráficos y CSV desde la respuesta autorizada visible.
 - [x] Actualización al entrar/volver/solicitarla; no agregar polling continuo. Limpiar datos al cambiar sesión y descartar respuestas obsoletas.
 - [x] Probar filtros ajenos rechazados, roles, vigencia, calendario, accesibilidad y CSV equivalente/neutralizado.
 
-### `[Pendiente]` 5. Validación integral
+### `[Actual]` 5. Validación integral — completada, pendiente ACK
 
-- Recorrido real con dos tenants, API/worker/OLTP/DW descartables, fallos y restauración de nuevos objetos/permisos.
-- Medir costo de extracción de etiquetas, cálculo, consultas y CMS con/sin ampliación sobre recursos/dataset declarados. ETL <=5min; estadística <=60s; lectura SQL5s/tx10s. Registrar p95/p99, errores y crecimiento; no certificar capacidad productiva con fixtures.
-- Preparar runbook de mantenimiento, promoción, flags y recuperación. Deshabilitar consumo/cálculo conserva datos; rollback de software no implica DROP.
-- Clasificar evidencia como verificada, pendiente o no aplicable. Desempeño predictivo con historial real y SLO del destino siguen pendientes hasta tener evidencia; no habilitar por aprobar pruebas sintéticas.
+- [x] Recorrido real con dos tenants, API/worker/OLTP/DW descartables, fallos y restauración de nuevos objetos/permisos.
+- [x] Medir costo de extracción de etiquetas, cálculo, consultas y CMS con/sin ampliación sobre recursos/dataset declarados. ETL <=5min; estadística <=60s; lectura SQL5s/tx10s. Registrar p95/p99, errores y crecimiento; no certificar capacidad productiva con fixtures.
+- [x] Preparar runbook de mantenimiento, promoción, flags y recuperación. Deshabilitar consumo/cálculo conserva datos; rollback de software no implica DROP.
+- [x] Clasificar evidencia como verificada, pendiente o no aplicable. Desempeño predictivo con historial real y SLO del destino siguen pendientes hasta tener evidencia; no habilitar por aprobar pruebas sintéticas.
 
 ## Evidencia y cierre de fase 1
 
@@ -169,4 +170,23 @@ Regresión backend: comando de fase3 con las dos suites adicionales `test/bi-sta
 
 **Commit sugerido:** `feat(bi): agregá la vista estadística y su API privada`
 
-**Detención obligatoria:** esperar ACK antes de activar/ejecutar fase5.
+**Detención de fase 4 cumplida:** ACK «Continuar» recibido después del commit humano `8fada04` y antes de fase5. No autoriza migraciones persistentes ni despliegue.
+
+## Evidencia y cierre de fase 5
+
+- **Verificado:** seis casos nuevos de integración completa con AppModule, JWT/RBAC, Redis real, CLI independiente y dos PostgreSQL 18.6 descartables; dos tenants con 100 testimonios y 60 asignaciones cada uno. Admin/editor reciben sólo su empresa; query ajena se rechaza. Fallo estadístico tres veces conserva éxito ETL e informe anterior; caída del lector devuelve error privado sin impedir readiness, listado, captura ni moderación. Flag apagada conserva dashboard e informes.
+- **Verificado:** backup/restauración de las 30 tablas de DW/staging/control, con cantidades y digest iguales, ledger y ACL. Tarea pendiente recuperada desde otra base vacía mediante CLI restringida, sin duplicados al repetir barrido. Denegaciones de lector/control y de UPDATE/DELETE de informes/creaciones comprobadas antes y después de restaurar. Roles ya existentes en el mismo cluster; no acredita PITR, recuperación entre clusters ni RTO/RPO remoto.
+- **Corrección comprobada:** benchmark inicial con 50 etiquetas por testimonio agotó SQL30s en asociaciones, después de ETL exitoso. La consulta agrupa conjuntos idénticos de etiquetas y expande pares con su peso, preservando conteos, orden, top50, umbrales y `stats_v1`. Oráculo adicional de 100 testimonios/50 etiquetas: 1225 pares, conteos y marginales100, lift1 y ninguna asociación destacada. No se amplió el plazo ni se redujo la carga para ocultar el fallo.
+- **Rendimiento local:** 425 cortes históricos, 217170 detalles, 1001 testimonios actuales y 50050 relaciones. ETL final encendido 21138ms, tarea estadística 567ms; cumplen límites de cinco minutos/60s en esta muestra. CMS concurrente p95/p99 pasa de66,1/67,3ms a148,9/150,8ms, con40/40 y60/60 respuestas200. El reporte conserva costo de extracción/publicación, tamaño y CPU/RSS de API. Mismo host, orden apagado/encendido, caché calentada y20 muestras por ruta; modo encendido agrega lectura estadística. No aísla causalidad ni certifica SLO/capacidad productiva. [Resultados y límites](../operations/31_bi_statistics_validation_and_rollout.md), [fallo inicial](../technical/bi-statistics-benchmark-initial-2026-10-20.json), [comparación final](../technical/bi-statistics-benchmark-2026-10-20.json).
+- **Verificado navegador real:** Next compilado servido mediante `next start`, API/Redis/worker/PG reales, sin interceptar HTTP. Admin solicita carga, cierra sesión; editor móvil recupera publicación; otra empresa queda sin corte/descarga; nueva sesión admin recupera solicitud exitosa. Chrome1440×1000 y390×844 sin desborde de página, tabla de90 días visible. Tres CSV contra el mismo corte:25 filas pronóstico/histórico,12 patrones y180 señales; par10/soporte10/confianzas25 y50/lift1,25 y fórmula neutralizada. Los primeros intentos detectaron que el selector del test elegía «Sin categoría»; se corrigió el selector a la categoría sintética esperada, sin modificar producto ni su protección CSV. [Evidencia](../technical/bi-statistics-browser-2026-10-20.json). No acredita empaquetado standalone/TLS/ingress productivo, otros motores ni auditoría WCAG universal; agent-browser no estaba instalado y se usó Playwright/Chrome disponibles.
+- **Preparado y verificado localmente:** SQL aditivos mínimos OLTP/DW, catálogo de preflight opcional y validación de flags sin conexiones nuevas. Encendido exige mínimos y ledger0005; apagado permite conservar esos grants sin exigirlos ni tolerar privilegios extra. Prueba nativa aplica propuestas en bases propias con propietarios distintos y verifica cinco identidades; TLS local deliberadamente ausente es la única incidencia esperada, sin relajar preflight remoto. Adaptador/workflow manual mantienen0004 por defecto;0005 exige bandera específica y confirmación adicional `statistics`. No se ejecutó ningún workflow/migración persistente. Red funcional observado para banderas y selección de destino antes de la corrección;67/67 tests nativos y una prueba nativa adicional de permisos aprobados, análisis estático de workflows aprobado.
+- **Regresión final:** **267/267 casos backend en21 suites BI**, sin omisiones, y **96/96 web en9 archivos BI**. La primera corrida conjunta detectó cuotas de login compartidas en Redis; se corrigió el aislamiento de fixtures reservando una base lógica vacía por instancia y limpiando sólo la propia, conservando cuotas/guardias reales. Corrida final completa aprobada. Typecheck, lint y build API/web aprobados; tres warnings backend y ocho web previos al cambio. No se afirma ejecutar toda la suite CMS ni CI remoto.
+- **Documentado:** runbook de promoción, backfill, grants, activación worker antes de API, observación y recuperación/apagado sin DROP; contratos API/web, guías previas, AGENTS y llm actualizados. No cambiaron schema Prisma, migraciones/checksums existentes, infraestructura, package.json raíz, lockfile ni hooks.
+- **Limpieza verificada:** cero bases/roles de fixtures en ambos PostgreSQL y cero reservas Redis antes de detenerlos. API/worker de navegador y Next cerrados; servicios temporales detenidos y directorio propio retirado. Sin secretos/PII reales en evidencia, commit automático, migración persistente ni despliegue.
+- **Pendiente:** ACK humano de cierre; CI del futuro commit; provisión y preflight conectados del destino, TLS/Data API/ingress, SLO/CPU/IO/pools/capacidad y restauración real; datos suficientes y utilidad predictiva por empresa. Los datos sintéticos sólo acreditan mecánica. **No aplicable en esta entrega:** entrenamiento/servicios ML, texto libre, causalidad/significancia, intervalos predictivos sin cobertura, notificaciones y captura durable de todas las altas, fuera del alcance acordado.
+
+Reproducción, scripts opt-in y restricciones del entorno en la [guía de fase 5](../operations/31_bi_statistics_validation_and_rollout.md).
+
+**Commit sugerido:** `test(bi): validá la analítica estadística y su recuperación`
+
+**Detención obligatoria:** fase5 terminada localmente; esperar ACK humano de cierre. Este ACK no autoriza migraciones persistentes, habilitación ni despliegue, que mantienen procedimientos y permisos específicos.

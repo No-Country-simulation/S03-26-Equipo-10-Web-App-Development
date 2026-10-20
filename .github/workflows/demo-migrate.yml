@@ -17,7 +17,7 @@ on:
         required: true
         type: string
       confirmation:
-        description: 'Escribí APPLY <SHA completo del commit> <oltp|warehouse>'
+        description: 'APPLY <SHA> <oltp|warehouse>; agregá statistics si DEMO_BI_STATISTICS_MIGRATION=true'
         required: true
         type: string
 
@@ -72,6 +72,7 @@ jobs:
       MAINTENANCE_DIGEST: ${{ inputs.maintenance_digest }}
       CONFIRMATION: ${{ inputs.confirmation }}
       DEMO_MIGRATIONS_ENABLED: ${{ vars.DEMO_MIGRATIONS_ENABLED }}
+      DEMO_BI_STATISTICS_MIGRATION: ${{ vars.DEMO_BI_STATISTICS_MIGRATION || 'false' }}
       SUPABASE_OLTP_HOST: ${{ vars.SUPABASE_OLTP_HOST }}
       SUPABASE_WAREHOUSE_HOST: ${{ vars.SUPABASE_WAREHOUSE_HOST }}
       OLTP_CA_PEM: ${{ vars.OLTP_CA_PEM }}
@@ -111,7 +112,7 @@ jobs:
           trap 'docker rm -f "$container_name" >/dev/null 2>&1 || true' EXIT INT TERM
           docker run --rm --name "$container_name" --read-only --tmpfs /tmp --network host \
             --cap-drop ALL --security-opt no-new-privileges \
-            --env DEMO_MIGRATIONS_ENABLED --env MIGRATION_DATABASE_URL \
+            --env DEMO_MIGRATIONS_ENABLED --env DEMO_BI_STATISTICS_MIGRATION --env MIGRATION_DATABASE_URL \
             --env SUPABASE_OLTP_HOST --env SUPABASE_WAREHOUSE_HOST --env OLTP_CA_PEM --env WAREHOUSE_CA_PEM \
             "$image" /app/scripts/release/migrate.mjs "$TARGET" "$RELEASE_SHA" "$CONFIRMATION"
       - name: Clear registry authentication on the dedicated runner
@@ -129,6 +130,7 @@ jobs:
           mkdirSync('release-evidence',{recursive:true});
           writeFileSync('release-evidence/migration.json',JSON.stringify({
             version:1,sha:env.RELEASE_SHA,tag:env.RELEASE_TAG,target:env.TARGET,
+            statistics:env.TARGET==='warehouse'&&env.DEMO_BI_STATISTICS_MIGRATION==='true',
             digest:digestPattern.test(env.MAINTENANCE_DIGEST)?env.MAINTENANCE_DIGEST:undefined,
             runId:env.GITHUB_RUN_ID,attempt:env.GITHUB_RUN_ATTEMPT,outcome:env.MIGRATION_OUTCOME,
           },null,2)+'\n');

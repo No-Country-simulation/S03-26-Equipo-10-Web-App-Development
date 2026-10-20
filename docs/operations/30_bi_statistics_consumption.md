@@ -1,6 +1,6 @@
 # Consumo privado de analítica estadística
 
-**Fecha:** 2026-10-19. **Estado:** fase4 implementada, pendiente ACK; habilitación persistente y aceptación integral pendientes de fase5.
+**Fecha:** 2026-10-19; aceptación integral: 2026-10-20. **Estado:** fase4 aprobada y fase5 validada localmente, cierre pendiente ACK. Habilitación persistente pendiente. [Evidencia y procedimiento](31_bi_statistics_validation_and_rollout.md).
 **Referencias:** [plan](../plan/2026-10-19_feat-bi-analitica-estadistica.md), [contrato](../modules/api-bi-statistics.md), [datos](28_bi_statistics_data.md), [motor](29_bi_statistics_worker.md), [interfaz](../modules/web-business-intelligence.md).
 
 ## Acoplamiento y habilitación posterior
@@ -17,7 +17,7 @@ Para un entorno posteriormente autorizado, complementar los grants del lector pr
 GRANT SELECT ON dw.statistics_publication, dw.statistics_current TO bi_api_reader;
 ```
 
-El lector conserva SELECT de `dw.fact_tenant_snapshot`, `dw.fact_tag_snapshot` y los permisos técnicos de preferencias ya existentes. No necesita staging, `etl.statistics_jobs`, DML ni identidad migradora. Los adaptadores remotos de provisión/auditoría se actualizarán y validarán en fase5 antes de habilitar; no se cambiaron en esta fase.
+El lector conserva SELECT de `dw.fact_tenant_snapshot`, `dw.fact_tag_snapshot` y los permisos técnicos de preferencias ya existentes. No necesita staging, `etl.statistics_jobs`, DML ni identidad migradora. La fase5 agrega SQL aditivos y preflight con política estadística, probados en PostgreSQL local. Con flags apagados permite conservar grants compatibles; encendidos exige los mínimos nuevos. El control no recibe permisos estadísticos. La validación conectada remota sigue pendiente; consultar la guía de habilitación.
 
 ## Estados y errores
 
@@ -42,4 +42,4 @@ Fase4 agrega16 casos backend (4 de presentación,9 HTTP,3 DW) y18 web (10 de con
 
 Revisión local de Chrome en1440×1000 y390×844, con sesión/respuestas sintéticas: sin desborde horizontal de página, CSV de patrones descargado y comprobado, detalle diario operable y actualización manual sin consultas a `/bi/status`. El modo desarrollo puede duplicar la lectura inicial por StrictMode; no se afirmó frecuencia productiva a partir de ese conteo. No es E2E completo con API/CMS reales ni certificación WCAG. Build, typecheck y lint de ambos workspaces se verifican en el plan; warnings previos se conservan.
 
-Restauración integral, rendimiento con/sin ampliación, aceptación remota y utilidad predictiva sobre historial real siguen pendientes de fase5 y de sus autorizaciones específicas. No se aplicaron migraciones persistentes, infraestructura, Prisma schema ni despliegue.
+La fase5 verifica restauración integral, rendimiento con/sin ampliación y recorrido real API/worker/Redis/navegador según la [guía de aceptación](31_bi_statistics_validation_and_rollout.md). La evidencia de los párrafos anteriores corresponde a fase4 y conserva sus límites de simulación. Aceptación remota y utilidad predictiva sobre historial real siguen pendientes. No se aplicaron migraciones persistentes ni cambios a infraestructura, Prisma schema o despliegue.
