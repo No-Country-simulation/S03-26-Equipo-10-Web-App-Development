@@ -2,6 +2,8 @@
 
 **Fecha:** 2026-10-09. **Estado:** warehouse/ETL/scoring, endpoint, panel, métricas y tiempo dimensional implementados; integración y operación verificadas localmente. Despliegue persistente no verificado.
 
+**Evolución estadística (2026-10-19):** [contrato](api-bi-statistics.md) y [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Fase2 incorpora etiquetas por corte y primeras observaciones con backfill manual; fase3 agrega pronóstico evaluado, patrones y anomalías con tareas recuperables y publicación independiente en DW. Opt-in del worker apagado por defecto. [Datos](../operations/28_bi_statistics_data.md) y [motor](../operations/29_bi_statistics_worker.md). Fase4 expone GET privado `/bi/statistics` y vista con tres CSV, sin cálculo HTTP ni polling adicional; aceptación integral local de fase5 completada, con restauración, privilegios y benchmark que corrigió el conteo SQL de pares densos sin cambiar `stats_v1`. [Habilitación y evidencia](../operations/31_bi_statistics_validation_and_rollout.md); sin migraciones persistentes aplicadas. El dashboard vigente se conserva.
+
 **Referencias:** [Plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md), [ADR 0004](../adr/0004-warehouse-postgresql-separado.md), [diccionario DW](../domain/warehouse_diccionario_de_datos.md), [migración warehouse](../../apps/api/warehouse/migrations/0001_initial.sql), [operación ETL](../operations/17_business_intelligence_etl.md), [validación y despliegue](../operations/18_business_intelligence_rollout.md).
 
 ## Fronteras y configuración

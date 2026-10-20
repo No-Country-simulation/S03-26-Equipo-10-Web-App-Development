@@ -12,6 +12,8 @@ export class EtlError extends Error {
 export interface Lease { tenantId: string; runId: string; token: string; slot: Date; deadline: number }
 export interface SourceSnapshot { tenantId: string; name: string; isActive: boolean; at: Date }
 export interface CategoryRow { tenantId: string; categoryId: string; name: string }
+export interface TagRow { tenantId: string; tagId: string; name: string }
+export interface TestimonialTagRow { tenantId: string; testimonialId: string; tagId: string }
 export interface TestimonialRow {
   tenantId: string; testimonialId: string; categoryId: string | null; statusCode: string;
   rating: number; score: Prisma.Decimal; createdAt: Date; publishedAt: Date | null;
@@ -21,12 +23,14 @@ export interface EventRow {
   tenantId: string; eventId: bigint; testimonialId: string; eventTypeCode: string;
   sourceCode: 'public' | 'public-browser' | 'api' | 'widget' | 'other'; createdAt: Date;
 }
-export interface Counts { categories: bigint; testimonials: bigint; events: bigint }
+export interface Counts { categories: bigint; testimonials: bigint; events: bigint; taxonomy?: { tags: bigint; relations: bigint } }
 export interface SourceConsumer {
   snapshot(snapshot: SourceSnapshot): Promise<void>;
   categories(rows: CategoryRow[]): Promise<void>;
   testimonials(rows: TestimonialRow[]): Promise<void>;
   events(rows: EventRow[]): Promise<void>;
+  tags?(rows: TagRow[]): Promise<void>;
+  testimonialTags?(rows: TestimonialTagRow[]): Promise<void>;
 }
 export interface EtlResult {
   tenantId: string; status: 'succeeded' | 'failed' | 'skipped'; runId?: string; code?: string;

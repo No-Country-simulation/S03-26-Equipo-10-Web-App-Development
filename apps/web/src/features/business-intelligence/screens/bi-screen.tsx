@@ -19,6 +19,7 @@ import {
   Loading,
   biFailure,
 } from '../components/shared';
+import StatisticsView from './statistics-view';
 import SummaryView from './summary-view';
 import RunsView, { type Navigate } from './runs-view';
 import OperationView from './operation-view';
@@ -62,7 +63,9 @@ function BiWorkspace({
   );
   const status = useBiResource(
     load,
-    Boolean(query) && (query?.view !== 'audit' || isAdmin),
+    Boolean(query) &&
+      query?.view !== 'statistics' &&
+      (query?.view !== 'audit' || isAdmin),
     statusInterval,
     refreshKey,
   );
@@ -85,6 +88,7 @@ function BiWorkspace({
     !status.data;
   const views = [
     ['summary', 'Resumen'],
+    ['statistics', 'Analítica estadística'],
     ['runs', 'Ejecuciones'],
     ['operation', 'Operación'],
     ['settings', 'Configuración'],
@@ -237,6 +241,9 @@ function BiWorkspace({
                   </>
                 )}
               </div>
+            )}
+            {query.view === 'statistics' && (
+              <StatisticsView fetchApi={fetchApi} refreshKey={refreshKey} />
             )}
             {query.view === 'summary' && (
               <SummaryView

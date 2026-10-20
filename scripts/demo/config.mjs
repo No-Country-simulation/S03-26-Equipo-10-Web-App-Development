@@ -17,11 +17,12 @@ export const profiles = Object.freeze({
 });
 
 export function connectionNames(service, env) {
-  if (service === 'worker') return ['BI_SOURCE_DATABASE_URL', 'BI_ETL_DATABASE_URL'];
-  if (service !== 'api') fail('DEMO_SERVICE_INVALID');
-  for (const name of ['BI_ENABLED', 'BI_OPERATIONS_ENABLED']) {
+  if (!['api', 'worker'].includes(service)) fail('DEMO_SERVICE_INVALID');
+  for (const name of ['BI_ENABLED', 'BI_OPERATIONS_ENABLED', 'BI_STATISTICS_ENABLED']) {
     if (env[name] !== undefined && !['true', 'false'].includes(env[name])) fail('DEMO_BI_FLAGS_INVALID');
   }
+  if (service === 'worker') return ['BI_SOURCE_DATABASE_URL', 'BI_ETL_DATABASE_URL'];
+  if (env.BI_STATISTICS_ENABLED === 'true' && env.BI_ENABLED !== 'true') fail('DEMO_BI_FLAGS_INVALID');
   if (env.BI_OPERATIONS_ENABLED === 'true' && env.BI_ENABLED !== 'true') fail('DEMO_BI_FLAGS_INVALID');
   return ['DATABASE_URL', ...(env.BI_ENABLED === 'true' ? ['BI_DATABASE_URL'] : []),
     ...(env.BI_OPERATIONS_ENABLED === 'true' ? ['BI_CONTROL_DATABASE_URL'] : [])];

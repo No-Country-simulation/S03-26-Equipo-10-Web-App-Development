@@ -1,3 +1,4 @@
+import { statisticsFixture } from '../statistics-fixtures';
 import {
   act,
   fireEvent,
@@ -104,6 +105,49 @@ describe('BI interfaces with validated contracts', () => {
       roles: ['admin'],
     };
     state.fetch.mockImplementation(mockNetwork);
+  });
+  it('isolates statistics identity, ignores obsolete responses and clears the view at logout', async () => {
+    state.url = 'view=statistics';
+    state.user.roles = ['editor'];
+    let finish: (value: unknown) => void = () => undefined;
+    state.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const view = render(<BiScreen />);
+    state.user = { ...state.user, id: 'account-b', tenantId: 'tenant-b' };
+    const next = statisticsFixture();
+    next.patterns.categories.items[0].name = 'Empresa B tema';
+    state.fetch.mockResolvedValue(envelope(next));
+    view.rerender(<BiScreen />);
+    expect(await screen.findByText('Empresa B tema')).toBeInTheDocument();
+    await act(async () => finish(envelope(statisticsFixture())));
+    expect(screen.queryByText('Atención al cliente')).not.toBeInTheDocument();
+    expect(
+      state.fetch.mock.calls.every(([path]) => path === '/bi/statistics'),
+    ).toBe(true);
+    state.loggedIn = false;
+    view.rerender(<BiScreen />);
+    expect(screen.queryByText('Empresa B tema')).not.toBeInTheDocument();
+  });
+  it('opens statistics for editors, refreshes only on demand and removes summary filters from its link', async () => {
+    state.user.roles = ['editor'];
+    const view = render(<BiScreen />);
+    await screen.findByText('Category A');
+    expect(
+      screen.getByRole('link', { name: 'Analítica estadística' }),
+    ).toHaveAttribute('href', '/admin/business-intelligence?view=statistics');
+    state.url = 'view=statistics';
+    state.fetch.mockResolvedValue(envelope(statisticsFixture()));
+    view.rerender(<BiScreen />);
+    await screen.findByText('Atención al cliente');
+    state.fetch.mockClear();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Actualizar vista' }));
+    await waitFor(() => expect(state.fetch).toHaveBeenCalledTimes(1));
+    expect(state.fetch.mock.calls[0][0]).toBe('/bi/statistics');
   });
   it('presents freshness, exact decimals, null CTR, missing cuts and four CSV exports', async () => {
     render(<BiScreen />);

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { EtlError } from '../etl.types';
-import { requireSnapshotTimeExpansion, verifySnapshotTimeHistory } from './snapshot-time-validation';
+import { requireQuiescentEtl, requireSnapshotTimeExpansion, verifySnapshotTimeHistory } from './snapshot-time-validation';
 
 /** Initial DDL grammar: quoted strings/identifiers and comments; function bodies are deliberately unsupported. */
 export function migrationStatements(sql: string): string[] {
@@ -53,15 +53,17 @@ export async function applyWarehouseMigration(client: PrismaClient, version: str
       await tx.$executeRaw`LOCK TABLE dw.fact_testimonial_snapshot, dw.fact_tenant_snapshot IN SHARE ROW EXCLUSIVE MODE`;
       await verifySnapshotTimeHistory(tx, true);
     }
-    if (version === '0004_bi_operations.sql') {
+    if (version === '0004_bi_operations.sql' || version === '0005_bi_statistics.sql') {
+      const required = version === '0005_bi_statistics.sql' ? '0004_bi_operations.sql' : '0003_snapshot_time_constraints.sql';
       const [previous] = await tx.$queryRaw<Array<{ exists: boolean }>>`SELECT EXISTS(
-        SELECT 1 FROM etl.schema_migrations WHERE version = '0003_snapshot_time_constraints.sql') AS exists`;
+        SELECT 1 FROM etl.schema_migrations WHERE version = ${required}) AS exists`;
       if (!previous?.exists) throw new EtlError('BI_MIGRATION_INVALID');
       await tx.$executeRaw`LOCK TABLE etl.runs, etl.tenant_load_state IN SHARE MODE`;
       const [active] = await tx.$queryRaw<Array<{ exists: boolean }>>`SELECT
         EXISTS(SELECT 1 FROM etl.runs WHERE status = 'running') OR
         EXISTS(SELECT 1 FROM etl.tenant_load_state WHERE lease_run_id IS NOT NULL) AS exists`;
       if (active?.exists) throw new EtlError('BI_MAINTENANCE_REQUIRED');
+      if (version === '0005_bi_statistics.sql') await requireQuiescentEtl(tx);
     }
     for (const statement of statements) await tx.$executeRawUnsafe(statement);
     await tx.$executeRaw`INSERT INTO etl.schema_migrations (version, checksum) VALUES (${version}, ${checksum})`;

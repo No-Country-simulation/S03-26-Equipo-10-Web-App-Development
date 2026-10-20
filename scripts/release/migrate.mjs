@@ -14,10 +14,16 @@ export function migrationPlan(env, target, sha, confirmation) {
   if (
     !['oltp', 'warehouse'].includes(target) ||
     !shaPattern.test(sha ?? '') ||
-    confirmation !== `APPLY ${sha} ${target}` ||
+    confirmation !==
+      `APPLY ${sha} ${target}${target === 'warehouse' && env.DEMO_BI_STATISTICS_MIGRATION === 'true' ? ' statistics' : ''}` ||
     env.DEMO_MIGRATIONS_ENABLED !== 'true'
   )
     fail('RELEASE_MIGRATION_ACK_REQUIRED');
+  if (
+    env.DEMO_BI_STATISTICS_MIGRATION !== undefined &&
+    !['true', 'false'].includes(env.DEMO_BI_STATISTICS_MIGRATION)
+  )
+    fail('RELEASE_MIGRATION_TARGET_INVALID');
   if (env.NODE_TLS_REJECT_UNAUTHORIZED === '0')
     fail('RELEASE_MIGRATION_TLS_REQUIRED');
   const project = target === 'oltp' ? 'OLTP' : 'WAREHOUSE';
@@ -54,7 +60,9 @@ export function migrationPlan(env, target, sha, confirmation) {
             '/app/apps/api/dist/modules/business-intelligence/migration.cli.js',
             '--apply',
             '--to',
-            '0004_bi_operations.sql',
+            env.DEMO_BI_STATISTICS_MIGRATION === 'true'
+              ? '0005_bi_statistics.sql'
+              : '0004_bi_operations.sql',
           ];
     return { args, env: childEnv, cleanup };
   } catch (error) {

@@ -1,0 +1,184 @@
+{
+  "generatedAt": "2026-10-20T14:08:30.990Z",
+  "node": "v24.21.0",
+  "logicalCpus": 4,
+  "hostMemoryBytes": 8191938560,
+  "dataset": {
+    "sourceTestimonials": 1002,
+    "observedTenantTestimonials": 1001,
+    "tags": 50,
+    "sourceRelations": 50050,
+    "dailyHistoryCuts": 425
+  },
+  "pools": {
+    "cms": 8,
+    "biRead": 2,
+    "biControl": 2,
+    "extract": 1,
+    "writer": 2
+  },
+  "modes": [
+    {
+      "statistics": false,
+      "preparationMs": 41600.441535,
+      "baseline": {
+        "durationMs": 1107.414048999999,
+        "nodeCpuMs": 840.074,
+        "rssBytes": 546414592,
+        "statuses": {
+          "200": 10
+        },
+        "routes": {
+          "testimonials?limit=20": {
+            "samples": 10,
+            "p50Ms": 59.30746399999771,
+            "p95Ms": 77.70670200000313,
+            "p99Ms": 77.70670200000313
+          }
+        }
+      },
+      "concurrent": {
+        "durationMs": 2393.7605140000014,
+        "nodeCpuMs": 1589.083,
+        "rssBytes": 557203456,
+        "statuses": {
+          "200": 40
+        },
+        "routes": {
+          "testimonials?limit=20": {
+            "samples": 20,
+            "p50Ms": 53.2791189999989,
+            "p95Ms": 66.11381699999765,
+            "p99Ms": 67.32809900000575
+          },
+          "bi/dashboard": {
+            "samples": 20,
+            "p50Ms": 63.673007999997935,
+            "p95Ms": 94.42206599999918,
+            "p99Ms": 97.32035199999518
+          }
+        }
+      },
+      "sourceConnected": true,
+      "worker": {
+        "code": 0,
+        "durationMs": 1597.2205459999968
+      },
+      "phases": [
+        {
+          "event": "bi.etl_phase_finished",
+          "durationMs": 119
+        },
+        {
+          "event": "bi.etl_phase_finished",
+          "durationMs": 229
+        }
+      ],
+      "etl": {
+        "durationMs": 371,
+        "testimonials": "1001"
+      },
+      "statisticsJob": null,
+      "size": {
+        "bytes": "62314175",
+        "snapshots": "426",
+        "details": "217170",
+        "links": "0",
+        "reports": "1",
+        "creations": "1000"
+      }
+    },
+    {
+      "statistics": true,
+      "preparationMs": 42866.10396500001,
+      "baseline": {
+        "durationMs": 1123.14050400001,
+        "nodeCpuMs": 789.702,
+        "rssBytes": 423370752,
+        "statuses": {
+          "200": 10
+        },
+        "routes": {
+          "testimonials?limit=20": {
+            "samples": 10,
+            "p50Ms": 60.7431510000024,
+            "p95Ms": 71.88949600000342,
+            "p99Ms": 71.88949600000342
+          }
+        }
+      },
+      "concurrent": {
+        "durationMs": 2735.4731049999973,
+        "nodeCpuMs": 2077.785,
+        "rssBytes": 457056256,
+        "statuses": {
+          "200": 60
+        },
+        "routes": {
+          "testimonials?limit=20": {
+            "samples": 20,
+            "p50Ms": 58.68057499999122,
+            "p95Ms": 148.9344679999922,
+            "p99Ms": 150.80248899999424
+          },
+          "bi/dashboard": {
+            "samples": 20,
+            "p50Ms": 69.66890600000625,
+            "p95Ms": 164.14046700000472,
+            "p99Ms": 175.55958499999542
+          },
+          "bi/statistics": {
+            "samples": 20,
+            "p50Ms": 62.65626699999848,
+            "p95Ms": 143.3865119999973,
+            "p99Ms": 167.22938999999315
+          }
+        }
+      },
+      "sourceConnected": true,
+      "worker": {
+        "code": 0,
+        "durationMs": 23026.879144000006
+      },
+      "phases": [
+        {
+          "event": "bi.etl_phase_finished",
+          "durationMs": 6215
+        },
+        {
+          "event": "bi.etl_phase_finished",
+          "durationMs": 14897
+        },
+        {
+          "event": "bi.statistics_task_finished",
+          "durationMs": 592
+        }
+      ],
+      "etl": {
+        "durationMs": 21138,
+        "testimonials": "1001"
+      },
+      "statisticsJob": {
+        "durationMs": 567,
+        "status": "succeeded",
+        "errorCode": null
+      },
+      "size": {
+        "bytes": "81974975",
+        "snapshots": "426",
+        "details": "217170",
+        "links": "50050",
+        "reports": "2",
+        "creations": "1001"
+      }
+    }
+  ],
+  "limitations": [
+    "Same physical host; fresh fixture per mode, warm cache after preparation; fixed order off then on",
+    "10 baseline and 20 concurrent batches per route; small p95/p99 sample, not user capacity or production SLO",
+    "On mode also queries statistics, off mode only dashboard; comparison combines feature and read workload costs",
+    "Source connection gate does not prove every HTTP sample overlaps a specific ETL or calculation phase",
+    "Synthetic daily history; no historical tag reconstruction; no evidence of real predictive utility",
+    "CPU/RSS describe parent API process only; no per-database CPU/IO isolation claim"
+  ]
+}

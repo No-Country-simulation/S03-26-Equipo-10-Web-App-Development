@@ -14,7 +14,7 @@ export async function main(args = process.argv.slice(2), env = process.env) {
       // The check uses one connection per identity; it never changes runtime pool limits.
       const url = new URL(prepared.env[name]); url.searchParams.set('connection_limit', '1');
       const client = new PrismaClient({ datasources: { db: { url: url.toString() } }, log: [] });
-      try { checks.push({ connection: name, ...await inspectConnection(client, profiles[name].role) }); }
+      try { checks.push({ connection: name, ...await inspectConnection(client, profiles[name].role, env.BI_STATISTICS_ENABLED === 'true') }); }
       catch { checks.push({ connection: name, passed: false, issues: ['CONNECTION_OR_QUERY_FAILED'] }); }
       finally { await client.$disconnect(); }
     }

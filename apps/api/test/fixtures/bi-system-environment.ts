@@ -3,6 +3,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
+import { createClient } from 'redis';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import cookieParser from 'cookie-parser';
@@ -19,10 +20,11 @@ export function systemConfigured(): boolean {
     && process.env.TEST_BI_BENCHMARK_SCHEMA_FILE && process.env.TEST_BI_REDIS_URL);
 }
 
-export async function createBiSystem() {
+export async function createBiSystem(options: { statistics?: boolean } = {}) {
   if (!systemConfigured()) throw new Error('BI_SYSTEM_CONFIGURATION_REQUIRED');
   const suffix = randomUUID().replaceAll('-', '');
   const sourceDb = `bi_system_source_${suffix}`; const targetDb = `bi_system_dw_${suffix}`;
+  const cmsRole = `bi_sys_cms_${suffix}`;
   const extractRole = `bi_sys_extract_${suffix}`; const writerRole = `bi_sys_writer_${suffix}`;
   const readRole = `bi_sys_read_${suffix}`; const controlRole = `bi_sys_control_${suffix}`;
   const sourceParent = new PrismaClient({ datasources: { db: { url: process.env.TEST_BI_SOURCE_DATABASE_URL! } } });
@@ -36,10 +38,16 @@ export async function createBiSystem() {
   const source = new PrismaClient({ datasources: { db: { url: sourceUrl } } });
   const target = new PrismaClient({ datasources: { db: { url: targetUrl } } });
   const workerEnv = { BI_SOURCE_DATABASE_URL: url(sourceUrl, sourceDb, extractRole, 1), BI_ETL_DATABASE_URL: url(targetUrl, targetDb, writerRole) };
-  const roles = { extractRole, writerRole, readRole, controlRole };
+  const roles = { cmsRole, extractRole, writerRole, readRole, controlRole };
   const clients: PrismaClient[] = [source, target]; const apps: INestApplication[] = [];
   const restoreDatabases: string[] = [];
   const savedEnv = new Map<string, string | undefined>();
+  // Each fixture owns an empty logical database and a reservation in the supplied
+  // disposable Redis. Never flush a shared database or disable real HTTP quotas.
+  const redisParent = createClient({ url: process.env.TEST_BI_REDIS_URL! });
+  let redisFixture: typeof redisParent | undefined;
+  let redisReservation: string | undefined;
+  let redisUrl: string | undefined;
   function configure(values: Record<string, string>) {
     // Internal literal configuration below; no request-controlled environment keys.
     // eslint-disable-next-line security/detect-object-injection
@@ -48,16 +56,35 @@ export async function createBiSystem() {
   async function close() {
     await Promise.allSettled(apps.map(app => app.close()));
     await Promise.allSettled(clients.map(client => client.$disconnect()));
+    if (redisFixture?.isOpen) { await redisFixture.flushDb(); await redisFixture.quit(); }
+    if (redisParent.isOpen) {
+      if (redisReservation) await redisParent.del(redisReservation);
+      await redisParent.quit();
+    }
     for (const database of [targetDb, ...restoreDatabases]) await targetParent.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
     await sourceParent.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${sourceDb}" WITH (FORCE)`);
     for (const role of [writerRole, readRole, controlRole]) await targetParent.$executeRawUnsafe(`DROP ROLE IF EXISTS "${role}"`);
     await sourceParent.$executeRawUnsafe(`DROP ROLE IF EXISTS "${extractRole}"`);
+    if (options.statistics) await sourceParent.$executeRawUnsafe(`DROP ROLE IF EXISTS "${cmsRole}"`);
     await Promise.allSettled([sourceParent.$disconnect(), targetParent.$disconnect()]);
     // Only keys saved by configure's literal internal configuration.
     // eslint-disable-next-line security/detect-object-injection
     for (const [key, value] of savedEnv) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
   }
   try {
+    await redisParent.connect();
+    for (let index = 1; index <= 15; index++) {
+      if (new URL(process.env.TEST_BI_REDIS_URL!).pathname === `/${index}`) continue;
+      const reservation = `bi-test:database:${index}`;
+      if (!await redisParent.set(reservation, suffix, { NX: true })) continue;
+      const candidate = new URL(process.env.TEST_BI_REDIS_URL!); candidate.pathname = `/${index}`;
+      const connection = createClient({ url: candidate.toString() }); await connection.connect();
+      if (await connection.dbSize() !== 0) {
+        await connection.quit(); await redisParent.del(reservation); continue;
+      }
+      redisFixture = connection; redisReservation = reservation; redisUrl = candidate.toString(); break;
+    }
+    if (!redisUrl) throw new Error('BI_TEST_REDIS_ISOLATION_UNAVAILABLE');
     await sourceParent.$executeRawUnsafe(`CREATE DATABASE "${sourceDb}"`); await targetParent.$executeRawUnsafe(`CREATE DATABASE "${targetDb}"`);
     // Explicit local DDL input generated from the checked-in Prisma schema; not a web path.
     // eslint-disable-next-line security/detect-non-literal-fs-filename
@@ -71,6 +98,14 @@ export async function createBiSystem() {
     // Fixed repository migration, not caller input.
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     await applyWarehouseMigration(target, '0004_bi_operations.sql', await readFile(join(__dirname, '../../warehouse/migrations/0004_bi_operations.sql'), 'utf8'));
+    if (options.statistics) {
+      // Fixed repository migration paths, never request-controlled.
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      const statisticsViews = await readFile(join(__dirname, '../../prisma/migrations/20261019000000_bi_statistics_export/migration.sql'), 'utf8');
+      for (const sql of migrationStatements(statisticsViews)) await source.$executeRawUnsafe(sql);
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      await applyWarehouseMigration(target, '0005_bi_statistics.sql', await readFile(join(__dirname, '../../warehouse/migrations/0005_bi_statistics.sql'), 'utf8'));
+    }
     await sourceParent.$executeRawUnsafe(`CREATE ROLE "${extractRole}" LOGIN`);
     for (const role of [writerRole, readRole, controlRole]) await targetParent.$executeRawUnsafe(`CREATE ROLE "${role}" LOGIN`);
     await source.$executeRawUnsafe(`GRANT USAGE ON SCHEMA bi_export TO "${extractRole}"`);
@@ -89,6 +124,23 @@ export async function createBiSystem() {
     await target.$executeRawUnsafe(`GRANT INSERT ON etl.tenant_settings, etl.load_requests, etl.control_audit TO "${controlRole}"`);
     await target.$executeRawUnsafe(`GRANT UPDATE ON etl.tenant_settings TO "${controlRole}"`);
     await target.$executeRawUnsafe(`GRANT UPDATE (status, finished_at, error_code) ON etl.load_requests TO "${controlRole}"`);
+    if (options.statistics) {
+      // Narrow additive statistics grants: published reports and creation records are immutable to runtime.
+      await target.$executeRawUnsafe(`REVOKE ALL ON staging.tags, staging.testimonial_tags, dw.dim_tag,
+        dw.fact_tag_snapshot, dw.bridge_testimonial_tag_snapshot, dw.fact_testimonial_creation, dw.statistics_history_state,
+        dw.statistics_publication, dw.statistics_current FROM "${writerRole}"`);
+      await target.$executeRawUnsafe(`GRANT SELECT, INSERT, DELETE ON staging.tags, staging.testimonial_tags TO "${writerRole}"`);
+      await target.$executeRawUnsafe(`GRANT SELECT, INSERT, UPDATE ON dw.dim_tag, dw.statistics_history_state, dw.statistics_current, etl.statistics_jobs TO "${writerRole}"`);
+      await target.$executeRawUnsafe(`GRANT SELECT, INSERT ON dw.fact_tag_snapshot, dw.bridge_testimonial_tag_snapshot,
+        dw.fact_testimonial_creation, dw.statistics_publication TO "${writerRole}"`);
+    }
+    if (options.statistics) {
+      await sourceParent.$executeRawUnsafe(`CREATE ROLE "${cmsRole}" LOGIN`);
+      await source.$executeRawUnsafe(`REVOKE CREATE ON DATABASE "${sourceDb}" FROM PUBLIC`);
+      await source.$executeRawUnsafe(`GRANT USAGE ON SCHEMA public TO "${cmsRole}"`);
+      await source.$executeRawUnsafe(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "${cmsRole}"`);
+      await source.$executeRawUnsafe(`GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO "${cmsRole}"`);
+    }
     const adminRole = await source.role.create({ data: { code: 'admin' } });
     const editorRole = await source.role.create({ data: { code: 'editor' } });
     await source.testimonialStatus.createMany({ data: ['draft', 'pending', 'approved', 'published', 'rejected'].map(code => ({ code })) });
@@ -110,9 +162,9 @@ export async function createBiSystem() {
         { tenantId: company.id, actorId: admin.id }, { expectedVersion: 0, scheduleEnabled: false });
       users.push({ admin, editor, company, testimonial });
     }
-    configure({ NODE_ENV: 'test', DATABASE_URL: sourceUrl, REDIS_URL: process.env.TEST_BI_REDIS_URL!,
+    configure({ NODE_ENV: 'test', DATABASE_URL: options.statistics ? url(sourceUrl, sourceDb, cmsRole, 8) : sourceUrl, REDIS_URL: redisUrl,
       JWT_SECRET: randomBytes(32).toString('hex'), API_KEY_PEPPERS_JSON: JSON.stringify({ 1: randomBytes(32).toString('base64url') }),
-      WEBHOOK_SECRET_KEYS_JSON: '', BI_ENABLED: 'true', BI_OPERATIONS_ENABLED: 'true',
+      WEBHOOK_SECRET_KEYS_JSON: '', BI_ENABLED: 'true', BI_OPERATIONS_ENABLED: 'true', BI_STATISTICS_ENABLED: String(options.statistics === true),
       BI_DATABASE_URL: url(targetUrl, targetDb, readRole), BI_CONTROL_DATABASE_URL: url(targetUrl, targetDb, controlRole),
       CORS_ORIGIN: 'http://127.0.0.1:3104' });
     async function startApi(port = 0) {
@@ -133,6 +185,6 @@ export async function createBiSystem() {
       const restoredUrl = url(targetUrl, name); const client = new PrismaClient({ datasources: { db: { url: restoredUrl } } }); clients.push(client);
       return { url: restoredUrl, client };
     }
-    return { source, target, sourceUrl, targetUrl, sourceDb, targetDb, roles, users, password, workerEnv, startApi, clientFor, restoreDatabase, close };
+    return { source, target, sourceUrl, targetUrl, sourceDb, targetDb, roles, users, password, workerEnv, startApi, clientFor, restoreDatabase, configure, close };
   } catch (error) { await close(); throw error; }
 }

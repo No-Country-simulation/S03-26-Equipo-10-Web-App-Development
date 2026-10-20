@@ -1,9 +1,9 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { EtlError, type CategoryRow, type Counts, type EventRow, type SourceConsumer,
-  type SourceSnapshot, type TestimonialRow } from '../etl.types';
+  type SourceSnapshot, type TestimonialRow, type TagRow, type TestimonialTagRow } from '../etl.types';
 
 export class SourceRepository {
-  constructor(private readonly client: PrismaClient, private readonly pageSize = 1000) {
+  constructor(private readonly client: PrismaClient, private readonly pageSize = 1000, private readonly statistics = false) {
     if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1000) throw new EtlError('BI_CONFIGURATION_INVALID');
   }
 
@@ -20,6 +20,7 @@ export class SourceRepository {
   }
 
   async extract(tenantId: string, consumer: SourceConsumer, deadline = Date.now() + 300000): Promise<Counts> {
+    if (this.statistics && (!consumer.tags || !consumer.testimonialTags)) throw new EtlError('BI_CONFIGURATION_INVALID');
     const remaining = Math.min(300000, Math.floor(deadline - Date.now()));
     if (remaining <= 0) throw new EtlError('BI_DEADLINE_EXCEEDED');
     return this.client.$transaction(async tx => {
@@ -49,6 +50,20 @@ export class SourceRepository {
         categoryCursor = rows.at(-1)!.categoryId;
       }
       let testimonialCursor: string | null = null;
+      if (this.statistics) {
+        counts.taxonomy = { tags: 0n, relations: 0n };
+        let tagCursor: string | null = null;
+        while (true) {
+          const rows: TagRow[] = await tx.$queryRaw`
+            SELECT tenant_id AS "tenantId", tag_id AS "tagId", name FROM bi_export.tags
+            WHERE tenant_id = ${tenantId}::uuid AND (${tagCursor}::uuid IS NULL OR tag_id > ${tagCursor}::uuid)
+            ORDER BY tag_id LIMIT ${this.pageSize}`;
+          if (!rows.length) break;
+          await consumer.tags!(rows);
+          counts.taxonomy.tags += BigInt(rows.length);
+          tagCursor = rows.at(-1)!.tagId;
+        }
+      }
       while (true) {
         const rows: TestimonialRow[] = await tx.$queryRaw`
           SELECT tenant_id AS "tenantId", testimonial_id AS "testimonialId", category_id AS "categoryId",
@@ -62,6 +77,21 @@ export class SourceRepository {
         testimonialCursor = rows.at(-1)!.testimonialId;
       }
       let eventCursor = 0n;
+      if (this.statistics && counts.taxonomy) {
+        let linkCursor: TestimonialTagRow | undefined;
+        while (true) {
+          const rows: TestimonialTagRow[] = await tx.$queryRaw`
+            SELECT tenant_id AS "tenantId", testimonial_id AS "testimonialId", tag_id AS "tagId"
+            FROM bi_export.testimonial_tags WHERE tenant_id = ${tenantId}::uuid
+            AND (${linkCursor?.testimonialId ?? null}::uuid IS NULL OR (testimonial_id, tag_id) >
+              (${linkCursor?.testimonialId ?? null}::uuid, ${linkCursor?.tagId ?? null}::uuid))
+            ORDER BY testimonial_id, tag_id LIMIT ${this.pageSize}`;
+          if (!rows.length) break;
+          await consumer.testimonialTags!(rows);
+          counts.taxonomy.relations += BigInt(rows.length);
+          linkCursor = rows.at(-1)!;
+        }
+      }
       while (true) {
         const rows: EventRow[] = await tx.$queryRaw`
           SELECT tenant_id AS "tenantId", event_id AS "eventId", testimonial_id AS "testimonialId",

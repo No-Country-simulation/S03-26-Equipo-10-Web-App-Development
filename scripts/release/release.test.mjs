@@ -819,3 +819,49 @@ test('maintenance tool closure preserves nested versions and excludes unrelated 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('statistics warehouse migration is separately explicit and preserves the default target', () => {
+  const env = migrationEnv('warehouse');
+  const baseline = migrationPlan(
+    env,
+    'warehouse',
+    sha,
+    `APPLY ${sha} warehouse`,
+  );
+  try {
+    assert.equal(baseline.args.at(-1), '0004_bi_operations.sql');
+  } finally {
+    baseline.cleanup();
+  }
+  const statistics = migrationPlan(
+    { ...env, DEMO_BI_STATISTICS_MIGRATION: 'true' },
+    'warehouse',
+    sha,
+    `APPLY ${sha} warehouse statistics`,
+  );
+  try {
+    assert.equal(statistics.args.at(-1), '0005_bi_statistics.sql');
+  } finally {
+    statistics.cleanup();
+  }
+  assert.throws(
+    () =>
+      migrationPlan(
+        { ...env, DEMO_BI_STATISTICS_MIGRATION: 'true' },
+        'warehouse',
+        sha,
+        `APPLY ${sha} warehouse`,
+      ),
+    /RELEASE_MIGRATION_ACK_REQUIRED/,
+  );
+  assert.throws(
+    () =>
+      migrationPlan(
+        { ...env, DEMO_BI_STATISTICS_MIGRATION: 'invalid' },
+        'warehouse',
+        sha,
+        `APPLY ${sha} warehouse`,
+      ),
+    /RELEASE_MIGRATION_TARGET_INVALID/,
+  );
+});
