@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ingeniería de pagos"
+  short_description: "Pagos seguros, idempotentes y reconciliables"
+  default_prompt: "Usá $payments-engineering para diseñar o revisar la integración de pagos solicitada, respetando el alcance y la arquitectura del proyecto."

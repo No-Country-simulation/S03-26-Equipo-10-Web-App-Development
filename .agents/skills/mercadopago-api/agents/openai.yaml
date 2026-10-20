@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mercado Pago API"
+  short_description: "Checkout Pro, webhooks y pagos en Argentina"
+  default_prompt: "Usá $mercadopago-api para integrar o revisar Mercado Pago según el producto elegido y el stack del proyecto."
