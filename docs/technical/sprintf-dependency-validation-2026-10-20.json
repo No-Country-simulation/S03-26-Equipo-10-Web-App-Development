@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "implementationSha": "a2b8109841d0eb9d214f19a4695c20a65696ef83",
+  "generatedAt": "2026-10-20T15:53:22.178Z",
+  "local": {
+    "node": "v24.21.0",
+    "npm": "11.19.0",
+    "npmCi": {
+      "passed": true,
+      "lockfileSha256": "779c9b77d84a3aa2f2ff21363da50876fe5f81b1c61184045acd37fab323f90e",
+      "lockfileUnchanged": true
+    },
+    "audit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "signatures": {
+      "packages": 1356,
+      "attestations": 296,
+      "passed": true
+    },
+    "native": {
+      "testing": 76,
+      "nextLintGlob": 1,
+      "release": 64,
+      "failed": 0,
+      "skipped": 0
+    },
+    "web": {
+      "tests": 381,
+      "passed": 381,
+      "pending": 0,
+      "todo": 0,
+      "suites": 97
+    },
+    "typecheck": true,
+    "lint": {
+      "passed": true,
+      "apiWarnings": 3,
+      "webWarnings": 8
+    },
+    "build": {
+      "api": true,
+      "web": true
+    },
+    "dockerDaemonAvailable": false
+  },
+  "ci": {
+    "runId": 39450309407,
+    "url": "https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/39450309407",
+    "api": {
+      "tests": 634,
+      "passed": 634,
+      "pending": 0,
+      "todo": 0,
+      "suites": 89
+    },
+    "web": {
+      "tests": 381,
+      "passed": 381,
+      "pending": 0,
+      "todo": 0,
+      "suites": 97
+    },
+    "coverage": {
+      "api": {
+        "lines": {
+          "total": 4450,
+          "covered": 4050,
+          "skipped": 0,
+          "pct": 91.01
+        },
+        "statements": {
+          "total": 5131,
+          "covered": 4532,
+          "skipped": 0,
+          "pct": 88.32
+        },
+        "functions": {
+          "total": 1004,
+          "covered": 862,
+          "skipped": 0,
+          "pct": 85.85
+        },
+        "branches": {
+          "total": 2843,
+          "covered": 2314,
+          "skipped": 0,
+          "pct": 81.39
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "web": {
+        "lines": {
+          "total": 3946,
+          "covered": 2623,
+          "skipped": 0,
+          "pct": 66.47
+        },
+        "statements": {
+          "total": 4284,
+          "covered": 2837,
+          "skipped": 0,
+          "pct": 66.22
+        },
+        "functions": {
+          "total": 1188,
+          "covered": 750,
+          "skipped": 0,
+          "pct": 63.13
+        },
+        "branches": {
+          "total": 3466,
+          "covered": 2385,
+          "skipped": 0,
+          "pct": 68.81
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      }
+    },
+    "status": "completed",
+    "e2e": {
+      "complete": true,
+      "expected": 6,
+      "executed": 6,
+      "passed": 6,
+      "cases": [
+        {
+          "id": "E2E-SESSION",
+          "project": "desktop",
+          "status": "passed",
+          "durationMs": 3305,
+          "retry": 0
+        },
+        {
+          "id": "E2E-PUBLISH",
+          "project": "desktop",
+          "status": "passed",
+          "durationMs": 4062,
+          "retry": 0
+        },
+        {
+          "id": "E2E-TENANT-CSRF",
+          "project": "desktop",
+          "status": "passed",
+          "durationMs": 1006,
+          "retry": 0
+        },
+        {
+          "id": "E2E-RBAC",
+          "project": "desktop",
+          "status": "passed",
+          "durationMs": 1483,
+          "retry": 0
+        },
+        {
+          "id": "E2E-MOBILE-MENU",
+          "project": "mobile",
+          "status": "passed",
+          "durationMs": 2875,
+          "retry": 0
+        },
+        {
+          "id": "E2E-MOBILE-CAPTURE",
+          "project": "mobile",
+          "status": "passed",
+          "durationMs": 682,
+          "retry": 0
+        }
+      ],
+      "checkoutSha": "02b58bea2757d3ab8a0baf8a6fada8a1e727418e",
+      "checkoutDirty": false,
+      "node": "v24.21.0",
+      "retries": 0,
+      "api": "production Dockerfile runner",
+      "web": "production standalone",
+      "transport": "local HTTPS, same-origin proxy",
+      "externalProviders": "not exercised"
+    },
+    "conclusion": "success",
+    "event": "pull_request",
+    "jobs": [
+      {
+        "name": "secret-scan",
+        "conclusion": "success"
+      },
+      {
+        "name": "dependency-review",
+        "conclusion": "success"
+      },
+      {
+        "name": "verify",
+        "conclusion": "success"
+      }
+    ],
+    "checkoutMerge": {
+      "sha": "02b58bea2757d3ab8a0baf8a6fada8a1e727418e",
+      "parents": [
+        "87a57eca846f5b687fb12102851b3d2788d57992",
+        "a2b8109841d0eb9d214f19a4695c20a65696ef83"
+      ]
+    },
+    "images": {
+      "sboms": [
+        {
+          "file": "api-sbom.cdx.json",
+          "components": 439,
+          "sprintfJsComponents": 0
+        },
+        {
+          "file": "maintenance-sbom.cdx.json",
+          "components": 439,
+          "sprintfJsComponents": 0
+        },
+        {
+          "file": "web-sbom.cdx.json",
+          "components": 112,
+          "sprintfJsComponents": 0
+        }
+      ],
+      "scans": [
+        {
+          "image": "api",
+          "blockingVulnerabilities": 0,
+          "policy": "high/critical with fixed version"
+        },
+        {
+          "image": "web",
+          "blockingVulnerabilities": 0,
+          "policy": "high/critical with fixed version"
+        },
+        {
+          "image": "maintenance",
+          "blockingVulnerabilities": 0,
+          "policy": "all high/critical"
+        }
+      ],
+      "productionSmokePassed": true,
+      "maintenanceOfflineSmokePassed": true
+    }
+  },
+  "limitations": [
+    "The validated implementation head is explicit; later documentation commits require their own CI",
+    "Local Docker unavailable; E2E, image builds, smoke and scans validated in Actions",
+    "Main previously failed a memory-sensitive liveness test; not reproduced by this PR API run and no health change was made",
+    "Merge, main CI and automatic Dependabot resolution are pending"
+  ]
+}

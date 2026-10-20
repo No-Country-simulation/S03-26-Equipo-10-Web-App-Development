@@ -40,6 +40,9 @@
     "@nestjs/swagger": {
       "js-yaml": "5.4.3"
     },
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "5.4.3"
+    },
     "@next/eslint-plugin-next": {
       "fast-glob": "file:../../../apps/web/tools/next-lint-glob"
     }
