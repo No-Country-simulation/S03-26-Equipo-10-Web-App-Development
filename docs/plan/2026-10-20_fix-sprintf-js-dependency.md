@@ -1,9 +1,10 @@
 # Plan HITL: corregir la alerta de sprintf-js
 
-**Fecha:** 2026-10-20. **Estado:** en progreso; fase 1 terminada, pendiente ACK.
+**Fecha:** 2026-10-20. **Estado:** fase 1 aprobada; fase 2 terminada, pendiente ACK de cierre.
 **Rama:** `codex/fix-sprintf-js-dependency`.
 **Base:** `origin/main` actualizado mediante fetch, commit `87a57eca846f5b687fb12102851b3d2788d57992` (merge del PR #12). La rama parte de main y no incorpora commits exclusivos de la rama BI.
 **ACK de inicio:** solicitud humana «PLEASE IMPLEMENT THIS PLAN»; habilita la preparación y conserva los cortes HITL entre las tres fases.
+**ACK de fase 2:** «Continuar», 2026-10-20, después del commit humano `4c4ef31` y de la solicitud que incluye expresamente el override raíz. Autoriza ese cambio acotado y la corrección/compatibilidad, sin adelantar la fase 3.
 
 ## Contexto y Restricciones
 
@@ -44,7 +45,7 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 
 ## Fases HITL
 
-### `[Actual]` 1. Preparación — terminada, pendiente ACK
+### `[Completada]` 1. Preparación — aprobada
 
 - [x] Verificar checkout limpio y conservar la rama BI existente.
 - [x] Actualizar `origin/main` y crear la rama solicitada desde su SHA, sin arrastrar commits exclusivos de otra tarea.
@@ -53,9 +54,9 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 - [x] Validar formato, referencias locales y alcance documental del cambio.
 
 **Commit sugerido:** `docs(plan): registrá la corrección de sprintf-js`
-**ACK de cierre de fase 1:** pendiente. **Detenerse antes de fase 2.**
+**ACK de cierre de fase 1:** «Continuar» recibido después del commit humano `4c4ef31` y antes de fase 2.
 
-### `[Pendiente]` 2. Corrección y compatibilidad
+### `[Actual]` 2. Corrección y compatibilidad — terminada, pendiente ACK
 
 - Capturar inventario de advisories antes del cambio para comparar identidades y severidades, además del total de paquetes reportados.
 - Agregar `scripts/testing/sprintf-dependency.test.mjs`, ejecutable con `node --test`. Verificar primero el fallo funcional de la aserción de ausencia de `sprintf-js` sobre la línea base, sin confundir errores de importación o red con Red.
@@ -66,7 +67,7 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 - Documentar Green, compatibilidad y condición de retiro. El patrón CI actual `scripts/testing/*.test.mjs` incluye el archivo nuevo; no requiere cambiar el workflow.
 
 **Commit sugerido:** `fix(deps): eliminá sprintf-js de la cadena de Jest`
-**ACK de fase 2:** pendiente; debe incluir el override raíz según AGENTS.md. Detenerse al terminar.
+**ACK de inicio de fase 2:** recibido con el alcance del override raíz según AGENTS.md. Detenerse al terminar y esperar ACK de cierre antes de fase 3.
 
 ### `[Pendiente]` 3. Validación y entrega
 
@@ -81,9 +82,9 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 
 ## Criterios de aceptación
 
-- [ ] Plan de preparación commiteado y ACK de fase 1, con permiso específico del override antes de fase 2.
+- [x] Plan de preparación commiteado y ACK de fase 1, con permiso específico del override antes de fase 2.
 - [ ] `sprintf-js` ausente del lockfile y de una instalación limpia; resolución del loader compatible y sin `argparse` antiguo en esa cadena.
-- [ ] Prueba de ausencia falla antes de corregir y pasa después; cargas YAML/extends y negativos verifican el consumidor real.
+- [x] Prueba de ausencia falla antes de corregir y pasa después; cargas YAML/extends y negativos verifican el consumidor real.
 - [ ] Auditoría sin este advisory ni hallazgos nuevos; firmas verificadas, Jest/cobertura y controles CI conservados.
 - [ ] Regresión y checks del SHA final aprobados sin omisiones ocultas; limitaciones locales explícitas hasta disponer de CI completo.
 - [ ] Documentación del override, PR y evidencia revisables; ACK por fase.
@@ -97,4 +98,20 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 - **Verificado:** CI ya incluye `scripts/testing/*.test.mjs`, auditoría high/critical, firmas, cobertura y rechazo de reportes incompletos; se conserva la revisión de dependencias con umbral high.
 - **Pendiente:** implementar, ejecutar Red/Green y compatibilidad, regenerar dependencias, comparar advisories, firmas, regresión completa, PR/CI, merge y reanálisis de Dependabot. No se presentan pruebas planificadas como ejecutadas.
 
-**Detención obligatoria:** fase 1 completada. Esperar commit y ACK humano antes de avanzar; no modificar dependencias en esta ejecución.
+**Detención de fase 1 cumplida:** plan commiteado en `4c4ef31` y ACK recibido antes de fase 2.
+
+## Evidencia y cierre de fase 2
+
+- **Implementado:** override acotado `@istanbuljs/load-nyc-config → js-yaml@5.4.3`, con ACK humano recibido antes de modificar el manifiesto. Comparación estructural contra HEAD acredita que no cambió ningún otro campo u override raíz.
+- **Regenerado mediante npm:** la regeneración general del lockfile y la actualización dirigida al loader conservaron la resolución anterior. `npm update js-yaml --package-lock-only --ignore-scripts` aplicó la nueva resolución; el diff semántico afecta exactamente tres entradas: YAML del loader pasa de3.15.2 a5.4.3, se retiran el argparse1.0.10 de esa cadena y sprintf-js1.0.3. El resto de las resoluciones y metadatos del lockfile permanecen iguales. No se editó a mano ni se borró el lockfile.
+- **Verificado localmente:** `npm install --ignore-scripts` eliminó dos paquetes y cambió uno, sin ejecutar lifecycle scripts y sin alterar el checksum del lockfile regenerado. El loader real resuelve YAML5.4.3 y argparse2.0.1. No es una instalación limpia con `npm ci`; esa comprobación sigue en fase3.
+- **Red funcional:** nueve pruebas nuevas; antes del cambio fallaron tres controles por presencia en lockfile, presencia en árbol instalado y YAML3.15.2. Los seis casos de configuración pasaron sobre la versión anterior. No se confundieron errores de importación/red con evidencia Red.
+- **Green:** **9/9 pruebas**, sin omisiones, mediante `node --test scripts/testing/sprintf-dependency.test.mjs`. Resolución desde la cadena real de Jest independiente del hoisting; ausencia del paquete en lockfile y árbol; loader real con YAML/JSON, listas, escalares, claves normalizadas, extends relativo y negativos. Fixtures temporales retiradas en finally, sin mocks del parser.
+- **Auditoría comparada:** el inventario previo tenía un único advisory directo (GHSA-hp3w-g68c-fv3c), propagado a20 paquetes moderados. Después: exit code0, cero paquetes vulnerables, ningún advisory nuevo. [Evidencia saneada](../technical/sprintf-dependency-audit-2026-10-20.json) con timestamps/herramientas/identidades públicas; no es garantía universal de seguridad ni cierre remoto de Dependabot.
+- **Documentado:** [motivo, versiones, procedimiento, pruebas y condición de retiro](../technical/sprintf-dependency-remediation.md). El workflow existente incluye el archivo nuevo por su glob actual; no cambió ningún umbral ni control de cobertura/firma/integridad.
+- **Verificado:** sintaxis del script, formato, referencias locales y `git diff --check`. Alcance limitado a manifiesto/lockfile, pruebas y documentación. Sin cambios a API/CMS, esquema, infraestructura, hooks, workflows ni dependencias directas. No se crearon commits, PR, tags ni despliegues; el directorio temporal propio se retiró al cerrar.
+- **Pendiente de fase3 con ACK:** instalación limpia, firmas, regresión integral con cobertura y servicios descartables, builds/tipos/lint, CI/PR del SHA final y aceptación posterior al merge. El resultado local no acredita cierre de la alerta en GitHub.
+
+**Commit sugerido:** `fix(deps): eliminá sprintf-js de la cadena de Jest`
+
+**Detención obligatoria:** fase 2 terminada. Esperar ACK antes de ejecutar fase 3; el ACK del override no autoriza agrupar fases ni desplegar.

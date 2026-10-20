@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "scope": "npm advisory comparison for the scoped load-nyc-config YAML override",
+  "before": {
+    "generatedAt": "2026-10-20T15:17:38.731Z",
+    "node": "v24.21.0",
+    "npm": "11.19.0",
+    "exitCode": 1,
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 20,
+      "high": 0,
+      "critical": 0,
+      "total": 20
+    },
+    "advisories": [
+      {
+        "source": 1241202,
+        "url": "https://github.com/advisories/GHSA-hp3w-g68c-fv3c",
+        "name": "sprintf-js",
+        "severity": "moderate",
+        "range": "<=1.1.3",
+        "packages": ["sprintf-js"]
+      }
+    ]
+  },
+  "after": {
+    "generatedAt": "2026-10-20T15:21:07.058Z",
+    "node": "v24.21.0",
+    "npm": "11.19.0",
+    "exitCode": 0,
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "advisories": []
+  },
+  "comparison": {
+    "removedAdvisories": ["https://github.com/advisories/GHSA-hp3w-g68c-fv3c"],
+    "introducedAdvisories": []
+  },
+  "limitations": [
+    "Registry advisory data at the recorded timestamps; not a universal security guarantee",
+    "Clean npm ci installation, signatures, full regression and remote acceptance pending phase 3"
+  ]
+}
