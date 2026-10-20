@@ -1,6 +1,6 @@
 # Corrección de la dependencia sprintf-js
 
-**Fecha:** 2026-10-20. **Estado:** corrección y compatibilidad local verificadas en fase 2; cierre pendiente ACK. Instalación limpia, firmas, regresión integral y aceptación remota corresponden a fase 3.
+**Fecha:** 2026-10-20. **Estado:** implementación `a2b8109` validada en fase 3 con CI aprobado; cierre documental pendiente de commit/ACK y de sus propios checks. Merge y reanálisis de Dependabot pendientes. [Evidencia saneada de entrega](sprintf-dependency-validation-2026-10-20.json).
 **Referencias:** [plan HITL](../plan/2026-10-20_fix-sprintf-js-dependency.md), [auditoría comparativa](sprintf-dependency-audit-2026-10-20.json), [pruebas ejecutables](../../scripts/testing/sprintf-dependency.test.mjs).
 
 ## Motivo y alcance
@@ -47,3 +47,17 @@ El workflow existente ya ejecuta `scripts/testing/*.test.mjs`. No se cambiaron s
 ## Condición de retiro
 
 Cuando una versión upstream del loader o de su consumidor retire la cadena vulnerable, actualizarla en un cambio separado, quitar este override y repetir pruebas de árbol/compatibilidad, instalación limpia, auditoría, firmas y CI. No retirar sólo por la existencia de una nueva versión sin verificar su resolución efectiva. Si se detecta incompatibilidad, detener la promoción y documentarla; no ampliar el override ni sustituir herramientas silenciosamente.
+
+## Validación de fase 3
+
+La implementación commiteada es `a2b8109841d0eb9d214f19a4695c20a65696ef83`; el [PR #13](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/13) se abrió en borrador y su [CI 39450309407](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/39450309407) valida ese head. El cierre documental posterior requiere su propio CI cuando se publique; no se traslada la aprobación a un SHA nuevo.
+
+Localmente, `npm ci` terminó con cero vulnerabilidades y el checksum del lockfile intacto. `npm audit signatures` verificó firmas de 1356 paquetes y 296 attestations. Pasaron 76 controles de integridad/compatibilidad, uno del lint de Next, 64 controles de release y 381 tests web con cobertura; el gate validó sus 97 suites sin omisiones. Tipos, lint y build API/web aprobados; lint conserva tres warnings API y ocho web anteriores. Tras la instalación limpia fue necesario generar el cliente Prisma como hace CI; el primer intento de tipos sin ese artefacto no constituye una regresión del código y se repitió después de generarlo, sin migraciones.
+
+Los artefactos API/web del run verifican 634/634 casos API en 89 suites y 381/381 web en 97 suites (59 archivos), sin pendientes ni todo. La API usa los servicios PostgreSQL18 y Redis7 descartables del workflow; la web conserva sus dependencias reales/simuladas según cada test. Cobertura de líneas: API91,01% y web66,47%; son mediciones del run, sin un umbral porcentual nuevo ni garantía de calidad universal.
+
+La base `87a57ec` tenía un CI fallido porque el runner de cobertura superó el heap de300MB en una prueba de liveness de BI. Ese fallo no se reprodujo en la suite API del PR; no se modificaron la prueba ni el health productivo, ni se atribuye su desaparición al override. El humano autorizó un ajuste aislado de la prueba sólo si se repite ese fallo; esa autorización condicional no se utilizó en este run.
+
+Docker local no dispone de daemon. Los seis recorridos E2E, las imágenes finales y sus smoke/escaneos se validaron en Actions: 6/6 sin retries, checkout limpio, builds API/maintenance/web y gates de seguridad aprobados. Los tres SBOM no contienen `sprintf-js`. El checkout E2E corresponde al merge de prueba `02b58bea2757d3ab8a0baf8a6fada8a1e727418e`, con padres base87a57ec e implementacióna2b8109, confirmados mediante GitHub. Los tres checks requeridos del run terminaron en success. El escaneo respeta la política existente: maintenance bloquea todo HIGH/CRITICAL; API/web bloquean HIGH/CRITICAL con corrección disponible. Ese gate no equivale a cero vulnerabilidades universales.
+
+La alerta de Dependabot, el CI posterior al merge y el cierre HITL siguen pendientes. El PR permanece en borrador hasta incorporar/revisar el cierre documental y verificar los checks de ese nuevo head; este run no valida un commit futuro.

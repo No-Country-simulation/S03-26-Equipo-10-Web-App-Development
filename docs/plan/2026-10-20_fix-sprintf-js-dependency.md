@@ -1,10 +1,11 @@
 # Plan HITL: corregir la alerta de sprintf-js
 
-**Fecha:** 2026-10-20. **Estado:** fase 1 aprobada; fase 2 terminada, pendiente ACK de cierre.
+**Fecha:** 2026-10-20. **Estado:** fases 1–2 aprobadas; fase 3 validada sobre la implementación `a2b8109`, cierre documental pendiente de commit/ACK y de sus propios checks.
 **Rama:** `codex/fix-sprintf-js-dependency`.
 **Base:** `origin/main` actualizado mediante fetch, commit `87a57eca846f5b687fb12102851b3d2788d57992` (merge del PR #12). La rama parte de main y no incorpora commits exclusivos de la rama BI.
 **ACK de inicio:** solicitud humana «PLEASE IMPLEMENT THIS PLAN»; habilita la preparación y conserva los cortes HITL entre las tres fases.
 **ACK de fase 2:** «Continuar», 2026-10-20, después del commit humano `4c4ef31` y de la solicitud que incluye expresamente el override raíz. Autoriza ese cambio acotado y la corrección/compatibilidad, sin adelantar la fase 3.
+**ACK de fase 3:** «Continuar», 2026-10-20, después del commit humano `a2b8109`; autoriza validación, preparación del PR y revisión de sus checks. No autoriza merge automático ni despliegue.
 
 ## Contexto y Restricciones
 
@@ -56,7 +57,7 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 **Commit sugerido:** `docs(plan): registrá la corrección de sprintf-js`
 **ACK de cierre de fase 1:** «Continuar» recibido después del commit humano `4c4ef31` y antes de fase 2.
 
-### `[Actual]` 2. Corrección y compatibilidad — terminada, pendiente ACK
+### `[Completada]` 2. Corrección y compatibilidad — aprobada
 
 - Capturar inventario de advisories antes del cambio para comparar identidades y severidades, además del total de paquetes reportados.
 - Agregar `scripts/testing/sprintf-dependency.test.mjs`, ejecutable con `node --test`. Verificar primero el fallo funcional de la aserción de ausencia de `sprintf-js` sobre la línea base, sin confundir errores de importación o red con Red.
@@ -69,7 +70,7 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 **Commit sugerido:** `fix(deps): eliminá sprintf-js de la cadena de Jest`
 **ACK de inicio de fase 2:** recibido con el alcance del override raíz según AGENTS.md. Detenerse al terminar y esperar ACK de cierre antes de fase 3.
 
-### `[Pendiente]` 3. Validación y entrega
+### `[Actual]` 3. Validación y entrega — validada, pendiente cierre documental
 
 - Ejecutar instalación limpia con `npm ci`, verificar lockfile inmutable y árbol efectivo. Comparar auditoría contra la línea base por advisory, sin introducir hallazgos nuevos; conservar los umbrales high/critical y la revisión de nuevas dependencias.
 - Ejecutar `npm audit signatures`, tests nativos y pruebas backend con cobertura, web, tipos, lint y builds. Registrar comandos, servicios reales/simulados, omisiones y warnings previos. No desactivar controles de resultados incompletos.
@@ -78,15 +79,16 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 - Proponer commit de evidencia/cierre y detenerse para ACK. Después del merge por el procedimiento habitual, verificar CI de main y cierre automático de Dependabot tras su análisis; no cerrar la alerta por descarte manual.
 
 **Commit sugerido:** `docs(security): registrá la validación de la corrección de sprintf-js`
-**ACK de fase 3:** pendiente. Despliegue y otras operaciones persistentes quedan fuera.
+**ACK de inicio de fase 3:** recibido; cierre pendiente. Despliegue y otras operaciones persistentes quedan fuera.
 
 ## Criterios de aceptación
 
 - [x] Plan de preparación commiteado y ACK de fase 1, con permiso específico del override antes de fase 2.
-- [ ] `sprintf-js` ausente del lockfile y de una instalación limpia; resolución del loader compatible y sin `argparse` antiguo en esa cadena.
+- [x] `sprintf-js` ausente del lockfile y de una instalación limpia; resolución del loader compatible y sin `argparse` antiguo en esa cadena.
 - [x] Prueba de ausencia falla antes de corregir y pasa después; cargas YAML/extends y negativos verifican el consumidor real.
-- [ ] Auditoría sin este advisory ni hallazgos nuevos; firmas verificadas, Jest/cobertura y controles CI conservados.
-- [ ] Regresión y checks del SHA final aprobados sin omisiones ocultas; limitaciones locales explícitas hasta disponer de CI completo.
+- [x] Auditoría sin este advisory ni hallazgos nuevos; firmas verificadas, Jest/cobertura y controles CI conservados.
+- [x] Regresión y checks de la implementación `a2b8109` aprobados sin omisiones; límites locales explícitos y CI completo del PR verificado.
+- [ ] Cierre documental commiteado y checks del nuevo SHA publicados antes de integrar; no transferir la aprobación del SHA anterior.
 - [ ] Documentación del override, PR y evidencia revisables; ACK por fase.
 - [ ] Después del merge, CI de main y resolución de la alerta verificados en GitHub. La desaparición local no acredita cierre remoto.
 
@@ -114,4 +116,19 @@ Regenerar el lockfile mediante npm y revisar su diff. Eliminar del árbol `sprin
 
 **Commit sugerido:** `fix(deps): eliminá sprintf-js de la cadena de Jest`
 
-**Detención obligatoria:** fase 2 terminada. Esperar ACK antes de ejecutar fase 3; el ACK del override no autoriza agrupar fases ni desplegar.
+**Detención de fase 2 cumplida:** ACK «Continuar» recibido después del commit humano `a2b8109` y antes de fase 3; no autoriza desplegar.
+
+## Evidencia y cierre de fase 3
+
+- **Instalación limpia verificada:** `npm ci` terminó correctamente y conservó el checksum del lockfile; cero vulnerabilidades en la auditoría posterior. `npm audit signatures` verificó 1356 paquetes y 296 attestations. Pasaron 76 tests nativos de integridad/compatibilidad, uno del lint de Next y 64 de release, sin omisiones.
+- **Regresión local:** 381 tests web en 59 archivos y 97 suites contando describe, con cobertura y gate completos. Tipos/lint/build API/web aprobados; tres warnings API y ocho web previos. El primer intento de tipos tras npm ci carecía del cliente generado; se ejecutó `npm run db:generate --workspace apps/api`, como en CI, y se repitió correctamente. Sin migraciones desde el agente.
+- **PR preparado:** [#13](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/pull/13), borrador a main, adjuntado a esta tarea. Commits aprobados publicados sin force-push; no se realizó merge ni despliegue. El cuerpo distingue implementación validada y cierre documental pendiente.
+- **CI verificado:** [run 39450309407](https://github.com/No-Country-simulation/S03-26-Equipo-10-Web-App-Development/actions/runs/39450309407), head `a2b8109841d0eb9d214f19a4695c20a65696ef83`; `verify`, `dependency-review` y `secret-scan` aprobados. Artefactos/gates confirman 634/634 API en 89 suites y 381/381 web en 97 suites, cero pendientes/todo. La API usa PostgreSQL18/Redis7 reales descartables. Cobertura de líneas API91,01% y web66,47%, sin nuevos umbrales porcentuales.
+- **E2E e imágenes:** 6/6 desktop/móvil sin retries, API Docker de producción, web standalone, HTTPS de mismo origen y servicios propios. Checkout limpio del merge de prueba `02b58bea2757d3ab8a0baf8a6fada8a1e727418e`; padres confirmados: base87a57ec y heada2b8109. Pasaron builds API/maintenance/web, smoke offline de maintenance, smoke de imágenes finales y gates de escaneo vigentes. Los tres SBOM no contienen sprintf-js. Docker local carece de daemon; estas comprobaciones se ejecutaron en Actions.
+- **Fallo previo:** el CI de main87a57ec fallaba en liveness por heap del runner de cobertura >300MB, con readiness aprobada. No se reprodujo en el PR. El humano autorizó un ajuste aislado de la prueba si reaparecía; no hizo falta usarlo. No cambió el health productivo ni la prueba, ni se atribuye su desaparición al override.
+- **Evidencia:** [resumen saneado](../technical/sprintf-dependency-validation-2026-10-20.json) con SHA/run, gates, cobertura, E2E, firmas, auditoría y SBOM; [guía y retiro](../technical/sprintf-dependency-remediation.md). Sin reportes ricos, sesiones, credenciales, PII ni logs completos versionados. Temporales propios retirados al cerrar; sin cambios a runtime, schema, infraestructura, hooks ni workflows versionados.
+- **Pendiente:** commit y ACK del cierre documental, publicación y CI del nuevo head antes de integrar, revisión/merge habitual, CI de main después del merge y reanálisis automático de Dependabot. La aprobación de a2b8109 no se atribuye al futuro commit. No se descartó la alerta manualmente.
+
+**Commit sugerido:** `docs(security): registrá la validación de la corrección de sprintf-js`
+
+**Detención obligatoria:** implementación validada y PR preparado; esperar commit/ACK del cierre documental. Revisar sus propios checks antes del merge. No autoriza despliegue ni merge automático.
