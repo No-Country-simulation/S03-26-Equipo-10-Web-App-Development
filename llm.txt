@@ -29,6 +29,8 @@ testing_skill: .agents/skills/testing-tdd-engineering/SKILL.md (SKL-TDD-001); pr
 
 payments_skill: .agents/skills/payments-engineering/SKILL.md (SKL-PAYMENTS-ENG-001 v1.0.0); pagos/pasarelas/reembolsos/suscripciones, dinero exacto y autoridad del servidor, idempotencia, webhooks verificados y reconciliación; guía documental desde adjunto parcial hasta RF-06, sin integración de pagos implementada por esta incorporación; conservar tenant/polling PostgreSQL y verificar documentación oficial del proveedor antes de concretar detalles
 
+mercadopago_skill: .agents/skills/mercadopago-api/SKILL.md (adaptación externa MIT v1.0.1, sin código SKL propio); Checkout Pro/Preferences, webhooks HMAC, consulta de pagos/reembolsos y pruebas AR; adaptar a NestJS/TypeScript, Go opcional; fuente .claude/skills/mercadopago-api conservada; no implica integración de pagos implementada
+
 ## ARCHITECTURE
 pattern: Modular Monolith, N-Tier (NestJS standard layers)
 communication_sync: REST /api/v1/ (NestJS controllers)

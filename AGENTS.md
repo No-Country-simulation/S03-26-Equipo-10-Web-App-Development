@@ -218,6 +218,8 @@ Catálogo de 28 skills propias de ingeniería con código SKL; no representa el 
 | `business-intelligence-engineering`        | SKL-BI-001            | BI / Datos dimensionales / Evaluación predictiva |
 | `payments-engineering`                    | SKL-PAYMENTS-ENG-001  | Pagos / Pasarelas / Idempotencia / Reconciliación |
 
+**Skill de proveedor adaptada:** [`mercadopago-api`](.agents/skills/mercadopago-api/SKILL.md), de origen externo y licencia MIT, complementa `payments-engineering` para Checkout Pro/Preferences, webhooks, consulta de pagos, reembolsos y pruebas en Argentina. No integra el conteo de 28 skills propias SKL.
+
 ---
 
 _Última actualización: 2026-10-20 — Versión del framework: SKL-PRO-001 v1.1.0_

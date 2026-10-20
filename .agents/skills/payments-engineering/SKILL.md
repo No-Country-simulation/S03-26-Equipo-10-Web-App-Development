@@ -33,6 +33,8 @@ Leer [AGENTS.md](../../../AGENTS.md), [llm.txt](../../../llm.txt) y las restricc
 
 ## Integración, incertidumbre e idempotencia
 
+Para integrar o revisar Mercado Pago, leer la skill específica [mercadopago-api](../mercadopago-api/SKILL.md) y sólo las referencias del flujo elegido.
+
 Encapsular cada proveedor en adaptadores que traduzcan solicitudes y respuestas al modelo interno. Usar puertos por capacidad cuando ayude —creación, consulta, reembolso o suscripción— y evitar una interfaz universal que obligue a simular capacidades inexistentes.
 
 Antes de concretar SDKs, endpoints, firmas, estados, unidades monetarias o reintentos, consultar documentación oficial vigente del proveedor elegido y la versión instalada. No trasladar reglas de Stripe a PayPal, Mercado Pago o Adyen por analogía ni elegir proveedor sin una necesidad de la tarea.
