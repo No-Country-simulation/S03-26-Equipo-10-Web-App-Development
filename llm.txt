@@ -1,6 +1,6 @@
 # Testimonial CMS — LLM Context File
 # Formato: texto plano hiper-denso para consumo mínimo de tokens
-# Última actualización: 2026-10-19
+# Última actualización: 2026-10-20
 # Versión del framework: SKL-PRO-001 v1.1.0
 # AVISO: No persistir secretos, tokens ni PII en este archivo
 
@@ -26,6 +26,8 @@ ci: GitHub Actions; fases1–3 completadas técnicamente; PR2 integrado por usua
 deployment_targets: acordados en plan de demo 2026-10-10: web/proxy mismo origen Vercel; API/pollers, worker/scheduler BI independiente y Redis privado Railway; OLTP y warehouse en dos proyectos Supabase independientes; Cloudinary imágenes y YouTube videos; preparación de entrega autorizada, sin recursos ni despliegue verificado
 cicd_skill: .agents/skills/cicd-pipeline-engineering/SKILL.md (SKL-DEVOPS-CICD-001); gates, artefactos, recuperación y smoke tests de demo incluyendo YouTube en testimonios; NEXT_PUBLIC_API_URL/CSP de build pueden exigir builds por entorno; autenticación propia conservada
 testing_skill: .agents/skills/testing-tdd-engineering/SKILL.md (SKL-TDD-001); pruebas por comportamiento/riesgo y TDD con Red funcional, oráculos independientes y controles AI; Jest/Supertest API, Vitest/Testing Library web; integración PostgreSQL/Redis real y aislada, omisiones locales=evidencia parcial; fase1 en codex/testing-cicd-e2e incorpora gate JSON API/web sin omisiones/todo/inconsistencias, bloqueo de foco y cobertura Jest/V8; CI38199831600 SHA d263850 aprobado, 476API+161web sin omisiones; fase2 autorizada por Continuar2026-10-12, Playwright1.64 Chromium escritorio/móvil, Docker API/PG18/Redis7 descartables+Next standalone+HTTPS mismo origen, ACK específico de migración descartable recibido2026-10-12; run5a293178acc3 local sobre1702ead dirty=true aprobó6/6 sin omisiones/retries y limpieza propia verificada, 25controles de propiedad/privacidad/runner con CI=true y176web aprobados; E2E detectó paginación administrativa incompatible: sessionPageRequest adapta data[]+meta del envelope para siete lectores, regresión15casos y fixtures UI según transporte; fase2 cerrada por ACK y commit humano b0ff93f; fase3 implementada en codex/testing-cicd-final: seis E2E obligatorios en verify+artefacto saneado14d, smoke final API/maintenance por ID y gate de publicación, main permite0aprobaciones obligatorias por ACK del único mantenedor2026-10-12, conserva PR/checks/strict/admins y stale-dismiss; fase3 implementada y validada: implementación3e42880/CI38280231648 aprobado (479API+176web+6E2E, cero omisiones/retries); 165controles nativos aprobados, cobertura API con worker secuencial reciclable128MiB; plan completado por ACK de cierre2026-10-12; PR8 integrado por el usuario en main ddd7fca49e870d70f51e37de4ce5d4f7a13bcc5f, CI de main38287649795 aprobado (479API+176web+6E2E completos, checkout limpio, retries0, smoke/SBOM/gates aprobados; dependency-review sólo PR); head final f5872b6/CI38286554849 aprobó los tres checks; cierre documental en codex/testing-cicd-closeout requiere sus propios checks antes de integrar; entrega desactivada, activación/aceptación de proveedores fuera de este plan; sin umbral porcentual global; docs/technical/e2e.md; guía docs/technical/05_testing.md y matriz docs/technical/testing_contracts.md
+
+payments_skill: .agents/skills/payments-engineering/SKILL.md (SKL-PAYMENTS-ENG-001 v1.0.0); pagos/pasarelas/reembolsos/suscripciones, dinero exacto y autoridad del servidor, idempotencia, webhooks verificados y reconciliación; guía documental desde adjunto parcial hasta RF-06, sin integración de pagos implementada por esta incorporación; conservar tenant/polling PostgreSQL y verificar documentación oficial del proveedor antes de concretar detalles
 
 ## ARCHITECTURE
 pattern: Modular Monolith, N-Tier (NestJS standard layers)
@@ -55,7 +57,7 @@ docs/governance/       → Ethics, compliance
 docs/collaboration/    → Contributing, git workflow, coding standards, setup, changelog
 docs/plan/             → Active HITL orchestration plans
 docs/modules/          → Per-module technical specs
-.agents/skills/        → 27 skills propias de ingeniería (SKL-*) + otras habilidades instaladas
+.agents/skills/        → 28 skills propias de ingeniería (SKL-*) + otras habilidades instaladas
 .agents/rules/         → Operative rules loaded by AI IDE
 .agents/prompts/       → Reusable prompt templates
 infra/                 → Nginx, Docker production configs
@@ -175,7 +177,7 @@ docs/technical/01_architecture.md   → system architecture + C4 diagrams
 docs/domain/business_rules.md       → domain invariants (source of truth)
 docs/domain/diccionario_de_dato.md  → ERD + all table schemas
 apps/api/prisma/schema.prisma       → canonical data model
-.agents/skills/                     → 27 skills propias de ingeniería (SKL-*) + otras habilidades instaladas (leer las pertinentes)
+.agents/skills/                     → 28 skills propias de ingeniería (SKL-*) + otras habilidades instaladas (leer las pertinentes)
 docs/plan/                          → active HITL plans (read before executing)
 
 ## PROHIBITED (NEVER DO)

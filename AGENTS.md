@@ -51,7 +51,7 @@ Monorepo Root
 ├── apps/api/        → @testimonial-cms/api  (NestJS 11 + Prisma)
 ├── apps/web/        → @testimonial-cms/web  (Next.js 15 App Router)
 ├── docs/            → Documentación técnica, dominio, producto, operaciones
-├── .agents/         → 27 skills propias de ingeniería (SKL-*) + otras habilidades instaladas, reglas y prompts
+├── .agents/         → 28 skills propias de ingeniería (SKL-*) + otras habilidades instaladas, reglas y prompts
 ├── infra/           → Docker + Nginx configs
 └── scripts/         → Utilidades locales (PowerShell, Bash)
 ```
@@ -185,7 +185,7 @@ Al trabajar con un plan en `docs/plan/`:
 
 ## 10. Skills Disponibles (`.agents/skills/`)
 
-Catálogo de 27 skills propias de ingeniería con código SKL; no representa el total de habilidades instaladas en el directorio.
+Catálogo de 28 skills propias de ingeniería con código SKL; no representa el total de habilidades instaladas en el directorio.
 
 | Skill                                      | Código                | Dominio                                       |
 | ------------------------------------------ | --------------------- | --------------------------------------------- |
@@ -216,7 +216,8 @@ Catálogo de 27 skills propias de ingeniería con código SKL; no representa el 
 | `cicd-pipeline-engineering`                | SKL-DEVOPS-CICD-001   | CI/CD / DevSecOps / Despliegue y recuperación |
 | `testing-tdd-engineering`                  | SKL-TDD-001           | Testing / TDD / Unit, Integration y E2E       |
 | `business-intelligence-engineering`        | SKL-BI-001            | BI / Datos dimensionales / Evaluación predictiva |
+| `payments-engineering`                    | SKL-PAYMENTS-ENG-001  | Pagos / Pasarelas / Idempotencia / Reconciliación |
 
 ---
 
-_Última actualización: 2026-10-19 — Versión del framework: SKL-PRO-001 v1.1.0_
+_Última actualización: 2026-10-20 — Versión del framework: SKL-PRO-001 v1.1.0_
