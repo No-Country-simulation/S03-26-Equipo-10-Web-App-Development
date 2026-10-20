@@ -1,7 +1,7 @@
 # Analítica estadística BI
 
 **Versión:** 1 / algoritmo `stats_v1`. **Fecha:** 2026-10-19.
-**Estado:** fases 1–5 implementadas y verificadas localmente: datos, motor `stats_v1`, endpoint privado, vista con tres CSV y aceptación integral. Cierre de fase 5 pendiente ACK. `BI_STATISTICS_ENABLED` es opt-in independiente en worker y API, apagada por defecto. Habilitación remota, capacidad productiva y utilidad predictiva real pendientes; sin aplicación persistente. [Evidencia y habilitación](../operations/31_bi_statistics_validation_and_rollout.md). [Operación de datos](../operations/28_bi_statistics_data.md) y [motor estadístico](../operations/29_bi_statistics_worker.md).
+**Estado:** fases 1–5 implementadas y verificadas localmente: datos, motor `stats_v1`, endpoint privado, vista con tres CSV y aceptación integral. Cinco fases aprobadas; ACK de cierre recibido después de `cf801a6`. `BI_STATISTICS_ENABLED` es opt-in independiente en worker y API, apagada por defecto. Habilitación remota, capacidad productiva y utilidad predictiva real pendientes; sin aplicación persistente. [Evidencia y habilitación](../operations/31_bi_statistics_validation_and_rollout.md). [Operación de datos](../operations/28_bi_statistics_data.md) y [motor estadístico](../operations/29_bi_statistics_worker.md).
 **Plan y SQL:** [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Complementa el [BI vigente](api-business-intelligence.md); no modifica su semántica actual.
 
 ## 1. Propósito, responsabilidades y fuentes

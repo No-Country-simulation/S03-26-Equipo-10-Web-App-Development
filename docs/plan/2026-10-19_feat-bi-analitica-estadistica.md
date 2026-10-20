@@ -1,7 +1,8 @@
 # Plan HITL: analítica estadística del BI
 
 **Fecha:** 2026-10-19. **Rama:** `codex/bi-analitica-estadistica`, base `b0d8cb2`.
-**Estado:** fases 1–4 aprobadas; fase 5 terminada y validada localmente, pendiente ACK de cierre. Sin autorización de despliegue persistente.
+**Estado:** plan completado; cinco fases implementadas, verificadas localmente y aprobadas. Sin autorización de despliegue persistente.
+**ACK de cierre:** «Continuar», 2026-10-20, después del commit humano `cf801a6`; acepta la fase 5 y cierra la implementación local. Habilitación, migraciones persistentes y despliegue conservan sus procedimientos y autorizaciones específicos.
 **ACK fase 5:** «Continuar», 2026-10-20, después del cierre y commit humano `8fada04`; autoriza validación integral y preparación de habilitación con recursos descartables. Conserva los ACK específicos para migraciones persistentes, infraestructura y despliegue.
 **ACK fase 4:** «Continuar», después del cierre y commit humano de fase 3; autoriza endpoint/UI/CSV y validación descartable, no despliegue ni fase 5.
 **ACK fase 3:** «Continuar», después del cierre de fase 2; autoriza motor y validación descartable, no consumo HTTP/UI ni despliegue.
@@ -81,7 +82,7 @@ La etapa estadística empieza después de cerrar origen y publicar ETL. No modif
 - [x] Actualización al entrar/volver/solicitarla; no agregar polling continuo. Limpiar datos al cambiar sesión y descartar respuestas obsoletas.
 - [x] Probar filtros ajenos rechazados, roles, vigencia, calendario, accesibilidad y CSV equivalente/neutralizado.
 
-### `[Actual]` 5. Validación integral — completada, pendiente ACK
+### `[Completada]` 5. Validación integral — aprobada
 
 - [x] Recorrido real con dos tenants, API/worker/OLTP/DW descartables, fallos y restauración de nuevos objetos/permisos.
 - [x] Medir costo de extracción de etiquetas, cálculo, consultas y CMS con/sin ampliación sobre recursos/dataset declarados. ETL <=5min; estadística <=60s; lectura SQL5s/tx10s. Registrar p95/p99, errores y crecimiento; no certificar capacidad productiva con fixtures.
@@ -183,10 +184,12 @@ Regresión backend: comando de fase3 con las dos suites adicionales `test/bi-sta
 - **Regresión final:** **267/267 casos backend en21 suites BI**, sin omisiones, y **96/96 web en9 archivos BI**. La primera corrida conjunta detectó cuotas de login compartidas en Redis; se corrigió el aislamiento de fixtures reservando una base lógica vacía por instancia y limpiando sólo la propia, conservando cuotas/guardias reales. Corrida final completa aprobada. Typecheck, lint y build API/web aprobados; tres warnings backend y ocho web previos al cambio. No se afirma ejecutar toda la suite CMS ni CI remoto.
 - **Documentado:** runbook de promoción, backfill, grants, activación worker antes de API, observación y recuperación/apagado sin DROP; contratos API/web, guías previas, AGENTS y llm actualizados. No cambiaron schema Prisma, migraciones/checksums existentes, infraestructura, package.json raíz, lockfile ni hooks.
 - **Limpieza verificada:** cero bases/roles de fixtures en ambos PostgreSQL y cero reservas Redis antes de detenerlos. API/worker de navegador y Next cerrados; servicios temporales detenidos y directorio propio retirado. Sin secretos/PII reales en evidencia, commit automático, migración persistente ni despliegue.
-- **Pendiente:** ACK humano de cierre; CI del futuro commit; provisión y preflight conectados del destino, TLS/Data API/ingress, SLO/CPU/IO/pools/capacidad y restauración real; datos suficientes y utilidad predictiva por empresa. Los datos sintéticos sólo acreditan mecánica. **No aplicable en esta entrega:** entrenamiento/servicios ML, texto libre, causalidad/significancia, intervalos predictivos sin cobertura, notificaciones y captura durable de todas las altas, fuera del alcance acordado.
+- **Pendiente fuera de la implementación local:** verificación de CI de la entrega; provisión y preflight conectados del destino, TLS/Data API/ingress, SLO/CPU/IO/pools/capacidad y restauración real; datos suficientes y utilidad predictiva por empresa. Los datos sintéticos sólo acreditan mecánica. **No aplicable en esta entrega:** entrenamiento/servicios ML, texto libre, causalidad/significancia, intervalos predictivos sin cobertura, notificaciones y captura durable de todas las altas, fuera del alcance acordado.
 
 Reproducción, scripts opt-in y restricciones del entorno en la [guía de fase 5](../operations/31_bi_statistics_validation_and_rollout.md).
 
 **Commit sugerido:** `test(bi): validá la analítica estadística y su recuperación`
 
-**Detención obligatoria:** fase5 terminada localmente; esperar ACK humano de cierre. Este ACK no autoriza migraciones persistentes, habilitación ni despliegue, que mantienen procedimientos y permisos específicos.
+**Detención de fase 5 cumplida:** ACK «Continuar» recibido después del commit humano `cf801a6`. Las cinco fases quedan cerradas; no hay otra fase de implementación pendiente en este plan. El cierre no autoriza migraciones persistentes, habilitación ni despliegue.
+
+**Commit sugerido para registrar el cierre:** `docs(bi): registrá el cierre aprobado de la analítica estadística`

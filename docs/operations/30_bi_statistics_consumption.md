@@ -1,6 +1,6 @@
 # Consumo privado de analítica estadística
 
-**Fecha:** 2026-10-19; aceptación integral: 2026-10-20. **Estado:** fase4 aprobada y fase5 validada localmente, cierre pendiente ACK. Habilitación persistente pendiente. [Evidencia y procedimiento](31_bi_statistics_validation_and_rollout.md).
+**Fecha:** 2026-10-19; aceptación integral: 2026-10-20. **Estado:** fases4–5 aprobadas; plan cerrado por ACK después de `cf801a6`, con aceptación local. Habilitación persistente pendiente. [Evidencia y procedimiento](31_bi_statistics_validation_and_rollout.md).
 **Referencias:** [plan](../plan/2026-10-19_feat-bi-analitica-estadistica.md), [contrato](../modules/api-bi-statistics.md), [datos](28_bi_statistics_data.md), [motor](29_bi_statistics_worker.md), [interfaz](../modules/web-business-intelligence.md).
 
 ## Acoplamiento y habilitación posterior

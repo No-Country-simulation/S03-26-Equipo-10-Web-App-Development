@@ -1,6 +1,6 @@
 # Analítica estadística: aceptación local, habilitación y recuperación
 
-**Fecha:** 2026-10-20. **Alcance:** fase 5 del [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md). Validación sobre recursos descartables; habilitación remota, capacidad productiva y utilidad predictiva real pendientes.
+**Fecha:** 2026-10-20. **Alcance:** fase 5 del [plan HITL](../plan/2026-10-19_feat-bi-analitica-estadistica.md), aprobada por ACK «Continuar» después del commit humano `cf801a6`; plan cerrado. Validación sobre recursos descartables; habilitación remota, capacidad productiva y utilidad predictiva real pendientes.
 **Contratos:** [estadísticas](../modules/api-bi-statistics.md), [datos y backfill](28_bi_statistics_data.md), [worker](29_bi_statistics_worker.md), [consumo](30_bi_statistics_consumption.md).
 
 ## Entorno y garantías comprobadas
