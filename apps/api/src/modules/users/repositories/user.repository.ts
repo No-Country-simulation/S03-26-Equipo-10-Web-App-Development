@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BillingAccessRepository } from '../../billing/access';
+import { Optional, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UserView } from '../entities/user.model';
@@ -14,7 +15,10 @@ import {
 
 @Injectable()
 export class UserRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly commercial?: BillingAccessRepository,
+  ) {}
 
   private operatorProtection(error: unknown): never {
     const connector =
@@ -83,16 +87,23 @@ export class UserRepository {
     });
     if (!role) throw new InternalError(`Role not found: ${params.roleCode}`);
 
-    const user = await this.prisma.user.create({
-      data: {
-        tenantId: params.tenantId,
-        email: params.email,
-        passwordHash: params.passwordHash,
-        isActive: true,
-        roles: { create: { roleId: role.id } },
-      },
-      include: { roles: { include: { role: true } } },
-    });
+    const write = (tx: Prisma.TransactionClient) =>
+      tx.user.create({
+        data: {
+          tenantId: params.tenantId,
+          email: params.email,
+          passwordHash: params.passwordHash,
+          isActive: true,
+          roles: { create: { roleId: role.id } },
+        },
+        include: { roles: { include: { role: true } } },
+      });
+    const user = this.commercial?.enabled
+      ? await this.commercial.mutate(params.tenantId, write, {
+          quota: 'active_users',
+          increase: 1,
+        })
+      : await write(this.prisma);
 
     return this.toView(user);
   }
@@ -106,6 +117,19 @@ export class UserRepository {
   }): Promise<UserView> {
     const user = await this.prisma
       .$transaction(async (tx) => {
+        await this.commercial?.checkMutation(params.tenantId, tx, {
+          quota: 'active_users',
+          increase: async (client) =>
+            params.isActive === true &&
+            !(
+              await client.user.findFirst({
+                where: { tenantId: params.tenantId, id: params.userId },
+                select: { isActive: true },
+              })
+            )?.isActive
+              ? 1
+              : 0,
+        });
         // Serialize with manual operator grants, then mark only tenant mutations.
         // These statements also work on legacy schemas without billing tables.
         await tx.$executeRaw`SELECT id FROM users WHERE id = ${params.userId}::uuid AND tenant_id = ${params.tenantId}::uuid FOR UPDATE`;

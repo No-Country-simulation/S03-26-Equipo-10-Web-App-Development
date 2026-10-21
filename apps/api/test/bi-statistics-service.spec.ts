@@ -8,12 +8,13 @@ const input: StatisticsInputs = { forecast: { at: new Date('2025-01-22Z'), histo
   patterns: { total: 0n, tagsObserved: true, withoutCategory: 0n, withoutTags: 0n, categories: { items: [], totalGroups: 0n },
     tags: { items: [], totalGroups: 0n }, segments: { items: [], totalGroups: 0n }, pairs: [] }, daily: [] };
 describe('one recoverable statistical task after ETL', () => {
-  const jobs = { discover: jest.fn(), claim: jest.fn(), heartbeat: jest.fn(), publish: jest.fn(), succeeded: jest.fn(), fail: jest.fn() };
+  const jobs = { discover: jest.fn(), claim: jest.fn(), heartbeat: jest.fn(), publish: jest.fn(), succeeded: jest.fn(), fail: jest.fn(),defer:jest.fn() };
   const inputs = { read: jest.fn() }; const calculate = jest.fn(calculateStatistics);
-  const service = new StatisticsService(jobs, inputs, calculate);
+  const eligible=jest.fn<Promise<boolean>,[string]>();
+  const service = new StatisticsService(jobs, inputs, calculate,eligible);
   const lease = () => ({ tenantId: 'synthetic', sourceRunId: 'run', sourceSnapshotAt: input.forecast.at, token: 'token', deadline: Date.now() + 60000 });
   beforeEach(() => {
-    jest.useRealTimers(); jest.clearAllMocks(); jobs.discover.mockResolvedValue(1); jobs.claim.mockResolvedValue(lease());
+    jest.useRealTimers(); jest.clearAllMocks(); eligible.mockReset().mockResolvedValue(true); jobs.defer.mockResolvedValue(1); jobs.discover.mockResolvedValue(1); jobs.claim.mockResolvedValue(lease());
     jobs.heartbeat.mockResolvedValue(true); jobs.publish.mockResolvedValue('succeeded'); jobs.succeeded.mockResolvedValue(false);
     jobs.fail.mockResolvedValue(1); inputs.read.mockResolvedValue(input); calculate.mockImplementation(calculateStatistics);
   });
@@ -23,6 +24,21 @@ describe('one recoverable statistical task after ETL', () => {
     expect(jobs.discover).not.toHaveBeenCalled();
     const query = jest.fn(); expect(await statisticsEngineReady({ $queryRaw: query } as unknown as PrismaClient, false)).toBe(false);
     expect(query).not.toHaveBeenCalled();
+  });
+  it('defers a queued task before reading or computing when the commercial plan is suspended',async()=>{
+    eligible.mockResolvedValue(false);
+    expect(await service.tick(new AbortController().signal)).toEqual({status:'skipped'});
+    expect(jobs.defer).toHaveBeenCalledWith(expect.objectContaining({tenantId:'synthetic'}));
+    expect(inputs.read).not.toHaveBeenCalled();expect(calculate).not.toHaveBeenCalled();expect(jobs.publish).not.toHaveBeenCalled();expect(jobs.fail).not.toHaveBeenCalled();
+  });
+  it('rechecks eligibility after reading and pauses without publishing or consuming another attempt',async()=>{
+    eligible.mockResolvedValueOnce(true).mockResolvedValue(false);
+    expect(await service.tick(new AbortController().signal)).toEqual({status:'skipped'});expect(inputs.read).toHaveBeenCalledTimes(1);expect(calculate).not.toHaveBeenCalled();expect(jobs.defer).toHaveBeenCalledTimes(1);expect(jobs.fail).not.toHaveBeenCalled();
+  });
+  it('discards a calculation when permission is withdrawn before publication and resumes later',async()=>{
+    eligible.mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValue(false);
+    expect(await service.tick(new AbortController().signal)).toEqual({status:'skipped'});expect(calculate).toHaveBeenCalledTimes(1);expect(jobs.publish).not.toHaveBeenCalled();expect(jobs.defer).toHaveBeenCalledTimes(1);
+    eligible.mockResolvedValue(true);expect(await service.tick(new AbortController().signal)).toEqual({status:'succeeded'});expect(jobs.publish).toHaveBeenCalledTimes(1);
   });
   it('claims once, reads before computing, and drains a claimed task after shutdown', async () => {
     const signal = new AbortController(); inputs.read.mockImplementation(async () => { signal.abort(); return input; });

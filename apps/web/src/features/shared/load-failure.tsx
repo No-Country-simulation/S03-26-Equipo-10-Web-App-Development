@@ -39,6 +39,47 @@ export function loadFailureCopy(
 
 export function actionFailureCopy(error: unknown, action: string) {
   if (error instanceof ApiError) {
+    const billingMessages = new Map<string, string>([
+      [
+        'BILLING_ACCESS_REQUIRED',
+        'El espacio está en modo de consulta. Revisá Facturación para renovar el acceso.',
+      ],
+      [
+        'BILLING_FEATURE_REQUIRED',
+        'Esta función no está incluida en el plan del espacio.',
+      ],
+      [
+        'BILLING_QUOTA_EXCEEDED',
+        'Se alcanzó la capacidad del plan. Liberá espacio o elegí un plan con un límite mayor.',
+      ],
+      [
+        'BILLING_PAYMENT_PENDING',
+        'Hay un pago pendiente. Consultá su operación en Facturación antes de iniciar otro.',
+      ],
+      [
+        'BILLING_CHANGE_NOT_DUE',
+        'El cambio todavía no puede contratarse. Esperá al cierre del período y la confirmación de la baja anterior.',
+      ],
+      [
+        'BILLING_PREVIOUS_PAYMENT_UNRESOLVED',
+        'Hay un pago anterior sin resolver. El operador debe reconciliarlo antes de otra adhesión.',
+      ],
+      [
+        'BILLING_POLICY_CONFLICT',
+        'La política cambió. Volvé a leer su revisión antes de guardarla.',
+      ],
+      [
+        'BILLING_VERSION_CONFLICT',
+        'El borrador cambió. Actualizá el catálogo antes de volver a guardarlo.',
+      ],
+      [
+        'BILLING_DISABLED',
+        'La facturación está desactivada; el operador debe configurar un entorno de pruebas.',
+      ],
+    ]);
+    const billing = billingMessages.get(error.code ?? '');
+    if (billing) return billing;
+
     if (error.code === 'CATALOG_NAME_TAKEN')
       return 'Ya existe una clasificación con ese nombre en el espacio. Elegí otro nombre.';
     if (error.code === 'USER_HAS_HISTORY')

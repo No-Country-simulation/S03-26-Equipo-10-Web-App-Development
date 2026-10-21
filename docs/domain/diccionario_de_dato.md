@@ -5,7 +5,7 @@
 **Motor de Base de Datos:** PostgreSQL 18
 **Alcance:** modelo conceptual; el esquema efectivo se consulta en `apps/api/prisma/schema.prisma`.
 
-**Evolución billing (2026-10-20):** Prisma incorpora 18 modelos para catálogo versionado, cuentas/suscripciones, obligaciones/intentos, períodos, operadores, inbox y auditoría. La migración y repositorios se verificaron sólo en PostgreSQL descartable; sin tablas persistentes ni pagos activados. Diccionario específico y relaciones en [billing](../modules/api-billing.md); aplicación y recuperación en [operación](../operations/32_billing_persistence.md).
+**Evolución billing (2026-10-20):** Prisma incorpora 18 modelos para catálogo versionado, cuentas/suscripciones, obligaciones/intentos, períodos, operadores, inbox y auditoría. La migración y repositorios se verificaron sólo en PostgreSQL descartable; sin tablas persistentes ni pagos activados. La vista aditiva `bi_export.billing_policy` expone sólo tenant, opt-in y términos de períodos/prestaciones BI para el lector fuente, sin pagos, importes, pagadores o suscripciones; no concede permisos PUBLIC ni cambia modelos Prisma. Diccionario específico y relaciones en [billing](../modules/api-billing.md); aplicación y recuperación en [operación](../operations/32_billing_persistence.md).
 
 **Evolución (2026-10-08):** el [logo de empresa](../modules/api-tenant-logo.md) está implementado en Prisma/API/UI, con migración preparada y probada en un esquema descartable; no aplicada a bases persistentes. El [diccionario dimensional OLAP](./warehouse_diccionario_de_datos.md) define `testimonial_dw` en una instancia separada y permanece como diseño pendiente de las fases 3/4 del [plan HITL](../plan/2026-10-08_feat-foto-empresa-bi.md).
 

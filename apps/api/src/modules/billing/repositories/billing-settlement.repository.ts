@@ -25,15 +25,18 @@ export class BillingSettlementRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   // Local purchase intent only. No SDK/network calls and no access granted here.
-  async preparePurchase(input: {
-    tenantId: string;
-    environment: BillingEnvironment;
-    priceId: string;
-    mode: BillingMode;
-    cycleKey: string;
-  }) {
+  async preparePurchase(
+    input: {
+      tenantId: string;
+      environment: BillingEnvironment;
+      priceId: string;
+      mode: BillingMode;
+      cycleKey: string;
+    },
+    transaction?: Prisma.TransactionClient,
+  ) {
     idempotencyKeySchema.parse(input.cycleKey);
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await lockBillingAccount(tx, input.tenantId);
       const price = await tx.billingPrice.findUnique({
         where: { id: input.priceId },
@@ -158,7 +161,8 @@ export class BillingSettlementRepository {
         },
       });
       return obligation;
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
 
   // Observations must originate from an authenticated adapter query (phase 3),
@@ -318,6 +322,17 @@ export class BillingSettlementRepository {
                 ? paidAt.getUTCDate()
                 : subscription.anchorDay,
           },
+        });
+        await tx.billingSubscriptionChange.updateMany({
+          where: {
+            tenantId,
+            environment,
+            targetPriceId: subscription.priceId,
+            targetMode: subscription.mode,
+            status: 'awaiting_checkout',
+            sourceSubscriptionId: { not: subscription.id },
+          },
+          data: { status: 'completed' },
         });
       } else if (result.accessEffect === 'revoke') {
         await tx.billingAccessPeriod.updateMany({

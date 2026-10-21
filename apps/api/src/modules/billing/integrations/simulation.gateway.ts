@@ -1,3 +1,4 @@
+import { billingReturnUrl } from './provider-values';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import type {
@@ -40,7 +41,7 @@ export class SimulationGateway implements FinancialGateway {
   async createCheckout(c: CheckoutCommand): Promise<GatewayCheckout> {
     return {
       id: `sim_${c.reference}`,
-      url: this.returnUrl,
+      url: billingReturnUrl(this.returnUrl, c.operationId),
       ...(c.mode === 'automatic'
         ? { subscriptionId: `simsub_${c.reference}` }
         : {}),

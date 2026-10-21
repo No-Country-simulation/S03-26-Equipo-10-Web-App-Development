@@ -24,8 +24,9 @@ export class BillingTenantRepository {
     tenantId: string,
     expectedRevision: bigint,
     enabled: boolean,
+    transaction?: Prisma.TransactionClient,
   ) {
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await assertBillingOperator(tx, actorId);
       const account = await lockBillingAccount(tx, tenantId);
       if (account.policyRevision !== expectedRevision)
@@ -46,7 +47,8 @@ export class BillingTenantRepository {
         },
       });
       return updated;
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
 
   async startTrial(
@@ -109,8 +111,8 @@ export class BillingTenantRepository {
     );
   }
 
-  // Phase 4 will call this from each creation/reactivation/rotation path. No
-  // arbitrary callback comes from HTTP; it must perform only local DB work.
+  // Low-level quota composition for local database work only. CMS writers use
+  // BillingAccessRepository to combine current access, features and capacity.
   async withQuota<T>(
     tenantId: string,
     environment: BillingEnvironment,

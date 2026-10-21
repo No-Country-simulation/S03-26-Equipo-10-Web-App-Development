@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { BillingAccessRepository } from '../../billing/access';
+import { Optional, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import {
-  DELIVERY_BUDGET_MS, DELIVERY_LEASE_MS, MAX_DELIVERY_ATTEMPTS,
-  hasDeliveryBudget, isRetryableDelivery, retryDelayMs,
+  DELIVERY_BUDGET_MS,
+  DELIVERY_LEASE_MS,
+  MAX_DELIVERY_ATTEMPTS,
+  hasDeliveryBudget,
+  isRetryableDelivery,
+  retryDelayMs,
 } from '../services/delivery-retry-policy';
 import { redactDeliveryText } from '../utils/redact-delivery-text';
 
@@ -32,7 +37,10 @@ export interface DeliveryResult {
 }
 
 /** Congela los destinatarios dentro de la transacción que crea el evento. */
-export async function enqueueWebhookEvent(tx: Prisma.TransactionClient, event: OutboxEventInput): Promise<string> {
+export async function enqueueWebhookEvent(
+  tx: Prisma.TransactionClient,
+  event: OutboxEventInput,
+): Promise<string> {
   const created = await tx.outboxEvent.create({
     data: {
       tenantId: event.tenantId,
@@ -75,16 +83,24 @@ export async function enqueueWebhookEvent(tx: Prisma.TransactionClient, event: O
 
 @Injectable()
 export class OutboxRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly commercial?: BillingAccessRepository,
+  ) {}
 
-  async createEvent(event: OutboxEventInput, client?: Prisma.TransactionClient): Promise<string> {
-    return client ? enqueueWebhookEvent(client, event) : this.prisma.$transaction(tx => enqueueWebhookEvent(tx, event));
+  async createEvent(
+    event: OutboxEventInput,
+    client?: Prisma.TransactionClient,
+  ): Promise<string> {
+    return client
+      ? enqueueWebhookEvent(client, event)
+      : this.prisma.$transaction((tx) => enqueueWebhookEvent(tx, event));
   }
 
   /** Inicialización transaccional y repetible; incluye eventos legados. */
   async initializePending(limit = 25): Promise<number> {
     const batchSize = Math.min(Math.max(limit, 1), 100);
-    return this.prisma.$transaction(async tx => {
+    return this.prisma.$transaction(async (tx) => {
       const events = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id FROM "outbox_events"
         WHERE status = 'pending' AND "deliveries_initialized_at" IS NULL
@@ -127,11 +143,18 @@ export class OutboxRepository {
   /** Un lease vencido se recupera sin borrar el intento interrumpido. */
   async recoverExpired(limit = 25): Promise<number> {
     const batchSize = Math.min(Math.max(limit, 1), 100);
-    return this.prisma.$transaction(async tx => {
-      const rows = await tx.$queryRaw<Array<{
-        id: string; status: string; leaseToken: string | null;
-        retryBudgetAttempts: number; retryBudgetStartedAt: Date; outboxEventId: string | null; dbNow: Date;
-      }>>`
+    return this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<
+        Array<{
+          id: string;
+          status: string;
+          leaseToken: string | null;
+          retryBudgetAttempts: number;
+          retryBudgetStartedAt: Date;
+          outboxEventId: string | null;
+          dbNow: Date;
+        }>
+      >`
         SELECT id, status, "lease_token" AS "leaseToken",
                "retry_budget_attempts" AS "retryBudgetAttempts",
                "retry_budget_started_at" AS "retryBudgetStartedAt",
@@ -148,35 +171,168 @@ export class OutboxRepository {
       for (const row of rows) {
         if (row.status === 'processing' && row.leaseToken) {
           await tx.webhookDeliveryAttempt.updateMany({
-            where: { deliveryId: row.id, leaseToken: row.leaseToken, status: 'processing' },
-            data: { status: 'interrupted', completedAt: row.dbNow, errorMessage: 'Delivery lease expired' },
+            where: {
+              deliveryId: row.id,
+              leaseToken: row.leaseToken,
+              status: 'processing',
+            },
+            data: {
+              status: 'interrupted',
+              completedAt: row.dbNow,
+              errorMessage: 'Delivery lease expired',
+            },
           });
         }
         const now = row.dbNow;
-        const retry = hasDeliveryBudget(row.retryBudgetAttempts, row.retryBudgetStartedAt, now);
+        const retry = hasDeliveryBudget(
+          row.retryBudgetAttempts,
+          row.retryBudgetStartedAt,
+          now,
+        );
         await tx.webhookDelivery.update({
           where: { id: row.id },
           data: {
             status: retry ? 'pending' : 'dead',
-            nextRetryAt: retry ? new Date(now.getTime() + retryDelayMs(row.retryBudgetAttempts)) : null,
-            leaseUntil: null, leaseToken: null, finishedAt: retry ? null : now,
-            errorMessage: row.status === 'processing' ? 'Delivery lease expired' : 'Delivery budget exhausted',
+            nextRetryAt: retry
+              ? new Date(now.getTime() + retryDelayMs(row.retryBudgetAttempts))
+              : null,
+            leaseUntil: null,
+            leaseToken: null,
+            finishedAt: retry ? null : now,
+            errorMessage:
+              row.status === 'processing'
+                ? 'Delivery lease expired'
+                : 'Delivery budget exhausted',
           },
         });
-        if (!retry && row.outboxEventId) await this.finalizeEvent(tx, row.outboxEventId);
+        if (!retry && row.outboxEventId)
+          await this.finalizeEvent(tx, row.outboxEventId);
       }
       return rows.length;
     });
   }
 
   /** SKIP LOCKED evita que dos réplicas adquieran la misma entrega. */
+  async refreshCommercialSuspensions() {
+    if (!this.commercial?.enabled) return;
+    let after: string | undefined;
+    while (true) {
+      const tenants = await this.prisma.webhookDelivery.findMany({
+        where: {
+          OR: [
+            { status: { in: ['pending', 'suspended'] } },
+            { status: 'processing', leaseUntil: { lte: new Date() } },
+          ],
+          ...(after ? { tenantId: { gt: after } } : {}),
+        },
+        distinct: ['tenantId'],
+        select: { tenantId: true },
+        orderBy: { tenantId: 'asc' },
+        take: 100,
+      });
+      for (const { tenantId } of tenants) {
+        const enabled = await this.commercial.canFeature(tenantId, 'webhooks');
+        if (enabled)
+          await this.prisma
+            .$executeRaw`UPDATE webhook_deliveries SET status='pending',retry_budget_started_at=retry_budget_started_at+(now()-updated_at),updated_at=now(),error_message=NULL WHERE tenant_id=${tenantId}::uuid AND status='suspended'`;
+        else
+          await this.prisma.$transaction(async (tx) => {
+            const expired = await tx.webhookDelivery.findMany({
+              where: {
+                tenantId,
+                status: 'processing',
+                leaseUntil: { lte: new Date() },
+              },
+              select: { id: true, leaseToken: true },
+            });
+            for (const row of expired) {
+              const changed = await tx.webhookDelivery.updateMany({
+                where: {
+                  id: row.id,
+                  status: 'processing',
+                  leaseToken: row.leaseToken,
+                  leaseUntil: { lte: new Date() },
+                },
+                data: {
+                  status: 'suspended',
+                  leaseToken: null,
+                  leaseUntil: null,
+                  errorMessage: 'BILLING_SUSPENDED',
+                },
+              });
+              if (changed.count)
+                await tx.webhookDeliveryAttempt.updateMany({
+                  where: {
+                    deliveryId: row.id,
+                    leaseToken: row.leaseToken!,
+                    status: 'processing',
+                  },
+                  data: {
+                    status: 'interrupted',
+                    completedAt: new Date(),
+                    errorMessage: 'Delivery lease expired; BILLING_SUSPENDED',
+                  },
+                });
+            }
+            await tx.webhookDelivery.updateMany({
+              where: { tenantId, status: 'pending' },
+              data: { status: 'suspended', errorMessage: 'BILLING_SUSPENDED' },
+            });
+          });
+      }
+      if (tenants.length < 100) return;
+      after = tenants.at(-1)!.tenantId;
+    }
+  }
+  async canDeliver(tenantId: string) {
+    return this.commercial
+      ? this.commercial.canFeature(tenantId, 'webhooks')
+      : true;
+  }
+  async suspendClaim(claim: ClaimedDelivery) {
+    await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.webhookDelivery.updateMany({
+        where: {
+          id: claim.id,
+          leaseToken: claim.leaseToken,
+          status: 'processing',
+        },
+        data: {
+          status: 'suspended',
+          leaseToken: null,
+          leaseUntil: null,
+          retryBudgetAttempts: { decrement: 1 },
+          errorMessage: 'BILLING_SUSPENDED',
+        },
+      });
+      if (changed.count)
+        await tx.webhookDeliveryAttempt.updateMany({
+          where: {
+            deliveryId: claim.id,
+            leaseToken: claim.leaseToken,
+            status: 'processing',
+          },
+          data: {
+            status: 'interrupted',
+            completedAt: new Date(),
+            errorMessage: 'BILLING_SUSPENDED',
+          },
+        });
+    });
+  }
   async claimDue(limit = 5): Promise<ClaimedDelivery[]> {
     const batchSize = Math.min(Math.max(limit, 1), 25);
-    return this.prisma.$transaction(async tx => {
-      const rows = await tx.$queryRaw<Array<{
-        id: string; webhookId: string; outboxEventId: string;
-        attempts: number; retryBudgetAttempts: number; retryBudgetStartedAt: Date;
-      }>>`
+    return this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<
+        Array<{
+          id: string;
+          webhookId: string;
+          outboxEventId: string;
+          attempts: number;
+          retryBudgetAttempts: number;
+          retryBudgetStartedAt: Date;
+        }>
+      >`
         SELECT d.id, d."webhook_id" AS "webhookId", d."outbox_event_id" AS "outboxEventId",
                d.attempts, d."retry_budget_attempts" AS "retryBudgetAttempts",
                d."retry_budget_started_at" AS "retryBudgetStartedAt"
@@ -204,11 +360,20 @@ export class OutboxRepository {
           WHERE id = ${row.id}::uuid
         `;
         await tx.webhookDeliveryAttempt.create({
-          data: { deliveryId: row.id, attemptNo, leaseToken, status: 'processing' },
+          data: {
+            deliveryId: row.id,
+            attemptNo,
+            leaseToken,
+            status: 'processing',
+          },
         });
         claimed.push({
-          id: row.id, webhookId: row.webhookId, outboxEventId: row.outboxEventId,
-          attemptNo, leaseToken, retryBudgetAttempts: row.retryBudgetAttempts + 1,
+          id: row.id,
+          webhookId: row.webhookId,
+          outboxEventId: row.outboxEventId,
+          attemptNo,
+          leaseToken,
+          retryBudgetAttempts: row.retryBudgetAttempts + 1,
           retryBudgetStartedAt: row.retryBudgetStartedAt,
         });
       }
@@ -224,19 +389,39 @@ export class OutboxRepository {
   }
 
   /** El token del lease impide que un worker tardío sobrescriba el resultado. */
-  async completeAttempt(claim: ClaimedDelivery, result: DeliveryResult): Promise<boolean> {
-    return this.prisma.$transaction(async tx => {
-      const clock = await tx.$queryRaw<Array<{ dbNow: Date }>>`SELECT now() AS "dbNow"`;
+  async completeAttempt(
+    claim: ClaimedDelivery,
+    result: DeliveryResult,
+  ): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const clock = await tx.$queryRaw<
+        Array<{ dbNow: Date }>
+      >`SELECT now() AS "dbNow"`;
       const now = clock[0]!.dbNow;
-      const success = result.status !== null && result.status >= 200 && result.status < 300;
+      const success =
+        result.status !== null && result.status >= 200 && result.status < 300;
       const retryable = !success && isRetryableDelivery(result.status);
-      const retry = retryable && hasDeliveryBudget(claim.retryBudgetAttempts, claim.retryBudgetStartedAt, now);
+      const retry =
+        retryable &&
+        hasDeliveryBudget(
+          claim.retryBudgetAttempts,
+          claim.retryBudgetStartedAt,
+          now,
+        );
       const status = success ? 'success' : retry ? 'pending' : 'dead';
       const updated = await tx.webhookDelivery.updateMany({
-        where: { id: claim.id, leaseToken: claim.leaseToken, status: 'processing' },
+        where: {
+          id: claim.id,
+          leaseToken: claim.leaseToken,
+          status: 'processing',
+        },
         data: {
-          status, leaseToken: null, leaseUntil: null,
-          nextRetryAt: retry ? new Date(now.getTime() + retryDelayMs(claim.retryBudgetAttempts)) : null,
+          status,
+          leaseToken: null,
+          leaseUntil: null,
+          nextRetryAt: retry
+            ? new Date(now.getTime() + retryDelayMs(claim.retryBudgetAttempts))
+            : null,
           finishedAt: retry ? null : now,
           responseCode: result.status,
           responseBody: redactDeliveryText(result.body) ?? null,
@@ -245,7 +430,12 @@ export class OutboxRepository {
       });
       if (updated.count !== 1) return false;
       await tx.webhookDeliveryAttempt.update({
-        where: { deliveryId_attemptNo: { deliveryId: claim.id, attemptNo: claim.attemptNo } },
+        where: {
+          deliveryId_attemptNo: {
+            deliveryId: claim.id,
+            attemptNo: claim.attemptNo,
+          },
+        },
         data: {
           status: success ? 'success' : 'failed',
           responseCode: result.status,
@@ -254,12 +444,18 @@ export class OutboxRepository {
           completedAt: now,
         },
       });
-      if (status !== 'pending') await this.finalizeEvent(tx, claim.outboxEventId);
+      if (status !== 'pending')
+        await this.finalizeEvent(tx, claim.outboxEventId);
       return true;
     });
   }
 
-  async replayDead(tenantId: string, webhookId: string, deliveryId: string, client?: Prisma.TransactionClient): Promise<boolean> {
+  async replayDead(
+    tenantId: string,
+    webhookId: string,
+    deliveryId: string,
+    client?: Prisma.TransactionClient,
+  ): Promise<boolean> {
     const write = async (tx: Prisma.TransactionClient) => {
       const rows = await tx.$queryRaw<Array<{ outboxEventId: string }>>`
         SELECT d."outbox_event_id" AS "outboxEventId"
@@ -274,8 +470,13 @@ export class OutboxRepository {
       await tx.webhookDelivery.update({
         where: { id: deliveryId },
         data: {
-          status: 'pending', retryBudgetAttempts: 0, retryBudgetStartedAt: new Date(),
-          nextRetryAt: null, finishedAt: null, leaseToken: null, leaseUntil: null,
+          status: 'pending',
+          retryBudgetAttempts: 0,
+          retryBudgetStartedAt: new Date(),
+          nextRetryAt: null,
+          finishedAt: null,
+          leaseToken: null,
+          leaseUntil: null,
         },
       });
       await tx.outboxEvent.update({
@@ -287,7 +488,10 @@ export class OutboxRepository {
     return client ? write(client) : this.prisma.$transaction(write);
   }
 
-  private async finalizeEvent(tx: Prisma.TransactionClient, eventId: string): Promise<void> {
+  private async finalizeEvent(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+  ): Promise<void> {
     // Serializa cierres de destinos distintos del mismo evento. Sin este lock,
     // ambos podrían observar al otro intento sin commit y dejar el outbox pending.
     await tx.$queryRaw`SELECT id FROM "outbox_events" WHERE id = ${eventId}::uuid FOR UPDATE`;

@@ -47,3 +47,9 @@ export function checkoutUrl(value: string, hosts: string[]): string {
   );
   return url.toString();
 }
+
+export function billingReturnUrl(base: string, operationId: string) {
+  const url = new URL(base);
+  url.searchParams.set('operation', operationId);
+  return url.toString();
+}

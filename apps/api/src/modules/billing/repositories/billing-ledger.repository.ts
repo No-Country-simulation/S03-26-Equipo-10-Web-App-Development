@@ -49,6 +49,7 @@ export class BillingLedgerRepository {
     accountId: string,
     environment: BillingEnvironment,
     receipt: Receipt,
+    transaction?: Prisma.TransactionClient,
   ) {
     // Native conflict handling, including concurrent redeliveries, before ACK.
     if (
@@ -57,7 +58,8 @@ export class BillingLedgerRepository {
       receipt.resourceId.length > 4000
     )
       throw new GatewayError('BILLING_RECEIPT_INVALID', true);
-    await this.prisma.$executeRaw`INSERT INTO billing_webhook_inbox
+    const client = transaction ?? this.prisma;
+    await client.$executeRaw`INSERT INTO billing_webhook_inbox
       (id, provider_account_id, environment, event_key, topic, resource_id)
       VALUES (${randomUUID()}::uuid, ${accountId}::uuid, ${environment}, ${receipt.eventKey}, ${receipt.topic}, ${receipt.resourceId})
       ON CONFLICT (provider_account_id, event_key) DO NOTHING`;
@@ -131,8 +133,9 @@ export class BillingLedgerRepository {
     environment: BillingEnvironment,
     obligationId: string,
     key: string,
+    transaction?: Prisma.TransactionClient,
   ) {
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await lockBillingAccount(tx, tenantId);
       const obligation = await tx.billingObligation.findFirstOrThrow({
         where: { id: obligationId, tenantId, environment, status: 'open' },
@@ -145,15 +148,17 @@ export class BillingLedgerRepository {
         entityId: obligationId,
         key,
       });
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
   async enqueueSync(
     actorId: string,
     accountId: string,
     priceId: string,
     key: string,
+    transaction?: Prisma.TransactionClient,
   ) {
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await assertBillingOperator(tx, actorId);
       const account = await tx.billingProviderAccount.findUniqueOrThrow({
         where: { id: accountId },
@@ -187,15 +192,17 @@ export class BillingLedgerRepository {
         entityId: priceId,
         key,
       });
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
   async enqueueCancellation(
     tenantId: string,
     environment: BillingEnvironment,
     subscriptionId: string,
     key: string,
+    transaction?: Prisma.TransactionClient,
   ) {
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await lockBillingAccount(tx, tenantId);
       const sub = await tx.billingSubscription.findFirstOrThrow({
         where: { id: subscriptionId, tenantId, environment },
@@ -214,7 +221,8 @@ export class BillingLedgerRepository {
           data: { status: 'cancel_pending' },
         });
       return operation;
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
   async claim(
     accountIds: string[],
@@ -477,8 +485,13 @@ export class BillingLedgerRepository {
       });
     });
   }
-  async retry(actorId: string, id: string, kind: 'operation' | 'inbox') {
-    return billingTransaction(this.prisma, async (tx) => {
+  async retry(
+    actorId: string,
+    id: string,
+    kind: 'operation' | 'inbox',
+    transaction?: Prisma.TransactionClient,
+  ) {
+    const work = async (tx: Prisma.TransactionClient) => {
       await assertBillingOperator(tx, actorId);
       const row =
         kind === 'operation'
@@ -518,7 +531,8 @@ export class BillingLedgerRepository {
       });
       // Crucially, checkout replays stay uncertain: an operator retry is never
       // permission for a second financial POST with a new idempotency key.
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
   async command(job: LedgerJob): Promise<CheckoutCommand> {
     if (job.kind !== 'operation' || !job.row.tenantId)

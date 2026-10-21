@@ -1,4 +1,5 @@
 'use client';
+import { BillingQuotaNote } from '@/features/billing/components/billing-scope';
 
 import {
   Suspense,
@@ -169,6 +170,7 @@ function TestimonialsContent() {
           Refrescar
         </Button>
       </DashboardHeader>
+      <BillingQuotaNote quota="stored_testimonials" />
       {!valid ? (
         <ActionFeedback>
           El enlace contiene filtros o un identificador inválido.{' '}

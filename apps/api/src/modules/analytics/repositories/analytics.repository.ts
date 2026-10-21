@@ -1,5 +1,6 @@
 import { NotFoundError } from '../../../common/errors/application.error';
-import { Injectable } from '@nestjs/common';
+import { BillingAccessRepository } from '../../billing/access';
+import { Optional, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service';
@@ -26,7 +27,10 @@ export interface TestimonialMetrics {
 }
 @Injectable()
 export class AnalyticsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly commercial?: BillingAccessRepository,
+  ) {}
 
   async isPublishedTestimonial(
     tenantId: string,
@@ -122,32 +126,39 @@ export class AnalyticsRepository {
       metadata?: Record<string, unknown>;
     },
   ): Promise<void> {
-    const testimonial = event.testimonialId
-      ? await this.prisma.testimonial.findFirst({
-          where: { id: event.testimonialId, tenantId },
-          select: { id: true },
-        })
-      : null;
-    if (!testimonial)
-      throw new NotFoundError('Testimonial not found for this tenant');
+    const write = async (tx: Prisma.TransactionClient) => {
+      const testimonial = event.testimonialId
+        ? await tx.testimonial.findFirst({
+            where: { id: event.testimonialId, tenantId },
+            select: { id: true },
+          })
+        : null;
+      if (!testimonial)
+        throw new NotFoundError('Testimonial not found for this tenant');
 
-    const eventTypeRecord = await this.prisma.analyticsEventType.upsert({
-      where: { code: event.eventType },
-      update: {},
-      create: { code: event.eventType },
-    });
+      const eventTypeRecord = await tx.analyticsEventType.upsert({
+        where: { code: event.eventType },
+        update: {},
+        create: { code: event.eventType },
+      });
 
-    await this.prisma.analyticsEvent.create({
-      data: {
-        tenantId,
-        eventTypeId: eventTypeRecord.id,
-        testimonialId: testimonial.id,
-        source: event.source ?? 'public',
-        ipHash: event.metadata?.ip
-          ? createHash('sha256').update(String(event.metadata.ip)).digest('hex')
-          : null,
-      },
-    });
+      await tx.analyticsEvent.create({
+        data: {
+          tenantId,
+          eventTypeId: eventTypeRecord.id,
+          testimonialId: testimonial.id,
+          source: event.source ?? 'public',
+          ipHash: event.metadata?.ip
+            ? createHash('sha256')
+                .update(String(event.metadata.ip))
+                .digest('hex')
+            : null,
+        },
+      });
+    };
+    if (this.commercial?.enabled)
+      await this.commercial.mutate(tenantId, write, { feature: 'analytics' });
+    else await write(this.prisma);
   }
 
   async getTestimonialMetrics(

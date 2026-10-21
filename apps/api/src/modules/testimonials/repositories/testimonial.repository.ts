@@ -4,7 +4,8 @@ import {
   InternalError,
   NotFoundError,
 } from '../../../common/errors/application.error';
-import { Injectable } from '@nestjs/common';
+import { BillingAccessRepository } from '../../billing/access';
+import { Optional, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { enqueueWebhookEvent } from '../../webhooks';
@@ -53,7 +54,10 @@ const testimonialInclude = {
 
 @Injectable()
 export class TestimonialRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly commercial?: BillingAccessRepository,
+  ) {}
 
   async findById(
     tenantId: string,
@@ -79,6 +83,10 @@ export class TestimonialRepository {
     client?: Prisma.TransactionClient,
   ): Promise<TestimonialView> {
     const write = async (tx: Prisma.TransactionClient) => {
+      await this.commercial?.checkMutation(data.tenantId, tx, {
+        quota: 'stored_testimonials',
+        increase: 1,
+      });
       await this.assertReferencesBelongToTenant(
         tx,
         data.tenantId,

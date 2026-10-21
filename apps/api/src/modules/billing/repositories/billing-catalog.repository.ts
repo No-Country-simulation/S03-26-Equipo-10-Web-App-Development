@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
@@ -55,10 +56,14 @@ function pricesData(draft: PlanVersionDraft, planVersionId: string) {
 export class BillingCatalogRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createPlan(actorId: string, code: string) {
+  async createPlan(
+    actorId: string,
+    code: string,
+    transaction?: Prisma.TransactionClient,
+  ) {
     if (!/^[a-z][a-z0-9_-]{0,63}$/.test(code))
       throw billingConflict('BILLING_PLAN_CODE_INVALID');
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await assertBillingOperator(tx, actorId);
       const plan = await tx.billingPlan.create({ data: { code } });
       await tx.billingAudit.create({
@@ -71,16 +76,18 @@ export class BillingCatalogRepository {
         },
       });
       return plan;
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
 
   async createVersion(
     actorId: string,
     planId: string,
     input: PlanVersionDraft,
+    transaction?: Prisma.TransactionClient,
   ) {
     const draft = planVersionDraftSchema.parse(input);
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await assertBillingOperator(tx, actorId);
       await tx.$executeRaw`SELECT id FROM billing_plans WHERE id = ${planId}::uuid FOR UPDATE`;
       const plan = await tx.billingPlan.findUnique({ where: { id: planId } });
@@ -108,7 +115,8 @@ export class BillingCatalogRepository {
         },
       });
       return version;
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
 
   async editDraft(
@@ -116,9 +124,10 @@ export class BillingCatalogRepository {
     versionId: string,
     expectedRevision: bigint,
     input: PlanVersionDraft,
+    transaction?: Prisma.TransactionClient,
   ) {
     const draft = planVersionDraftSchema.parse(input);
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await assertBillingOperator(tx, actorId);
       const updated = await tx.billingPlanVersion.updateMany({
         where: { id: versionId, status: 'draft', revision: expectedRevision },
@@ -141,11 +150,17 @@ export class BillingCatalogRepository {
       return tx.billingPlanVersion.findUniqueOrThrow({
         where: { id: versionId },
       });
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
 
-  async publish(actorId: string, versionId: string, expectedRevision: bigint) {
-    return billingTransaction(this.prisma, async (tx) => {
+  async publish(
+    actorId: string,
+    versionId: string,
+    expectedRevision: bigint,
+    transaction?: Prisma.TransactionClient,
+  ) {
+    const work = async (tx: Prisma.TransactionClient) => {
       await assertBillingOperator(tx, actorId);
       const prices = await tx.billingPrice.count({
         where: { planVersionId: versionId },
@@ -173,11 +188,17 @@ export class BillingCatalogRepository {
       return tx.billingPlanVersion.findUniqueOrThrow({
         where: { id: versionId },
       });
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
 
-  async archive(actorId: string, versionId: string, expectedRevision: bigint) {
-    return billingTransaction(this.prisma, async (tx) => {
+  async archive(
+    actorId: string,
+    versionId: string,
+    expectedRevision: bigint,
+    transaction?: Prisma.TransactionClient,
+  ) {
+    const work = async (tx: Prisma.TransactionClient) => {
       await assertBillingOperator(tx, actorId);
       const result = await tx.billingPlanVersion.updateMany({
         where: {
@@ -198,6 +219,7 @@ export class BillingCatalogRepository {
           nextState: 'archived',
         },
       });
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
 }

@@ -1,3 +1,4 @@
+import { billingReturnUrl } from './provider-values';
 import {
   MercadoPagoConfig,
   Payment,
@@ -202,7 +203,7 @@ export class MercadoPagoGateway implements FinancialGateway {
           transaction_amount: mpAmount(c.money),
           currency_id: 'ARS',
         },
-        back_url: this.returnUrl,
+        back_url: billingReturnUrl(this.returnUrl, c.operationId),
         status: 'pending',
       };
       return this.hosted(
@@ -225,9 +226,9 @@ export class MercadoPagoGateway implements FinancialGateway {
           external_reference: c.reference,
           notification_url: this.notificationUrl,
           back_urls: {
-            success: this.returnUrl,
-            pending: this.returnUrl,
-            failure: this.returnUrl,
+            success: billingReturnUrl(this.returnUrl, c.operationId),
+            pending: billingReturnUrl(this.returnUrl, c.operationId),
+            failure: billingReturnUrl(this.returnUrl, c.operationId),
           },
         },
         requestOptions,

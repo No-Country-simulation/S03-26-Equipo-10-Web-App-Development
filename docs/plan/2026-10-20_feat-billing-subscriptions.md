@@ -50,13 +50,15 @@ ACK explícito para editar Prisma y aplicar migraciones sólo sobre bases descar
 - [x] Validar aislamiento, idempotencia local, concurrencia, privacidad, protección de identidades, restauración y privilegios limitados en PostgreSQL propio.
 - [x] Ejecutar checks, registrar evidencia y detenerse sin avanzar a integración con proveedores.
 
-### [Actual] 3. Integraciones financieras — implementada, pendiente de revisión/ACK
+### [Completada] 3. Integraciones financieras — aprobada
 
 ACK «Continuar» del 2026-10-20, posterior al commit `7a19a70`, autoriza esta fase. Durante la validación, la revisión automática pidió especificidad adicional para `prisma migrate deploy`; el usuario respondió «Sí, autorizo migraciones sólo en el PostgreSQL descartable propio». El historial existente se aplicó sólo a ese servidor propio, sin editar esquema ni SQL. No autoriza la fase 4, cobros reales ni despliegues.
 
 SDKs oficiales fijados en workspace API; verificar versiones y contratos vigentes antes de integrar. Stripe Checkout/Billing; MP Preferences y Suscripciones/preapproval, sin extrapolar Orders. Operaciones remotas fuera de transacciones, inbox durable, firmas, bytes originales, autenticación específica y reconciliación. Consultas validan cuenta/tenant/ambiente/referencia/importe/moneda. Pruebas de caída, duplicación y eventos desordenados. No confiar en el navegador ni introducir un segundo scheduler de débitos.
 
-### [Pendiente] 4. Producto completo
+### [Actual] 4. Producto completo
+
+ACK «Continuar» del 2026-10-20 posterior a `6504fd9`: autoriza esta fase y conserva el ACK explícito para migraciones únicamente sobre PostgreSQL propio descartable. Sin cambios de Prisma, infraestructura, manifest raíz ni recursos externos. Se incorpora únicamente DDL aditivo para `bi_export.billing_policy`: el worker BI ya opera con vistas de sólo lectura y necesita política comercial mínima sin permisos sobre tablas financieras. El ACK de migraciones queda restringido al PostgreSQL propio descartable. El usuario agregó ACK específico «Sí, autorizo esa migración sólo en PostgreSQL propio descartable» para `20261020010000_billing_bi_policy_export` y el historial. Se aplicaron sólo en el cluster temporal propio de fase 4. La aceptación externa es fase 5.
 
 Registrar API, configuración y pantallas en features; catálogo/operación para operador, facturación para admin tenant, prestaciones mínimas para editor. Funciones comerciales independientes de flags. Cuotas comprobadas junto a escrituras bajo lock por tenant, incluidos captura pública, reactivación y rotación. Control opt-in; prueba, gracia, lectura, historial y cambios con nueva adhesión. Móvil, foco, teclado, estados de error y regresión sesión/CSRF.
 
@@ -162,3 +164,38 @@ npm run typecheck --workspace apps/api
 npm run lint --workspace apps/api
 npm run build --workspace apps/api
 ```
+
+## Evidencia y cierre técnico de fase 4 — 2026-10-21
+
+- **Producto:** API tenant/admin y plataforma/operador, catálogo versionado con revisión, publicación/archivo y sincronización durable; configuración no secreta; prueba, checkout, resumen, retorno, cancelación, cambio con nueva adhesión e historial. Operador por membresía actual en BD, sin escalada desde tenant. Los recibos HTTP idempotentes y la intención financiera se confirman en una transacción, con SDKs fuera de ella. Las consultas de operación son por tenant y el precio procede del servidor.
+- **Acceso y cuotas:** política global desactivada por defecto y opt-in por tenant. Integración en usuarios, captura pública/testimonios, API keys, webhooks, multimedia, scoring/tracking y BI. Capacidad y alta/reactivación/rotación se coordinan con lock de tenant en la transacción de escritura. Se preservan consulta, sesión, publicado, historial y revocación. Webhooks suspendidos conservan ledger y presupuesto; el worker BI vuelve a comprobar política antes de publicar y no reextrae tras su retiro.
+- **Interfaz:** `/admin/billing`, retorno y `/platform/billing`, navegación existente, dinero exacto, límites junto a acciones, prueba sin tarjeta, modalidades diferenciadas y confirmaciones. Renovar un contrato manual conserva su precio aunque ya no se ofrezca en catálogo. El retorno consulta backend, sondeo3s acotado a60s y consulta manual; una devolución total/contracargo del pago acreditado informa reversión sin nuevo checkout.
+- **Migración autorizada:** la revisión automática pidió ACK específico para SQL nuevo; el usuario respondió «Sí, autorizo esa migración sólo en PostgreSQL propio descartable». `20261020010000_billing_bi_policy_export` y todo el historial se aplicaron desde cero únicamente en PostgreSQL18.6 propio descartable. Vista mínima con `security_barrier`, sin PUBLIC ni importes/pagadores/IDs de suscripción; lector de prueba con SELECT sólo a la vista no puede leer pagos ni escribirla. Sin modificar Prisma, migraciones anteriores, infraestructura, manifest raíz, lockfile o hooks.
+- **Pruebas API:** regresión completa disponible **646 aprobadas en85 suites**, con **176 pruebas/14 suites omitidas** por servicios auxiliares Redis/logos/BI no configurados. Incluye13 casos nuevos HTTP/PostgreSQL/proveedor simulado: operador y revocación, aislamiento, CSRF cookie, JSON estricto, clave obligatoria/replay incompatible, trial concurrente único, precio del servidor, grant único, reversión total, cuotas concurrentes de las cuatro capacidades, reactivaciones/rotaciones, publicación inmutable, política por revisión, cese sin perder cobertura, suspensión/resume de webhook y lector BI limitado. Después se agregaron9 casos de suspensión BI/estadística y se ejecutaron **36/36 pruebas en5 suites afectadas** (`bi-etl`, `bi-scheduler`, `bi-snapshot-time`, `bi-statistics-service`, `billing-statistics-policy.integration`), incluyendo los9 nuevos. Son655 pruebas API únicas verificadas en conjunto; no se presenta como una corrida única de655 ni como CI sin omisiones.
+- **Pruebas web:** **396/396 en60 archivos, sin omisiones**, con `--maxWorkers=2`. Incluye14 nuevos casos billing y1 captura pública: precisión monetaria, redirecciones, contratos inválidos, admin/editor/operador, disabled, consentimiento, trial, modalidad manual, clave estable tras timeout, confirmación por backend una vez, reversión, fecha de gracia, sondeo acotado y renovación de términos archivados. Captura sin multimedia conserva testimonio básico. Mocks HTTP en estos componentes; no prueban integración E2E.
+- **Defectos reproducidos y corregidos:** la captura concurrente respetaba capacidad pero emitía500 en vez de409; el retorno de pago seguía confirmado tras reembolso total; BI reintentaba tres extracciones tras retirarse la prestación antes de publicar. Además, una suspensión estadística tras un intento fallido violaba el CHECK de lifecycle: se reprodujo usando la tabla exacta del SQL vigente y se corrigió conservando intentos anteriores y estado válido. Los tests fallaron funcionalmente antes de corregir esas regresiones. Los demás tests se añadieron junto al código, sin afirmar TDD completo. Fallos iniciales del fixture (tenant duplicado, tipo digest y alcance de helpers) se corrigieron como errores de prueba, no evidencia Red de producto.
+- **Inspección visual:** seis capturas completas en Chrome instalado,1440×1000 y390×844, tres rutas y HTTP sintético, bajo `.impeccable/review/billing/`. Dos lotes; sin overflow de página ni pageerrors. Teclado Enter abre confirmación, foco permanece dentro, Escape cierra y devuelve foco al botón en ambos tamaños. Detector Impeccable ejecutado una vez, resultado `[]`. Revisor independiente: `fix` por fecha de gracia, luego `ship` para esa corrección y auditorías explícitas del operador; no equivale a aceptación completa de backend/sandbox. El nuevo branch de reversión, el corte de sondeo y el control de renovación manual se verificaron mediante tests; no se atribuye a esas capturas una revisión visual de todos sus estados. Documentador independiente extrajo DESIGN.md de tokens reales; no alteró el sistema visual ni creó sidecar.
+- **Checks:** typecheck, lint y build API/web aprobados. Lint conserva3 advertencias API y8 web anteriores, sin advertencias nuevas; Vite/Next conservan avisos de configuración de módulo previos. La regresión web sin límite de workers terminó por señal143 en el portátil; se repitió limitada a2 y aprobó. No ocultar esa interrupción como fallo funcional ni inferir capacidad productiva.
+- **Guía y límites:** [operación de producto](../operations/34_billing_product.md), contrato HTTP, arquitectura, diccionario, AGENTS, llm y documentación visual actualizados. El panel operativo muestra últimos50; no es exportación histórica completa. Un checkout cerrado o obligación incierta se reconcilia; no se recrea ni borra para forzar una contratación. Sin claves reales, llamadas de pago remotas, recursos externos o despliegues. E2E completo y sandbox externo permanecen en fase5.
+- **Limpieza:** comprobados cero bases hijas y cero roles runtime remanentes;18 tablas billing y1 vista nueva en el primer cluster propio antes de detenerlo y eliminar sólo su directorio temporal. Se creó luego un segundo cluster propio para el SQL estadístico: reutilizó literalmente la tabla y CHECKs de0005 con padres mínimos de fixture; no representa una migración/aceptación del warehouse completo. También se detuvo y eliminó al cerrar. Servidor Next propio detenido tras las capturas. No se dejan servicios propios de esta fase activos.
+
+Comandos reproducibles (variables TEST sólo para el PostgreSQL propio descartable autorizado; los fixtures crean/migran/eliminan sus bases):
+
+```bash
+npm test --workspace apps/api
+npm test --workspace apps/api -- --runTestsByPath \
+  test/bi-etl.spec.ts test/bi-scheduler.spec.ts test/bi-snapshot-time.spec.ts \
+  test/bi-statistics-service.spec.ts test/billing-statistics-policy.integration.spec.ts
+npm test --workspace apps/web -- --maxWorkers=2
+npm run typecheck --workspace apps/api
+npm run typecheck --workspace apps/web
+npm run lint --workspace apps/api
+npm run lint --workspace apps/web
+npm run build --workspace apps/api
+npm run build --workspace apps/web
+git diff --check
+```
+
+**Commit sugerido:** `feat(billing): conectá facturación y límites comerciales al CMS`
+
+**Detención de fase4:** terminada técnicamente para revisión humana. Sin commit/push automático. Según AGENTS.md, «Esperar ACK humano antes de avanzar a la siguiente fase». La fase5 sigue pendiente: E2E navegador/API/BD real y sandbox de ambos proveedores con cuentas elegibles externas. Este cierre no autoriza producción ni migraciones persistentes.

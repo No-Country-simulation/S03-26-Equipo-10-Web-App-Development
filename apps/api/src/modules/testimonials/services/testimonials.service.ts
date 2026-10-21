@@ -3,7 +3,8 @@ import {
   ForbiddenError,
   NotFoundError,
 } from '../../../common/errors/application.error';
-import { Injectable, Logger } from '@nestjs/common';
+import { BillingAccessRepository } from '../../billing/access';
+import { Optional, Injectable, Logger } from '@nestjs/common';
 import type { TransactionClient } from '../../../common/repositories/transaction-client';
 import { TenantsService } from '../../tenants';
 import { TestimonialRepository } from '../repositories/testimonial.repository';
@@ -50,6 +51,7 @@ export class TestimonialsService {
     private readonly cache: CacheService,
     private readonly transition: TransitionTestimonialUseCase,
     private readonly create: CreateTestimonialUseCase,
+    @Optional() private readonly commercial?: BillingAccessRepository,
   ) {}
 
   /**
@@ -118,6 +120,8 @@ export class TestimonialsService {
       throw new ForbiddenError('This form is currently closed');
     }
 
+    if (dto.imageBase64 || dto.videoUrl)
+      await this.commercial?.requireWrite(tenant.id, 'media');
     const testimonial = await this.repo.createWithEvent(
       {
         tenantId: tenant.id,
@@ -190,6 +194,9 @@ export class TestimonialsService {
       name: tenant.name,
       isPublicFormEnabled: tenant.isPublicFormEnabled,
       logoUrl: tenant.logoUrl,
+      mediaEnabled: this.commercial
+        ? await this.commercial.canFeature(tenant.id, 'media')
+        : true,
     };
   }
 
@@ -345,6 +352,7 @@ export class TestimonialsService {
     testimonialId: string,
     imageBase64: string,
   ) {
+    await this.commercial?.requireWrite(tenantId, 'media');
     validateImageBase64(imageBase64);
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundError('Testimonial not found');
@@ -371,6 +379,7 @@ export class TestimonialsService {
    * @throws {InvalidInputError} Si la URL no pertenece a YouTube.
    */
   async attachVideo(tenantId: string, testimonialId: string, videoUrl: string) {
+    await this.commercial?.requireWrite(tenantId, 'media');
     const testimonial = await this.repo.findById(tenantId, testimonialId);
     if (!testimonial) throw new NotFoundError('Testimonial not found');
     if (testimonial.status === 'published') {

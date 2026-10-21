@@ -1,3 +1,4 @@
+import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { Test } from '@nestjs/testing';
 import { BillingModule } from '../src/modules/billing/billing.module';
 import { BILLING_CONFIG } from '../src/modules/billing/integrations/billing.config';
@@ -76,6 +77,8 @@ describe('financial provider contracts, authentication and isolation', () => {
       throw Error('disabled database access');
     });
     const module = await Test.createTestingModule({ imports: [BillingModule] })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
       .overrideProvider(PrismaService)
       .useValue({ $queryRaw: query, $executeRaw: query })
       .overrideProvider(BILLING_CONFIG)

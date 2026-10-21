@@ -15,6 +15,8 @@ import {
   Settings,
   LogOut,
   Menu,
+  CreditCard,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -32,9 +34,22 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   adminOnly?: boolean;
+  operatorOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
+  {
+    label: 'Facturación',
+    href: '/admin/billing',
+    icon: CreditCard,
+    adminOnly: true,
+  },
+  {
+    label: 'Plataforma',
+    href: '/platform/billing',
+    icon: ShieldCheck,
+    operatorOnly: true,
+  },
   { label: 'Inicio', href: '/admin', icon: LayoutDashboard },
   {
     label: 'Testimonios',
@@ -75,6 +90,7 @@ interface DashboardSidebarProps {
   userEmail?: string;
   userRoles?: string[];
   isAdmin: boolean;
+  isOperator?: boolean;
   onLogout: () => void;
 }
 
@@ -83,12 +99,16 @@ function SidebarContent({
   userEmail,
   userRoles,
   isAdmin,
+  isOperator = false,
   onLogout,
   onNavigate,
 }: DashboardSidebarProps & { onNavigate?: () => void }) {
   const pathname = usePathname();
 
-  const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const visibleItems = navItems.filter(
+    (item) =>
+      (!item.adminOnly || isAdmin) && (!item.operatorOnly || isOperator),
+  );
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">

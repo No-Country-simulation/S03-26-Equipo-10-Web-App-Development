@@ -1,3 +1,4 @@
+import { billingReturnUrl } from './provider-values';
 import Stripe from 'stripe';
 import type { ProviderSettings } from './billing.config';
 import type {
@@ -126,8 +127,8 @@ export class StripeGateway implements FinancialGateway {
         client_reference_id: c.reference,
         line_items: [line],
         metadata,
-        success_url: this.returnUrl,
-        cancel_url: this.returnUrl,
+        success_url: billingReturnUrl(this.returnUrl, c.operationId),
+        cancel_url: billingReturnUrl(this.returnUrl, c.operationId),
         ...(c.mode === 'automatic'
           ? { subscription_data: { metadata } }
           : { payment_intent_data: { metadata } }),
