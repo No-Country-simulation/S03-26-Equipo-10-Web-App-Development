@@ -86,7 +86,14 @@ describe('user activation through HTTP', () => {
         UserRepository,
         CredentialRepository,
         JwtService,
-        { provide: PrismaService, useValue: { user: delegate } },
+        {
+          provide: PrismaService,
+          useValue: {
+            user: delegate,
+            $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
+              work({ user: delegate, $executeRaw: jest.fn() }),
+          },
+        },
         { provide: PasswordService, useValue: { hashPassword: jest.fn() } },
         {
           provide: ConfigService,

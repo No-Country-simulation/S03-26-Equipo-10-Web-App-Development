@@ -1,6 +1,6 @@
 # Billing: contratos y diseño
 
-**Estado 2026-10-20:** fase 1 del [plan HITL](../plan/2026-10-20_feat-billing-subscriptions.md). Implementados contratos Zod, decisiones puras y simuladores de tests. **No hay endpoints, SDKs, tablas aplicadas, cobros, restricciones comerciales ni pantallas activas.** El [SQL](../plan/2026-10-20_feat-billing-subscriptions_oltp-borrador.sql) es un borrador revisable; no sustituye `schema.prisma`.
+**Estado 2026-10-20:** fase 2 del [plan HITL](../plan/2026-10-20_feat-billing-subscriptions.md). Contratos/dominio y simuladores de fase 1 conservados; esquema Prisma, [migración aditiva](../../apps/api/prisma/migrations/20261020000000_billing_core/migration.sql), repositorios transaccionales, protección de identidades y CLI/guard de operador implementados y probados en PostgreSQL 18.6 descartable. **Sin aplicación persistente, SDKs, cobros, endpoints financieros, restricciones comerciales ni pantallas activas.** AppModule no importa BillingModule. El [SQL de fase 1](../plan/2026-10-20_feat-billing-subscriptions_oltp-borrador.sql) es histórico; ver [operación y límites](../operations/32_billing_persistence.md).
 
 ## 1. Autoridades y capacidades
 
@@ -19,7 +19,7 @@ Los métodos exactos los presenta el proveedor según cuenta, país, moneda, dis
 
 Fuentes oficiales consultadas el 2026-10-20: [compatibilidad Stripe](https://docs.stripe.com/payments/payment-methods/payment-method-support), [Checkout](https://docs.stripe.com/checkout/quickstart), [webhooks Stripe](https://docs.stripe.com/webhooks), [adhesión MP](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/integration-configuration/subscription-no-associated-plan/pending-payments), [gestión MP](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/subscription-management), [webhooks MP](https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks), [prueba MP](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/integration-test/payment-approval), [test clocks Stripe](https://docs.stripe.com/billing/testing/test-clocks). Revalidar endpoints, SDK, firma e idempotencia por operación al implementar fase 3. MP documenta particularidades de configuración de notificaciones para Suscripciones: comprobar ese flujo específico en sandbox, sin asumir que el dashboard genérico o una simulación de webhook acredita la adhesión.
 
-## 2. Modelo relacional propuesto
+## 2. Modelo relacional
 
 ### Catálogo y autoridad global
 

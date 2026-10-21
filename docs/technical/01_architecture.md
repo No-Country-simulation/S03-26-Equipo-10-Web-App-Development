@@ -4,6 +4,8 @@
 
 ## 1. Visión General (C4 Model - Level 1)
 
+**Preparación billing (2026-10-20):** se agregaron esquema y persistencia transaccional de facturación, con capacidad global de operador independiente de `admin/editor`. CLI manual y comprobación por BD; la protección de identidades se integra en las escrituras tenant de usuarios. BillingModule no se importa en AppModule: no hay SDKs, controladores financieros, pollers o restricciones comerciales activos. Migración verificada sólo en PostgreSQL descartable. Ver [contratos](../modules/api-billing.md) y [operación](../operations/32_billing_persistence.md).
+
 ### 1.1. Diagrama de Contexto del Sistema
 
 ```mermaid

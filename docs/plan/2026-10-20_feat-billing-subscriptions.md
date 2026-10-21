@@ -5,7 +5,7 @@
 - Solicitud y decisiones del usuario del 2026-10-20: el CMS cobra a sus tenants; Stripe/USD y Mercado Pago Argentina/ARS; catálogo propio; mensual/anual; prueba sin tarjeta una vez por tenant; funciones y cuotas; pago automático o manual; nueva adhesión para cambios, sin prorrateos.
 - Rama `codex/billing-subscriptions`, creada y seleccionada antes de modificar archivos desde `codex/fix-sprintf-js-dependency`, base `aead37c10de2a3345c2ed47ff2fc3ccc69e98d02`. Árbol inicialmente limpio.
 - Aplican [AGENTS.md](../../AGENTS.md), [payments-engineering](../../.agents/skills/payments-engineering/SKILL.md), [mercadopago-api](../../.agents/skills/mercadopago-api/SKILL.md), [testing-tdd-engineering](../../.agents/skills/testing-tdd-engineering/SKILL.md) y las reglas PostgreSQL. Ejecutar sólo la fase actual; detenerse con commit sugerido y esperar ACK entre fases.
-- La implementación autorizada en esta fase comprende documentación, borrador SQL, contratos, dominio puro y simuladores de prueba. No modifica Prisma, aplica DDL, instala SDKs, registra controladores ni activa pagos o restricciones en el CMS.
+- Fase 1 cerrada por ACK «Continuar» del 2026-10-20. Ese ACK, recibido tras explicitar Prisma y migraciones descartables en el cierre, autoriza la fase 2: esquema, migración aditiva sólo en PostgreSQL descartable propio, repositorios y operadores. No habilita SDKs, controladores financieros, cobros ni fases 3–5.
 - Cambiar `schema.prisma` y ejecutar migraciones descartables requieren ACK específico de fase 2. Infraestructura, raíz npm y hooks permanecen fuera de este cambio. Sin secretos, tarjetas, firmas ni PII en contexto o evidencias.
 - NestJS/Prisma 6.5/PostgreSQL; aislamiento lógico por tenant, sin RLS; procesamiento durable por polling PostgreSQL, sin nueva cola o servicio. Conservar sesión, CSRF, Redis para cuotas técnicas y caché, y el ledger saliente existente.
 
@@ -32,7 +32,7 @@ Contratar y renovar acceso al CMS mediante checkouts alojados; administrar catá
 
 ## Fases HITL
 
-### [Actual] 1. Contratos y diseño — implementada, pendiente de revisión/ACK
+### [Completada] 1. Contratos y diseño — aprobada
 
 - [x] Especificar capacidades, estados, HTTP, permisos y modelo relacional; preparar SQL revisable sin aplicarlo.
 - [x] Implementar dominio puro: dinero exacto, calendario, trial, gracia, funciones/cuotas y efectos idempotentes de observaciones financieras normalizadas.
@@ -40,9 +40,15 @@ Contratar y renovar acceso al CMS mediante checkouts alojados; administrar catá
 - [x] Probar reglas con oráculos independientes, casos negativos y escenarios de timeout/reconciliación. Typecheck, lint, build y comprobación estática de SQL/documentos.
 - [x] Registrar evidencia y límites; detenerse con commit sugerido. No marcar fase 2 como actual sin ACK.
 
-### [Pendiente] 2. Persistencia y permisos
+### [Actual] 2. Persistencia y permisos — implementada, pendiente de revisión/ACK
 
 ACK explícito para editar Prisma y aplicar migraciones sólo sobre bases descartables identificadas. Migración aditiva desde el borrador revisado; repositorios transaccionales, pertenencia entre tenants y operadores independientes otorgados/revocados por CLI UUID. Comprobar protección de cuentas operadoras frente a endpoints tenant, revocación inmediata, unicidad de períodos y contención concurrente de cuotas. Validar DDL efectivo, restauración y cliente Prisma; no desplegar a entornos persistentes.
+
+- [x] Recibir ACK «Continuar» del 2026-10-20 para esta fase, incluyendo Prisma y migración descartable.
+- [x] Crear migración aditiva y 18 modelos Prisma; conservar el historial anterior y los contratos puros.
+- [x] Implementar repositorios de catálogo, tenant/cuotas/trial, liquidación y operadores, módulo de composición sin registrar en AppModule y CLI manual.
+- [x] Validar aislamiento, idempotencia local, concurrencia, privacidad, protección de identidades, restauración y privilegios limitados en PostgreSQL propio.
+- [x] Ejecutar checks, registrar evidencia y detenerse sin avanzar a integración con proveedores.
 
 ### [Pendiente] 3. Integraciones financieras
 
@@ -84,4 +90,38 @@ La corrida final agregó cobertura acotada a `src/modules/billing/**/*.ts`, sin 
 
 **Commit sugerido:** `feat(billing): definí contratos y simulaciones de suscripciones`
 
-**Detención:** fase 1 terminada técnicamente. Fases 2–5 permanecen pendientes; el siguiente ACK debe autorizar explícitamente editar `apps/api/prisma/schema.prisma` y aplicar migraciones sólo en PostgreSQL descartable identificado. No implica habilitación productiva ni autorización conjunta de fases.
+**Detención histórica:** fase 1 terminada técnicamente y aprobada por «Continuar» del 2026-10-20, que habilitó únicamente fase 2, Prisma y migración descartable. No implica habilitación productiva ni autorización conjunta de fases.
+
+## Evidencia y cierre de fase 2
+
+- **Implementado:** migración `20261020000000_billing_core`, 18 modelos Prisma y repositorios con transacciones locales; módulo/exports de persistencia sin importar desde AppModule. Trigger de términos/precios publicados inmutables, unicidad de trial/grant/contrato abierto, referencias financieras compuestas que incluyen tenant/ambiente/cuenta/importe/moneda y auditoría protegida.
+- **Implementado:** catálogo versionado con revisión optimista y archivo sin alterar contratos, consumo de trial y composición con idempotencia local en el mismo TransactionClient, cuotas bajo lock de cuenta y callback de escritura, preparación de obligaciones según precios del servidor y liquidación monotónica con grant/revocación/auditoría atómicos. No se generan ciclos automáticos externos ni se aceptan inputs del navegador como observaciones.
+- **Operadores:** membresía separada de admin/editor; CLI UUID con DSN externo y `--apply`, guard con consulta actual a BD, cuentas activas y revocación inmediata. Repositorio de usuarios y trigger impiden cambios de contraseña/activación/borrado de identidades con historial de operador, incluso revocadas. El marcador transaccional distingue rutas tenant de operaciones internas; no es una defensa frente a SQL arbitrario con credenciales internas.
+- **TDD/regresiones observadas:** dos pruebas PostgreSQL reprodujeron modificaciones de operadores que debían rechazarse antes de conectar la protección. Una prueba de primeras compras concurrentes detectó P2002 por el upsert vacío emulado en Prisma6.5; se corrigió con INSERT ON CONFLICT nativo antes del lock. Tres mocks anteriores se adaptaron a la nueva transacción de usuarios sin cambiar sus expectativas de alcance/error.
+- **Verificado final:** **186/186 pruebas en12 suites, cero omisiones**: 108 de fase1,29 nuevas de fase2 (24 persistencia y5 HTTP/CLI),49 regresiones de usuarios/tenants/catálogo/límites. Concurrencia de trial global entre ambientes, recibo idempotente+grant, cuotas cero/ilimitadas/vigentes, carrera grant vs cambio de usuario, doble observación, precio incorrecto, referencias ajenas, refund parcial/total, cobro adicional, rollback sin período automático verificado, inbox con eventos distintos del mismo recurso y archivo que conserva renovaciones. No se ejecutó toda la suite del CMS ni E2E de fase5.
+- **Restauración verificada:** dumps custom en memoria a dos bases nuevas distintas del origen; recuperan trial/auditoría y pago/obligación/grant con FK, unicidad y triggers. Dumps de ensayo sin propietarios/ACL: no acreditar recuperación productiva de privilegios. Un rol runtime aleatorio con SELECT de operadores rechaza concesión de membresías y DDL.
+- **Prisma/migración verificados:** Prisma6.5.0, cliente regenerado, esquema válido; todo el historial aplicado desde cero en bases propias PostgreSQL18.6; repetición sin migraciones pendientes. Comparación de esquema no propuso cambios billing; drift previo de nombres/defaults/acciones en entidades anteriores se inspeccionó y no se ejecutó. Los 14 SQL anteriores y migration_lock permanecen byte por byte; modelos anteriores sólo agregan backreferences de relaciones billing.
+- **Checks:** typecheck, lint y build API aprobados. Cero errores/advertencias nuevas; conserva las tres advertencias previas. CLI compilada presente, fixtures excluidos y AppModule sin registrar BillingModule. Formato/documentación/enlaces y `git diff --check` verificados. Sin cambios en web, dependencias/lockfile npm, infraestructura o hooks.
+- **Operación y contexto:** [runbook de persistencia/operadores](../operations/32_billing_persistence.md), contrato, arquitectura, diccionario, AGENTS y llm actualizados. La migración sólo se aplicó en el cluster propio descartable; ningún destino persistente, cuenta de proveedor, secreto, cobro o despliegue fue configurado.
+- **Limpieza:** harness comprobó cero bases `billing_test_`/`billing_restore_` y cero roles `billing_runtime_` remanentes antes de apagar el PostgreSQL propio. PostgreSQL propio detenido y directorio temporal propio eliminado al finalizar la fase.
+- **Pendiente:** revisión/ACK para fase3; SDKs/firmas, operaciones/inbox con claim/fencing y poller, creación de ciclos recurrentes, reconciliación con proveedores y simulación runtime. API/UI, conexión de cuotas a todas las mutaciones CMS, sandbox externo y aceptación integral son fases posteriores.
+
+Comando de regresión final (ambas variables TEST apuntan al mismo servidor descartable propio; la suite billing crea y elimina sus propias bases):
+
+```bash
+npm test --workspace apps/api -- --runTestsByPath \
+  test/billing-money.spec.ts test/billing-policy.spec.ts \
+  test/billing-settlement.spec.ts test/billing-contracts.spec.ts \
+  test/billing-simulator.spec.ts test/billing-persistence.integration.spec.ts \
+  test/billing-operator-http.integration.spec.ts \
+  test/user-access-http.spec.ts test/user-history.spec.ts \
+  test/phase2-api-boundaries.spec.ts \
+  test/tenant-integrity.integration.spec.ts test/catalog-admin.integration.spec.ts
+npm run typecheck --workspace apps/api
+npm run lint --workspace apps/api
+npm run build --workspace apps/api
+```
+
+**Commit sugerido:** `feat(billing): incorporá persistencia y operadores de facturación`
+
+**Detención de fase 2:** completada técnicamente; esperar ACK antes de fase3. No se ejecutaron fases3–5 ni se habilitaron pagos, SDKs, webhooks financieros o control comercial.

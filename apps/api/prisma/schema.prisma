@@ -32,6 +32,7 @@ model Tenant {
   logoCleanupJobs     TenantLogoCleanupJob[]
 
   @@map("tenants")
+  billingAccounts     BillingAccount?
 }
 
 model TenantLogoCleanupJob {
@@ -102,6 +103,8 @@ model User {
   @@unique([tenantId, id], map: "uq_users_tenant_id")
   @@index([tenantId], map: "idx_users_tenant")
   @@map("users")
+  billingAudit             BillingAudit[]
+  billingPlatformOperators BillingPlatformOperator?
 }
 
 model UserRole {
@@ -457,4 +460,375 @@ model AuditLog {
   @@index([tenantId, createdAt], map: "idx_audit_logs_tenant_time")
   @@index([userId, createdAt], map: "idx_audit_logs_user_time")
   @@map("audit_logs")
+}
+
+
+// Billing: CHECK, partial/NULLS NOT DISTINCT indexes and triggers live in migration SQL.
+model BillingAccessPeriod {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId           String             @map("tenant_id") @db.Uuid
+  environment        String
+  planVersionId      String             @map("plan_version_id") @db.Uuid
+  kind               String
+  obligationId       String?            @map("obligation_id") @db.Uuid
+  paymentId          String?            @map("payment_id") @db.Uuid
+  startsAt           DateTime           @map("starts_at") @db.Timestamptz(3)
+  endsAt             DateTime           @map("ends_at") @db.Timestamptz(3)
+  revokedAt          DateTime?          @map("revoked_at") @db.Timestamptz(3)
+  billingPlanVersion BillingPlanVersion @relation(fields: [planVersionId], references: [id], onUpdate: NoAction)
+  billingObligation  BillingObligation? @relation(fields: [tenantId, environment, obligationId, paymentId], references: [tenantId, environment, id, creditedPaymentId], onUpdate: NoAction)
+  billingAccount     BillingAccount     @relation(fields: [tenantId], references: [tenantId], onUpdate: NoAction)
+
+  @@index([tenantId, environment, endsAt], map: "idx_billing_access_tenant")
+  @@index([planVersionId], map: "idx_billing_access_version")
+  @@map("billing_access_periods")
+}
+
+model BillingAccount {
+  tenantId            String                @id @map("tenant_id") @db.Uuid
+  enforcementEnabled  Boolean               @default(false) @map("enforcement_enabled")
+  policyRevision      BigInt                @default(0) @map("policy_revision")
+  trialConsumedAt     DateTime?             @map("trial_consumed_at") @db.Timestamptz(3)
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  billingAccessPeriod BillingAccessPeriod[]
+  tenants             Tenant                @relation(fields: [tenantId], references: [id], onUpdate: NoAction)
+  billingAudit        BillingAudit[]
+  billingCustomer     BillingCustomer[]
+  billingOperation    BillingOperation[]
+  billingSubscription BillingSubscription[]
+
+  @@map("billing_accounts")
+}
+
+model BillingAdjustment {
+  id                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId               String                 @map("tenant_id") @db.Uuid
+  environment            String
+  paymentId              String                 @map("payment_id") @db.Uuid
+  providerAccountId      String                 @map("provider_account_id") @db.Uuid
+  kind                   String
+  externalAdjustmentId   String                 @map("external_adjustment_id")
+  amountMinor            BigInt                 @map("amount_minor")
+  currency               String
+  providerStatus         String                 @map("provider_status")
+  confirmed              Boolean
+  observedAt             DateTime               @map("observed_at") @db.Timestamptz(3)
+  billingProviderAccount BillingProviderAccount @relation(fields: [providerAccountId, environment], references: [id, environment], onUpdate: NoAction)
+  billingPayment         BillingPayment         @relation(fields: [tenantId, environment, paymentId, providerAccountId], references: [tenantId, environment, id, providerAccountId], onUpdate: NoAction)
+
+  @@unique([providerAccountId, kind, externalAdjustmentId])
+  @@index([tenantId, environment, paymentId], map: "idx_billing_adjustments_payment")
+  @@map("billing_adjustments")
+}
+
+model BillingAudit {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String?         @map("tenant_id") @db.Uuid
+  actorId        String?         @map("actor_id") @db.Uuid
+  environment    String?
+  action         String
+  entityId       String          @map("entity_id") @db.Uuid
+  correlationId  String          @map("correlation_id") @db.Uuid
+  previousState  String?         @map("previous_state")
+  nextState      String          @map("next_state")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  users          User?           @relation(fields: [actorId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  billingAccount BillingAccount? @relation(fields: [tenantId], references: [tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([actorId], map: "idx_billing_audit_actor")
+  @@index([tenantId, createdAt, id], map: "idx_billing_audit_tenant")
+  @@map("billing_audit")
+}
+
+model BillingCustomer {
+  id                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId               String                 @map("tenant_id") @db.Uuid
+  providerAccountId      String                 @map("provider_account_id") @db.Uuid
+  externalCustomerId     String                 @map("external_customer_id")
+  billingProviderAccount BillingProviderAccount @relation(fields: [providerAccountId], references: [id], onUpdate: NoAction)
+  billingAccount         BillingAccount         @relation(fields: [tenantId], references: [tenantId], onUpdate: NoAction)
+  billingSubscription    BillingSubscription[]
+
+  @@unique([providerAccountId, externalCustomerId])
+  @@unique([tenantId, id, providerAccountId])
+  @@unique([tenantId, providerAccountId])
+  @@map("billing_customers")
+}
+
+model BillingObligation {
+  id                                                                                                                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                                                                                                              String                 @map("tenant_id") @db.Uuid
+  environment                                                                                                           String
+  orderId                                                                                                               String                 @unique @map("order_id") @db.Uuid
+  subscriptionId                                                                                                        String                 @map("subscription_id") @db.Uuid
+  providerAccountId                                                                                                     String                 @map("provider_account_id") @db.Uuid
+  cycleKey                                                                                                              String                 @map("cycle_key")
+  amountMinor                                                                                                           BigInt                 @map("amount_minor")
+  currency                                                                                                              String
+  status                                                                                                                String                 @default("open")
+  creditedPaymentId                                                                                                     String?                @map("credited_payment_id") @db.Uuid
+  dueAt                                                                                                                 DateTime?              @map("due_at") @db.Timestamptz(3)
+  createdAt                                                                                                             DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  billingAccessPeriod                                                                                                   BillingAccessPeriod[]
+  billingProviderAccount                                                                                                BillingProviderAccount @relation(fields: [providerAccountId, environment], references: [id, environment], onUpdate: NoAction)
+  billingOrder                                                                                                          BillingOrder           @relation(fields: [tenantId, environment, orderId, subscriptionId], references: [tenantId, environment, id, subscriptionId], onUpdate: NoAction)
+  billingSubscription                                                                                                   BillingSubscription    @relation(fields: [tenantId, environment, subscriptionId], references: [tenantId, environment, id], onUpdate: NoAction)
+  billingPaymentsBillingObligationsTenantIdEnvironmentIdCreditedPaymentIdTobillingPayments                              BillingPayment?        @relation("billing_obligations_tenant_id_environment_id_credited_payment_idTobilling_payments", fields: [tenantId, environment, id, creditedPaymentId], references: [tenantId, environment, obligationId, id], onUpdate: NoAction, map: "fk_billing_credited_payment")
+  billingPaymentsBillingPaymentsTenantIdEnvironmentObligationIdProviderAccountIdAmountMinorCurrencyTobillingObligations BillingPayment[]       @relation("billing_payments_tenant_id_environment_obligation_id_provider_account_id_amount_minor_currencyTobilling_obligations")
+
+  @@unique([subscriptionId, cycleKey])
+  @@unique([tenantId, environment, id, creditedPaymentId])
+  @@unique([tenantId, environment, id])
+  @@unique([tenantId, environment, id, providerAccountId, amountMinor, currency], map: "billing_obligations_tenant_id_environment_id_provider_acco_key1")
+  @@unique([tenantId, environment, id, providerAccountId])
+  @@index([providerAccountId], map: "idx_billing_obligations_account")
+  @@map("billing_obligations")
+}
+
+model BillingOperation {
+  id                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId               String?                @map("tenant_id") @db.Uuid
+  environment            String
+  providerAccountId      String                 @map("provider_account_id") @db.Uuid
+  kind                   String
+  entityId               String                 @map("entity_id") @db.Uuid
+  idempotencyKey         String                 @map("idempotency_key")
+  requestHash            String                 @map("request_hash")
+  requestData            Json                   @map("request_data")
+  status                 String                 @default("ready")
+  attempts               Int                    @default(0)
+  nextAttemptAt          DateTime               @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  leaseToken             String?                @map("lease_token") @db.Uuid
+  leaseUntil             DateTime?              @map("lease_until") @db.Timestamptz(3)
+  externalResourceId     String?                @map("external_resource_id")
+  errorCode              String?                @map("error_code")
+  createdAt              DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime               @default(now()) @map("updated_at") @db.Timestamptz(3)
+  billingProviderAccount BillingProviderAccount @relation(fields: [providerAccountId, environment], references: [id, environment], onUpdate: NoAction)
+  billingAccount         BillingAccount?        @relation(fields: [tenantId], references: [tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([tenantId, providerAccountId, kind, idempotencyKey])
+  @@map("billing_operations")
+}
+
+model BillingOrder {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId            String              @map("tenant_id") @db.Uuid
+  environment         String
+  subscriptionId      String              @map("subscription_id") @db.Uuid
+  externalReference   String              @unique @map("external_reference")
+  status              String              @default("created")
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  billingObligation   BillingObligation[]
+  billingSubscription BillingSubscription @relation(fields: [tenantId, environment, subscriptionId], references: [tenantId, environment, id], onUpdate: NoAction)
+
+  @@unique([tenantId, environment, id])
+  @@unique([tenantId, environment, id, subscriptionId])
+  @@index([tenantId, environment, subscriptionId], map: "idx_billing_orders_subscription")
+  @@map("billing_orders")
+}
+
+model BillingPayment {
+  id                                                                                                                       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                                                                                                                 String              @map("tenant_id") @db.Uuid
+  environment                                                                                                              String
+  obligationId                                                                                                             String              @map("obligation_id") @db.Uuid
+  providerAccountId                                                                                                        String              @map("provider_account_id") @db.Uuid
+  externalPaymentId                                                                                                        String              @map("external_payment_id")
+  amountMinor                                                                                                              BigInt              @map("amount_minor")
+  currency                                                                                                                 String
+  refundedMinor                                                                                                            BigInt              @default(0) @map("refunded_minor")
+  status                                                                                                                   String
+  providerStatus                                                                                                           String              @map("provider_status")
+  observedAt                                                                                                               DateTime            @map("observed_at") @db.Timestamptz(3)
+  billingAdjustment                                                                                                        BillingAdjustment[]
+  billingObligationsBillingObligationsTenantIdEnvironmentIdCreditedPaymentIdTobillingPayments                              BillingObligation?  @relation("billing_obligations_tenant_id_environment_id_credited_payment_idTobilling_payments")
+  billingObligationsBillingPaymentsTenantIdEnvironmentObligationIdProviderAccountIdAmountMinorCurrencyTobillingObligations BillingObligation   @relation("billing_payments_tenant_id_environment_obligation_id_provider_account_id_amount_minor_currencyTobilling_obligations", fields: [tenantId, environment, obligationId, providerAccountId, amountMinor, currency], references: [tenantId, environment, id, providerAccountId, amountMinor, currency], onUpdate: NoAction)
+
+  @@unique([providerAccountId, externalPaymentId])
+  @@unique([tenantId, environment, id])
+  @@unique([tenantId, environment, id, providerAccountId])
+  @@unique([tenantId, environment, obligationId, id])
+  @@map("billing_payments")
+}
+
+model BillingPlanVersion {
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planId               String                @map("plan_id") @db.Uuid
+  version              Int
+  revision             BigInt                @default(0)
+  status               String                @default("draft")
+  name                 String
+  description          String                @default("")
+  trialDays            Int                   @default(0) @map("trial_days")
+  graceDays            Int                   @default(7) @map("grace_days")
+  media                Boolean
+  analytics            Boolean
+  scoring              Boolean
+  businessIntelligence Boolean               @map("business_intelligence")
+  biStatistics         Boolean               @map("bi_statistics")
+  apiKeys              Boolean               @map("api_keys")
+  webhooks             Boolean
+  activeUsers          BigInt?               @map("active_users")
+  storedTestimonials   BigInt?               @map("stored_testimonials")
+  activeApiKeys        BigInt?               @map("active_api_keys")
+  activeWebhooks       BigInt?               @map("active_webhooks")
+  publishedAt          DateTime?             @map("published_at") @db.Timestamptz(3)
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  billingAccessPeriod  BillingAccessPeriod[]
+  billingPlan          BillingPlan           @relation(fields: [planId], references: [id], onUpdate: NoAction)
+  billingPrice         BillingPrice[]
+
+  @@unique([planId, version])
+  @@map("billing_plan_versions")
+}
+
+model BillingPlan {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code               String               @unique
+  archivedAt         DateTime?            @map("archived_at") @db.Timestamptz(3)
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  billingPlanVersion BillingPlanVersion[]
+
+  @@map("billing_plans")
+}
+
+model BillingPlatformOperator {
+  userId    String    @id @map("user_id") @db.Uuid
+  grantedAt DateTime  @default(now()) @map("granted_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  users     User      @relation(fields: [userId], references: [id], onUpdate: NoAction)
+
+  @@map("billing_platform_operators")
+}
+
+model BillingPriceBinding {
+  priceId                String                 @map("price_id") @db.Uuid
+  planVersionId          String                 @map("plan_version_id") @db.Uuid
+  provider               String
+  providerAccountId      String                 @map("provider_account_id") @db.Uuid
+  environment            String
+  status                 String                 @default("pending")
+  externalProductId      String?                @map("external_product_id")
+  externalPriceId        String?                @map("external_price_id")
+  errorCode              String?                @map("error_code")
+  updatedAt              DateTime               @default(now()) @map("updated_at") @db.Timestamptz(3)
+  billingPrice           BillingPrice           @relation(fields: [priceId, planVersionId, provider], references: [id, planVersionId, provider], onUpdate: NoAction)
+  billingProviderAccount BillingProviderAccount @relation(fields: [providerAccountId, provider, environment], references: [id, provider, environment], onUpdate: NoAction)
+
+  @@id([priceId, providerAccountId])
+  @@index([providerAccountId], map: "idx_billing_bindings_account")
+  @@map("billing_price_bindings")
+}
+
+model BillingPrice {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  planVersionId             String                      @map("plan_version_id") @db.Uuid
+  provider                  String
+  currency                  String
+  interval                  String
+  amountMinor               BigInt                      @map("amount_minor")
+  manualEnabled             Boolean                     @map("manual_enabled")
+  automaticEnabled          Boolean                     @map("automatic_enabled")
+  billingPriceBinding       BillingPriceBinding[]
+  billingPlanVersion        BillingPlanVersion          @relation(fields: [planVersionId], references: [id], onUpdate: NoAction)
+  billingSubscriptionChange BillingSubscriptionChange[]
+  billingSubscription       BillingSubscription[]
+
+  @@unique([id, planVersionId, provider])
+  @@unique([planVersionId, provider, currency, interval])
+  @@map("billing_prices")
+}
+
+model BillingProviderAccount {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider            String
+  environment         String
+  sellerId            String                @map("seller_id")
+  applicationId       String?               @map("application_id")
+  configurationKey    String                @map("configuration_key")
+  enabled             Boolean               @default(false)
+  billingAdjustment   BillingAdjustment[]
+  billingCustomer     BillingCustomer[]
+  billingObligation   BillingObligation[]
+  billingOperation    BillingOperation[]
+  billingPriceBinding BillingPriceBinding[]
+  billingSubscription BillingSubscription[]
+  billingWebhookInbox BillingWebhookInbox[]
+
+  @@unique([id, environment])
+  @@unique([id, provider, environment])
+  @@unique([provider, environment])
+  @@map("billing_provider_accounts")
+}
+
+model BillingSubscriptionChange {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId             String              @map("tenant_id") @db.Uuid
+  environment          String
+  sourceSubscriptionId String              @map("source_subscription_id") @db.Uuid
+  targetPriceId        String              @map("target_price_id") @db.Uuid
+  targetMode           String              @map("target_mode")
+  effectiveAt          DateTime            @map("effective_at") @db.Timestamptz(3)
+  status               String
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  billingPrice         BillingPrice        @relation(fields: [targetPriceId], references: [id], onUpdate: NoAction)
+  billingSubscription  BillingSubscription @relation(fields: [tenantId, environment, sourceSubscriptionId], references: [tenantId, environment, id], onUpdate: NoAction)
+
+  @@index([targetPriceId], map: "idx_billing_changes_price")
+  @@index([tenantId, environment, sourceSubscriptionId], map: "idx_billing_changes_tenant")
+  @@map("billing_subscription_changes")
+}
+
+model BillingSubscription {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId                  String                      @map("tenant_id") @db.Uuid
+  environment               String
+  provider                  String
+  providerAccountId         String                      @map("provider_account_id") @db.Uuid
+  priceId                   String                      @map("price_id") @db.Uuid
+  planVersionId             String                      @map("plan_version_id") @db.Uuid
+  customerId                String?                     @map("customer_id") @db.Uuid
+  mode                      String
+  status                    String
+  externalSubscriptionId    String?                     @map("external_subscription_id")
+  renewalStoppedAt          DateTime?                   @map("renewal_stopped_at") @db.Timestamptz(3)
+  anchorDay                 Int                         @map("anchor_day") @db.SmallInt
+  paidThrough               DateTime?                   @map("paid_through") @db.Timestamptz(3)
+  createdAt                 DateTime                    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime                    @default(now()) @map("updated_at") @db.Timestamptz(3)
+  billingObligation         BillingObligation[]
+  billingOrder              BillingOrder[]
+  billingSubscriptionChange BillingSubscriptionChange[]
+  billingPrice              BillingPrice                @relation(fields: [priceId, planVersionId, provider], references: [id, planVersionId, provider], onUpdate: NoAction)
+  billingProviderAccount    BillingProviderAccount      @relation(fields: [providerAccountId, provider, environment], references: [id, provider, environment], onUpdate: NoAction)
+  billingCustomer           BillingCustomer?            @relation(fields: [tenantId, customerId, providerAccountId], references: [tenantId, id, providerAccountId], onUpdate: NoAction)
+  billingAccount            BillingAccount              @relation(fields: [tenantId], references: [tenantId], onUpdate: NoAction)
+
+  @@unique([providerAccountId, externalSubscriptionId])
+  @@unique([tenantId, environment, id])
+  @@index([providerAccountId], map: "idx_billing_subscriptions_account")
+  @@index([tenantId, customerId, providerAccountId], map: "idx_billing_subscriptions_customer")
+  @@index([priceId], map: "idx_billing_subscriptions_price")
+  @@map("billing_subscriptions")
+}
+
+model BillingWebhookInbox {
+  id                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  environment            String
+  providerAccountId      String                 @map("provider_account_id") @db.Uuid
+  eventKey               String                 @map("event_key")
+  topic                  String
+  resourceId             String                 @map("resource_id")
+  receivedAt             DateTime               @default(now()) @map("received_at") @db.Timestamptz(3)
+  status                 String                 @default("ready")
+  attempts               Int                    @default(0)
+  nextAttemptAt          DateTime               @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  leaseToken             String?                @map("lease_token") @db.Uuid
+  leaseUntil             DateTime?              @map("lease_until") @db.Timestamptz(3)
+  errorCode              String?                @map("error_code")
+  billingProviderAccount BillingProviderAccount @relation(fields: [providerAccountId, environment], references: [id, environment], onUpdate: NoAction)
+
+  @@unique([providerAccountId, eventKey])
+  @@map("billing_webhook_inbox")
 }
