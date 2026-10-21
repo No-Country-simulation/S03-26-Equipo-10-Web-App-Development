@@ -5,7 +5,7 @@ export function redactErrors(errors) {
     const source =
       typeof error.stack === 'string'
         ? error.stack.match(
-            /\/(fixtures\.ts|critical\.spec\.ts|mobile\.spec\.ts):(\d+):\d+/,
+            /\/(fixtures\.ts|critical\.spec\.ts|billing-desktop\.spec\.ts|billing-mobile\.spec\.ts|mobile\.spec\.ts):(\d+):\d+/,
           )
         : null;
     for (const key of Object.keys(error)) delete error[key];

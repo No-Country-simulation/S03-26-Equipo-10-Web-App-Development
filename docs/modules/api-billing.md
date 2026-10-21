@@ -139,3 +139,7 @@ Runtime `disabled|simulation|sandbox`, default disabled. `live` se rechaza. Simu
 ## 6. Aceptación por ambiente
 
 Dominio/simuladores, PostgreSQL real descartable, HTTP real con proveedor simulado, componentes con mocks e inspección visual son evidencias distintas. La fase4 conecta API/UI y políticas; la fase5 requiere ACK específico para E2E completo y sandbox externo. Prueba única, cuotas concurrentes, aislamiento, permisos, dinero/identidad manipulado, replays, cancelación y reversión se validan localmente sin acreditar renovaciones reales de MP o Stripe. No se habilita producción ni se migra un entorno persistente con esta evidencia.
+
+## Aceptación y worker manual (fase 5)
+
+`worker.cli.ts --once UUID_OPERADOR --apply` requiere modo habilitado, `BILLING_WORKER_DATABASE_URL` externo y operador vigente en BD. Procesa una tanda con los mismos leases y verificaciones del polling; en simulación selecciona exclusivamente cuentas sandbox habilitadas con referencia `BILLING_SIMULATION`. No agrega un motor de débitos. Ver [aceptación local y preparación sandbox](../operations/35_billing_acceptance.md); sus resultados no certifican renovaciones externas.

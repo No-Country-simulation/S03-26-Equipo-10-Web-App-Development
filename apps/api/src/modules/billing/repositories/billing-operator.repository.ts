@@ -9,13 +9,14 @@ export async function assertBillingOperator(
   tx: Prisma.TransactionClient,
   userId: string,
 ): Promise<void> {
-  // Same lock order as CLI grants/revocations and subsequent audit foreign keys.
+  // CLI grants/revocations take FOR UPDATE on this same user row. This
+  // shared lock serializes membership changes without write privileges on
+  // billing_platform_operators (locking that table would require UPDATE).
   await tx.$executeRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR KEY SHARE`;
   const rows = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT o.user_id AS id FROM billing_platform_operators o
     JOIN users u ON u.id = o.user_id JOIN tenants t ON t.id = u.tenant_id
-    WHERE o.user_id = ${userId}::uuid AND o.revoked_at IS NULL AND u.is_active AND t.is_active
-    FOR SHARE OF o`;
+    WHERE o.user_id = ${userId}::uuid AND o.revoked_at IS NULL AND u.is_active AND t.is_active`;
   if (rows.length !== 1)
     throw new ApplicationError(
       'BILLING_OPERATOR_REQUIRED',

@@ -24,7 +24,7 @@ El diff de migración sólo se inspecciona, nunca se ejecuta para “alinear” 
 
 ## Operadores y credenciales
 
-El operador usa la misma autenticación de usuario, pero su permiso global vive en `billing_platform_operators`, fuera de `admin/editor`. Se comprueba usuario/tenant activo y membresía vigente en BD por cada operación privilegiada. Las escrituras de catálogo toman bloqueo de lectura de membresía para serializarse con revocaciones; el guard vuelve a consultar sin caché de JWT.
+El operador usa la misma autenticación de usuario, pero su permiso global vive en `billing_platform_operators`, fuera de `admin/editor`. Se comprueba usuario/tenant activo y membresía vigente en BD por cada operación privilegiada. Las escrituras de catálogo toman `FOR KEY SHARE` sobre el usuario, mientras la CLI toma `FOR UPDATE` sobre esa misma fila para serializar altas/revocaciones; la membresía se consulta sin bloquear su tabla (PostgreSQL exige UPDATE para esos locks y el runtime conserva sólo SELECT); el guard vuelve a consultar sin caché de JWT.
 
 La CLI requiere `BILLING_OPERATOR_DATABASE_URL` externo y separado del DSN runtime. No acepta URLs como argumentos ni imprime datos personales, credenciales o errores SQL. Tras compilar:
 

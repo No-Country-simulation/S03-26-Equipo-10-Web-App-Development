@@ -1,5 +1,7 @@
 # Integraciones financieras — fase 3
 
+> Registro de implementación de fase 3. API/UI y controles del CMS ya están en [fase 4](34_billing_product.md); preparación y ejecución de aceptación en [fase 5](35_billing_acceptance.md). Los pendientes históricos siguientes no sustituyen ese estado.
+
 ## Estado y límites
 
 Stripe `23.0.0` y Mercado Pago `3.6.1` fijados en el workspace API. `BillingModule` registrado; `BILLING_MODE` omiso/`disabled` no consulta tablas billing al arrancar, no construye clientes remotos ni inicia polling. Los dos receptores responden 404. La migración aditiva sigue siendo necesaria **antes de habilitar sandbox**; esta fase no migra destinos persistentes. No hay todavía pantallas ni endpoints de contratación del tenant: corresponden a fase 4.
@@ -74,6 +76,8 @@ npx ts-node apps/api/src/modules/billing/simulation.cli.ts \
 ```
 
 Escenarios: `pending`, `approved`, `rejected`, `partial_refund`, `full_refund`, `chargeback`. La fecha es el reloj controlado; conservar el mismo ciclo para sucesivas observaciones de un mismo pago, otro ciclo para renovación. La CLI valida modo, cuenta y operador por BD; firma el recurso simulado y lo persiste en inbox antes de procesarlo. Puede reanudarse tras reemplazar el proceso porque su estado está firmado en el recurso durable. Los fixtures de fase 1 siguen excluidos del build; este adaptador runtime sólo se compone en modo simulación no productivo.
+
+Para sincronizaciones y cancelaciones pendientes sin checkout, usar `worker.cli.ts --once UUID_OPERADOR --apply` con `BILLING_WORKER_DATABASE_URL` externo y el mismo modo/configuración. La [guía 35](35_billing_acceptance.md#worker-explícito-para-operación-local) describe la ejecución acotada y las cuentas elegibles.
 
 ## Fuentes consultadas el 2026-10-20
 

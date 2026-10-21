@@ -495,6 +495,66 @@ describeDatabase(
       ).toBeNull();
     });
 
+    it('allows operator catalog writes with read-only membership and serializes revocation through the user row', async () => {
+      const runtime = await fixture.runtimeClient();
+      const runtimeCatalog = new BillingCatalogRepository(
+        runtime as unknown as PrismaService,
+      );
+      await operator.setMembership(userId, true);
+      const code = `restricted-${randomUUID()}`;
+      expect((await runtimeCatalog.createPlan(userId, code)).code).toBe(code);
+      const [identity] = await runtime.$queryRaw<
+        Array<{ name: string }>
+      >`SELECT current_user AS name`;
+      let unlock!: () => void;
+      let entered!: () => void;
+      const locked = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const release = new Promise<void>((resolve) => {
+        unlock = resolve;
+      });
+      const revoke = db.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM users WHERE id=${userId}::uuid FOR UPDATE`;
+        entered();
+        await release;
+        await tx.billingPlatformOperator.update({
+          where: { userId },
+          data: { revokedAt: new Date() },
+        });
+      });
+      await locked;
+      const attempt = runtimeCatalog.createPlan(
+        userId,
+        `after-${randomUUID()}`,
+      );
+      void attempt.catch(() => {});
+      try {
+        const deadline = Date.now() + 2000;
+        let blocked = false;
+        while (Date.now() < deadline && !blocked) {
+          const [state] = await db.$queryRaw<
+            Array<{ waiting: boolean }>
+          >`SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE usename=${identity!.name} AND wait_event_type='Lock') AS waiting`;
+          blocked = state!.waiting;
+        }
+        expect(blocked).toBe(true);
+      } finally {
+        unlock();
+        await revoke;
+      }
+      await expect(attempt).rejects.toMatchObject({
+        code: 'BILLING_OPERATOR_REQUIRED',
+      });
+      expect(await runtime.billingPlan.count({ where: { code } })).toBe(1);
+      await expect(
+        runtime.billingPlatformOperator.update({
+          where: { userId },
+          data: { revokedAt: null },
+        }),
+      ).rejects.toThrow();
+    });
+
     it('persists the server price and replays one purchase intent without another obligation', async () => {
       const { price } = await offer();
       const cycleKey = randomUUID();

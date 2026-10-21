@@ -64,6 +64,20 @@ export class BillingLedgerRepository {
       VALUES (${randomUUID()}::uuid, ${accountId}::uuid, ${environment}, ${receipt.eventKey}, ${receipt.topic}, ${receipt.resourceId})
       ON CONFLICT (provider_account_id, event_key) DO NOTHING`;
   }
+  async simulationAccountIds() {
+    return (
+      await this.prisma.billingProviderAccount.findMany({
+        where: {
+          environment: 'sandbox',
+          configurationKey: 'BILLING_SIMULATION',
+          enabled: true,
+        },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      })
+    ).map((account) => account.id);
+  }
+
   async account(id: string) {
     return this.prisma.billingProviderAccount.findUniqueOrThrow({
       where: { id },

@@ -1,3 +1,4 @@
+import { runBillingWorker } from '../src/modules/billing/worker.cli';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { Test } from '@nestjs/testing';
 import { APP_GUARD } from '@nestjs/core';
@@ -573,7 +574,19 @@ describeDb(
       const operator = new BillingOperatorRepository(
         db as unknown as PrismaService,
       );
+      await expect(
+        runBillingWorker(['--once', actor, '--apply'], {
+          ...env,
+          BILLING_WORKER_DATABASE_URL: fixture.url,
+        }),
+      ).rejects.toThrow('BILLING_OPERATOR_REQUIRED');
       await operator.setMembership(actor, true);
+      expect(
+        await runBillingWorker(['--once', actor, '--apply'], {
+          ...env,
+          BILLING_WORKER_DATABASE_URL: fixture.url,
+        }),
+      ).toEqual({ accepted: true, accounts: 1 });
       expect(await runSimulation(args, env)).toEqual({
         operationId: operation.id,
         scenario: 'approved',
@@ -585,6 +598,12 @@ describeDb(
         }),
       ).toBe(1);
       await operator.setMembership(actor, false);
+      await expect(
+        runBillingWorker(['--once', actor, '--apply'], {
+          ...env,
+          BILLING_WORKER_DATABASE_URL: fixture.url,
+        }),
+      ).rejects.toThrow('BILLING_OPERATOR_REQUIRED');
       await expect(runSimulation(args, env)).rejects.toThrow(
         'BILLING_OPERATOR_REQUIRED',
       );
