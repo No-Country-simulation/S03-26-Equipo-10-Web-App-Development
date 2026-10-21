@@ -62,7 +62,7 @@ ACK «Continuar» del 2026-10-20 posterior a `6504fd9`: autoriza esta fase y con
 
 Registrar API, configuración y pantallas en features; catálogo/operación para operador, facturación para admin tenant, prestaciones mínimas para editor. Funciones comerciales independientes de flags. Cuotas comprobadas junto a escrituras bajo lock por tenant, incluidos captura pública, reactivación y rotación. Control opt-in; prueba, gracia, lectura, historial y cambios con nueva adhesión. Móvil, foco, teclado, estados de error y regresión sesión/CSRF.
 
-### [Completada] 5. Aceptación local y preparación externa — para revisión
+### [Completada] 5. Aceptación local y preparación externa — regresión completa para revisión
 
 ACK «Continuar» del 2026-10-21 posterior al commit `ecfd937`: autoriza fase5 y mantiene las migraciones del historial existente únicamente en PostgreSQL propio descartable. El usuario confirmó «Todavía no; dejá preparada la aceptación externa»: se completa aceptación local y preparación sandbox, sin ejecutar pagos externos ni crear cuentas/recursos remotos. Sin Prisma, infraestructura, manifest raíz o hooks; sin composición live.
 
@@ -225,3 +225,24 @@ Los dos recorridos completos terminaron con exit0 y limpieza propia. No hay daem
 **Commit sugerido:** `test(billing): verificá recorridos y prepará aceptación sandbox`
 
 **Detención de fase 5:** alcance local y preparación externa terminados para revisión humana. Sandbox Stripe/MP pendiente por decisión explícita del usuario, sin credenciales: la matriz de la guía 35 queda lista para ejecutar cuando estén disponibles. No se acredita renovación externa ni salida a producción. Sin commit/push automático, migraciones persistentes, recursos remotos o nueva fase iniciada.
+
+
+## Complemento de fase 5 — regresión completa
+
+ACK «Continuar» del 2026-10-21 posterior al commit humano `409d8a4`. Se continúa únicamente la validación local pendiente de esta fase: las 160 pruebas omitidas por faltar el entorno OLAP. Dos servidores PostgreSQL propios descartables, Redis propio, DDL generado del schema sin modificarlo y fixtures existentes de warehouse. Se mantiene el ACK de migraciones únicamente en PostgreSQL propio descartable; no autoriza ningún destino persistente. No se inicia una fase de despliegue ni se amplía el producto BI. La aceptación externa de pagos permanece preparada por decisión del usuario sin cuentas/claves.
+
+
+### Resultado del complemento
+
+- **Verificado:** corrida `0aad73b1c729`, base `409d8a4` con cambios locales: **834/834 pruebas API, 101/101 suites, cero fallos, cero omisiones y cero TODO**. El incremento de 160 casos respecto de las 674 aprobadas anteriormente cierra las ocho suites BI omitidas. No se modificaron código de producto, fixtures, assertions ni tiempos para conseguirlo.
+- **Entorno:** Node24.21.0, dos PostgreSQL18.6 propios en procesos, puertos loopback y directorios de datos distintos, Redis7.4.7 propio sin persistencia. El runner verificó `data_directory`, PID y marcador de propiedad antes de usar cada servidor. Mismo host: no acredita aislamiento físico de CPU/memoria ni capacidad productiva.
+- **Reproducción:** `E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 BILLING_E2E_REDIS_EXECUTABLE=/ruta/redis-server node scripts/billing/acceptance-local.mjs --run --api-checks --with-bi`. El flag de consentimiento requiere el ACK humano ya indicado; no autoriza otros destinos. Se aplicó el historial OLTP existente sólo al origen propio; las fixtures prepararon sus bases/roles y SQL de warehouse existentes. El DDL generado del schema no lo modifica y queda sólo en el directorio temporal.
+- **Integridad:** `CI=true` exige la configuración completa de integración. El mismo `validateResults` de CI verificó contadores y cada assertion; el modo completo rechaza omisiones/TODO/inconsistencias. Reporte saneado con `complete=true` en `.e2e-results/billing-api-complete/api-regression.json`, entorno en `environment.json`; ambos locales ignorados por Git. No se trasladan estos resultados a una ejecución remota de GitHub Actions.
+- **Controles:** 60/60 pruebas nativas de argumentos/consentimiento, evidencia/privacidad y gate de resultados. Se agregó rechazo de `--with-bi` fuera de su combinación permitida y sin consentimiento. La invocación parcial anterior sigue disponible, separada del reporte completo; no se presenta como evidencia sin omisiones.
+- **Alcance:** únicamente harness, controles y documentación. Sin cambios Prisma, SQL versionado, dependencias, infraestructura, hooks o aplicación. La evidencia web396/60 y E2E11/11 del commit anterior permanece como evidencia de esos recorridos; no se volvió a ejecutar navegador porque este complemento no cambia la aplicación.
+
+**Commit sugerido del complemento:** `test(billing): completá la regresión local con el entorno BI`
+
+**Detención:** regresión local pendiente resuelta y alcance de esta continuación cerrado para revisión. La matriz sandbox Stripe/MP sigue preparada y sin ejecutar por falta de cuentas/claves, conforme a la decisión del usuario. No se inicia despliegue, producción ni otra fase. Sin commit/push automático.
+
+**Limpieza del complemento:** proceso del runner terminado con exit0; verificada la ausencia de su directorio de aceptación. Se retiraron la compilación propia de Redis y su marcador temporal. Sin servicios, bases o archivos temporales propios pendientes. `git diff --check` y sintaxis Node aprobados.

@@ -20,15 +20,20 @@ node scripts/billing/acceptance-local.mjs --run --regression
 E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 \
 BILLING_E2E_REDIS_EXECUTABLE=/ruta/al/redis-server \
 node scripts/billing/acceptance-local.mjs --run --api-checks
+
+# Regresión completa con dos PostgreSQL y las suites BI habilitadas:
+E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 \
+BILLING_E2E_REDIS_EXECUTABLE=/ruta/al/redis-server \
+node scripts/billing/acceptance-local.mjs --run --api-checks --with-bi
 ```
 
 `--run`: NestJS compilado con `NODE_ENV=test` para habilitar el simulador; Next standalone de producción y proxy HTTPS del mismo origen. Las cookies son las del entorno test del backend: esto no certifica las cookies Secure de producción. La API usa un rol de prueba con DML, membresías de operador sólo SELECT y auditoría append-only; la CLI de concesión usa otra conexión de preparación. Se registra el operador mediante HTTP real y se concede su permiso mediante CLI con UUID. Se publica/sincroniza un catálogo sintético y se reinicia la API conservando el ledger antes de abrir el navegador. No se interceptan ni reemplazan respuestas de la aplicación.
 
 Cinco casos obligatorios, un worker y cero reintentos: catálogo/permisos/idempotencia; Stripe manual/prueba/cuota/devolución; MP automático/renovación simulada/cancelación; retorno manipulado/rechazo/recuperación; móvil de 390px/foco/errores. La cuenta administradora consume la cuota de usuarios. Una renovación simulada no demuestra un débito sandbox.
 
-`--regression`: seis recorridos críticos existentes, API compilada en producción y billing deshabilitado. `--run --api-checks` ejecuta por separado toda la regresión Jest con PostgreSQL/Redis propios, sin compilar ni abrir navegador. Mantiene el reporter y la matriz original. No reemplaza la construcción/verificación de imágenes Docker de CI. Las suites de BI que necesitan otro servidor OLAP/DDL requieren su harness específico; los conteos indican los casos omitidos.
+`--regression`: seis recorridos críticos existentes, API compilada en producción y billing deshabilitado. `--run --api-checks` ejecuta por separado toda la regresión Jest con PostgreSQL/Redis propios, sin compilar ni abrir navegador. Mantiene el reporter y la matriz original. No reemplaza la construcción/verificación de imágenes Docker de CI. El modo básico puede omitir suites BI si faltan servicios. `--with-bi` prepara un segundo PostgreSQL propio, comprueba su directorio/PID/marcador, genera el DDL de origen desde el schema sin modificarlo y entrega a las fixtures las conexiones propias. Activa la configuración obligatoria de CI y el gate nativo de resultados completos: cualquier omisión, todo, archivo sin assertions o contador inconsistente falla. Los dos procesos usan el mismo host; esto no certifica aislamiento físico ni capacidad productiva.
 
-Evidencia saneada en `apps/web/.e2e-results/billing/{environment,results}.json` y `apps/web/.e2e-results/{environment,results}.json` y `apps/web/.e2e-results/billing-api/api-regression.json`. Sólo estados, identificadores de caso permitidos, versiones y conteos; sin sesiones, headers, capturas, trazas, cuerpos ni URLs de checkout. Los recursos privados se eliminan al terminar y las fallas de limpieza fallan la ejecución. No copiar resultados crudos de proveedores a documentos. `failures.json` conserva únicamente archivos/líneas permitidos de errores saneados.
+Evidencia saneada en `apps/web/.e2e-results/billing/{environment,results}.json` y `apps/web/.e2e-results/{environment,results}.json` y `apps/web/.e2e-results/billing-api/api-regression.json`. El modo completo conserva sus propios `environment.json` y `api-regression.json` en `apps/web/.e2e-results/billing-api-complete/`, separados de la ejecución parcial. Sólo estados, identificadores de caso permitidos, versiones y conteos; sin sesiones, headers, capturas, trazas, cuerpos ni URLs de checkout. Los recursos privados se eliminan al terminar y las fallas de limpieza fallan la ejecución. No copiar resultados crudos de proveedores a documentos. `failures.json` conserva únicamente archivos/líneas permitidos de errores saneados.
 
 ## Worker explícito para operación local
 
@@ -85,3 +90,7 @@ MP no se considera poseedor de un equivalente a test clocks en esta implementaci
 Revisar `/platform/billing`: pendientes antiguos, operaciones inciertas, leases, reintentos agotados, pagos adicionales y discrepancias. El replay conserva identidad; nunca borrar una operación incierta para volver a cobrar. Resolver en proveedor y reconciliar antes de pedir otra adhesión. Detener renovaciones de aceptación en los proveedores y comprobar confirmación antes de deshabilitar sus cuentas locales; deshabilitar una cuenta en CMS no cancela débitos remotos. Revocar/rotar las claves de prueba cuando corresponda. La salida a producción requiere aceptación externa y trabajo/autorización separados.
 
 Documentación oficial revalidada el 2026-10-21. Completar resultados en el [plan HITL](../plan/2026-10-20_feat-billing-subscriptions.md); no convertir esta preparación en evidencia de sandbox aprobado.
+
+## Evidencia del complemento local
+
+El 2026-10-21, la corrida `0aad73b1c729` sobre `409d8a4` con cambios locales aprobó 834 pruebas/101 suites API, sin fallos, omisiones ni TODO y con `complete=true` del gate nativo de CI. Cierra los 160 casos BI que la ejecución parcial no pudo realizar. Los dos PostgreSQL18.6 y Redis7.4.7 fueron propios y descartables; no acredita ejecución remota de CI, independencia física de recursos ni capacidad productiva. La aceptación externa de proveedores permanece pendiente. Detalle y restricciones en el plan HITL.

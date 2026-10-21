@@ -21,15 +21,19 @@ import { PrismaClient } from '@prisma/client';
 import { createClient } from 'redis';
 import { request } from '@playwright/test';
 import { assertMigrationConsent } from '../e2e/managed.mjs';
+import { validateResults } from '../testing/check-results.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const regression = process.argv.includes('--regression');
 const apiChecks = process.argv.includes('--api-checks');
-const allowed = regression
-  ? ['--run', '--regression']
-  : apiChecks
-    ? ['--run', '--api-checks']
-    : ['--run'];
+const withBi = process.argv.includes('--with-bi');
+const allowed = withBi
+  ? ['--run', '--api-checks', '--with-bi']
+  : regression
+    ? ['--run', '--regression']
+    : apiChecks
+      ? ['--run', '--api-checks']
+      : ['--run'];
 if (JSON.stringify(process.argv.slice(2)) !== JSON.stringify(allowed))
   throw Error('BILLING_ACCEPTANCE_EXPLICIT_RUN_REQUIRED');
 assertMigrationConsent(process.env.E2E_ALLOW_DISPOSABLE_MIGRATIONS);
@@ -45,7 +49,13 @@ let interrupted = false;
 const output = join(
   root,
   'apps/web/.e2e-results',
-  ...(apiChecks ? ['billing-api'] : regression ? [] : ['billing']),
+  ...(withBi
+    ? ['billing-api-complete']
+    : apiChecks
+      ? ['billing-api']
+      : regression
+        ? []
+        : ['billing']),
 );
 function start(exe, args, env = baseEnv, cwd = root) {
   const child = spawn(exe, args, {
@@ -221,7 +231,7 @@ try {
     database = `billing_e2e_${runId}`;
   const databaseUrl = `postgresql://billing_e2e_owner@127.0.0.1:${pgPort}/${database}?schema=public&connection_limit=6`;
   console.log(
-    `BILLING ${runId}: initialize owned PostgreSQL18/Redis7 (${regression ? 'regression' : 'local simulation'})`,
+    `BILLING ${runId}: initialize owned PostgreSQL18/Redis7 (${withBi ? 'complete API regression including BI' : regression ? 'regression' : 'local simulation'})`,
   );
   await command('Initialize PostgreSQL', 'initdb', [
     '-D',
@@ -358,6 +368,127 @@ try {
     'billing_e2e_owner@',
     `${runtimeRole}@`,
   );
+  let biEnvironment = {};
+  if (withBi) {
+    const warehouseDir = join(temporary, 'warehouse');
+    let warehousePort;
+    do {
+      warehousePort = await port();
+    } while (
+      [pgPort, redisPort, apiPort, webPort, httpsPort].includes(warehousePort)
+    );
+    await command('Initialize warehouse PostgreSQL', 'initdb', [
+      '-D',
+      warehouseDir,
+      '-U',
+      'billing_e2e_owner',
+      '--auth=trust',
+    ]);
+    const warehouse = start('postgres', [
+      '-D',
+      warehouseDir,
+      '-h',
+      '127.0.0.1',
+      '-p',
+      String(warehousePort),
+      '-k',
+      temporary,
+      '-c',
+      'max_connections=50',
+      '-c',
+      'shared_buffers=32MB',
+    ]);
+    await ready(
+      'PostgreSQL warehouse',
+      async () => {
+        await command(
+          'Probe PostgreSQL',
+          'pg_isready',
+          [
+            '-h',
+            '127.0.0.1',
+            '-p',
+            String(warehousePort),
+            '-U',
+            'billing_e2e_owner',
+          ],
+          baseEnv,
+          root,
+          2000,
+        );
+        return true;
+      },
+      warehouse,
+    );
+    const warehouseUrl = `postgresql://billing_e2e_owner@127.0.0.1:${warehousePort}/postgres?connection_limit=4`;
+    const warehouseAdmin = new PrismaClient({
+      datasources: { db: { url: warehouseUrl } },
+    });
+    try {
+      const [identity] =
+        await warehouseAdmin.$queryRaw`SELECT current_setting('data_directory') AS directory`;
+      const pid = (
+        await readFile(join(warehouseDir, 'postmaster.pid'), 'utf8')
+      ).split('\n')[0];
+      if (
+        identity.directory !== warehouseDir ||
+        pid !== String(warehouse.pid) ||
+        warehouse.exitCode !== null ||
+        (await readFile(join(temporary, 'owner'), 'utf8')) !== runId
+      )
+        throw Error('BILLING_ACCEPTANCE_OWNER_MISMATCH');
+    } finally {
+      await warehouseAdmin.$disconnect();
+    }
+    const ddl = await command(
+      'Build BI schema fixture',
+      process.execPath,
+      [
+        join(root, 'node_modules/prisma/build/index.js'),
+        'migrate',
+        'diff',
+        '--from-empty',
+        '--to-schema-datamodel',
+        join(root, 'apps/api/prisma/schema.prisma'),
+        '--script',
+      ],
+      baseEnv,
+      temporary,
+      120000,
+    );
+    const schemaFile = join(temporary, 'bi-source-schema.sql');
+    await writeFile(schemaFile, ddl, { mode: 0o600 });
+    biEnvironment = {
+      CI: 'true',
+      TEST_BI_SOURCE_DATABASE_URL: databaseUrl,
+      TEST_BI_WAREHOUSE_DATABASE_URL: warehouseUrl,
+      TEST_BI_REDIS_URL: `redis://127.0.0.1:${redisPort}/1`,
+      TEST_BI_BENCHMARK_SCHEMA_FILE: schemaFile,
+    };
+    await writeFile(
+      join(output, 'environment.json'),
+      JSON.stringify(
+        {
+          runId,
+          head: await command('Head', 'git', ['rev-parse', 'HEAD']),
+          dirty:
+            (await command('Changes', 'git', ['status', '--porcelain'])) !== '',
+          node: process.version,
+          postgres: pgVersion,
+          redis: redisVersion,
+          postgresServers: 2,
+          isolation:
+            'separate owned processes/data directories on the same host; no physical isolation claim',
+          schema:
+            'generated from checked-in Prisma schema; fixtures apply existing warehouse SQL',
+          gate: 'CI configuration and complete Jest result validation',
+          externalProviders: 'not exercised',
+        },
+        null,
+        2,
+      ),
+    );
+  }
   const runApiChecks = async () => {
     const testReport = join(temporary, 'api-results.json');
     let testsFailed = false;
@@ -379,6 +510,7 @@ try {
           TEST_LOGO_DATABASE_URL: databaseUrl,
           TEST_BILLING_DATABASE_URL: databaseUrl,
           TEST_REDIS_URL: `redis://127.0.0.1:${redisPort}`,
+          ...biEnvironment,
         },
         join(root, 'apps/api'),
         600000,
@@ -387,8 +519,18 @@ try {
       testsFailed = true;
     }
     const report = JSON.parse(await readFile(testReport, 'utf8'));
+    let complete = false;
+    if (withBi) {
+      try {
+        validateResults(report, 'jest');
+        complete = true;
+      } catch {
+        testsFailed = true;
+      }
+    }
     const safe = {
       success: report.success,
+      ...(withBi ? { complete } : {}),
       suites: {
         passed: report.numPassedTestSuites,
         failed: report.numFailedTestSuites,

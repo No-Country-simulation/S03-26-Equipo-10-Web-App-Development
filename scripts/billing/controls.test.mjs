@@ -9,6 +9,17 @@ test('local acceptance refuses implicit execution and missing migration consent 
   for (const [args, consent, reason] of [
     [[], '1', 'BILLING_ACCEPTANCE_EXPLICIT_RUN_REQUIRED'],
     [['--run', '--unknown'], '1', 'BILLING_ACCEPTANCE_EXPLICIT_RUN_REQUIRED'],
+    [['--run', '--with-bi'], '1', 'BILLING_ACCEPTANCE_EXPLICIT_RUN_REQUIRED'],
+    [
+      ['--run', '--api-checks', '--with-bi', '--extra'],
+      '1',
+      'BILLING_ACCEPTANCE_EXPLICIT_RUN_REQUIRED',
+    ],
+    [
+      ['--run', '--api-checks', '--with-bi'],
+      '0',
+      'E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 requiere ACK humano específico',
+    ],
     [
       ['--run'],
       '0',
