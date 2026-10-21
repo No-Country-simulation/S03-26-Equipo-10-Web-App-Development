@@ -40,7 +40,7 @@ Contratar y renovar acceso al CMS mediante checkouts alojados; administrar catá
 - [x] Probar reglas con oráculos independientes, casos negativos y escenarios de timeout/reconciliación. Typecheck, lint, build y comprobación estática de SQL/documentos.
 - [x] Registrar evidencia y límites; detenerse con commit sugerido. No marcar fase 2 como actual sin ACK.
 
-### [Actual] 2. Persistencia y permisos — implementada, pendiente de revisión/ACK
+### [Completada] 2. Persistencia y permisos — aprobada
 
 ACK explícito para editar Prisma y aplicar migraciones sólo sobre bases descartables identificadas. Migración aditiva desde el borrador revisado; repositorios transaccionales, pertenencia entre tenants y operadores independientes otorgados/revocados por CLI UUID. Comprobar protección de cuentas operadoras frente a endpoints tenant, revocación inmediata, unicidad de períodos y contención concurrente de cuotas. Validar DDL efectivo, restauración y cliente Prisma; no desplegar a entornos persistentes.
 
@@ -50,7 +50,9 @@ ACK explícito para editar Prisma y aplicar migraciones sólo sobre bases descar
 - [x] Validar aislamiento, idempotencia local, concurrencia, privacidad, protección de identidades, restauración y privilegios limitados en PostgreSQL propio.
 - [x] Ejecutar checks, registrar evidencia y detenerse sin avanzar a integración con proveedores.
 
-### [Pendiente] 3. Integraciones financieras
+### [Actual] 3. Integraciones financieras — implementada, pendiente de revisión/ACK
+
+ACK «Continuar» del 2026-10-20, posterior al commit `7a19a70`, autoriza esta fase. Durante la validación, la revisión automática pidió especificidad adicional para `prisma migrate deploy`; el usuario respondió «Sí, autorizo migraciones sólo en el PostgreSQL descartable propio». El historial existente se aplicó sólo a ese servidor propio, sin editar esquema ni SQL. No autoriza la fase 4, cobros reales ni despliegues.
 
 SDKs oficiales fijados en workspace API; verificar versiones y contratos vigentes antes de integrar. Stripe Checkout/Billing; MP Preferences y Suscripciones/preapproval, sin extrapolar Orders. Operaciones remotas fuera de transacciones, inbox durable, firmas, bytes originales, autenticación específica y reconciliación. Consultas validan cuenta/tenant/ambiente/referencia/importe/moneda. Pruebas de caída, duplicación y eventos desordenados. No confiar en el navegador ni introducir un segundo scheduler de débitos.
 
@@ -124,4 +126,39 @@ npm run build --workspace apps/api
 
 **Commit sugerido:** `feat(billing): incorporá persistencia y operadores de facturación`
 
-**Detención de fase 2:** completada técnicamente; esperar ACK antes de fase3. No se ejecutaron fases3–5 ni se habilitaron pagos, SDKs, webhooks financieros o control comercial.
+**Cierre histórico de fase 2:** revisado/aprobado por el ACK que abrió fase 3. En aquel cierre no se habían ejecutado fases3–5 ni habilitado SDKs, webhooks financieros o control comercial.
+
+## Evidencia de fase 3
+
+- **Integraciones:** SDKs oficiales fijados `stripe@23.0.0`, `mercadopago@3.6.1`, sin cambiar runtime ni manifest raíz. Stripe Checkout/Billing, Preferences manuales y adhesión `/preapproval` pendiente. Catálogo local publicado antes de sincronizar; binding `ready` después de confirmar. Cuenta, ambiente, términos y referencia verificados por consultas autenticadas. Importes convertidos exactamente con límites explícitos del adaptador.
+- **Durabilidad:** repositorio de operaciones/inbox, hash ligado a contenido, exclusión de otro checkout por obligación, claims `SKIP LOCKED`, leases y heartbeat, fencing y liquidación en una misma transacción, auditoría de resultados/reintentos/revisión. SDK/network fuera de transacciones; respuesta perdida obliga a consultar, nunca recrear. Replays de operador auditados conservan esa semántica.
+- **Recuperación:** consultas paginadas, ciclos nativos de recurrencia, una acreditación por obligación y cobros adicionales como discrepancias. Cada compra manual conserva su operación/referencia para reconciliación independiente; checkouts Stripe completos se recuperan aunque ya no tengan URL. Cancelación durable conserva acceso pago; devolución total o pérdida confirmada revoca únicamente su grant.
+- **Recepción:** dos rutas directas NestJS, firmas oficiales específicas y rotación; Stripe sobre Buffer original, MP con normalización y frescura. Parser financiero 256 KiB y conservación exacta de identificadores MP largos. CSRF específico sin consumir sesión ambiental; no se modifica proxy Next ni CSRF del resto del CMS. Inbox antes de ACK; error de BD no confirma recepción.
+- **Runtime seguro:** BillingModule registrado, `disabled` por defecto sin consultas billing/polling al arrancar; sin composición `live`. Stripe sólo test; MP sólo vendedor MLA de prueba consultado. Simulación sin claves reales, CLI con operador por BD y reloj explícito; estado firmado persistido, recuperable tras reinicio; prohibida en producción.
+- **Contratos vigentes revisados:** Chargeback MP 3.6.1 expone contrato anterior y omite header requerido `X-Caller-Id`; GET nativo encapsulado con host fijo, timeout y sin redirección, esquema vigente `coverage_applied`. No extrapolar `lost`/`payment_id` del tipo legado. `/preapproval` no declara `notification_url`: no se envía; disponibilidad/configuración de eventos de Suscripciones queda para aceptación externa, con reconciliación preparada.
+- **Validación final:** **248/248 pruebas, 17 suites y cero omisiones**: incluye 38 nuevas (22 de contratos/adaptadores y 16 PostgreSQL/HTTP/CLI), las 186 de la regresión de fase 2 y 24 de configuración/arranque/CSRF. Typecheck, lint y build API aprobados, sin advertencias nuevas (conserva tres previas). Tras reducir sólo el diff de formato se repitieron 82 pruebas afectadas en cuatro suites; se verificó además por HTTP un ID numérico MP mayor que MAX_SAFE_INTEGER. Evidencia local no equivale a checkout/renovación sandbox externa. Pruebas añadidas junto a código, sin afirmar un ciclo TDD completo; los primeros fallos detectaron normalización MP, fixtures SQL y deduplicación esperada, corregidos antes del cierre.
+- **Configuración y operación:** [guía de integraciones](../operations/33_billing_integrations.md), contrato y contexto actualizados. No se persistieron secretos, se crearon cuentas de proveedor, se hicieron llamadas de pago remotas ni se modificó infraestructura, hooks, Prisma o migraciones existentes. Migración únicamente en PostgreSQL propio descartable con ACK explícito.
+- **Limpieza:** cero bases hijas `billing_test_`/`billing_restore_` y cero roles `billing_runtime_` remanentes; las 18 tablas billing verificadas antes de detener y eliminar el cluster propio. Sin PostgreSQL de esta fase activo al cierre. Enlaces locales (16), formato de fuentes/tests nuevos y `git diff --check` verificados; manifest raíz, Prisma/SQL, infraestructura y hooks sin modificaciones.
+- **Pendiente de fases 4–5:** API/UI tenant y plataforma, conexión de prestaciones/cuotas a las mutaciones del CMS, aceptación E2E y sandbox con cuentas/claves externas. Configurar webhooks MP de Suscripciones y observar calendario/renovaciones reales; la simulación no los acredita. Producción queda deshabilitada.
+
+**Commit sugerido:** `feat(billing): integrá pasarelas y conciliación financiera durable`
+
+**Detención de fase 3:** implementación y validación local completadas. Commit sugerido, sin commit/push automático. Esperar ACK humano antes de fase 4; no se implementó API/UI de producto ni aceptación externa.
+
+Comandos de validación de fase 3 (variables TEST inyectadas únicamente para el servidor descartable propio):
+
+```bash
+npm test --workspace apps/api -- --runTestsByPath \
+  test/billing-money.spec.ts test/billing-policy.spec.ts \
+  test/billing-settlement.spec.ts test/billing-contracts.spec.ts \
+  test/billing-simulator.spec.ts test/billing-persistence.integration.spec.ts \
+  test/billing-operator-http.integration.spec.ts test/billing-integrations.spec.ts \
+  test/billing-processing.integration.spec.ts test/user-access-http.spec.ts \
+  test/user-history.spec.ts test/phase2-api-boundaries.spec.ts \
+  test/tenant-integrity.integration.spec.ts test/catalog-admin.integration.spec.ts \
+  test/csrf-http.integration.spec.ts test/app.config.spec.ts \
+  test/app-bootstrap.integration.spec.ts
+npm run typecheck --workspace apps/api
+npm run lint --workspace apps/api
+npm run build --workspace apps/api
+```

@@ -18,6 +18,7 @@ import { HealthModule } from './modules/health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { UsersModule } from './modules/users/users.module';
+import { BillingModule } from './modules/billing';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { getRequestScope } from './common/request-context.storage';
 import { TelemetryShutdownService } from './common/observability/telemetry-shutdown.service';
@@ -88,6 +89,7 @@ import { serializeSafeRequest } from './common/observability/safe-request-serial
     BusinessIntelligenceModule,
     WebhooksModule,
     FeatureFlagsModule,
+    BillingModule,
   ],
   providers: [
     TelemetryShutdownService,

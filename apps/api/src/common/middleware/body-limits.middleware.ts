@@ -1,6 +1,13 @@
-import { json, urlencoded, type RequestHandler } from 'express';
+import { raw, json, urlencoded, type RequestHandler } from 'express';
 import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 
+const financialRaw = raw({ type: 'application/json', limit: '256kb', inflate: false });
+// Node 24 supplies reviver source text: retain long MP identifiers exactly.
+const financialJson = json({ limit: '256kb', inflate: false,
+  reviver: (key: string, value: unknown, context?: { source?: string }) =>
+    key === 'id' && typeof value === 'number' && !Number.isSafeInteger(value) && context?.source
+      ? context.source : value,
+});
 const generalJson = json({ limit: '1mb' });
 // A 10 MiB image expands to ~13.34 MiB when encoded as base64 in JSON.
 const imageJson = json({ limit: '14mb' });
@@ -19,6 +26,19 @@ export function isLogoPayloadRoute(method: string, path: string): boolean {
 }
 
 export const boundedJsonBody: RequestHandler = (request, response, next) => {
+  if (request.method === 'POST' && /^\/api\/v1\/billing\/webhooks\/(stripe|mercadopago)\/?$/.test(request.path)) {
+    const parser = /\/stripe\/?$/.test(request.path) ? financialRaw : financialJson;
+    parser(request, response, (error: unknown) => {
+      if (error) {
+        next(error && typeof error === 'object' && 'type' in error && error.type === 'entity.too.large'
+          ? new PayloadTooLargeException('Financial notification exceeds 256 KiB')
+          : new BadRequestException('Invalid financial notification body'));
+        return;
+      }
+      next();
+    });
+    return;
+  }
   if (isLogoPayloadRoute(request.method, request.path)) {
     logoJson(request, response, (error: unknown) => {
       // Nest's global filter handles HttpException, not body-parser's native errors.

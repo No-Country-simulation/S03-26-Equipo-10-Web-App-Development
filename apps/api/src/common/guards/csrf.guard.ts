@@ -27,7 +27,9 @@ export class CsrfGuard implements CanActivate {
       this.assertAllowedOrigin(request);
       return true;
     }
-    if (mode === 'api-key') return true;
+    if (mode === 'api-key' || mode === 'provider-signature') return true;
+    // provider-signature routes require independent cryptographic authentication
+    // in their receiver and never consume ambient session credentials.
     if (mode === 'refresh') {
       this.assertAllowedOrigin(request);
       if (request.header('x-auth-mode') === 'cookie') this.assertSessionToken(request);

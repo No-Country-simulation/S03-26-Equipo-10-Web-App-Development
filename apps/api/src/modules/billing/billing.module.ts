@@ -6,7 +6,20 @@ import { BillingOperatorRepository } from './repositories/billing-operator.repos
 import { BillingSettlementRepository } from './repositories/billing-settlement.repository';
 import { BillingTenantRepository } from './repositories/billing-tenant.repository';
 
+import {
+  BILLING_CONFIG,
+  readBillingConfig,
+} from './integrations/billing.config';
+import { BillingLedgerRepository } from './repositories/billing-ledger.repository';
+import { BillingGateways } from './services/billing-gateways.service';
+import { BillingProcessor } from './services/billing-processor.service';
+import { BillingWebhooksController } from './controllers/billing-webhooks.controller';
+
 const providers = [
+  { provide: BILLING_CONFIG, useFactory: readBillingConfig },
+  BillingLedgerRepository,
+  BillingGateways,
+  BillingProcessor,
   BillingOperatorGuard,
   BillingCatalogRepository,
   BillingOperatorRepository,
@@ -14,7 +27,11 @@ const providers = [
   BillingTenantRepository,
 ];
 
-// Persistence composition only. Not imported by AppModule until its authorized
-// integration phase; no HTTP controllers, pollers or provider SDKs in phase 2.
-@Module({ imports: [PrismaModule], providers, exports: providers })
+// Disabled by default: no provider clients, startup queries or pollers.
+@Module({
+  imports: [PrismaModule],
+  controllers: [BillingWebhooksController],
+  providers,
+  exports: providers,
+})
 export class BillingModule {}

@@ -1,5 +1,7 @@
 # Persistencia y operadores de billing
 
+> Registro de fase 2. El estado de integraciones posterior está en [fase 3](33_billing_integrations.md); BillingModule ahora está registrado y deshabilitado por defecto.
+
 Estado: fase 2 del [plan](../plan/2026-10-20_feat-billing-subscriptions.md). Migración, cliente y repositorios preparados y probados localmente; sólo se aplicó DDL en PostgreSQL 18.6 descartable propio. **Sin proveedores, pagos reales, endpoints financieros, frontend ni restricciones comerciales activadas.** El módulo de persistencia no está importado por AppModule. La protección de usuarios operadoras se integra en el repositorio de usuarios existente y necesita los triggers de la migración para surtir efecto.
 
 ## Migración y consistencia

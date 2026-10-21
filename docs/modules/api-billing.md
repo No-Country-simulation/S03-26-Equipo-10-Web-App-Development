@@ -1,6 +1,6 @@
 # Billing: contratos y diseño
 
-**Estado 2026-10-20:** fase 2 del [plan HITL](../plan/2026-10-20_feat-billing-subscriptions.md). Contratos/dominio y simuladores de fase 1 conservados; esquema Prisma, [migración aditiva](../../apps/api/prisma/migrations/20261020000000_billing_core/migration.sql), repositorios transaccionales, protección de identidades y CLI/guard de operador implementados y probados en PostgreSQL 18.6 descartable. **Sin aplicación persistente, SDKs, cobros, endpoints financieros, restricciones comerciales ni pantallas activas.** AppModule no importa BillingModule. El [SQL de fase 1](../plan/2026-10-20_feat-billing-subscriptions_oltp-borrador.sql) es histórico; ver [operación y límites](../operations/32_billing_persistence.md).
+**Estado 2026-10-20:** fase 3 del [plan HITL](../plan/2026-10-20_feat-billing-subscriptions.md). Dominio, [migración aditiva](../../apps/api/prisma/migrations/20261020000000_billing_core/migration.sql), persistencia, operador global y SDKs oficiales implementados. BillingModule registrado con facturación **deshabilitada por defecto**, dos receptores financieros, polling durable, reconciliación y simulación explícita. Sin UI/API de contratación tenant, cuotas integradas al CMS, migración persistente, claves ni llamadas sandbox externas. `live` no compone. Ver [persistencia](../operations/32_billing_persistence.md) e [integraciones/configuración](../operations/33_billing_integrations.md). El [SQL de fase 1](../plan/2026-10-20_feat-billing-subscriptions_oltp-borrador.sql) es histórico.
 
 ## 1. Autoridades y capacidades
 
@@ -76,17 +76,17 @@ El reducer recibe **observaciones actuales normalizadas por un adaptador tras co
 
 Cambiar de plan/proveedor/modalidad: confirmar baja de renovación anterior, guardar intención y horizonte; nuevo checkout sólo cuando venza cobertura, con nueva aprobación del cliente. No transferir credenciales. Si la cancelación no está confirmada, el cambio permanece pendiente. La cancelación sola no reembolsa y conserva tiempo pago; UI debe advertir si hay un cobro ya en curso que requiere reconciliación.
 
-### Recepción y reconciliación previstas para fase 3
+### Recepción y reconciliación implementadas en fase 3
 
 Los webhooks autentican por proveedor; Stripe requiere bytes originales y MP su manifest documentado. Rutas exactas con modo CSRF específico de webhook que ignora cookies y exige firma; no reutilizar un bypass de API key ni desactivar CSRF globalmente. API limita tamaño y no registra cuerpo, query con IDs de pagador, firmas ni secretos. Llegan directo a NestJS: el proxy Next actual no reenvía los headers de firma y debe conservar esa allowlist salvo cambio específico probado.
 
 Persistir inbox verificado antes de ACK 2xx. Fallo de persistencia → no ACK. Poller durable reclama con SKIP LOCKED y lease/fencing; reutilizar patrón PostgreSQL, no la misma tabla de entregas salientes. Consulta el recurso de cuenta esperada y aplica efectos de negocio una vez. Estado desconocido o asociación incorrecta → revisión, nunca paid.
 
-Defaults operativos internos propuestos: polling 3 s, lote 10, concurrencia 2, timeout HTTP 10 s, lease 60 s renovado cada 20 s; trabajo sin lease no publica. Backoff con jitter y máximo 10 intentos automáticos antes de revisión. Un timeout de creación no autoriza recrear automáticamente; consultar por referencia/operación y paginar. La ausencia temporal en una búsqueda no demuestra ausencia de cobro.
+Polling 3 s, lote 10, concurrencia 2, timeout HTTP 10 s, lease 60 s renovado cada 20 s; trabajo sin lease no publica. Backoff con jitter, `Retry-After` hasta 24 h y máximo diez intentos remotos antes de revisión. Un timeout de creación obliga a consultar por referencia/operación y paginar; no recrear por ausencia temporal. El replay de operador preserva identidad e incertidumbre.
 
-Reconciliación acotada: incertidumbres elegibles en el siguiente ciclo; pagos pendientes con `next_check_at` según vencimiento/método devuelto por proveedor; fallback de consulta 15 min, nunca aprobación por tiempo. Revisar renovaciones al llegar fecha esperada y después de fallos de webhooks; barrido diario paginado de contratos abiertos para cancelaciones/devoluciones/disputas. Límites/respuestas 429 respetan Retry-After. El procesamiento no llama APIs de cobro para renovar: sólo los proveedores crean los débitos. Agotar reintentos deja discrepancia visible y replay explícito del operador, con la identidad original.
+Reconciliación durable cada 15 min para contratos automáticos activos y obligaciones manuales impagas; diaria para contratos automáticos cancelados/finalizados y períodos manuales pagados. Cada obligación manual conserva su checkout original y se consulta independientemente. Sólo los proveedores ejecutan renovaciones. Factura nativa identifica el ciclo; vincular pago, obligación y grant una vez dentro de la transacción que confirma la tarea. Ver detalles, excepción del SDK MP para contracargos, configuración de firmas y límites de evidencia en el [runbook](../operations/33_billing_integrations.md).
 
-## 4. Contrato HTTP previsto (no registrado)
+## 4. Contrato HTTP (recepción implementada; API de producto prevista para fase 4)
 
 Prefijo `/api/v1`. JSON estricto; rechazar campos extra. Respuestas existentes `{data, meta?}`; listas paginadas `page/limit` con máximo 100, orden estable por fecha e ID. Fechas ISO UTC; importes como cadena. `Idempotency-Key` obligatorio en todos los POST mutantes de billing y plataforma; también en PATCH que sincronice con proveedor. Mismo ámbito/clave y otro hash → 409; retry compatible devuelve la operación original, no repite efecto. Lectura de historial y DTOs nunca serializan Prisma directamente.
 

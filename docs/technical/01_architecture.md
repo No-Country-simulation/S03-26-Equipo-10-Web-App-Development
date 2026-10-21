@@ -4,7 +4,7 @@
 
 ## 1. Visión General (C4 Model - Level 1)
 
-**Preparación billing (2026-10-20):** se agregaron esquema y persistencia transaccional de facturación, con capacidad global de operador independiente de `admin/editor`. CLI manual y comprobación por BD; la protección de identidades se integra en las escrituras tenant de usuarios. BillingModule no se importa en AppModule: no hay SDKs, controladores financieros, pollers o restricciones comerciales activos. Migración verificada sólo en PostgreSQL descartable. Ver [contratos](../modules/api-billing.md) y [operación](../operations/32_billing_persistence.md).
+**Billing por fases HITL (2026-10-20):** persistencia transaccional con operador global independiente de admin/editor; CLI y protección de identidades tenant por BD. BillingModule registrado con modo `disabled` por defecto, sin consultas billing ni polling al arrancar. En sandbox: SDKs oficiales Stripe/USD y MP/ARS, webhooks directos autenticados, inbox/operaciones con leases y reconciliación PostgreSQL dentro de NestJS. Simulación explícita no productiva; `live` no compone. Sin UI/API tenant ni restricciones comerciales todavía. Migración/pruebas sólo en PostgreSQL descartable; aceptación con proveedores pendiente. Ver [contratos](../modules/api-billing.md), [persistencia](../operations/32_billing_persistence.md) e [integraciones](../operations/33_billing_integrations.md).
 
 ### 1.1. Diagrama de Contexto del Sistema
 

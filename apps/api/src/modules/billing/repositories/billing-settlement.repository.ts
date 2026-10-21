@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { Prisma } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { idempotencyKeySchema } from '../contracts/billing.schemas';
@@ -171,8 +172,9 @@ export class BillingSettlementRepository {
       paidAt?: Date;
       recurringPeriod?: { startsAt: Date; endsAt: Date };
     },
+    transaction?: Prisma.TransactionClient,
   ) {
-    return billingTransaction(this.prisma, async (tx) => {
+    const work = async (tx: Prisma.TransactionClient) => {
       await lockBillingAccount(tx, tenantId);
       await tx.$executeRaw`SELECT id FROM billing_obligations WHERE tenant_id = ${tenantId}::uuid
         AND environment = ${environment} AND id = ${observation.obligationId}::uuid FOR UPDATE`;
@@ -362,6 +364,7 @@ export class BillingSettlementRepository {
         accessEffect: result.accessEffect,
         discrepancy: result.discrepancy,
       };
-    });
+    };
+    return billingTransaction(this.prisma, work, transaction);
   }
 }
