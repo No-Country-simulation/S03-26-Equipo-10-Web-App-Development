@@ -18,7 +18,7 @@ Aplican AGENTS.md, payments-engineering y testing-tdd-engineering. Los proveedor
 - HTTP/UI admiten paymentStatus expired, detienen sondeo y liberan selección de plan sin abrir checkout automáticamente.
 - Pruebas Red/Green de preflight, reinicio, leases, operador, timeout tras envío, expiración por webhook/reconciliación, identidad incorrecta, duplicados/concurrencia y renovación manual; regresiones UI.
 
-### [Pendiente] 2. Controles del CMS
+### [Completada] 2. Controles del CMS
 
 Scoring verifica prestación antes de calcular y dentro de la publicación transaccional bajo lock; cuenta sólo filas modificadas. Billing deshabilitado reanuda suspensiones comerciales, preservando intentos/historial/nextRetryAt y ajustando una sola vez el presupuesto. Pruebas del worker y concurrencia de reanudación.
 
@@ -62,3 +62,39 @@ git diff --check
 **Commit sugerido:** `fix(billing): recuperá checkouts y resolvé vencimientos verificados`
 
 **Detención:** fase 1 terminada para revisión. El plan aprobado y AGENTS.md exigen ACK entre fases; fase 2 permanece pendiente.
+
+## Inicio de fase 2
+
+ACK «continuar» del usuario el 2026-10-25, posterior al cierre de fase 1 y al commit humano `48d236a`. Sólo habilita scoring y reanudación de webhooks con sus regresiones. Se mantiene el ACK restringido al historial existente en PostgreSQL propio descartable. Fase 3 pendiente.
+
+## Evidencia de fase 2 — 2026-10-25
+
+Base local `48d236a`, sin commit/push automático. ACK «continuar» habilitó esta fase; la fase 3 permanece pendiente.
+
+- **Scoring implementado:** el repositorio verifica prestación/acceso antes de leer testimonios para calcular métricas. La publicación vuelve a verificar bajo el lock comercial del tenant dentro de la misma transacción que actualiza las filas. Un permiso retirado omite el trabajo, sin abortar los otros tenants. Se conserva el filtro técnico y el aislamiento por tenant/status. `updateScores` devuelve el conteo real de updates y el worker lo acumula, en lugar de contar el tamaño del lote solicitado. El control está encapsulado en la interfaz interna `canFeatureForUpdate`, sin SDKs ni controladores en el worker.
+- **Webhooks implementado:** billing deshabilitado reanuda entregas con estado suspended y marcador BILLING_SUSPENDED. La misma actualización condicional se reutiliza al recuperar una prestación. Se ajusta una vez el reloj del presupuesto, conservando intentos, historial y nextRetryAt; pausas con otro motivo permanecen intactas. No se emiten llamadas de red dentro de una transacción.
+- **Red observado:** el worker cargaba engagement y recalculaba scoring con prestación excluida o acceso vencido; además escribía tras una retirada de cobertura anterior a la publicación. La prueba de reanudación, después de corregir el fixture, esperaba pending pero obtenía suspended al desactivar billing. El error inicial del fixture usaba eventCode donde Prisma exige eventId; no se cuenta como fallo de producto. Los casos de bloqueo/concurrencia y compatibilidad se añadieron junto a la corrección, sin atribuirles Red previo.
+- **Green:** 66/66 pruebas en siete suites, sin fallos, omisiones ni TODO: billing-cms-workers.integration, billing-product.integration, bi-etl, webhook-delivery-ledger.integration, delivery-retry-policy, webhook-admin-controls y webhook-destination-policy. La suite nueva contiene siete casos, incluyendo los dos estados comerciales parametrizados.
+- **Concurrencia real:** PostgreSQL mostró una publicación esperando en pg_stat_activity por el lock comercial; al confirmar la retirada, el conteo fue cero y el score quedó intacto. Cuatro llamadas paralelas de reanudación conservaron una hora de presupuesto ya consumido después de cuatro días de suspensión, sin duplicar el ajuste. Un segundo refresh no volvió a modificarlo; se respetó el próximo reintento, se conservó el historial y la entrega pudo reclamarse y finalizar con éxito al llegar su turno. No se reanudó una pausa manual.
+- **Límites de prueba:** worker, repositorios, consultas de engagement y transacciones reales; el fixture adapta withRetry a $transaction como la integración de scoring existente, por lo que esta evidencia no prueba backoff de deadlocks. El destino HTTP saliente está simulado; no hubo red externa ni aceptación sandbox. Se conservó la prueba existente de fórmula y alcance por tenant, ajustando su doble para devolver el nuevo conteo interno.
+- **Entorno y limpieza:** PostgreSQL 18 propio en loopback, marcador y directorio temporal únicos. Antes de migrar, se verificaron data_directory y PID del postmaster. Las fixtures crearon/migraron/eliminaron sólo bases hijas propias bajo el ACK existente; una base propia adicional alojó la regresión del ledger original. Servidor y directorios eliminados al finalizar, sin procesos PostgreSQL propios pendientes. Sin cambios Prisma, migraciones versionadas, infraestructura, manifest raíz, hooks o frontend.
+- **Checks:** typecheck y build API aprobados; lint API sin errores, con las tres advertencias previas; git diff --check aprobado. No se repitieron navegador ni builds web: la aceptación integral y el runbook se completarán en fase 3.
+
+Comandos de verificación (variables TEST sólo para PostgreSQL propio descartable y verificado; la base de TEST_DATABASE_URL debe contener el historial existente):
+
+```bash
+npm test --workspace apps/api -- --runTestsByPath \
+  test/billing-cms-workers.integration.spec.ts \
+  test/billing-product.integration.spec.ts test/bi-etl.spec.ts \
+  test/webhook-delivery-ledger.integration.spec.ts \
+  test/delivery-retry-policy.spec.ts test/webhook-admin-controls.spec.ts \
+  test/webhook-destination-policy.spec.ts
+npm run typecheck --workspace apps/api
+npm run lint --workspace apps/api
+npm run build --workspace apps/api
+git diff --check
+```
+
+**Commit sugerido:** `fix(billing): aplicá controles comerciales a scoring y webhooks`
+
+**Detención:** fase 2 terminada para revisión; el plan aprobado exige ACK antes de la fase 3. No se inicia validación integral, despliegue ni operación financiera externa.

@@ -149,6 +149,17 @@ export class BillingAccessRepository {
         }))
     );
   }
+  // Background publishers skip withdrawn features rather than rejecting an HTTP request.
+  // Keep the policy check and publication under the same commercial tenant lock.
+  async canFeatureForUpdate(
+    tenantId: string,
+    feature: BillingFeature,
+    tx: Prisma.TransactionClient,
+  ): Promise<boolean> {
+    if (!this.enabled) return true;
+    await lockBillingAccount(tx, tenantId);
+    return this.canFeature(tenantId, feature, tx);
+  }
   async requireWrite(tenantId: string, feature?: BillingFeature) {
     const s = await this.snapshot(tenantId);
     this.assert(s, feature);

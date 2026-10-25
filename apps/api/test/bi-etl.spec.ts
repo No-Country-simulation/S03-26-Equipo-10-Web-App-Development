@@ -124,7 +124,7 @@ describe('tenant-scoped scoring orchestration', () => {
     const now = new Date();
     const repo = { findScoringTenantIds: jest.fn().mockResolvedValue(['a', 'b']),
       findPublishedForScoring: jest.fn().mockImplementation(async (tenant: string) => [{ id: `${tenant}-testimonial`, rating: 5, publishedAt: now }]),
-      updateScores: jest.fn() };
+      updateScores: jest.fn().mockResolvedValue(1) };
     const analytics = { getEngagementCounts: jest.fn().mockResolvedValue(new Map([['a-testimonial', { views: 10, clicks: 2 }]])) };
     await new ScoringService(repo as any, analytics as any).processScores();
     expect(analytics.getEngagementCounts).toHaveBeenNthCalledWith(1, 'a', ['a-testimonial']);

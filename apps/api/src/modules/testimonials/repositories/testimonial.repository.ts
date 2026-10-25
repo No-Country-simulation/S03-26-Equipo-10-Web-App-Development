@@ -450,6 +450,11 @@ export class TestimonialRepository {
   async findPublishedForScoring(
     tenantId: string,
   ): Promise<Array<{ id: string; rating: number; publishedAt: Date | null }>> {
+    if (
+      this.commercial &&
+      !(await this.commercial.canFeature(tenantId, 'scoring'))
+    )
+      return [];
     const publishedStatusId = await this.resolveStatusId('published');
     return this.prisma.testimonial.findMany({
       where: {
@@ -471,13 +476,19 @@ export class TestimonialRepository {
   async updateScores(
     tenantId: string,
     updates: { id: string; score: number }[],
-  ): Promise<void> {
-    if (updates.length === 0) return;
+  ): Promise<number> {
+    if (updates.length === 0) return 0;
 
     // Use withRetry to handle transient deadlocks during batch score updates (R-1)
-    await this.prisma.withRetry(async (tx) => {
+    return this.prisma.withRetry(async (tx) => {
+      if (
+        this.commercial &&
+        !(await this.commercial.canFeatureForUpdate(tenantId, 'scoring', tx))
+      )
+        return 0;
+      let updatedCount = 0;
       for (const { id, score } of updates) {
-        await tx.testimonial.updateMany({
+        const result = await tx.testimonial.updateMany({
           where: {
             id,
             tenantId,
@@ -493,7 +504,9 @@ export class TestimonialRepository {
           },
           data: { score },
         });
+        updatedCount += result.count;
       }
+      return updatedCount;
     });
   }
 

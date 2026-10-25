@@ -213,8 +213,21 @@ export class OutboxRepository {
   }
 
   /** SKIP LOCKED evita que dos réplicas adquieran la misma entrega. */
+  private async resumeCommercialSuspensions(tenantId: string | null = null) {
+    // The conditional UPDATE rechecks status after acquiring the row lock. Parallel
+    // workers cannot count the paused interval twice; retry timing/history stay intact.
+    await this.prisma.$executeRaw`UPDATE webhook_deliveries
+      SET status='pending', retry_budget_started_at=retry_budget_started_at+greatest(interval '0',now()-updated_at),
+        updated_at=now(), error_message=NULL
+      WHERE status='suspended' AND error_message='BILLING_SUSPENDED'
+        AND (${tenantId}::uuid IS NULL OR tenant_id=${tenantId}::uuid)`;
+  }
   async refreshCommercialSuspensions() {
-    if (!this.commercial?.enabled) return;
+    if (!this.commercial) return;
+    if (!this.commercial.enabled) {
+      await this.resumeCommercialSuspensions();
+      return;
+    }
     let after: string | undefined;
     while (true) {
       const tenants = await this.prisma.webhookDelivery.findMany({
@@ -232,9 +245,7 @@ export class OutboxRepository {
       });
       for (const { tenantId } of tenants) {
         const enabled = await this.commercial.canFeature(tenantId, 'webhooks');
-        if (enabled)
-          await this.prisma
-            .$executeRaw`UPDATE webhook_deliveries SET status='pending',retry_budget_started_at=retry_budget_started_at+(now()-updated_at),updated_at=now(),error_message=NULL WHERE tenant_id=${tenantId}::uuid AND status='suspended'`;
+        if (enabled) await this.resumeCommercialSuspensions(tenantId);
         else
           await this.prisma.$transaction(async (tx) => {
             const expired = await tx.webhookDelivery.findMany({
