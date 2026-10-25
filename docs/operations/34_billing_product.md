@@ -20,9 +20,22 @@ Precios independientes USD/Stripe y ARS/MP, mensual/anual, compra manual o renov
 
 El administrador abre `/admin/billing`: ve acceso, fin de cobertura/gracia en UTC, uso, funciones, cuotas, modalidades e historial paginado. La prueba se inicia expresamente una vez por tenant sin tarjeta. No se cobra automáticamente al terminar. Un pago confirmado inicia el período pago y termina la prueba; visitar un retorno nunca concede acceso.
 
-El retorno contiene únicamente el UUID de operación generado por el servidor. La pantalla consulta el backend cada 3 segundos por hasta un minuto y luego conserva la consulta manual. Pendiente, rechazo y revisión no conceden acceso. No recrear un cobro por timeout; la operación durable conserva identidad y se reconcilia. Un checkout ya cerrado sin URL recuperable exige revisión; no se fuerza una sesión nueva ni se abandona una obligación impaga desde el navegador.
+El retorno contiene únicamente el UUID de operación generado por el servidor. La pantalla consulta el backend cada 3 segundos por hasta un minuto y luego conserva la consulta manual. Pendiente, rechazo y revisión no conceden acceso. No recrear un cobro por timeout; la operación durable conserva identidad y se reconcilia. La ausencia de URL recuperable no acredita un vencimiento y exige reconciliación. Si Stripe confirma un checkout vencido impago y sin adhesión, el backend cierra su obligación y muestra “Checkout vencido”; permite otra elección expresa, sin forzar una sesión nueva desde el navegador. Cualquier contradicción conserva revisión operativa.
 
 El cambio de plan/moneda/proveedor/modalidad programa cancelación y conserva la cobertura paga. Al vencimiento y tras confirmar la baja, el cliente acepta una nueva adhesión. No se migran tarjetas ni hay prorrateos. Retirar la intención de cambio no reactiva una renovación cancelada. Una obligación anterior sin resolver bloquea el reemplazo aunque se haya detenido la adhesión.
+
+## Decisión operativa ante un checkout detenido
+
+| Evidencia del servidor                                                             | Acción                                                                                                                                            |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Fallo temporal anterior al envío, con `not_started` durable                        | Reintentar la misma operación y clave. El worker puede crear el checkout; si agotó intentos, el operador puede reproducir esa operación.          |
+| `possibly_submitted` o una operación legada incierta                               | Buscar y reconciliar el recurso original. Una búsqueda vacía no habilita otro POST ni otra identidad.                                             |
+| Stripe confirma vencimiento impago sin adhesión y la asociación local coincide     | El backend cierra la obligación una sola vez; el administrador puede solicitar otro checkout. La renovación manual conserva los períodos previos. |
+| Pago confirmado, asociación/importe contradictorios o estado remoto no concluyente | Conservar el ledger y resolver la revisión operativa; no marcar manualmente como vencido, borrar auditoría ni forzar otro cobro.                  |
+
+Los códigos `BILLING_EXPIRATION_MISMATCH`, `BILLING_EXPIRATION_CONFLICT` y `BILLING_PAYMENT_AFTER_EXPIRATION` requieren revisar la recepción/operación y su recurso de origen; no se resuelven borrando el historial o convirtiendo la incertidumbre en permiso para cobrar.
+
+Para actualizar la aplicación, detener los procesadores financieros anteriores antes de consumir operaciones con los nuevos metadatos. Todos deben ejecutar una versión que registre y respete la marca de posible envío. Ver [integraciones y recuperación](33_billing_integrations.md#vencimiento-verificado-y-actualización-de-workers).
 
 ## Funciones, capacidad y conservación
 
@@ -30,7 +43,9 @@ Cada prestación combina RBAC, flag técnico y permiso comercial. Un flag técni
 
 Tras vencimiento y gracia paga, conservar sesión, consulta, facturación, revocación de API keys/destinos y contenido publicado. Denegar nuevas mutaciones del CMS. No hay gracia para contratación inicial impaga ni prueba vencida. El formulario público omite multimedia cuando no está incluida; el backend también lo comprueba.
 
-Las entregas webhook quedan `suspended` y conservan destinatarios, intentos y auditoría. No se envían ni se consumen nuevos intentos mientras falta permiso; al recuperar elegibilidad se extiende el presupuesto por el tiempo suspendido. Un lease vencido puede suspenderse sin convertir el mensaje en dead sólo por el tiempo de suspensión. La revocación técnica del destino sigue aplicando.
+Las entregas webhook quedan `suspended` y conservan destinatarios, intentos y auditoría. No se envían ni se consumen nuevos intentos mientras falta permiso; al recuperar elegibilidad se extiende el presupuesto por el tiempo suspendido. Un lease vencido puede suspenderse sin convertir el mensaje en dead sólo por el tiempo de suspensión. Al reiniciar con `BILLING_MODE=disabled`, el polling también reanuda las suspensiones comerciales: no altera intentos, historial ni próximo reintento, y ajusta una sola vez el presupuesto aunque haya varias réplicas. Las pausas por otros motivos permanecen intactas. La revocación técnica del destino sigue aplicando.
+
+El worker de scoring comprueba la prestación y el acceso antes de leer/calcular, y nuevamente bajo lock del tenant dentro de la publicación transaccional. Si se retira el permiso, omite las escrituras; registra sólo el conteo realmente actualizado. El flag técnico y el filtro por tenant/estado publicado siguen aplicando con control comercial deshabilitado.
 
 BI detiene nuevas extracciones/publicaciones cuando falta acceso o prestación. Estadística avanzada exige ambos bits BI y estadística; el lector conserva consultas históricas. También se comprueban tareas ya en cola antes de leer/calcular/publicar: la suspensión difiere la reserva con fencing, preserva los intentos anteriores y no suma otro intento por la pausa. Los candidatos se recorren en lotes con cursor para que tenants suspendidos no oculten a los elegibles. El worker debe recibir el mismo `BILLING_MODE` que la API. Con modo activo, otorgar al rol lector fuente únicamente `USAGE ON SCHEMA bi_export` y `SELECT ON bi_export.billing_policy`, además de sus vistas ya autorizadas. La vista no exporta pagos, importes, identificadores de suscripción, secretos ni pagadores. No otorgar SELECT a tablas financieras. Un fallo de política impide publicar; no asumir elegibilidad.
 

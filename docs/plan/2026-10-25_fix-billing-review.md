@@ -22,7 +22,7 @@ Aplican AGENTS.md, payments-engineering y testing-tdd-engineering. Los proveedor
 
 Scoring verifica prestación antes de calcular y dentro de la publicación transaccional bajo lock; cuenta sólo filas modificadas. Billing deshabilitado reanuda suspensiones comerciales, preservando intentos/historial/nextRetryAt y ajustando una sola vez el presupuesto. Pruebas del worker y concurrencia de reanudación.
 
-### [Pendiente] 3. Validación integral y documentación
+### [Completada] 3. Validación integral y documentación
 
 Pruebas unitarias, integración PostgreSQL y recorridos locales afectados; typecheck/lint/build y diff check. Actualizar runbook de expiración, incertidumbre y revisión. Registrar evidencia y límites. Mercado Pago conserva reglas propias.
 
@@ -98,3 +98,53 @@ git diff --check
 **Commit sugerido:** `fix(billing): aplicá controles comerciales a scoring y webhooks`
 
 **Detención:** fase 2 terminada para revisión; el plan aprobado exige ACK antes de la fase 3. No se inicia validación integral, despliegue ni operación financiera externa.
+
+## Inicio de fase 3
+
+ACK «Continuar» del usuario el 2026-10-25, posterior al commit humano `a4d7375`. Autoriza validación integral y actualización de runbooks, conservando el ACK para el historial existente únicamente en PostgreSQL propio descartable. Sin pagos externos ni despliegues.
+
+## Evidencia de fase 3 — 2026-10-25
+
+Base `a4d7375d0e82c79e22f8e1ee7fef085e0d368f05`, con cambios documentales locales. Las fases 1 y 2 ya están commiteadas por el usuario. Alcance técnico aprobado completo; cierre documental para revisión humana, sin commit/push automático.
+
+| Validación                     | Resultado                                                                | Evidencia/alcance                                                                                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| API integral con BI            | **859/859, 102/102 suites**, cero fallos/omisiones/TODO; `complete=true` | Corrida `548e13a8582a`, gate nativo de CI aplicado al reporte Jest; dos PostgreSQL propios separados y Redis propio                                          |
+| Web completa                   | **399/399, 60/60 archivos**                                              | Vitest/jsdom, dos workers; no es ejecución de navegador                                                                                                      |
+| Controles del harness          | **73/73**                                                                | Seis archivos nativos de consentimiento, evidencia, privacidad y gate de resultados; cero omisiones                                                          |
+| Billing en navegador           | **5/5**, cero reintentos/omisiones; `complete=true`                      | Corrida `f8f49b66c891`: catálogo, Stripe manual simulado, MP automático simulado, recuperación y móvil                                                       |
+| Regresión general en navegador | **6/6**, cero reintentos/omisiones; `complete=true`                      | Corrida `da0680e5e7dc`: sesión, publicación, tenant/CSRF, RBAC, menú y captura móvil; billing deshabilitado                                                  |
+| Gates de código                | Typecheck, lint y build API/web aprobados                                | Lint conserva tres advertencias API y ocho web anteriores; sin errores nuevos. Los dos harness de navegador construyen ambas aplicaciones antes de probarlas |
+
+- **Entorno:** Node 24.21.0, PostgreSQL 18.6, Redis 7.4.7 compilado desde la distribución oficial únicamente en /tmp, Chrome instalado. API compilada y Next standalone de producción; HTTPS local de mismo origen. Billing usa NODE_ENV=test y proveedor simulado; la regresión general ejecuta API en producción y billing disabled. Los roles runtime mantienen operadores sólo SELECT y auditoría append-only. Sin interceptación de respuestas de aplicación en navegador.
+- **Propiedad/consentimiento:** se reutilizó el ACK explícito de migraciones sólo para servidores/bases propios descartables. El harness verificó data_directory, PID y marcadores antes de crear/migrar. `--with-bi` generó DDL temporal desde el schema vigente sin modificarlo y habilitó las ocho suites BI que necesitan ese entorno. No se alteraron schema, migraciones versionadas, dependencias, infraestructura ni hooks.
+- **Evidencia:** reportes saneados locales ignorados por Git en apps/web/.e2e-results/billing-api-complete/, billing/ y la raíz .e2e-results/. Se registraron estados, conteos, versiones, IDs de corrida y SHA; sin secretos, sesiones, cuerpos de proveedores ni PII. Estos resultados no se trasladan a CI remota ni certifican imágenes Docker finales o capacidad productiva.
+- **Runbooks:** guías 33/34 distinguen prueba durable de no envío, envío posible/legado incierto, vencimiento Stripe verificado y contradicciones; documentan la coordinación de actualización de workers, los códigos de revisión, los controles de scoring y la reanudación comercial. La guía 35 conserva la aceptación externa pendiente e incorpora el caso real de expiración Stripe a su matriz.
+- **Límites:** los once recorridos de navegador existentes regresaron sin fallos; no acreditan expiración/renovación externa de Stripe/MP. La expiración nueva conserva su evidencia de adaptador con SDK simulado, integración HTTP/PostgreSQL y componente UI de fase 1. No se agregó un backdoor de expiración al simulador para simular una aceptación externa. Sin cuentas/recursos remotos, pagos reales o despliegues.
+- **Limpieza:** las tres corridas terminaron con exit0 y sin error de limpieza. No quedan sus servidores PostgreSQL/Redis ni directorios de aceptación. Se eliminaron también fuente, binario y archivo comprimido temporales de Redis; no hubo instalación global. Los reportes saneados se conservan para revisión.
+- **Comprobaciones finales:** enlaces locales de runbooks e índice verificados; git diff --check aprobado. La fase 3 modifica únicamente documentación e índice del plan.
+
+Comandos principales ejecutados:
+
+```bash
+# Sólo tras el ACK de migraciones y con el Redis temporal propio:
+E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 BILLING_E2E_REDIS_EXECUTABLE=/ruta/temporal/redis-server \
+  node scripts/billing/acceptance-local.mjs --run --api-checks --with-bi
+E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 BILLING_E2E_REDIS_EXECUTABLE=/ruta/temporal/redis-server \
+  BILLING_E2E_CHROME_EXECUTABLE=/usr/bin/google-chrome node scripts/billing/acceptance-local.mjs --run
+E2E_ALLOW_DISPOSABLE_MIGRATIONS=1 BILLING_E2E_REDIS_EXECUTABLE=/ruta/temporal/redis-server \
+  BILLING_E2E_CHROME_EXECUTABLE=/usr/bin/google-chrome node scripts/billing/acceptance-local.mjs --run --regression
+npm test --workspace apps/web -- --maxWorkers=2
+node --test scripts/billing/controls.test.mjs scripts/billing/evidence.test.mjs \
+  scripts/e2e/runner-controls.test.mjs scripts/e2e/privacy.test.mjs \
+  scripts/e2e/evidence.test.mjs scripts/testing/check-results.test.mjs
+npm run typecheck --workspace apps/api
+npm run typecheck --workspace apps/web
+npm run lint --workspace apps/api
+npm run lint --workspace apps/web
+git diff --check
+```
+
+**Commit sugerido:** `docs(billing): registrá la validación integral y la recuperación operativa`
+
+**Cierre:** las tres fases autorizadas están implementadas/verificadas. Entregar para revisión y commit humano; no iniciar sandbox externo, despliegue ni una fase adicional.

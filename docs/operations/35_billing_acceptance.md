@@ -64,18 +64,19 @@ El backend usa el email del primer administrador activo del tenant como pagador 
 
 Todos los renglones siguientes están **pendientes**, no aprobados por simulación. Usar tenants independientes y mantener sólo evidencia saneada en una copia de esta matriz: fecha UTC, commit, proveedor, moneda/modalidad, resultado, cardinalidades locales, código estático de discrepancia. Los IDs remotos necesarios para operar se conservan en el ledger y en los dashboards, sin copiar URLs, PII ni payloads a contexto.
 
-| Caso | Acción externa | Criterio de aceptación |
-| --- | --- | --- |
-| Stripe USD manual | Checkout aprobado, rechazado y método asíncrono disponible | Retorno no concede; consulta autenticada y pago exacto conceden un período; rechazo no concede |
-| MP ARS manual | Checkout Pro con comprador de prueba | Vendedor, aplicación, referencia, importe/moneda coinciden; un período por obligación |
-| Stripe USD automático | Adhesión y renovación aprobada/rechazada | Contrato y factura reales; ciclo único; rechazo no extiende; aprobación posterior recupera |
-| MP ARS automático | Adhesión pendiente y débitos autorizados posteriores | Validar `debit_date`, ancla mensual/anual y búsqueda paginada de pagos; no inferir recurrencia desde Preferences |
-| Cancelación | Detener desde el CMS y comprobar estado remoto | Incertidumbre conserva `cancel_pending`; confirmación detiene renovación y conserva cobertura pagada |
-| Cambio | Solicitar plan/moneda/proveedor/modo distinto | Espera fin de cobertura y cancelación confirmada; requiere nueva adhesión sin prorrateo |
-| Webhook/replay | Entrega firmada real, duplicado, desorden y pérdida temporal | Inbox durable antes del ACK, acceso único; polling recupera pérdida sin segundo POST de cobro |
-| Recuperación | Reiniciar API/worker tras envío y antes de confirmación | Se consulta la identidad durable; sin duplicar checkout/débito; agotamiento pasa a revisión |
-| Devoluciones/disputas | Gestionarlas en dashboard/API del proveedor | Parcial conserva duración; total/pérdida confirmada invalida sólo su período; registrar lo realmente soportado |
-| Gracia y cuotas | Renovación fallida de período previamente pago, recuperación y reducción | Gracia configurada; prueba sin gracia; conserva datos y contenido publicado; bloquea altas/activaciones sobre cuota |
+| Caso                  | Acción externa                                                                  | Criterio de aceptación                                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stripe USD manual     | Checkout aprobado, rechazado y método asíncrono disponible                      | Retorno no concede; consulta autenticada y pago exacto conceden un período; rechazo no concede                                                                            |
+| MP ARS manual         | Checkout Pro con comprador de prueba                                            | Vendedor, aplicación, referencia, importe/moneda coinciden; un período por obligación                                                                                     |
+| Stripe USD automático | Adhesión y renovación aprobada/rechazada                                        | Contrato y factura reales; ciclo único; rechazo no extiende; aprobación posterior recupera                                                                                |
+| MP ARS automático     | Adhesión pendiente y débitos autorizados posteriores                            | Validar `debit_date`, ancla mensual/anual y búsqueda paginada de pagos; no inferir recurrencia desde Preferences                                                          |
+| Cancelación           | Detener desde el CMS y comprobar estado remoto                                  | Incertidumbre conserva `cancel_pending`; confirmación detiene renovación y conserva cobertura pagada                                                                      |
+| Cambio                | Solicitar plan/moneda/proveedor/modo distinto                                   | Espera fin de cobertura y cancelación confirmada; requiere nueva adhesión sin prorrateo                                                                                   |
+| Webhook/replay        | Entrega firmada real, duplicado, desorden y pérdida temporal                    | Inbox durable antes del ACK, acceso único; polling recupera pérdida sin segundo POST de cobro                                                                             |
+| Recuperación          | Fallo de preflight, reinicio tras posible envío y replay                        | Sólo prueba durable de no envío permite creación con la misma operación/clave; incertidumbre consulta sin duplicar y agotamiento pasa a revisión                          |
+| Vencimiento Stripe    | Abandonar un checkout hasta que Stripe confirme expired y consultar/reconciliar | Sin pago ni adhesión: cierre único; UI muestra expired y permite otro intento expreso; conserva cobertura previa en renovación manual. Contradicciones quedan en revisión |
+| Devoluciones/disputas | Gestionarlas en dashboard/API del proveedor                                     | Parcial conserva duración; total/pérdida confirmada invalida sólo su período; registrar lo realmente soportado                                                            |
+| Gracia y cuotas       | Renovación fallida de período previamente pago, recuperación y reducción        | Gracia configurada; prueba sin gracia; conserva datos y contenido publicado; bloquea altas/activaciones sobre cuota                                                       |
 
 ### Stripe Simulations / test clocks
 
@@ -87,10 +88,16 @@ MP no se considera poseedor de un equivalente a test clocks en esta implementaci
 
 ## Cierre y recuperación
 
-Revisar `/platform/billing`: pendientes antiguos, operaciones inciertas, leases, reintentos agotados, pagos adicionales y discrepancias. El replay conserva identidad; nunca borrar una operación incierta para volver a cobrar. Resolver en proveedor y reconciliar antes de pedir otra adhesión. Detener renovaciones de aceptación en los proveedores y comprobar confirmación antes de deshabilitar sus cuentas locales; deshabilitar una cuenta en CMS no cancela débitos remotos. Revocar/rotar las claves de prueba cuando corresponda. La salida a producción requiere aceptación externa y trabajo/autorización separados.
+Revisar `/platform/billing`: pendientes antiguos, operaciones inciertas, leases, reintentos agotados, pagos adicionales y discrepancias. El replay conserva identidad y prueba de envío: sólo `not_started` permite creación; `possibly_submitted` y los legados inciertos se consultan. Nunca borrar una operación incierta ni editar sus metadatos para volver a cobrar. El vencimiento automático requiere la consulta verificada a Stripe; una URL ausente o tiempo local no bastan. Resolver en proveedor y reconciliar antes de pedir otra adhesión. Detener renovaciones de aceptación en los proveedores y comprobar confirmación antes de deshabilitar sus cuentas locales; deshabilitar una cuenta en CMS no cancela débitos remotos. Revocar/rotar las claves de prueba cuando corresponda. La salida a producción requiere aceptación externa y trabajo/autorización separados.
 
 Documentación oficial revalidada el 2026-10-21. Completar resultados en el [plan HITL](../plan/2026-10-20_feat-billing-subscriptions.md); no convertir esta preparación en evidencia de sandbox aprobado.
 
 ## Evidencia del complemento local
 
 El 2026-10-21, la corrida `0aad73b1c729` sobre `409d8a4` con cambios locales aprobó 834 pruebas/101 suites API, sin fallos, omisiones ni TODO y con `complete=true` del gate nativo de CI. Cierra los 160 casos BI que la ejecución parcial no pudo realizar. Los dos PostgreSQL18.6 y Redis7.4.7 fueron propios y descartables; no acredita ejecución remota de CI, independencia física de recursos ni capacidad productiva. La aceptación externa de proveedores permanece pendiente. Detalle y restricciones en el plan HITL.
+
+## Evidencia de correcciones — 2026-10-25
+
+El [plan de correcciones](../plan/2026-10-25_fix-billing-review.md) verificó el código de `a4d7375` con documentación local: API **859/859 en 102 suites** (corrida `548e13a8582a`, cero omisiones y complete=true), web **399/399 en 60 archivos**, controles seleccionados del harness **73/73**, billing navegador **5/5** (`f8f49b66c891`) y regresión navegador **6/6** (`da0680e5e7dc`), ambas sin reintentos. Typecheck, lint y builds API/web aprobados; sólo advertencias previas.
+
+Servicios PostgreSQL18.6/Redis7.4.7 propios, Chrome instalado y HTTPS local; los proveedores financieros se simularon y no se interceptaron respuestas de aplicación. Las corridas terminaron con exit0 y limpieza propia; se retiró también la compilación temporal de Redis. La matriz externa, incluido vencimiento Stripe real, sigue pendiente. Los reportes locales saneados no acreditan CI remota, imágenes finales ni aceptación productiva.
