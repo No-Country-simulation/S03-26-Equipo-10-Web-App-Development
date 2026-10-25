@@ -148,3 +148,12 @@ git diff --check
 **Commit sugerido:** `docs(billing): registrá la validación integral y la recuperación operativa`
 
 **Cierre:** las tres fases autorizadas están implementadas/verificadas. Entregar para revisión y commit humano; no iniciar sandbox externo, despliegue ni una fase adicional.
+
+
+## Cierre humano del plan — 2026-10-25
+
+ACK «Continuar» recibido después del cierre de fase 3 y del commit humano `4997294`. Comprobados árbol limpio y los tres commits de fase: `48d236a` (recuperación financiera), `a4d7375` (controles del CMS) y `4997294` (validación integral/runbooks). El índice queda Completado; no restan fases locales de este plan.
+
+Esta anotación sólo registra la aceptación y actualiza el estado documental. No repite tests sobre código sin cambios ni inicia otra fase. La matriz sandbox de Stripe/MP continúa preparada y pendiente de cuentas/claves y un alcance autorizado específico; producción y despliegue siguen fuera del plan.
+
+**Commit sugerido de cierre:** `docs(plan): cerrá la corrección de billing`
