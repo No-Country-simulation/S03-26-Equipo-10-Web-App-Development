@@ -98,7 +98,7 @@ Prefijo `/api/v1`. DTOs Zod estrictos: rechazar campos extra. Envelopes existent
 | GET `/billing/catalog`                            | admin                         | planes no archivados/versiones publicadas; precios locales y `ready` por cuenta configurada                            |
 | POST `/billing/trial`                             | admin                         | `{planVersionId}`; 201 período de prueba, una vez por tenant                                                           |
 | POST `/billing/checkouts`                         | admin                         | `{priceId, mode}`; 202 `{operationId}` durable                                                                         |
-| GET `/billing/operations/:id`                     | admin del tenant              | estado local, `paymentStatus=pending/confirmed/failed/reversed`, `redirectUrl?`, código saneado                        |
+| GET `/billing/operations/:id`                     | admin del tenant              | estado local, `paymentStatus=pending/confirmed/failed/reversed/expired`, `redirectUrl?`, código saneado                |
 | POST `/billing/subscription/cancel`               | admin                         | `{}`; 202 operación durable de cancelación                                                                             |
 | POST `/billing/subscription/changes`              | admin                         | `{priceId, mode}`; 202 `{changeId, operationId, effectiveAt}`; sin checkout anticipado                                 |
 | POST `/billing/subscription/changes/cancel`       | admin                         | `{}`; retira intención, sin reactivar renovación remota                                                                |
@@ -143,3 +143,11 @@ Dominio/simuladores, PostgreSQL real descartable, HTTP real con proveedor simula
 ## Aceptación y worker manual (fase 5)
 
 `worker.cli.ts --once UUID_OPERADOR --apply` requiere modo habilitado, `BILLING_WORKER_DATABASE_URL` externo y operador vigente en BD. Procesa una tanda con los mismos leases y verificaciones del polling; en simulación selecciona exclusivamente cuentas sandbox habilitadas con referencia `BILLING_SIMULATION`. No agrega un motor de débitos. Ver [aceptación local y preparación sandbox](../operations/35_billing_acceptance.md); sus resultados no certifican renovaciones externas.
+
+## Corrección de recuperación financiera — 2026-10-25
+
+Fase 1 del [plan de correcciones](../plan/2026-10-25_fix-billing-review.md). Cada checkout nuevo conserva `checkoutSubmission=not_started` en metadatos internos; bajo lease se marca `possibly_submitted` antes de invocar la creación remota. Sólo la prueba durable de no envío permite crear tras un fallo/reinicio/replay; los casos posiblemente enviados o legados inciertos siguen buscando/reconciliando, sin reemplazar identidad ni clave. Estos metadatos no cambian el hash del contenido solicitado.
+
+Una consulta autenticada a Stripe puede acreditar un checkout vencido impago sin adhesión remota. Tras validar la asociación local y bajo lock/fencing, se cierra orden/obligación, conservando pagos y cobertura existentes; una contratación inicial sin cobertura termina. La UI muestra `paymentStatus=expired` y permite otra selección expresa, sin redirección ni cobro automático. Duplicados no repiten efectos; contradicciones quedan en revisión. No se infiere este estado para Mercado Pago ni desde el retorno del navegador.
+
+La actualización debe coordinar el reinicio de todos los procesadores financieros antes de consumir operaciones con los nuevos metadatos: un worker anterior no registra la marca de posible envío. La expiración se basa en el [estado autenticado de Checkout de Stripe](https://docs.stripe.com/api/checkout/sessions/object), no en la antigüedad local ni en parámetros del navegador.

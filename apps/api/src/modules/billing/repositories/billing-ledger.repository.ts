@@ -17,7 +17,8 @@ import type {
 import type {
   CheckoutCommand,
   VerifiedPayment,
-  VerifiedSubscription,
+  VerifiedCheckoutExpiration,
+  GatewaySnapshot,
 } from '../ports/financial-gateway.port';
 import { GatewayError } from '../ports/financial-gateway.port';
 import { idempotencyKeySchema } from '../contracts/billing.schemas';
@@ -138,7 +139,10 @@ export class BillingLedgerRepository {
         entityId: input.entityId,
         idempotencyKey: input.key,
         requestHash: hash,
-        requestData,
+        requestData:
+          input.kind === 'checkout'
+            ? { ...requestData, checkoutSubmission: 'not_started' }
+            : requestData,
       },
     });
   }
@@ -251,7 +255,10 @@ export class BillingLedgerRepository {
       const rows = await this.prisma.$queryRaw<
         Array<{ id: string; recovering: boolean }>
       >`
-        WITH candidate AS (SELECT id, status <> 'ready' AS recovering FROM billing_operations
+        WITH candidate AS (SELECT id, CASE
+          WHEN kind = 'checkout' AND request_data->>'checkoutSubmission' = 'not_started' THEN false
+          WHEN kind = 'checkout' AND request_data->>'checkoutSubmission' = 'possibly_submitted' THEN true
+          ELSE status <> 'ready' END AS recovering FROM billing_operations
           WHERE provider_account_id IN (${accounts}) AND
           ((status IN ('ready','uncertain') AND next_attempt_at <= now()) OR (status = 'processing' AND lease_until <= now()))
           ORDER BY next_attempt_at, created_at FOR UPDATE SKIP LOCKED LIMIT 1)
@@ -308,27 +315,182 @@ export class BillingLedgerRepository {
           >`SELECT id FROM billing_webhook_inbox WHERE id=${job.row.id}::uuid AND status='processing' AND lease_token=${job.row.leaseToken}::uuid AND lease_until>now() FOR UPDATE`;
     if (!rows.length) throw new GatewayError('BILLING_LEASE_LOST', true);
   }
+  private unsubmitted(row: BillingOperation): boolean {
+    const data = row.requestData;
+    return (
+      row.kind === 'checkout' &&
+      data !== null &&
+      typeof data === 'object' &&
+      !Array.isArray(data) &&
+      data.checkoutSubmission === 'not_started'
+    );
+  }
+  async markCheckoutSubmitted(job: LedgerJob) {
+    if (
+      job.kind !== 'operation' ||
+      job.row.kind !== 'checkout' ||
+      job.recovering
+    )
+      throw new GatewayError('BILLING_JOB_INVALID', true);
+    await billingTransaction(this.prisma, async (tx) => {
+      await this.fenced(tx, job);
+      const row = await tx.billingOperation.findUniqueOrThrow({
+        where: { id: job.row.id },
+      });
+      const data = row.requestData;
+      if (!data || typeof data !== 'object' || Array.isArray(data))
+        throw new GatewayError('BILLING_JOB_INVALID', true);
+      if (data.checkoutSubmission === 'possibly_submitted')
+        throw new GatewayError('BILLING_CHECKOUT_UNCERTAIN');
+      await tx.billingOperation.update({
+        where: { id: row.id },
+        data: {
+          requestData: { ...data, checkoutSubmission: 'possibly_submitted' },
+        },
+      });
+    });
+  }
+  private async expireCheckout(
+    tx: Prisma.TransactionClient,
+    job: LedgerJob,
+    expired: VerifiedCheckoutExpiration,
+    payments: VerifiedPayment[],
+  ) {
+    await tx.$executeRaw`SELECT id FROM billing_operations WHERE id=${expired.operationId}::uuid
+      AND tenant_id=${expired.tenantId}::uuid AND provider_account_id=${job.row.providerAccountId}::uuid
+      AND environment=${job.row.environment} FOR UPDATE`;
+    const operation = await tx.billingOperation.findFirst({
+      where: {
+        id: expired.operationId,
+        tenantId: expired.tenantId,
+        environment: job.row.environment,
+        providerAccountId: job.row.providerAccountId,
+        kind: 'checkout',
+      },
+    });
+    if (
+      !operation ||
+      (operation.externalResourceId &&
+        operation.externalResourceId !== expired.checkoutId)
+    )
+      throw new GatewayError('BILLING_EXPIRATION_MISMATCH', true);
+    await lockBillingAccount(tx, expired.tenantId);
+    const obligation = await tx.billingObligation.findFirstOrThrow({
+      where: {
+        id: operation.entityId,
+        tenantId: expired.tenantId,
+        environment: job.row.environment,
+        providerAccountId: job.row.providerAccountId,
+      },
+      include: { billingOrder: true, billingSubscription: true },
+    });
+    const sub = obligation.billingSubscription;
+    if (
+      obligation.billingOrder.externalReference !== expired.reference ||
+      sub.id !== expired.localSubscriptionId ||
+      sub.provider !== 'stripe' ||
+      obligation.amountMinor !== expired.money.amountMinor ||
+      obligation.currency !== expired.money.currency ||
+      sub.externalSubscriptionId
+    )
+      throw new GatewayError('BILLING_EXPIRATION_MISMATCH', true);
+    // Never turn a confirmed or reversed payment back into an unpaid purchase.
+    if (obligation.status === 'paid' || obligation.creditedPaymentId)
+      throw new GatewayError('BILLING_EXPIRATION_CONFLICT', true);
+    if (payments.some((p) => !['failed', 'canceled'].includes(p.status)))
+      throw new GatewayError('BILLING_EXPIRATION_CONFLICT', true);
+    if (obligation.status === 'void') return;
+    for (const payment of payments)
+      await this.settle(
+        tx,
+        job.row.providerAccountId,
+        job.row.environment as BillingEnvironment,
+        payment,
+      );
+    if (
+      await tx.billingPayment.count({
+        where: {
+          obligationId: obligation.id,
+          tenantId: expired.tenantId,
+          environment: job.row.environment,
+          status: { notIn: ['failed', 'canceled'] },
+        },
+      })
+    )
+      throw new GatewayError('BILLING_EXPIRATION_CONFLICT', true);
+    await tx.billingObligation.update({
+      where: { id: obligation.id },
+      data: { status: 'void' },
+    });
+    await tx.billingOrder.update({
+      where: { id: obligation.orderId },
+      data: { status: 'expired' },
+    });
+    const coverage = await tx.billingAccessPeriod.count({
+      where: {
+        tenantId: expired.tenantId,
+        environment: job.row.environment,
+        billingObligation: { subscriptionId: sub.id },
+        kind: 'paid',
+      },
+    });
+    if (
+      !coverage &&
+      !sub.paidThrough &&
+      ['pending', 'cancel_pending'].includes(sub.status)
+    )
+      await tx.billingSubscription.update({
+        where: { id: sub.id },
+        data: { status: 'ended' },
+      });
+    await tx.billingOperation.update({
+      where: { id: operation.id },
+      data: {
+        externalResourceId: expired.checkoutId,
+        status: 'succeeded',
+        leaseToken: null,
+        leaseUntil: null,
+        errorCode: null,
+      },
+    });
+    await tx.billingAudit.create({
+      data: {
+        tenantId: expired.tenantId,
+        environment: job.row.environment,
+        entityId: obligation.id,
+        correlationId: randomUUID(),
+        action: 'checkout.expired',
+        previousState: 'open',
+        nextState: 'void',
+      },
+    });
+  }
   async finish(
     job: LedgerJob,
     result: {
       externalId?: string;
-      snapshot?: {
-        payments: VerifiedPayment[];
-        subscription?: VerifiedSubscription;
-      };
+      snapshot?: GatewaySnapshot;
       binding?: { productId: string | null; priceId: string | null };
       canceled?: boolean;
     } = {},
   ) {
     return billingTransaction(this.prisma, async (tx) => {
       await this.fenced(tx, job);
-      for (const payment of result.snapshot?.payments ?? [])
-        await this.settle(
+      if (result.snapshot?.checkoutExpiration)
+        await this.expireCheckout(
           tx,
-          job.row.providerAccountId,
-          job.row.environment as BillingEnvironment,
-          payment,
+          job,
+          result.snapshot.checkoutExpiration,
+          result.snapshot.payments,
         );
+      else
+        for (const payment of result.snapshot?.payments ?? [])
+          await this.settle(
+            tx,
+            job.row.providerAccountId,
+            job.row.environment as BillingEnvironment,
+            payment,
+          );
       if (result.snapshot?.subscription) {
         const remote = result.snapshot.subscription;
         const order = await tx.billingOrder.findFirst({
@@ -473,6 +635,12 @@ export class BillingLedgerRepository {
       leaseUntil: { gt: new Date() },
     };
     await billingTransaction(this.prisma, async (tx) => {
+      if (!review && job.kind === 'operation') {
+        const current = await tx.billingOperation.findUniqueOrThrow({
+          where: { id: job.row.id },
+        });
+        if (this.unsubmitted(current)) data.status = 'ready';
+      }
       const changed =
         job.kind === 'operation'
           ? await tx.billingOperation.updateMany({ where, data })
@@ -514,7 +682,10 @@ export class BillingLedgerRepository {
       if (row.status !== 'review')
         throw billingConflict('BILLING_REVIEW_REQUIRED');
       const data = {
-        status: kind === 'operation' ? 'uncertain' : 'ready',
+        status:
+          kind === 'operation' && !this.unsubmitted(row as BillingOperation)
+            ? 'uncertain'
+            : 'ready',
         attempts: 0,
         nextAttemptAt: new Date(),
         errorCode: null,
@@ -543,8 +714,8 @@ export class BillingLedgerRepository {
           nextState: data.status,
         },
       });
-      // Crucially, checkout replays stay uncertain: an operator retry is never
-      // permission for a second financial POST with a new idempotency key.
+      // Only durable proof of not_started permits creation. Legacy/possibly
+      // submitted checkouts stay uncertain; operator replay cannot authorize a second POST.
     };
     return billingTransaction(this.prisma, work, transaction);
   }
@@ -664,7 +835,15 @@ export class BillingLedgerRepository {
     let cursor: string | undefined;
     while (true) {
       const subs = await this.prisma.billingSubscription.findMany({
-        where: { providerAccountId: { in: accountIds }, mode: 'automatic' },
+        where: {
+          providerAccountId: { in: accountIds },
+          mode: 'automatic',
+          NOT: {
+            status: 'ended',
+            externalSubscriptionId: null,
+            billingObligation: { every: { status: 'void' } },
+          },
+        },
         orderBy: { id: 'asc' },
         take: 100,
         ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -693,6 +872,7 @@ export class BillingLedgerRepository {
           where: {
             providerAccountId: { in: accountIds },
             billingSubscription: { mode: 'manual' },
+            status: { not: 'void' },
           },
           orderBy: { id: 'asc' },
           take: 100,
@@ -827,6 +1007,15 @@ export class BillingLedgerRepository {
           },
         });
       }
+    }
+    if (obligation.status === 'void') {
+      if (
+        ['failed', 'canceled'].includes(payment.status) &&
+        payment.refundedMinor === 0n &&
+        !payment.chargedBack
+      )
+        return;
+      throw new GatewayError('BILLING_PAYMENT_AFTER_EXPIRATION', true);
     }
     const result = await this.settlements.recordObservation(
       sub.tenantId,

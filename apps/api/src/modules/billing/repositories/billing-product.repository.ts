@@ -572,6 +572,7 @@ export class BillingProductRepository {
               tenantId: actor.tenantId,
               environment: 'sandbox',
             },
+            include: { billingOrder: { select: { status: true } } },
           })
         : null;
     const payment = obligation
@@ -593,16 +594,18 @@ export class BillingProductRepository {
       status: op.status,
       kind: op.kind,
       errorCode: op.errorCode,
-      paymentStatus: ['refunded', 'charged_back'].includes(
-        payment?.status ?? '',
-      )
-        ? 'reversed'
-        : obligation?.status === 'paid'
-          ? 'confirmed'
-          : op.status === 'review' ||
-              ['failed', 'canceled'].includes(payment?.status ?? '')
-            ? 'failed'
-            : 'pending',
+      paymentStatus:
+        obligation?.status === 'void' &&
+        obligation.billingOrder.status === 'expired'
+          ? 'expired'
+          : ['refunded', 'charged_back'].includes(payment?.status ?? '')
+            ? 'reversed'
+            : obligation?.status === 'paid'
+              ? 'confirmed'
+              : op.status === 'review' ||
+                  ['failed', 'canceled'].includes(payment?.status ?? '')
+                ? 'failed'
+                : 'pending',
     };
   }
   async ownedOperation(actor: BillingActor, id: string) {

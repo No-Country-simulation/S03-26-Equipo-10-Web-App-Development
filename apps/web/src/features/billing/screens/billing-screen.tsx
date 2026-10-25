@@ -35,6 +35,7 @@ export default function BillingScreen() {
   const [interval, setInterval] = useState<'month' | 'year'>('month');
   const [mode, setMode] = useState<'manual' | 'automatic'>('automatic');
   const [operationId, setOperationId] = useState<string | null>(null);
+  const [checkoutExpired, setCheckoutExpired] = useState(false);
   const action = useBillingAction(fetchApi);
   const confirmation = useActionConfirmation();
   const load = useCallback(async () => {
@@ -53,6 +54,12 @@ export default function BillingScreen() {
   }, [fetchApi, page]);
   const { state, reload } = useRemoteResource(load, !!session && isAdmin);
   const confirmed = useCallback(() => {
+    setCheckoutExpired(false);
+    setOperationId(null);
+    reload();
+  }, [reload]);
+  const expired = useCallback(() => {
+    setCheckoutExpired(true);
     setOperationId(null);
     reload();
   }, [reload]);
@@ -100,6 +107,7 @@ export default function BillingScreen() {
           { priceId, mode },
         );
         const op = operationAccepted.parse(result);
+        setCheckoutExpired(false);
         if (!different) setOperationId(op.operationId);
         reload();
       },
@@ -268,6 +276,12 @@ export default function BillingScreen() {
               tus datos y puede impedir nuevas altas.
             </p>
           </section>
+          {checkoutExpired && (
+            <ActionFeedback kind="info">
+              Checkout vencido. Podés volver a elegir un plan; no se inició otro
+              cobro.
+            </ActionFeedback>
+          )}
           {activeOperation && (
             <CheckoutStatus
               key={activeOperation}
@@ -276,6 +290,7 @@ export default function BillingScreen() {
               runtime={summary.runtime}
               autoOpen={!!operationId}
               onConfirmed={confirmed}
+              onExpired={expired}
             />
           )}
           {action.feedback && (

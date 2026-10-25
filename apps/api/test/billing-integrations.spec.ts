@@ -553,6 +553,107 @@ describe('financial provider contracts, authentication and isolation', () => {
       ).payments[0]!.paidAt.getTime(),
     ).toBeGreaterThanOrEqual(before);
   });
+  test('verified Stripe expiration survives both webhook and reconciliation reads', async () => {
+    const c = command();
+    const gateway = new StripeGateway(
+      settings,
+      'https://example.invalid/return',
+    );
+    jest
+      .spyOn(gateway.sdk.accounts, 'retrieve')
+      .mockResolvedValue({ id: settings.sellerId } as any);
+    jest.spyOn(gateway.sdk.checkout.sessions, 'retrieve').mockResolvedValue({
+      id: 'cs_expired',
+      livemode: false,
+      status: 'expired',
+      payment_status: 'unpaid',
+      payment_intent: null,
+      subscription: null,
+      url: null,
+      amount_total: 1999,
+      currency: 'usd',
+      client_reference_id: c.reference,
+      metadata: {
+        cms_reference: c.reference,
+        cms_operation: c.operationId,
+        cms_tenant: c.tenantId,
+        cms_subscription: c.subscriptionId,
+      },
+    } as any);
+    const expected = {
+      checkoutExpiration: {
+        checkoutId: 'cs_expired',
+        reference: c.reference,
+        operationId: c.operationId,
+        tenantId: c.tenantId,
+        localSubscriptionId: c.subscriptionId,
+        money: { amountMinor: 1999n, currency: 'USD' },
+      },
+    };
+    expect(
+      await gateway.read('checkout.session.expired', 'cs_expired'),
+    ).toMatchObject(expected);
+    expect(await gateway.reconcile(c, 'cs_expired')).toMatchObject(expected);
+  });
+  test.each([
+    { payment_status: 'paid' },
+    { subscription: 'sub_existing' },
+    { metadata: {} },
+    { amount_total: 0 },
+    { currency: 'ars' },
+  ])(
+    'expiration with contradictory or incomplete provider data requires review: %j',
+    async (override) => {
+      const c = command();
+      const gateway = new StripeGateway(
+        settings,
+        'https://example.invalid/return',
+      );
+      jest
+        .spyOn(gateway.sdk.accounts, 'retrieve')
+        .mockResolvedValue({ id: settings.sellerId } as any);
+      jest.spyOn(gateway.sdk.checkout.sessions, 'retrieve').mockResolvedValue({
+        id: 'cs_expired',
+        livemode: false,
+        status: 'expired',
+        payment_status: 'unpaid',
+        payment_intent: null,
+        subscription: null,
+        amount_total: 1999,
+        currency: 'usd',
+        client_reference_id: c.reference,
+        metadata: {
+          cms_reference: c.reference,
+          cms_operation: c.operationId,
+          cms_tenant: c.tenantId,
+          cms_subscription: c.subscriptionId,
+        },
+        ...override,
+      } as any);
+      await expect(
+        gateway.read('checkout.session.expired', 'cs_expired'),
+      ).rejects.toThrow();
+    },
+  );
+  test('an old expiration event cannot expire a currently completed session', async () => {
+    const gateway = new StripeGateway(
+      settings,
+      'https://example.invalid/return',
+    );
+    jest
+      .spyOn(gateway.sdk.accounts, 'retrieve')
+      .mockResolvedValue({ id: settings.sellerId } as any);
+    jest.spyOn(gateway.sdk.checkout.sessions, 'retrieve').mockResolvedValue({
+      id: 'cs_complete',
+      livemode: false,
+      status: 'complete',
+      payment_intent: null,
+      subscription: null,
+    } as any);
+    expect(
+      await gateway.read('checkout.session.expired', 'cs_complete'),
+    ).toEqual({ payments: [] });
+  });
   test('completed Stripe checkout remains discoverable after its redirect URL is removed', async () => {
     const c = command();
     const gateway = new StripeGateway(

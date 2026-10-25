@@ -323,6 +323,53 @@ const parent =
           .expect(202)
       ).body.data.operationId as string;
     }
+    test('expired operation is visible over HTTP and a fresh explicit checkout is allowed', async () => {
+      const id = await checkout();
+      const row = await db.billingOperation.findUniqueOrThrow({
+        where: { id },
+      });
+      const ledger = new BillingLedgerRepository(
+        db as unknown as PrismaService,
+        new BillingSettlementRepository(db as unknown as PrismaService),
+      );
+      const command = await ledger.command({
+        kind: 'operation',
+        row,
+        recovering: true,
+      });
+      await ledger.receive(accountId, 'sandbox', {
+        eventKey: randomUUID(),
+        topic: 'checkout.session.expired',
+        resourceId: 'cs_expired',
+      });
+      const inbox = await ledger.claim([accountId], 'inbox');
+      if (!inbox) throw Error('inbox missing');
+      await ledger.finish(inbox, {
+        snapshot: {
+          payments: [],
+          checkoutExpiration: {
+            checkoutId: row.externalResourceId!,
+            reference: command.reference,
+            operationId: id,
+            tenantId,
+            localSubscriptionId: command.subscriptionId,
+            money: command.money,
+          },
+        },
+      });
+      const expired = (
+        await call('get', `/billing/operations/${id}`).expect(200)
+      ).body.data;
+      expect(expired.paymentStatus).toBe('expired');
+      expect(expired.redirectUrl).toBeUndefined();
+      expect(
+        (await call('get', '/billing/summary').expect(200)).body.data
+          .pendingOperationId,
+      ).toBeNull();
+      const next = await checkout();
+      expect(next).not.toBe(id);
+      await call('get', `/billing/operations/${id}`, otherToken).expect(404);
+    });
     test('only tenant admin manages billing; a forged operator claim grants nothing and revocation is immediate', async () => {
       await call('get', '/billing/summary', editorToken).expect(403);
       const editor = (

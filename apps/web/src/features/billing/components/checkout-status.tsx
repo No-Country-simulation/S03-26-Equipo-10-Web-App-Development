@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import type { z } from 'zod';
 import type { SessionFetch } from '@/lib/api/validated-response';
 import { Button } from '@/components/ui/button';
@@ -12,12 +13,14 @@ export function CheckoutStatus({
   runtime,
   autoOpen = false,
   onConfirmed,
+  onExpired,
 }: {
   id: string;
   fetchApi: SessionFetch;
   runtime: string;
   autoOpen?: boolean;
   onConfirmed?: () => void;
+  onExpired?: () => void;
 }) {
   const [operation, setOperation] = useState<z.infer<
     typeof operationSchema
@@ -39,6 +42,13 @@ export function CheckoutStatus({
         setOperation(data);
         setError(null);
         if (data.paymentStatus === 'reversed') return;
+        if (data.paymentStatus === 'expired') {
+          if (!confirmed.current) {
+            confirmed.current = true;
+            onExpired?.();
+          }
+          return;
+        }
         if (data.paymentStatus === 'confirmed') {
           if (!confirmed.current) {
             confirmed.current = true;
@@ -73,7 +83,8 @@ export function CheckoutStatus({
       alive = false;
       if (timer) clearTimeout(timer);
     };
-  }, [fetchApi, id, runtime, autoOpen, onConfirmed, revision]);
+  }, [fetchApi, id, runtime, autoOpen, onConfirmed, onExpired, revision]);
+  const expired = operation?.paymentStatus === 'expired';
   const done = operation?.paymentStatus === 'confirmed';
   const review = operation?.status === 'review';
   const failed = operation?.paymentStatus === 'failed';
@@ -84,37 +95,41 @@ export function CheckoutStatus({
       className="my-6 border border-border bg-card p-5"
     >
       <h2 className="font-caption text-2xl italic">
-        {reversed
-          ? 'Pago revertido'
-          : done
-            ? 'Pago confirmado'
-            : review
-              ? 'Operación en revisión'
-              : failed
-                ? 'El pago no fue aprobado'
-                : 'Confirmación pendiente'}
+        {expired
+          ? 'Checkout vencido'
+          : reversed
+            ? 'Pago revertido'
+            : done
+              ? 'Pago confirmado'
+              : review
+                ? 'Operación en revisión'
+                : failed
+                  ? 'El pago no fue aprobado'
+                  : 'Confirmación pendiente'}
       </h2>
       <p
         className="mt-2 max-w-prose font-body text-sm text-muted-foreground"
         role="status"
       >
-        {reversed
-          ? 'Se registró una devolución total o un contracargo confirmado. El período asociado fue invalidado; revisá el historial y tu acceso en Facturación.'
-          : done
-            ? 'El pago fue confirmado y el período de acceso está actualizado.'
-            : review
-              ? 'No inicies otro cobro. El operador debe reconciliar esta operación.'
-              : failed
-                ? 'Revisá el historial y las opciones de la pasarela antes de volver a intentar.'
-                : 'La pasarela puede demorar en confirmar. Podés volver al panel y consultar esta operación más tarde.'}
+        {expired
+          ? 'La pasarela confirmó el vencimiento sin pago. Podés volver a elegir un plan e iniciar otro checkout cuando quieras.'
+          : reversed
+            ? 'Se registró una devolución total o un contracargo confirmado. El período asociado fue invalidado; revisá el historial y tu acceso en Facturación.'
+            : done
+              ? 'El pago fue confirmado y el período de acceso está actualizado.'
+              : review
+                ? 'No inicies otro cobro. El operador debe reconciliar esta operación.'
+                : failed
+                  ? 'Revisá el historial y las opciones de la pasarela antes de volver a intentar.'
+                  : 'La pasarela puede demorar en confirmar. Podés volver al panel y consultar esta operación más tarde.'}
       </p>
-      {runtime === 'simulation' && !done && !reversed && (
+      {runtime === 'simulation' && !done && !reversed && !expired && (
         <p className="mt-3 text-sm">
           Entorno de simulación: el operador puede registrar el resultado desde
           el panel de plataforma. No se realizan cobros.
         </p>
       )}
-      {pollingStopped && !done && (
+      {pollingStopped && !done && !expired && (
         <p className="mt-3 text-sm" role="status">
           La confirmación sigue pendiente. Usá Consultar estado para volver a
           comprobarla.
@@ -122,10 +137,16 @@ export function CheckoutStatus({
       )}
       {error && <ActionFeedback>{error}</ActionFeedback>}
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button variant="outline" onClick={() => setRevision((r) => r + 1)}>
-          Consultar estado
-        </Button>
-        {operation?.redirectUrl && !done && !reversed && (
+        {expired ? (
+          <Button variant="outline" asChild>
+            <Link href="/admin/billing">Volver a elegir plan</Link>
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={() => setRevision((r) => r + 1)}>
+            Consultar estado
+          </Button>
+        )}
+        {operation?.redirectUrl && !done && !reversed && !expired && (
           <Button
             onClick={() => {
               try {

@@ -442,3 +442,99 @@ it('permite renovar términos manuales aceptados aunque el plan ya no se ofrezca
     ),
   );
 });
+
+it('muestra checkout vencido sin ofrecer redirección o confirmar un pago', async () => {
+  fetchApi.mockResolvedValue(
+    ok({
+      id,
+      status: 'succeeded',
+      kind: 'checkout',
+      errorCode: null,
+      paymentStatus: 'expired',
+      redirectUrl: 'https://checkout.stripe.com/expired',
+    }),
+  );
+  const confirmed = vi.fn();
+  render(
+    <CheckoutStatus
+      id={id}
+      fetchApi={fetchApi}
+      runtime="sandbox"
+      onConfirmed={confirmed}
+    />,
+  );
+  expect(
+    await screen.findByRole('heading', { name: 'Checkout vencido' }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Abrir checkout seguro' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('link', { name: 'Volver a elegir plan' }),
+  ).toHaveAttribute('href', '/admin/billing');
+  expect(confirmed).not.toHaveBeenCalled();
+});
+
+it('libera selección de plan al resolver la operación vencida sin iniciar otro cobro', async () => {
+  let resolved = false;
+  fetchApi.mockImplementation(async (path: string) => {
+    if (path === '/billing/summary')
+      return ok({ ...summary, pendingOperationId: resolved ? null : id });
+    if (path === '/billing/catalog') return ok(catalog);
+    if (path.startsWith('/billing/payments'))
+      return ok({ items: [], total: 0, page: 1, limit: 20 });
+    if (path.startsWith('/billing/operations')) {
+      resolved = true;
+      return ok({
+        id,
+        status: 'succeeded',
+        kind: 'checkout',
+        errorCode: null,
+        paymentStatus: 'expired',
+      });
+    }
+    throw Error('Unexpected request');
+  });
+  render(<BillingScreen />);
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Seleccionar plan' }),
+    ).toBeEnabled(),
+  );
+  expect(
+    screen.getByText(/Checkout vencido. Podés volver a elegir un plan/),
+  ).toBeInTheDocument();
+  expect(fetchApi.mock.calls.every(([, init]) => !init?.method)).toBe(true);
+});
+it('no continúa el sondeo después de recibir un vencimiento', async () => {
+  vi.useFakeTimers();
+  try {
+    fetchApi.mockResolvedValue(
+      ok({
+        id,
+        status: 'succeeded',
+        kind: 'checkout',
+        errorCode: null,
+        paymentStatus: 'expired',
+      }),
+    );
+    const expired = vi.fn();
+    await act(async () => {
+      render(
+        <CheckoutStatus
+          id={id}
+          fetchApi={fetchApi}
+          runtime="sandbox"
+          onExpired={expired}
+        />,
+      );
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(65000);
+    });
+    expect(fetchApi).toHaveBeenCalledTimes(1);
+    expect(expired).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+  }
+});

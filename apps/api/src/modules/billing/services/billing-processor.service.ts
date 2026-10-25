@@ -99,6 +99,7 @@ export class BillingProcessor implements OnModuleInit, OnModuleDestroy {
       }
       const command = await this.ledger.command(job);
       if (job.row.kind === 'checkout') {
+        if (!job.recovering) await this.ledger.markCheckoutSubmitted(job);
         const checkout = job.recovering
           ? await gateway.findCheckout(
               command,

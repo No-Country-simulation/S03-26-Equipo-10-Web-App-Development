@@ -184,7 +184,7 @@ describeDb(
       );
       const job = await ledger.claim([accountId], 'operation');
       expect(job?.row.id).toBe(operation.id);
-      if (!job) throw Error('claim missing');
+      if (!job || job.kind !== 'operation') throw Error('claim missing');
       const command = await ledger.command(job);
       return { obligation, operation, job, command };
     }
@@ -220,6 +220,34 @@ describeDb(
       await processor.process(job);
       return job;
     }
+    async function expiry(
+      command: CheckoutCommand,
+      operationId: string,
+      overrides: Partial<
+        import('../src/modules/billing/ports/financial-gateway.port').VerifiedCheckoutExpiration
+      > = {},
+    ) {
+      await ledger.receive(accountId, 'sandbox', {
+        eventKey: randomUUID(),
+        topic: 'checkout.session.expired',
+        resourceId: 'cs_expired',
+      });
+      const job = await ledger.claim([accountId], 'inbox');
+      if (!job) throw Error('expiration inbox missing');
+      const snapshot = {
+        payments: [],
+        checkoutExpiration: {
+          checkoutId: `sim_${command.reference}`,
+          reference: command.reference,
+          operationId,
+          tenantId: command.tenantId,
+          localSubscriptionId: command.subscriptionId,
+          money: command.money,
+          ...overrides,
+        },
+      };
+      return { job, snapshot };
+    }
     test('concurrent idempotent enqueue and exclusive claim survive replay', async () => {
       const obligation = await settlements.preparePurchase({
         tenantId,
@@ -254,6 +282,7 @@ describeDb(
     });
     test('lease expiry fences stale publication and another process recovers uncertainty', async () => {
       const { job } = await purchase();
+      await ledger.markCheckoutSubmitted(job);
       await db.billingOperation.update({
         where: { id: job.row.id },
         data: { leaseUntil: new Date(0) },
@@ -272,6 +301,367 @@ describeDb(
         (
           await db.billingOperation.findUniqueOrThrow({
             where: { id: job.row.id },
+          })
+        ).status,
+      ).toBe('succeeded');
+    });
+    test('preflight outage remains retryable and creates once after restart', async () => {
+      const { job } = await purchase();
+      const fake = Object.create(simulator) as SimulationGateway;
+      const account = jest
+        .spyOn(fake, 'assertAccount')
+        .mockRejectedValueOnce(Error('synthetic outage'))
+        .mockResolvedValue(undefined);
+      const create = jest.spyOn(fake, 'createCheckout');
+      const find = jest.spyOn(fake, 'findCheckout');
+      jest.spyOn(gateways, 'get').mockResolvedValue(fake);
+      try {
+        await processor.process(job);
+        const failed = await db.billingOperation.findUniqueOrThrow({
+          where: { id: job.row.id },
+        });
+        expect(failed.status).toBe('ready');
+        expect(create).not.toHaveBeenCalled();
+        await db.billingOperation.update({
+          where: { id: failed.id },
+          data: { nextAttemptAt: new Date(0) },
+        });
+        const retried = await ledger.claim([accountId], 'operation');
+        if (!retried) throw Error('retry missing');
+        await new BillingProcessor(ledger, gateways).process(retried);
+        expect(create).toHaveBeenCalledTimes(1);
+        expect(find).not.toHaveBeenCalled();
+        expect(account).toHaveBeenCalledTimes(2);
+      } finally {
+        jest.restoreAllMocks();
+      }
+    });
+    test('verified expiration closes an unpaid checkout and allows a new purchase', async () => {
+      const { job, command, obligation } = await purchase();
+      await processor.process(job);
+      const snapshot = {
+        payments: [],
+        checkoutExpiration: {
+          checkoutId: `sim_${command.reference}`,
+          reference: command.reference,
+          operationId: job.row.id,
+          tenantId,
+          localSubscriptionId: command.subscriptionId,
+          money: command.money,
+        },
+      };
+      for (const eventKey of ['expired-first', 'expired-duplicate']) {
+        await ledger.receive(accountId, 'sandbox', {
+          eventKey,
+          topic: 'checkout.session.expired',
+          resourceId: 'cs_expired',
+        });
+        const inbox = await ledger.claim([accountId], 'inbox');
+        if (!inbox) throw Error('inbox missing');
+        await ledger.finish(inbox, { snapshot });
+      }
+      expect(
+        (
+          await db.billingObligation.findUniqueOrThrow({
+            where: { id: obligation.id },
+          })
+        ).status,
+      ).toBe('void');
+      expect(
+        (
+          await db.billingOrder.findUniqueOrThrow({
+            where: { id: obligation.orderId },
+          })
+        ).status,
+      ).toBe('expired');
+      expect(
+        (
+          await db.billingSubscription.findUniqueOrThrow({
+            where: { id: command.subscriptionId },
+          })
+        ).status,
+      ).toBe('ended');
+      const failed = await notify(command, 'rejected');
+      expect(
+        (
+          await db.billingWebhookInbox.findUniqueOrThrow({
+            where: { id: failed.row.id },
+          })
+        ).status,
+      ).toBe('completed');
+      const contradictory = await notify(command, 'approved');
+      expect(
+        (
+          await db.billingWebhookInbox.findUniqueOrThrow({
+            where: { id: contradictory.row.id },
+          })
+        ).status,
+      ).toBe('review');
+      expect(
+        await db.billingAccessPeriod.count({
+          where: { tenantId, kind: 'paid' },
+        }),
+      ).toBe(0);
+      const next = await settlements.preparePurchase({
+        tenantId,
+        environment: 'sandbox',
+        priceId,
+        mode: 'manual',
+        cycleKey: 'after-expiration',
+      });
+      expect(next.subscriptionId).not.toBe(command.subscriptionId);
+    });
+    test('unsubmitted lease recovery creates, but legacy uncertainty only searches', async () => {
+      const { job } = await purchase();
+      await db.billingOperation.update({
+        where: { id: job.row.id },
+        data: { leaseUntil: new Date(0) },
+      });
+      const recovered = await ledger.claim([accountId], 'operation');
+      expect(recovered?.kind === 'operation' && recovered.recovering).toBe(
+        false,
+      );
+      if (!recovered) throw Error('recover missing');
+      await expect(ledger.markCheckoutSubmitted(job)).rejects.toThrow(
+        'BILLING_LEASE_LOST',
+      );
+      await processor.process(recovered);
+      const row = await db.billingOperation.findUniqueOrThrow({
+        where: { id: job.row.id },
+      });
+      expect(row.status).toBe('succeeded');
+      expect(row.requestHash).toBe(job.row.requestHash);
+      await db.billingOperation.update({
+        where: { id: row.id },
+        data: {
+          status: 'uncertain',
+          requestData: { entityId: row.entityId },
+          externalResourceId: null,
+          nextAttemptAt: new Date(0),
+        },
+      });
+      const legacy = await ledger.claim([accountId], 'operation');
+      expect(legacy?.kind === 'operation' && legacy.recovering).toBe(true);
+      const fake = Object.create(simulator) as SimulationGateway;
+      const create = jest.spyOn(fake, 'createCheckout');
+      jest.spyOn(fake, 'findCheckout').mockResolvedValue(null);
+      jest.spyOn(gateways, 'get').mockResolvedValue(fake);
+      try {
+        if (!legacy) throw Error('legacy missing');
+        await processor.process(legacy);
+        expect(create).not.toHaveBeenCalled();
+      } finally {
+        jest.restoreAllMocks();
+      }
+    });
+    test.each([false, true])(
+      'operator retry preserves submission uncertainty: submitted=%s',
+      async (submitted) => {
+        const { job } = await purchase();
+        if (submitted) await ledger.markCheckoutSubmitted(job);
+        await db.billingOperation.update({
+          where: { id: job.row.id },
+          data: { attempts: 10 },
+        });
+        await ledger.fail(
+          { ...job, row: { ...job.row, attempts: 10 } },
+          'BILLING_PROVIDER_UNAVAILABLE',
+        );
+        const actor = await db.user.create({
+          data: {
+            tenantId,
+            email: `${randomUUID()}@synthetic.invalid`,
+            passwordHash: 'synthetic-test-only',
+          },
+        });
+        await new BillingOperatorRepository(
+          db as unknown as PrismaService,
+        ).setMembership(actor.id, true);
+        await ledger.retry(actor.id, job.row.id, 'operation');
+        const retried = await ledger.claim([accountId], 'operation');
+        expect(retried?.kind === 'operation' && retried.recovering).toBe(
+          submitted,
+        );
+        if (!retried) throw Error('retry missing');
+        const fake = Object.create(simulator) as SimulationGateway;
+        const create = jest.spyOn(fake, 'createCheckout');
+        const find = jest
+          .spyOn(fake, 'findCheckout')
+          .mockResolvedValue({ id: 'sim_recovered', url: null });
+        jest.spyOn(gateways, 'get').mockResolvedValue(fake);
+        try {
+          await processor.process(retried);
+          expect(create).toHaveBeenCalledTimes(submitted ? 0 : 1);
+          expect(find).toHaveBeenCalledTimes(submitted ? 1 : 0);
+          expect(
+            (
+              await db.billingOperation.findUniqueOrThrow({
+                where: { id: job.row.id },
+              })
+            ).status,
+          ).toBe('succeeded');
+        } finally {
+          jest.restoreAllMocks();
+        }
+      },
+    );
+    test('expiration rejects mismatched identity or amount without closing the obligation', async () => {
+      const { job, command, obligation } = await purchase();
+      await processor.process(job);
+      for (const override of [
+        { tenantId: randomUUID() },
+        { reference: randomUUID() },
+        { operationId: randomUUID() },
+        { localSubscriptionId: randomUUID() },
+        { checkoutId: 'another-checkout' },
+        { money: { amountMinor: 1n, currency: 'USD' as const } },
+      ]) {
+        const e = await expiry(command, job.row.id, override);
+        await expect(
+          ledger.finish(e.job, { snapshot: e.snapshot }),
+        ).rejects.toThrow('BILLING_EXPIRATION_MISMATCH');
+      }
+      expect(
+        (
+          await db.billingObligation.findUniqueOrThrow({
+            where: { id: obligation.id },
+          })
+        ).status,
+      ).toBe('open');
+    });
+    test('expiration during manual renewal preserves paid coverage and original contract', async () => {
+      const first = await purchase();
+      await processor.process(first.job);
+      await notify(first.command, 'approved');
+      const before = await db.billingSubscription.findUniqueOrThrow({
+        where: { id: first.command.subscriptionId },
+      });
+      const renewal = await settlements.preparePurchase({
+        tenantId,
+        environment: 'sandbox',
+        priceId,
+        mode: 'manual',
+        cycleKey: 'renewal-to-expire',
+      });
+      const op = await ledger.enqueueCheckout(
+        tenantId,
+        'sandbox',
+        renewal.id,
+        'renewal-to-expire',
+      );
+      const job = await ledger.claim([accountId], 'operation');
+      if (!job) throw Error('job missing');
+      const command = await ledger.command(job);
+      await processor.process(job);
+      const e = await expiry(command, op.id);
+      await ledger.finish(e.job, { snapshot: e.snapshot });
+      const after = await db.billingSubscription.findUniqueOrThrow({
+        where: { id: before.id },
+      });
+      expect(after.status).toBe('active');
+      expect(after.paidThrough).toEqual(before.paidThrough);
+      expect(
+        await db.billingAccessPeriod.count({
+          where: { tenantId, revokedAt: null, kind: 'paid' },
+        }),
+      ).toBe(1);
+      await ledger.scheduleReconciliation([accountId]);
+      expect(
+        await db.billingOperation.count({
+          where: { kind: 'reconcile', entityId: renewal.id },
+        }),
+      ).toBe(0);
+      await expect(
+        settlements.preparePurchase({
+          tenantId,
+          environment: 'sandbox',
+          priceId,
+          mode: 'manual',
+          cycleKey: 'after-renewal-expiration',
+        }),
+      ).resolves.toMatchObject({ subscriptionId: before.id });
+    });
+    test('expiration concurrent with payment reconfirmation cannot revoke access', async () => {
+      const { job, command, obligation } = await purchase();
+      await processor.process(job);
+      const e = await expiry(command, job.row.id);
+      await notify(command, 'approved');
+      const results = await Promise.allSettled([
+        ledger.finish(e.job, { snapshot: e.snapshot }),
+        notify(command, 'approved'),
+      ]);
+      expect(results[0]).toMatchObject({
+        status: 'rejected',
+        reason: { code: 'BILLING_EXPIRATION_CONFLICT' },
+      });
+      expect(results[1]!.status).toBe('fulfilled');
+      expect(
+        (
+          await db.billingObligation.findUniqueOrThrow({
+            where: { id: obligation.id },
+          })
+        ).status,
+      ).toBe('paid');
+      expect(
+        await db.billingAccessPeriod.count({
+          where: { tenantId, revokedAt: null },
+        }),
+      ).toBe(1);
+    });
+    test('concurrent expiration notifications close once', async () => {
+      const { job, command, obligation } = await purchase();
+      await processor.process(job);
+      const first = await expiry(command, job.row.id),
+        second = await expiry(command, job.row.id);
+      await Promise.all([
+        ledger.finish(first.job, { snapshot: first.snapshot }),
+        ledger.finish(second.job, { snapshot: second.snapshot }),
+      ]);
+      expect(
+        await db.billingAudit.count({
+          where: {
+            tenantId,
+            action: 'checkout.expired',
+            entityId: obligation.id,
+          },
+        }),
+      ).toBe(1);
+      expect(await db.billingAccessPeriod.count({ where: { tenantId } })).toBe(
+        0,
+      );
+    });
+    test('reconciliation can resolve a verified initial automatic expiration without rescheduling it', async () => {
+      const { job, command, obligation } = await purchase('automatic');
+      await processor.process(job);
+      await ledger.scheduleReconciliation([accountId]);
+      const reconcile = await ledger.claim([accountId], 'operation');
+      if (!reconcile) throw Error('reconcile missing');
+      const e = await expiry(command, job.row.id);
+      const fake = Object.create(simulator) as SimulationGateway;
+      jest.spyOn(fake, 'reconcile').mockResolvedValue(e.snapshot);
+      jest.spyOn(gateways, 'get').mockResolvedValue(fake);
+      try {
+        await processor.process(reconcile);
+      } finally {
+        jest.restoreAllMocks();
+      }
+      expect(
+        (
+          await db.billingObligation.findUniqueOrThrow({
+            where: { id: obligation.id },
+          })
+        ).status,
+      ).toBe('void');
+      await ledger.scheduleReconciliation([accountId]);
+      expect(
+        await db.billingOperation.count({
+          where: { kind: 'reconcile', entityId: command.subscriptionId },
+        }),
+      ).toBe(1);
+      expect(
+        (
+          await db.billingOperation.findUniqueOrThrow({
+            where: { id: reconcile.row.id },
           })
         ).status,
       ).toBe('succeeded');
@@ -310,6 +700,7 @@ describeDb(
     });
     test('an inconclusive lookup stays uncertain and eventually requires operational review', async () => {
       const { job } = await purchase();
+      await ledger.markCheckoutSubmitted(job);
       await ledger.fail(job, 'BILLING_CHECKOUT_UNCERTAIN');
       await db.billingOperation.update({
         where: { id: job.row.id },

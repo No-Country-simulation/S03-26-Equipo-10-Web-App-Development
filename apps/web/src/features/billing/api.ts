@@ -131,7 +131,13 @@ export const operationSchema = z.object({
   status: z.enum(['ready', 'processing', 'succeeded', 'uncertain', 'review']),
   kind: z.string(),
   errorCode: z.string().nullable(),
-  paymentStatus: z.enum(['pending', 'confirmed', 'failed', 'reversed']),
+  paymentStatus: z.enum([
+    'pending',
+    'confirmed',
+    'failed',
+    'reversed',
+    'expired',
+  ]),
   redirectUrl: z.string().url().optional(),
   redirectUnavailable: z.boolean().optional(),
 });

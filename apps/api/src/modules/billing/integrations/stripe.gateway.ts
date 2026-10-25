@@ -7,9 +7,15 @@ import type {
   GatewayCheckout,
   VerifiedPayment,
   VerifiedSubscription,
+  GatewaySnapshot,
 } from '../ports/financial-gateway.port';
 import { GatewayError } from '../ports/financial-gateway.port';
-import { checkoutUrl, requireMatch, stripeAmount } from './provider-values';
+import {
+  checkoutUrl,
+  requireMatch,
+  stripeAmount,
+  referenceValue,
+} from './provider-values';
 
 const objectId = (v: string | { id: string } | null | undefined) =>
   typeof v === 'string' ? v : v?.id;
@@ -322,7 +328,7 @@ export class StripeGateway implements FinancialGateway {
       payments,
     };
   }
-  async read(topic: string, id: string) {
+  async read(topic: string, id: string): Promise<GatewaySnapshot> {
     await this.assertAccount();
     if (topic.startsWith('invoice.'))
       return { payments: await this.invoice(id) };
@@ -333,6 +339,41 @@ export class StripeGateway implements FinancialGateway {
     if (topic.startsWith('checkout.session.')) {
       const session = await this.sdk.checkout.sessions.retrieve(id);
       this.mode(session);
+      if (session.status === 'expired') {
+        requireMatch(
+          session.payment_status === 'unpaid' &&
+            !session.subscription &&
+            session.currency === 'usd' &&
+            Number.isSafeInteger(session.amount_total) &&
+            session.amount_total! > 0 &&
+            session.metadata?.cms_reference === session.client_reference_id,
+        );
+        // Current authenticated state, not the event name or browser return.
+        const payments = session.payment_intent
+          ? [await this.payment(objectId(session.payment_intent)!)]
+          : [];
+        requireMatch(
+          payments.every(
+            (p) => p.status === 'canceled' || p.status === 'failed',
+          ),
+        );
+        return {
+          payments,
+          checkoutExpiration: {
+            checkoutId: session.id,
+            reference: referenceValue.parse(session.client_reference_id),
+            operationId: referenceValue.parse(session.metadata?.cms_operation),
+            tenantId: referenceValue.parse(session.metadata?.cms_tenant),
+            localSubscriptionId: referenceValue.parse(
+              session.metadata?.cms_subscription,
+            ),
+            money: {
+              amountMinor: BigInt(session.amount_total!),
+              currency: 'USD',
+            },
+          },
+        };
+      }
       const sub = objectId(session.subscription);
       if (sub) {
         const subscription = await this.subscription(sub);

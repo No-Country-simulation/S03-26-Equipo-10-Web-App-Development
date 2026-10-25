@@ -54,6 +54,19 @@ export interface VerifiedSubscription {
   stopped: boolean;
   payments: VerifiedPayment[];
 }
+export interface VerifiedCheckoutExpiration {
+  checkoutId: string;
+  reference: string;
+  operationId: string;
+  tenantId: string;
+  localSubscriptionId: string;
+  money: Money;
+}
+export interface GatewaySnapshot {
+  payments: VerifiedPayment[];
+  subscription?: VerifiedSubscription;
+  checkoutExpiration?: VerifiedCheckoutExpiration;
+}
 export interface FinancialGateway {
   assertAccount(): Promise<void>;
   syncPrice(command: {
@@ -67,20 +80,11 @@ export interface FinancialGateway {
     command: CheckoutCommand,
     knownId?: string,
   ): Promise<GatewayCheckout | null>;
-  read(
-    topic: string,
-    resourceId: string,
-  ): Promise<{
-    payments: VerifiedPayment[];
-    subscription?: VerifiedSubscription;
-  }>;
+  read(topic: string, resourceId: string): Promise<GatewaySnapshot>;
   reconcile(
     command: CheckoutCommand,
     checkoutId?: string,
-  ): Promise<{
-    payments: VerifiedPayment[];
-    subscription?: VerifiedSubscription;
-  }>;
+  ): Promise<GatewaySnapshot>;
   stopRenewal(id: string, operationId: string): Promise<boolean>;
 }
 export class GatewayError extends Error {

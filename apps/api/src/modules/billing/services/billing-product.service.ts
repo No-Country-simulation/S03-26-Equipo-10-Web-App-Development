@@ -45,7 +45,7 @@ export class BillingProductService {
   async operation(actor: BillingActor, id: string) {
     const state = await this.repository.operation(actor, id);
     if (
-      ['confirmed', 'reversed'].includes(state.paymentStatus) ||
+      ['confirmed', 'reversed', 'expired'].includes(state.paymentStatus) ||
       state.status !== 'succeeded' ||
       state.kind !== 'checkout'
     )
