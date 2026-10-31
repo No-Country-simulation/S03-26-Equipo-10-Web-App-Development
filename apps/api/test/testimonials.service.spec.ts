@@ -135,6 +135,7 @@ describe('TestimonialsService', () => {
     await expect(service.getPublicFormInfo('synthetic')).resolves.toEqual({
       name: 'Synthetic',
       isPublicFormEnabled: true,
+      mediaEnabled: true,
       logoUrl: 'https://res.cloudinary.com/demo/image/upload/logo.png',
     });
     mockTenantsService.getTenantByPublicSlug.mockResolvedValueOnce({
@@ -145,6 +146,7 @@ describe('TestimonialsService', () => {
     await expect(service.getPublicFormInfo('synthetic')).resolves.toEqual({
       name: 'Synthetic',
       isPublicFormEnabled: false,
+      mediaEnabled: true,
       logoUrl: null,
     });
   });

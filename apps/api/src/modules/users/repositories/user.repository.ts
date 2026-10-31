@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BillingAccessRepository } from '../../billing/access';
+import { Optional, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { UserView } from '../entities/user.model';
@@ -14,7 +15,30 @@ import {
 
 @Injectable()
 export class UserRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly commercial?: BillingAccessRepository,
+  ) {}
+
+  private operatorProtection(error: unknown): never {
+    const connector =
+      error instanceof Prisma.PrismaClientUnknownRequestError &&
+      /code:\s*"23514"/.test(error.message) &&
+      error.message.includes('BILLING_OPERATOR_PROTECTED');
+    const known =
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      ['P2004', 'P2010'].includes(error.code) &&
+      String(error.meta?.database_error ?? error.meta?.message ?? '').includes(
+        'BILLING_OPERATOR_PROTECTED',
+      );
+    if (connector || known)
+      throw new ApplicationError(
+        'Operator identity is managed outside tenant administration',
+        'conflict',
+        'BILLING_OPERATOR_PROTECTED',
+      );
+    throw error;
+  }
 
   async findByTenant(
     tenantId: string,
@@ -63,16 +87,23 @@ export class UserRepository {
     });
     if (!role) throw new InternalError(`Role not found: ${params.roleCode}`);
 
-    const user = await this.prisma.user.create({
-      data: {
-        tenantId: params.tenantId,
-        email: params.email,
-        passwordHash: params.passwordHash,
-        isActive: true,
-        roles: { create: { roleId: role.id } },
-      },
-      include: { roles: { include: { role: true } } },
-    });
+    const write = (tx: Prisma.TransactionClient) =>
+      tx.user.create({
+        data: {
+          tenantId: params.tenantId,
+          email: params.email,
+          passwordHash: params.passwordHash,
+          isActive: true,
+          roles: { create: { roleId: role.id } },
+        },
+        include: { roles: { include: { role: true } } },
+      });
+    const user = this.commercial?.enabled
+      ? await this.commercial.mutate(params.tenantId, write, {
+          quota: 'active_users',
+          increase: 1,
+        })
+      : await write(this.prisma);
 
     return this.toView(user);
   }
@@ -84,17 +115,36 @@ export class UserRepository {
     passwordHash?: string;
     isActive?: boolean;
   }): Promise<UserView> {
-    const user = await this.prisma.user
-      .update({
-        where: { id: params.userId, tenantId: params.tenantId },
-        data: {
-          ...(params.email !== undefined && { email: params.email }),
-          ...(params.passwordHash !== undefined && {
-            passwordHash: params.passwordHash,
-          }),
-          ...(params.isActive !== undefined && { isActive: params.isActive }),
-        },
-        include: { roles: { include: { role: true } } },
+    const user = await this.prisma
+      .$transaction(async (tx) => {
+        await this.commercial?.checkMutation(params.tenantId, tx, {
+          quota: 'active_users',
+          increase: async (client) =>
+            params.isActive === true &&
+            !(
+              await client.user.findFirst({
+                where: { tenantId: params.tenantId, id: params.userId },
+                select: { isActive: true },
+              })
+            )?.isActive
+              ? 1
+              : 0,
+        });
+        // Serialize with manual operator grants, then mark only tenant mutations.
+        // These statements also work on legacy schemas without billing tables.
+        await tx.$executeRaw`SELECT id FROM users WHERE id = ${params.userId}::uuid AND tenant_id = ${params.tenantId}::uuid FOR UPDATE`;
+        await tx.$executeRaw`SELECT set_config('tms.billing_tenant_user_mutation', 'true', true)`;
+        return tx.user.update({
+          where: { id: params.userId, tenantId: params.tenantId },
+          data: {
+            ...(params.email !== undefined && { email: params.email }),
+            ...(params.passwordHash !== undefined && {
+              passwordHash: params.passwordHash,
+            }),
+            ...(params.isActive !== undefined && { isActive: params.isActive }),
+          },
+          include: { roles: { include: { role: true } } },
+        });
       })
       .catch((error: unknown) => {
         if (
@@ -103,7 +153,7 @@ export class UserRepository {
         ) {
           throw new NotFoundError('User not found');
         }
-        throw error;
+        this.operatorProtection(error);
       });
 
     return this.toView(user);
@@ -112,6 +162,8 @@ export class UserRepository {
   async remove(tenantId: string, userId: string): Promise<void> {
     await this.prisma
       .$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT id FROM users WHERE id = ${userId}::uuid AND tenant_id = ${tenantId}::uuid FOR UPDATE`;
+        await tx.$executeRaw`SELECT set_config('tms.billing_tenant_user_mutation', 'true', true)`;
         await tx.testimonial.updateMany({
           where: { tenantId, createdById: userId },
           data: { createdById: null },
@@ -140,7 +192,7 @@ export class UserRepository {
             'USER_HAS_HISTORY',
           );
         }
-        throw error;
+        this.operatorProtection(error);
       });
   }
 

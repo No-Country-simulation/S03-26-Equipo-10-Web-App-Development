@@ -1,0 +1,153 @@
+# Billing: contratos y diseño
+
+**Estado 2026-10-20:** fase 3 del [plan HITL](../plan/2026-10-20_feat-billing-subscriptions.md). Dominio, [migración aditiva](../../apps/api/prisma/migrations/20261020000000_billing_core/migration.sql), persistencia, operador global y SDKs oficiales implementados. BillingModule registrado con facturación **deshabilitada por defecto**, dos receptores financieros, polling durable, reconciliación y simulación explícita. Sin UI/API de contratación tenant, cuotas integradas al CMS, migración persistente, claves ni llamadas sandbox externas. `live` no compone. Ver [persistencia](../operations/32_billing_persistence.md) e [integraciones/configuración](../operations/33_billing_integrations.md). El [SQL de fase 1](../plan/2026-10-20_feat-billing-subscriptions_oltp-borrador.sql) es histórico.
+
+## 1. Autoridades y capacidades
+
+La plataforma es el vendedor; cada tenant compra acceso al CMS. Una cuenta vendedora por proveedor/ambiente, configurada por el operador; no OAuth marketplace ni fondos de tenants. La pertenencia se resuelve desde entidades locales y cuenta esperada, nunca desde un `tenant_id` del webhook o navegador.
+
+| Capacidad           | Stripe/USD                                    | Mercado Pago/ARS                                                                 |
+| ------------------- | --------------------------------------------- | -------------------------------------------------------------------------------- |
+| Período manual      | Checkout alojado, pago único                  | Checkout Pro vía Preferences                                                     |
+| Recurrencia         | Checkout + Billing                            | Suscripciones `/preapproval`, adhesión con `pending` y checkout alojado          |
+| Catálogo            | Producto/precio vinculado a versión local     | Términos locales por suscripción sin plan asociado; no confundir con Preferences |
+| Prueba              | Local, sin tarjeta; no crear trial remoto     | Local, sin tarjeta; no crear trial remoto                                        |
+| Cambio              | Detener renovación y nueva adhesión al vencer | Detener renovación y nueva adhesión al vencer                                    |
+| Reembolsos/disputas | Observar y reconciliar                        | Observar y reconciliar                                                           |
+
+Los métodos exactos los presenta el proveedor según cuenta, país, moneda, dispositivo y modalidad. No publicar una lista estática prometiendo soporte universal. No interpretar cuotas de tarjeta como renovación de una suscripción. No integrar Orders/Bricks/QR por analogía con Preferences/preapproval.
+
+Fuentes oficiales consultadas el 2026-10-20: [compatibilidad Stripe](https://docs.stripe.com/payments/payment-methods/payment-method-support), [Checkout](https://docs.stripe.com/checkout/quickstart), [webhooks Stripe](https://docs.stripe.com/webhooks), [adhesión MP](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/integration-configuration/subscription-no-associated-plan/pending-payments), [gestión MP](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/subscription-management), [webhooks MP](https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks), [prueba MP](https://www.mercadopago.com.ar/developers/es/docs/subscriptions/integration-test/payment-approval), [test clocks Stripe](https://docs.stripe.com/billing/testing/test-clocks). Revalidar endpoints, SDK, firma e idempotencia por operación al implementar fase 3. MP documenta particularidades de configuración de notificaciones para Suscripciones: comprobar ese flujo específico en sandbox, sin asumir que el dashboard genérico o una simulación de webhook acredita la adhesión.
+
+## 2. Modelo relacional
+
+### Catálogo y autoridad global
+
+`billing_plans` identifica el producto; `billing_plan_versions` guarda nombre, condiciones, prestaciones, cuotas, días de prueba/gracia y revisión optimista. `billing_prices` fija importe, moneda, proveedor, mensual/anual y modalidades. Editar borradores requiere revisión esperada; una versión publicada y sus precios no admiten modificación de términos o borrado mediante repositorio. Archivar conserva contratos, historial y renovaciones existentes, pero impide nuevas altas y trials.
+
+`billing_provider_accounts` guarda vendedor/app esperados y nombre de configuración, **sin claves**; `billing_price_bindings` distingue pendiente/listo/error por cuenta. Publicar no equivale a sincronizar: una oferta se muestra sólo si cuenta habilitada y binding listo en el ambiente actual. Una caída de MP no impide ofrecer Stripe listo. Nuevas versiones no migran automáticamente contratos.
+
+`billing_platform_operators` referencia un usuario existente y permite revocación. Alta/baja exclusivamente mediante CLI por UUID en fase 2, con auditoría. No es otro rol asignable desde `/users`; proteger modificaciones y eliminación de toda identidad con historial de operador frente a administradores tenant. Verificar usuario/tenant activos y membresía no revocada en cada operación; no confiar sólo en un claim de JWT. La UI obtiene capacidades de operador desde una consulta autenticada.
+
+### Tenant y dinero
+
+`billing_accounts` contiene opt-in y consumo de trial una vez por tenant, compartido entre ambientes. `billing_customers` vincula cliente remoto y cuenta del proveedor. No guardar tarjeta, CVV, token de tarjeta ni una copia del pagador. Cuando MP requiera `payer_email`, resolverlo desde el usuario autenticado en servidor; las pruebas deberán usar el comprador sintético esperado por el producto. No incluirlo en operaciones, logs o evidencia.
+
+`billing_subscriptions` conserva versión/precio/modo/cuenta, ID remoto opcional, estado, ancla calendario y horizonte pago. El índice parcial permite una contratación abierta por tenant/ambiente, contando pendiente, activa, impaga y cancelación pendiente. Una cancelada conserva sus grants; impide nuevo checkout incompatible hasta que venza lo ya pagado. Un manual puede renovar el mismo contrato antes de vencer, sin crear otro contrato paralelo.
+
+`billing_orders` representa una compra; `billing_obligations` el importe exigible de ese ciclo; `billing_payments` cada intento/recurso de pago observado. Renovaciones automáticas generan orden/obligación con identidad estable del ciclo del proveedor, no por llegada de cada evento. Un cambio de estado de un pago no crea otra obligación.
+
+Dinero: `BIGINT` no negativo más moneda, precios/obligaciones estrictamente positivos. Wire: `{ "amountMinor": "1999", "currency": "USD" }`. Sólo ARS/USD, exponente 2 en v1. Se rechazan fracciones en unidades menores, negativos, notación exponencial, ceros iniciales y desbordamiento de int64. La conversión a unidades mayores devuelve texto decimal exacto, nunca `Number`; cada adaptador validará límites más estrechos y la serialización oficial de su endpoint. La biblioteca monetaria no certifica límites comerciales de Stripe/MP.
+
+`billing_access_periods` une cobertura y fuente; unicidad por obligación paga y por tenant para trial. Un pago adicional para la misma obligación se registra y alerta sin crear otro grant. `billing_adjustments` observa reembolsos/disputas por identidad externa, sin emitirlos. `billing_subscription_changes` programa cambio/nueva adhesión. `billing_audit` guarda acción, estados, IDs y correlación minimizados, no cuerpos arbitrarios.
+
+`billing_operations` coordina trabajo remoto e idempotencia por tenant/cuenta/tipo/clave, también sincronización global con tenant nulo. `request_data` sólo contiene parámetros internos permitidos y condiciones monetarias; sin credenciales, pagador ni firmas. No reutilizar el servicio actual de idempotencia que mantiene una transacción durante el callback para llamadas remotas. Persistir intención → cerrar transacción → llamar al proveedor → persistir resultado condicional por lease.
+
+`billing_webhook_inbox` deduplica por cuenta e identidad de evento; se recibe antes de conocer el tenant y se resuelve la pertenencia al consultar el recurso. En MP `data.id` identifica recurso, no evento. Conservar identidad de notificación y topic, sin suprimir futuras actualizaciones del mismo recurso. Si falta la identidad exigida por el contrato del adaptador, no inventar una identidad permanente por pago: rechazar y recuperar mediante reconciliación.
+
+Las entidades financieras usan ambiente explícito. Las FK compuestas refuerzan tenant/ambiente/cuenta; el repositorio debe verificar además consistencia de orden/suscripción/precio/moneda/modo y snapshot contractual. Las tablas globales y el inbox no requieren un tenant ficticio. No hay nuevas políticas RLS.
+
+## 3. Reglas, estados y recuperación
+
+### Acceso y cuotas
+
+Los períodos son intervalos UTC `[inicio, fin)`. Período mensual/anual significa calendario, no 30/365 días. Pagos manuales tempranos extienden desde el horizonte pago; se conserva ancla original (31 enero → último febrero → 31 marzo). Pago tardío reinicia ancla en su fecha. Para automático prevalecen las fechas comprobadas del proveedor, no un mes calculado localmente.
+
+La prueba se solicita expresamente para una versión publicada con `trialDays > 0`; consumo y grant se escriben en una transacción bloqueando la cuenta. Sin repetirla al cambiar de plan, proveedor, usuario o ambiente. Pago confirmado revoca el trial activo y concede su período pago en el mismo commit. Checkout pendiente no termina la prueba. El estado de suscripción remoto `authorized` por sí solo no acredita dinero ni acceso.
+
+Con control apagado se conserva el CMS previo; permisos/flags técnicos siguen vigentes. Encendido: sin períodos, sólo lectura; paid activo prevalece sobre trial; al finalizar paid, gracia configurada, luego lectura. Sin gracia para trial, primer pago pendiente o período revocado. Un reembolso del último período no resucita gracia del anterior. Un grant futuro no habilita acceso antes del inicio.
+
+Para escritura: acceso comercial habilitado AND RBAC AND prestación del plan AND flag técnico si existe. Lectura histórica y galerías publicadas se conservan al perder prestación/acceso. Operaciones de sesión/facturación/revocación siempre alcanzables. `hasFeature` decide prestación, no reemplaza la política de mutación ni autorización de rutas. Para recursos nuevos sin flag propio, el permiso técnico proviene del control de disponibilidad del módulo; no agregar flags editables que otorguen prestaciones.
+
+Cuotas 0/positivo/null; administrador incluido en usuarios, rechazados/borradores incluidos en testimonios. Crear/reactivar consume capacidad; eliminar/desactivar libera. Rotar cuenta como reemplazo de una key. Lectura nunca ejecuta `assertQuota`; limpiar recursos por encima del límite sigue permitido cuando hay acceso de escritura. La función pura no garantiza concurrencia: bloquear la misma cuenta, volver a contar en PostgreSQL y escribir bajo esa transacción; no usar un guard que mida y escriba después sin lock. Aplicar también a captura anónima resolviendo tenant desde slug confiable.
+
+### Estados mínimos
+
+| Recurso     | Evolución y efectos                                                                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Versión     | draft → published → archived; términos publicados inmutables                                                                                          |
+| Suscripción | pending → active/past_due; active/past_due → cancel_pending → canceled; manual agotada → ended                                                        |
+| Cambio      | requested → cancel_pending → awaiting_checkout → completed; cancelar intención no reactiva débitos automáticamente                                    |
+| Operación   | ready → processing → succeeded/uncertain/review; lease perdido no puede confirmar; consulta antes de recrear                                          |
+| Pago        | pending/failed/canceled → succeeded; no degradar éxito por notificación tardía; refunds acumulados monotónicos y chargeback confirmado terminal en v1 |
+| Grant       | creado una vez por obligación pagada; revocado sólo por su pago o sustitución del trial; no borrar historial                                          |
+
+El reducer recibe **observaciones actuales normalizadas por un adaptador tras consulta autenticada**, nunca cuerpos de webhook o parámetros del retorno. Comprueba tenant, cuenta, proveedor, ambiente, referencia, obligación, importe y moneda. Cero en devolución es válido, parcial conserva acceso, total/contracargo confirmado lo revoca. `accessEffect` es una decisión pura: fase 2 debe persistirla junto con el pago y auditoría bajo lock por obligación. No acredita exactly once distribuido por sí misma.
+
+Cambiar de plan/proveedor/modalidad: confirmar baja de renovación anterior, guardar intención y horizonte; nuevo checkout sólo cuando venza cobertura, con nueva aprobación del cliente. No transferir credenciales. Si la cancelación no está confirmada, el cambio permanece pendiente. La cancelación sola no reembolsa y conserva tiempo pago; UI debe advertir si hay un cobro ya en curso que requiere reconciliación.
+
+### Recepción y reconciliación implementadas en fase 3
+
+Los webhooks autentican por proveedor; Stripe requiere bytes originales y MP su manifest documentado. Rutas exactas con modo CSRF específico de webhook que ignora cookies y exige firma; no reutilizar un bypass de API key ni desactivar CSRF globalmente. API limita tamaño y no registra cuerpo, query con IDs de pagador, firmas ni secretos. Llegan directo a NestJS: el proxy Next actual no reenvía los headers de firma y debe conservar esa allowlist salvo cambio específico probado.
+
+Persistir inbox verificado antes de ACK 2xx. Fallo de persistencia → no ACK. Poller durable reclama con SKIP LOCKED y lease/fencing; reutilizar patrón PostgreSQL, no la misma tabla de entregas salientes. Consulta el recurso de cuenta esperada y aplica efectos de negocio una vez. Estado desconocido o asociación incorrecta → revisión, nunca paid.
+
+Polling 3 s, lote 10, concurrencia 2, timeout HTTP 10 s, lease 60 s renovado cada 20 s; trabajo sin lease no publica. Backoff con jitter, `Retry-After` hasta 24 h y máximo diez intentos remotos antes de revisión. Un timeout de creación obliga a consultar por referencia/operación y paginar; no recrear por ausencia temporal. El replay de operador preserva identidad e incertidumbre.
+
+Reconciliación durable cada 15 min para contratos automáticos activos y obligaciones manuales impagas; diaria para contratos automáticos cancelados/finalizados y períodos manuales pagados. Cada obligación manual conserva su checkout original y se consulta independientemente. Sólo los proveedores ejecutan renovaciones. Factura nativa identifica el ciclo; vincular pago, obligación y grant una vez dentro de la transacción que confirma la tarea. Ver detalles, excepción del SDK MP para contracargos, configuración de firmas y límites de evidencia en el [runbook](../operations/33_billing_integrations.md).
+
+## 4. Contrato HTTP implementado
+
+Prefijo `/api/v1`. DTOs Zod estrictos: rechazar campos extra. Envelopes existentes `{success, data, meta?}`, Problem Details y `private, no-store`. UUID, instantes ISO UTC e importes como cadenas de unidades menores. `Idempotency-Key` obligatorio para cada POST/PATCH financiero: ámbito tenant/principal/ruta, hash canónico del contenido, recibo y efecto local en la misma transacción; reusar con otro contenido devuelve 409. Las llamadas externas quedan fuera de esa transacción.
+
+| Método/ruta                                       | Actor                         | Resultado bajo `data`                                                                                                  |
+| ------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| GET `/billing/entitlements`                       | admin/editor                  | acceso, términos/prestaciones, cuotas/uso y capacidad operadora propia; sin suscripción ni cambios financieros         |
+| GET `/billing/capabilities`                       | admin/editor                  | `{platformBillingOperator}` comprobado en BD                                                                           |
+| GET `/billing/summary`                            | admin                         | runtime, versión, prueba consumida, cobertura/gracia, uso, suscripción, cambio y operación pendiente propia            |
+| GET `/billing/catalog`                            | admin                         | planes no archivados/versiones publicadas; precios locales y `ready` por cuenta configurada                            |
+| POST `/billing/trial`                             | admin                         | `{planVersionId}`; 201 período de prueba, una vez por tenant                                                           |
+| POST `/billing/checkouts`                         | admin                         | `{priceId, mode}`; 202 `{operationId}` durable                                                                         |
+| GET `/billing/operations/:id`                     | admin del tenant              | estado local, `paymentStatus=pending/confirmed/failed/reversed/expired`, `redirectUrl?`, código saneado                |
+| POST `/billing/subscription/cancel`               | admin                         | `{}`; 202 operación durable de cancelación                                                                             |
+| POST `/billing/subscription/changes`              | admin                         | `{priceId, mode}`; 202 `{changeId, operationId, effectiveAt}`; sin checkout anticipado                                 |
+| POST `/billing/subscription/changes/cancel`       | admin                         | `{}`; retira intención, sin reactivar renovación remota                                                                |
+| GET `/billing/payments?page=1&limit=20`           | admin                         | `{items,total,page,limit}`; importes, devoluciones, estado normalizado y fecha; límite máximo100                       |
+| GET `/platform/billing`                           | operador                      | cuentas no secretas; últimas50 operaciones, recepciones, pagos y auditorías de discrepancias                           |
+| GET `/platform/billing/catalog`                   | operador                      | catálogo global, incluidos borradores y archivos                                                                       |
+| POST `/platform/billing/plans`                    | operador                      | `{code}`; 201 plan nuevo                                                                                               |
+| POST `/platform/billing/plans/:id/versions`       | operador                      | `PlanVersionDraft`; 201 versión nueva                                                                                  |
+| PATCH `/platform/billing/versions/:id`            | operador                      | `{expectedRevision,draft}`; sólo borrador, 202                                                                         |
+| POST `/platform/billing/versions/:id/publish`     | operador                      | `{expectedRevision}`; 202 publicación inmutable                                                                        |
+| POST `/platform/billing/versions/:id/archive`     | operador                      | `{expectedRevision}`; 202, contratos anteriores conservados                                                            |
+| POST `/platform/billing/accounts`                 | operador                      | `{provider,sellerId,applicationId,configurationKey,enabled}`; 202 referencia no secreta; identidad existente inmutable |
+| POST `/platform/billing/sync`                     | operador                      | `{accountId,priceId}`; 202 `{operationId}`; sincronización separada de publicar                                        |
+| POST `/platform/billing/operations/:id/reconcile` | operador                      | `{kind: operation/inbox}`; 202 replay auditado, conserva incertidumbre e identidad                                     |
+| GET `/platform/billing/tenants/:id`               | operador                      | revisión, control comercial y acceso del UUID explícito                                                                |
+| PATCH `/platform/billing/tenants/:id/policy`      | operador                      | `{enforcementEnabled,expectedRevision}`; revisión optimista, 202                                                       |
+| POST `/platform/billing/operations/:id/simulate`  | operador y runtime simulation | `{scenario,at,cycle}`; observación local firmada e inbox durable; 202                                                  |
+| POST `/billing/webhooks/stripe` y `/mercadopago`  | firma específica              | ACK sólo tras inbox durable; no depende de sesión ni CSRF ambiental                                                    |
+
+Checkout/trial no aceptan tenant, vendedor, importe, moneda, días, ambiente o URL del navegador. El precio proviene del servidor, con modalidad y binding listos. Las URLs de retorno incluyen el UUID de operación del servidor. Consultar la URL remota es lectura autenticada fuera de transacciones; una URL ausente o timeout no crea otro checkout. El frontend admite únicamente hosts alojados previstos o el retorno local en modo simulation.
+
+`PlanVersionDraft` exige siete prestaciones, cuatro cuotas y1–4 precios únicos proveedor/moneda/período. Importe positivo int64, modalidades únicas, trial/gracia enteros no negativos; gracia omitida7. BI estadístico requiere BI. Cero es una cuota válida; `null` no limita. Una versión publicada no se edita, y publicar otra no modifica contratos anteriores. Un catálogo global está acotado a100 planes; las bandejas operativas muestran últimos50, no constituyen una exportación histórica completa.
+
+Errores: input400, sesión401, RBAC/operador/acceso/feature403, recurso ajeno404, transición/revisión/idempotencia/cuota409, cuota técnica429, configuración/proveedor503. El rechazo financiero es estado del pago, no500. La reversión del pago acreditado se informa aunque la obligación conserve el registro contable de pago; un cobro adicional no reemplaza ese respaldo.
+
+## 5. Producto y acceso comercial
+
+Rutas `/admin/billing`, `/admin/billing/return` y `/platform/billing`, composición delgada en App Router y adaptadores en `features/billing`. Admin compara moneda/período/modalidad, funciones/cuotas, inicia prueba, contrata, cancela, programa cambio y consulta historial. Editor recibe avisos/uso mínimos; el frontend no concede permisos. La autorización operadora se verifica en BD y es independiente de roles tenant.
+
+El navegador ignora estados financieros de query params. Consulta la operación propia cada3s durante hasta60s; luego mantiene consulta manual. Un rechazo, revisión o devolución no concede cobertura. No hay formulario de tarjetas en el CMS. Las confirmaciones explican trial sin tarjeta/cobro, inicio del período pago, renovación manual/automática, cese y nueva adhesión sin prorrateos.
+
+`BillingAccessModule` provee política global, con `disabled` sin consultas billing. En modo activo y tenant opt-in, `BillingCmsInterceptor` conserva lecturas, sesión, billing y revocación de keys/destinos; requiere acceso para nuevas operaciones. Flags técnicos sólo intersectan prestaciones. Las cuotas se comprueban dentro de la escritura bajo lock de tenant en usuarios, testimonios/captura pública, API keys y webhooks, incluidas activación/rotación. No se borran datos al bajar capacidad.
+
+Scoring y tracking dejan de ejecutar cuando falta prestación/acceso. El formulario público expone sólo disponibilidad de multimedia. Webhooks suspendidos preservan el ledger y se reanudan sin cargar el tiempo suspendido al presupuesto. BI consulta una vista mínima de sólo lectura antes de extracción y publicación; puede suspender estadística sin suspender BI base. Las consultas históricas y el contenido publicado se conservan. Ver [guía del producto y worker](../operations/34_billing_product.md).
+
+Runtime `disabled|simulation|sandbox`, default disabled. `live` se rechaza. Simulación local firmada está implementada y prohibida en producción; no importa `test/**`. Claves externas únicamente en servidor según [guía33](../operations/33_billing_integrations.md); métodos/elegibilidad/HTTPS y cuentas requieren configuración y aceptación externas.
+
+## 6. Aceptación por ambiente
+
+Dominio/simuladores, PostgreSQL real descartable, HTTP real con proveedor simulado, componentes con mocks e inspección visual son evidencias distintas. La fase4 conecta API/UI y políticas; la fase5 requiere ACK específico para E2E completo y sandbox externo. Prueba única, cuotas concurrentes, aislamiento, permisos, dinero/identidad manipulado, replays, cancelación y reversión se validan localmente sin acreditar renovaciones reales de MP o Stripe. No se habilita producción ni se migra un entorno persistente con esta evidencia.
+
+## Aceptación y worker manual (fase 5)
+
+`worker.cli.ts --once UUID_OPERADOR --apply` requiere modo habilitado, `BILLING_WORKER_DATABASE_URL` externo y operador vigente en BD. Procesa una tanda con los mismos leases y verificaciones del polling; en simulación selecciona exclusivamente cuentas sandbox habilitadas con referencia `BILLING_SIMULATION`. No agrega un motor de débitos. Ver [aceptación local y preparación sandbox](../operations/35_billing_acceptance.md); sus resultados no certifican renovaciones externas.
+
+## Corrección de recuperación financiera — 2026-10-25
+
+Fase 1 del [plan de correcciones](../plan/2026-10-25_fix-billing-review.md). Cada checkout nuevo conserva `checkoutSubmission=not_started` en metadatos internos; bajo lease se marca `possibly_submitted` antes de invocar la creación remota. Sólo la prueba durable de no envío permite crear tras un fallo/reinicio/replay; los casos posiblemente enviados o legados inciertos siguen buscando/reconciliando, sin reemplazar identidad ni clave. Estos metadatos no cambian el hash del contenido solicitado.
+
+Una consulta autenticada a Stripe puede acreditar un checkout vencido impago sin adhesión remota. Tras validar la asociación local y bajo lock/fencing, se cierra orden/obligación, conservando pagos y cobertura existentes; una contratación inicial sin cobertura termina. La UI muestra `paymentStatus=expired` y permite otra selección expresa, sin redirección ni cobro automático. Duplicados no repiten efectos; contradicciones quedan en revisión. No se infiere este estado para Mercado Pago ni desde el retorno del navegador.
+
+La actualización debe coordinar el reinicio de todos los procesadores financieros antes de consumir operaciones con los nuevos metadatos: un worker anterior no registra la marca de posible envío. La expiración se basa en el [estado autenticado de Checkout de Stripe](https://docs.stripe.com/api/checkout/sessions/object), no en la antigüedad local ni en parámetros del navegador.

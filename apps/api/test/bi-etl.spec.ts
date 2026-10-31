@@ -39,14 +39,27 @@ describe('independent ETL configuration and UTC', () => {
 describe('ETL lifecycle', () => {
   const lease = { tenantId: 'tenant', runId: 'run', token: 'token', slot: hourUtc(new Date()), deadline: Date.now() + 300000 };
   const warehouse = { operations: false, claim: jest.fn(), heartbeat: jest.fn(), snapshot: jest.fn(), extracted: jest.fn(), publish: jest.fn(), status: jest.fn(), fail: jest.fn() };
-  const source = { extract: jest.fn() };
+  const source = { extract: jest.fn(), commercialEligibility:jest.fn() };
   const service = new EtlService(source as any, warehouse as any);
   beforeEach(() => {
-    jest.resetAllMocks(); warehouse.operations = false; warehouse.claim.mockResolvedValue(lease); warehouse.status.mockResolvedValue('running');
+    jest.resetAllMocks(); source.commercialEligibility.mockResolvedValue({bi:true,statistics:true}); warehouse.operations = false; warehouse.claim.mockResolvedValue(lease); warehouse.status.mockResolvedValue('running');
     source.extract.mockImplementation(async (_tenant, consumer) => {
       await consumer.snapshot({ tenantId: 'tenant', name: 'Synthetic', isActive: true, at: new Date() });
       return { categories: 0n, testimonials: 0n, events: 0n };
     });
+  });
+  it('does not claim or extract a tenant without commercial BI eligibility',async()=>{
+    source.commercialEligibility.mockResolvedValue({bi:false,statistics:false});
+    expect(await service.runTenant('tenant')).toMatchObject({status:'skipped',code:'BI_BILLING_SUSPENDED'});expect(warehouse.claim).not.toHaveBeenCalled();expect(source.extract).not.toHaveBeenCalled();
+  });
+  it('publishes BI base while explicitly suppressing optional statistics',async()=>{
+    source.commercialEligibility.mockResolvedValue({bi:true,statistics:false});
+    expect(await service.runTenant('tenant')).toMatchObject({status:'succeeded'});
+    expect(warehouse.publish).toHaveBeenCalledWith(lease,expect.objectContaining({tenantId:'tenant',at:expect.any(Date)}),{categories:0n,testimonials:0n,events:0n},false);
+  });
+  it('does not re-extract or publish after commercial permission is withdrawn before publication',async()=>{
+    source.commercialEligibility.mockResolvedValueOnce({bi:true,statistics:true}).mockResolvedValue({bi:false,statistics:false});
+    expect(await service.runTenant('tenant')).toMatchObject({status:'failed',code:'BI_BILLING_SUSPENDED'});expect(warehouse.publish).not.toHaveBeenCalled();expect(source.extract).toHaveBeenCalledTimes(1);
   });
   it('resolves an ambiguous response after a committed publication without retrying', async () => {
     warehouse.publish.mockRejectedValueOnce(new Error('connection closed after commit'));
@@ -111,7 +124,7 @@ describe('tenant-scoped scoring orchestration', () => {
     const now = new Date();
     const repo = { findScoringTenantIds: jest.fn().mockResolvedValue(['a', 'b']),
       findPublishedForScoring: jest.fn().mockImplementation(async (tenant: string) => [{ id: `${tenant}-testimonial`, rating: 5, publishedAt: now }]),
-      updateScores: jest.fn() };
+      updateScores: jest.fn().mockResolvedValue(1) };
     const analytics = { getEngagementCounts: jest.fn().mockResolvedValue(new Map([['a-testimonial', { views: 10, clicks: 2 }]])) };
     await new ScoringService(repo as any, analytics as any).processScores();
     expect(analytics.getEngagementCounts).toHaveBeenNthCalledWith(1, 'a', ['a-testimonial']);

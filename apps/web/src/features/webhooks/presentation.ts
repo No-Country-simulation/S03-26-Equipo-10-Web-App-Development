@@ -8,6 +8,7 @@ export const dateLabel = (date: string) =>
   new Date(date).toLocaleString('es-AR', { timeZoneName: 'short' });
 export const deliveryLabels: Record<string, string> = {
   pending: 'Pendiente',
+  suspended: 'Suspendida por el plan',
   processing: 'En proceso',
   success: 'Entregada',
   dead: 'Sin entrega',

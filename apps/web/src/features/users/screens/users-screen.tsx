@@ -1,4 +1,5 @@
 'use client';
+import { BillingQuotaNote } from '@/features/billing/components/billing-scope';
 
 import {
   useCallback,
@@ -184,6 +185,7 @@ export default function UsersPage() {
           Refrescar
         </Button>
       </DashboardHeader>
+      <BillingQuotaNote quota="active_users" />
       {successMessage && (
         <ActionFeedback kind="success">{successMessage}</ActionFeedback>
       )}

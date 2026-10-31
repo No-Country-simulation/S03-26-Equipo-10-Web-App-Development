@@ -1,4 +1,5 @@
 'use client';
+import { BillingQuotaNote } from '@/features/billing/components/billing-scope';
 import {
   Fragment,
   useCallback,
@@ -409,6 +410,7 @@ export default function WebhooksPage() {
           Actualizar destinos
         </Button>
       </DashboardHeader>
+      <BillingQuotaNote quota="active_webhooks" />
       <details className="mb-6 font-body text-sm">
         <summary className="w-fit cursor-pointer py-2 font-medium underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
           Cómo conectar un receptor

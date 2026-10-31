@@ -4,7 +4,8 @@ import {
   InternalError,
   NotFoundError,
 } from '../../../common/errors/application.error';
-import { Injectable } from '@nestjs/common';
+import { BillingAccessRepository } from '../../billing/access';
+import { Optional, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { enqueueWebhookEvent } from '../../webhooks';
@@ -53,7 +54,10 @@ const testimonialInclude = {
 
 @Injectable()
 export class TestimonialRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly commercial?: BillingAccessRepository,
+  ) {}
 
   async findById(
     tenantId: string,
@@ -79,6 +83,10 @@ export class TestimonialRepository {
     client?: Prisma.TransactionClient,
   ): Promise<TestimonialView> {
     const write = async (tx: Prisma.TransactionClient) => {
+      await this.commercial?.checkMutation(data.tenantId, tx, {
+        quota: 'stored_testimonials',
+        increase: 1,
+      });
       await this.assertReferencesBelongToTenant(
         tx,
         data.tenantId,
@@ -442,6 +450,11 @@ export class TestimonialRepository {
   async findPublishedForScoring(
     tenantId: string,
   ): Promise<Array<{ id: string; rating: number; publishedAt: Date | null }>> {
+    if (
+      this.commercial &&
+      !(await this.commercial.canFeature(tenantId, 'scoring'))
+    )
+      return [];
     const publishedStatusId = await this.resolveStatusId('published');
     return this.prisma.testimonial.findMany({
       where: {
@@ -463,13 +476,19 @@ export class TestimonialRepository {
   async updateScores(
     tenantId: string,
     updates: { id: string; score: number }[],
-  ): Promise<void> {
-    if (updates.length === 0) return;
+  ): Promise<number> {
+    if (updates.length === 0) return 0;
 
     // Use withRetry to handle transient deadlocks during batch score updates (R-1)
-    await this.prisma.withRetry(async (tx) => {
+    return this.prisma.withRetry(async (tx) => {
+      if (
+        this.commercial &&
+        !(await this.commercial.canFeatureForUpdate(tenantId, 'scoring', tx))
+      )
+        return 0;
+      let updatedCount = 0;
       for (const { id, score } of updates) {
-        await tx.testimonial.updateMany({
+        const result = await tx.testimonial.updateMany({
           where: {
             id,
             tenantId,
@@ -485,7 +504,9 @@ export class TestimonialRepository {
           },
           data: { score },
         });
+        updatedCount += result.count;
       }
+      return updatedCount;
     });
   }
 

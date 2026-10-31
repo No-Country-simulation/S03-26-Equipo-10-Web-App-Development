@@ -20,6 +20,7 @@ type FormInfo = {
   name: string;
   isPublicFormEnabled: boolean;
   logoUrl: string | null;
+  mediaEnabled: boolean;
 };
 type FormState =
   | { status: 'loading' }
@@ -429,80 +430,82 @@ function CaptureForm({ slug }: { slug: string }) {
                 className={fieldClass}
               />
             </div>
-            <div className="mb-8 grid min-w-0 gap-6 sm:grid-cols-2">
-              <div className="min-w-0">
-                <label htmlFor="capture-image" className={labelClass}>
-                  Foto (opcional)
-                </label>
-                <p
-                  id="capture-image-help"
-                  className="mb-3 font-body text-sm text-muted-foreground"
-                >
-                  PNG, JPEG o WebP, hasta 10 MiB.
-                </p>
-                <input
-                  ref={fileInput}
-                  id="capture-image"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  disabled={submitting || reading}
-                  onChange={(e) => selectImage(e.target.files?.[0])}
-                  aria-describedby={`capture-image-help${imageError ? ' capture-image-error' : ''}`}
-                  className="block min-h-12 w-full min-w-0 max-w-full border bg-transparent p-2 font-body text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-                />
-                {reading && (
-                  <p role="status" className="mt-2 font-body text-sm">
-                    Leyendo foto…
-                  </p>
-                )}
-                {imageError && (
+            {formState.info.mediaEnabled !== false && (
+              <div className="mb-8 grid min-w-0 gap-6 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <label htmlFor="capture-image" className={labelClass}>
+                    Foto (opcional)
+                  </label>
                   <p
-                    role="alert"
-                    id="capture-image-error"
-                    className="mt-2 font-body text-sm text-destructive"
+                    id="capture-image-help"
+                    className="mb-3 font-body text-sm text-muted-foreground"
                   >
-                    {imageError}
+                    PNG, JPEG o WebP, hasta 10 MiB.
                   </p>
-                )}
-                {(imageBase64 || imageError) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-3"
+                  <input
+                    ref={fileInput}
+                    id="capture-image"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
                     disabled={submitting || reading}
-                    onClick={() => {
-                      clearImage();
-                      setSubmitError(null);
-                      fileInput.current?.focus();
-                    }}
+                    onChange={(e) => selectImage(e.target.files?.[0])}
+                    aria-describedby={`capture-image-help${imageError ? ' capture-image-error' : ''}`}
+                    className="block min-h-12 w-full min-w-0 max-w-full border bg-transparent p-2 font-body text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                  />
+                  {reading && (
+                    <p role="status" className="mt-2 font-body text-sm">
+                      Leyendo foto…
+                    </p>
+                  )}
+                  {imageError && (
+                    <p
+                      role="alert"
+                      id="capture-image-error"
+                      className="mt-2 font-body text-sm text-destructive"
+                    >
+                      {imageError}
+                    </p>
+                  )}
+                  {(imageBase64 || imageError) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-3"
+                      disabled={submitting || reading}
+                      onClick={() => {
+                        clearImage();
+                        setSubmitError(null);
+                        fileInput.current?.focus();
+                      }}
+                    >
+                      Quitar foto
+                    </Button>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <label htmlFor="capture-video" className={labelClass}>
+                    Video de YouTube (opcional)
+                  </label>
+                  <p
+                    id="capture-video-help"
+                    className="mb-3 font-body text-sm text-muted-foreground"
                   >
-                    Quitar foto
-                  </Button>
-                )}
+                    Enlace HTTPS de youtu.be o youtube.com/watch.
+                  </p>
+                  <input
+                    id="capture-video"
+                    type="url"
+                    name="videoUrl"
+                    inputMode="url"
+                    value={videoUrl}
+                    readOnly={submitting}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    aria-describedby="capture-video-help"
+                    className={fieldClass}
+                  />
+                </div>
               </div>
-              <div className="min-w-0">
-                <label htmlFor="capture-video" className={labelClass}>
-                  Video de YouTube (opcional)
-                </label>
-                <p
-                  id="capture-video-help"
-                  className="mb-3 font-body text-sm text-muted-foreground"
-                >
-                  Enlace HTTPS de youtu.be o youtube.com/watch.
-                </p>
-                <input
-                  id="capture-video"
-                  type="url"
-                  name="videoUrl"
-                  inputMode="url"
-                  value={videoUrl}
-                  readOnly={submitting}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  aria-describedby="capture-video-help"
-                  className={fieldClass}
-                />
-              </div>
-            </div>
+            )}
             <Button
               type="submit"
               disabled={submitting || reading}

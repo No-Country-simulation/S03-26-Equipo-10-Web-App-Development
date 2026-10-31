@@ -1,4 +1,5 @@
 'use client';
+import { BillingQuotaNote } from '@/features/billing/components/billing-scope';
 
 import { useCallback, useRef, useState, type FormEvent } from 'react';
 import { useSession } from '@/hooks/use-session';
@@ -244,6 +245,7 @@ export default function ApiKeysPage() {
           Actualizar
         </Button>
       </DashboardHeader>
+      <BillingQuotaNote quota="active_api_keys" />
       {actionMessage && (
         <ActionFeedback kind={actionMessage.kind}>
           {actionMessage.text}

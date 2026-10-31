@@ -15,6 +15,7 @@ const connectorError = (code: string) =>
 
 function repositoryFailingDeletion(error: unknown) {
   const tx = {
+    $executeRaw: jest.fn(),
     testimonial: { updateMany: jest.fn() },
     apiKey: { updateMany: jest.fn() },
     user: { deleteMany: jest.fn().mockRejectedValue(error) },

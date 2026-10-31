@@ -1,5 +1,7 @@
 import { NotFoundError } from '../../../common/errors/application.error';
-import { Injectable } from '@nestjs/common';
+import { BillingAccessRepository } from '../../billing/access';
+import type { BillingFeature } from '../../billing/domain/billing.types';
+import { Optional, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { IFeatureFlagEvaluator } from '../../../common/interfaces/feature-flag-evaluator.interface';
 
@@ -19,7 +21,10 @@ export interface FeatureFlagSetResult {
 
 @Injectable()
 export class FeatureFlagRepository implements IFeatureFlagEvaluator {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly commercial?: BillingAccessRepository,
+  ) {}
 
   async findAll(tenantId: string): Promise<FeatureFlagView[]> {
     const flags = await this.prisma.featureFlag.findMany({
@@ -29,7 +34,7 @@ export class FeatureFlagRepository implements IFeatureFlagEvaluator {
       orderBy: { name: 'asc' },
     });
 
-    return flags.map(flag => ({
+    return flags.map((flag) => ({
       id: flag.id,
       name: flag.name,
       description: flag.description,
@@ -37,7 +42,10 @@ export class FeatureFlagRepository implements IFeatureFlagEvaluator {
     }));
   }
 
-  async findByName(tenantId: string, flagName: string): Promise<FeatureFlagView | null> {
+  async findByName(
+    tenantId: string,
+    flagName: string,
+  ): Promise<FeatureFlagView | null> {
     const flag = await this.prisma.featureFlag.findUnique({
       where: { name: flagName },
       include: {
@@ -62,11 +70,31 @@ export class FeatureFlagRepository implements IFeatureFlagEvaluator {
     });
 
     if (!flag) return false;
-    return flag.tenants[0]?.enabled ?? false;
+    const enabled = flag.tenants[0]?.enabled ?? false;
+    const features = new Map<string, BillingFeature>([
+      ['enable_analytics', 'analytics'],
+      ['enable_scoring', 'scoring'],
+      ['enable_webhooks', 'webhooks'],
+      ['business_intelligence', 'business_intelligence'],
+      ['bi_statistics', 'bi_statistics'],
+    ]);
+    const feature = features.get(flagName);
+    return (
+      enabled &&
+      (!feature ||
+        !this.commercial ||
+        (await this.commercial.canFeature(tenantId, feature)))
+    );
   }
 
-  async setFlag(tenantId: string, flagName: string, enabled: boolean): Promise<FeatureFlagSetResult> {
-    const flag = await this.prisma.featureFlag.findUnique({ where: { name: flagName } });
+  async setFlag(
+    tenantId: string,
+    flagName: string,
+    enabled: boolean,
+  ): Promise<FeatureFlagSetResult> {
+    const flag = await this.prisma.featureFlag.findUnique({
+      where: { name: flagName },
+    });
     if (!flag) throw new NotFoundError('Feature flag not found');
 
     const assignment = await this.prisma.tenantFeatureFlag.upsert({

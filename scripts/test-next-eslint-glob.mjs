@@ -4,13 +4,43 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const pluginRequire = createRequire(require.resolve('@next/eslint-plugin-next'));
+const webRequire = createRequire(new URL('../apps/web/package.json', import.meta.url));
+const configRequire = createRequire(webRequire.resolve('eslint-config-next'));
+const pluginRequire = createRequire(configRequire.resolve('@next/eslint-plugin-next'));
 const { globSync } = pluginRequire('fast-glob');
 const { getRootDirs } = pluginRequire('./utils/get-root-dirs');
-const nextPlugin = require('@next/eslint-plugin-next');
+const nextPlugin = configRequire('@next/eslint-plugin-next');
 const { Linter } = require('eslint');
+
+test('la configuración web real carga y conserva las fronteras de arquitectura en TSX', async () => {
+  const { ESLint } = require('eslint');
+  const eslint = new ESLint({
+    cwd: fileURLToPath(new URL('../apps/web/', import.meta.url)),
+  });
+  const filePath = 'src/features/testimonials/screens/lint-probe.tsx';
+  const [valid] = await eslint.lintText(
+    'export default function Probe() { return <p>Prueba</p>; }',
+    { filePath },
+  );
+  assert.equal(valid.errorCount, 0);
+  assert.equal(valid.warningCount, 0);
+
+  const [invalid] = await eslint.lintText(
+    "import { service } from '@testimonial-cms/api';\n" +
+      "import { requestApi } from '@/lib/api';\n" +
+      'export default function Probe() { return <p>{String(service ?? requestApi)}</p>; }',
+    { filePath },
+  );
+  assert.ok(
+    invalid.messages.some(({ ruleId }) => ruleId === 'no-restricted-imports'),
+  );
+  assert.ok(
+    invalid.messages.some(({ ruleId }) => ruleId === 'no-restricted-syntax'),
+  );
+});
 
 test('el buscador de Next conserva directorios, patrones y reglas de enlaces', () => {
   const fixture = mkdtempSync(join(tmpdir(), 'next-lint-glob-'));

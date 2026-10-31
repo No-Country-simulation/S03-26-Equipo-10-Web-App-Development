@@ -75,7 +75,8 @@ describe('conditional tenant writes', () => {
   it('maps a user disappearing during update to not found', async () => {
     const update = jest.fn().mockRejectedValue(missing);
     const repo = new UserRepository({
-      user: { update },
+      $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
+        work({ user: { update }, $executeRaw: jest.fn() }),
     } as unknown as PrismaService);
     await expect(
       repo.update({ tenantId: 'tenant-a', userId: 'user-a', isActive: false }),
@@ -99,7 +100,8 @@ describe('conditional tenant writes', () => {
     };
     const update = jest.fn().mockResolvedValue(user);
     const repo = new UserRepository({
-      user: { update },
+      $transaction: async (work: (tx: unknown) => Promise<unknown>) =>
+        work({ user: { update }, $executeRaw: jest.fn() }),
     } as unknown as PrismaService);
 
     await expect(
@@ -114,6 +116,7 @@ describe('conditional tenant writes', () => {
   it('does not claim a user deletion when no scoped row was removed', async () => {
     const deleteMany = jest.fn().mockResolvedValue({ count: 0 });
     const tx = {
+      $executeRaw: jest.fn(),
       testimonial: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       apiKey: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       user: { deleteMany },

@@ -35,6 +35,24 @@ describe('PublicCapturePage', () => {
       .mockResolvedValue({ status: 'success', id: 'one', failedMedia: [] });
   });
 
+  it('hides optional media when the tenant commercial policy excludes it', async () => {
+    getFormInfo.mockResolvedValue({
+      name: 'Synthetic',
+      isPublicFormEnabled: true,
+      logoUrl: null,
+      mediaEnabled: false,
+    });
+    render(<PublicCapturePage />);
+    await screen.findByLabelText(/Nombre/);
+    expect(screen.queryByLabelText('Foto (opcional)')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText('Video de YouTube (opcional)'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Enviar testimonio' }),
+    ).toBeEnabled();
+  });
+
   it('resets an image failure when navigating to another public slug', async () => {
     getFormInfo.mockResolvedValue({
       name: 'Acme',

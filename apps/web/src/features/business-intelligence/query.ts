@@ -45,8 +45,8 @@ const querySchema = z
       .default('summary'),
     from: daySchema.optional(),
     to: daySchema.optional(),
-    page: page.default('1'),
-    requestPage: page.default('1'),
+    page: page.default(1),
+    requestPage: page.default(1),
     status: z.enum(['running', 'succeeded', 'failed', 'abandoned']).optional(),
     origin: z
       .enum(['legacy', 'scheduled', 'cli', 'manual', 'retry'])
